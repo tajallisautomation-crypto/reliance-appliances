@@ -12,11 +12,12 @@ export interface InstallmentPlan {
 }
 
 export interface Product {
-  id:          string;
-  brand:       string;
-  model:       string;
-  category:    string;
-  slug:        string;
+  id:           string;
+  brand:        string;
+  model:        string;
+  category:     string;
+  sub_category: string;
+  slug:         string;
   description: string;
   specs:       Record<string, string>;
   tags:        string;
@@ -40,10 +41,16 @@ export interface Product {
   seo: { title: string; description: string; keywords: string };
 }
 
-export interface Category {
+export interface SubCategory {
   name: string;
   slug: string;
-  icon: string;
+}
+
+export interface Category {
+  name:           string;
+  slug:           string;
+  icon:           string;
+  subcategories?: SubCategory[];
 }
 
 export interface Customer {

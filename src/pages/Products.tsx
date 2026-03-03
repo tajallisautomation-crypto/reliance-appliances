@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { Search, SlidersHorizontal, X, Grid, List } from 'lucide-react';
 import { fetchProducts, CATEGORIES, formatPrice, slugifyCategory } from '@/lib/api';
-import type { Product } from '@/lib/types';
+import type { Product, Category } from '@/lib/types';
 import ProductCard from '@/components/products/ProductCard';
 import SEO from '@/components/ui/SEO';
 import Spinner from '@/components/ui/Spinner';
@@ -21,7 +21,25 @@ export default function Products() {
 
   useEffect(() => { fetchProducts().then(d => { setAll(d); setLoading(false); }); }, []);
 
-  const activeCat = categorySlug ? CATEGORIES.find(c => c.slug === categorySlug) : null;
+  // Derive categories dynamically from loaded products so any category added in
+  // Sheets automatically appears — icons fall back to the static CATEGORIES map.
+  const liveCategories = useMemo<Category[]>(() => {
+    const seen = new Map<string, Category>();
+    all.forEach(p => {
+      const slug = slugifyCategory(p.category);
+      if (!seen.has(slug)) {
+        const known = CATEGORIES.find(c => c.slug === slug);
+        seen.set(slug, { name: p.category, slug, icon: known?.icon ?? '🏠', subcategories: [] });
+      }
+    });
+    // Preserve the canonical order from CATEGORIES, then append any new ones
+    const ordered: Category[] = [];
+    CATEGORIES.forEach(c => { if (seen.has(c.slug)) ordered.push(seen.get(c.slug)!); });
+    seen.forEach((cat, slug) => { if (!CATEGORIES.find(c => c.slug === slug)) ordered.push(cat); });
+    return ordered.length > 0 ? ordered : CATEGORIES;
+  }, [all]);
+
+  const activeCat = categorySlug ? liveCategories.find(c => c.slug === categorySlug) : null;
   const allBrands = [...new Set(all.map(p => p.brand))].sort();
 
   const filtered = useMemo(() => {
@@ -76,7 +94,7 @@ export default function Products() {
           className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${!activeCat ? 'bg-brand-500 text-white border-brand-500' : 'bg-white border-gray-200 text-gray-600 hover:border-brand-300'}`}>
           All
         </Link>
-        {CATEGORIES.map(c => (
+        {liveCategories.map(c => (
           <Link key={c.slug} to={`/products/category/${c.slug}`}
             className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${activeCat?.slug === c.slug ? 'bg-brand-500 text-white border-brand-500' : 'bg-white border-gray-200 text-gray-600 hover:border-brand-300'}`}>
             {c.icon} {c.name}

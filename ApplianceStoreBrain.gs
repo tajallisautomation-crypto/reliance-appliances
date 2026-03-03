@@ -135,16 +135,67 @@ function getProduct(slug) {
   return all.find(function(p) { return p.slug === slug; }) || null;
 }
 
+// Icon map for all known categories — add new categories here to give them an icon.
+// The categories themselves are always derived from Master_Products (sheet-driven).
+var _CATEGORY_ICONS = {
+  'Air Conditioners':   '❄️',
+  'Refrigerators':      '🧊',
+  'Washing Machines':   '🫧',
+  'Televisions':        '📺',
+  'Solar Solutions':    '☀️',
+  'Kitchen Appliances': '🍳',
+  'Water Dispensers':   '💧',
+  'Vacuum Cleaners':    '🌀',
+  'UPS & Power Backup': '🔋',
+  'Small Appliances':   '🔌',
+};
+
 function getCategories() {
+  var sheet = _getSheet('Master_Products');
+  var rows  = sheet.getDataRange().getValues();
+  if (rows.length < 2) return _getDefaultCategories();
+
+  var headers = rows[0];
+  var catIdx  = headers.indexOf('Category');
+  var subIdx  = headers.indexOf('Sub_Category');
+  if (catIdx < 0) return _getDefaultCategories();
+
+  // Build an ordered, deduplicated map: category → { sub_category → true }
+  var catMap   = {};
+  var catOrder = [];
+  for (var i = 1; i < rows.length; i++) {
+    var cat = (rows[i][catIdx] || '').toString().trim();
+    if (!cat) continue;
+    var sub = subIdx >= 0 ? (rows[i][subIdx] || '').toString().trim() : '';
+    if (!catMap[cat]) { catMap[cat] = {}; catOrder.push(cat); }
+    if (sub) catMap[cat][sub] = true;
+  }
+
+  var result = catOrder.map(function(cat) {
+    var slug = cat.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    var icon = _CATEGORY_ICONS[cat] || '🏠';
+    var subs = Object.keys(catMap[cat]).map(function(sub) {
+      return {
+        name: sub,
+        slug: slug + '--' + sub.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+      };
+    });
+    return { name: cat, slug: slug, icon: icon, subcategories: subs };
+  });
+
+  return result.length > 0 ? result : _getDefaultCategories();
+}
+
+function _getDefaultCategories() {
   return [
-    { name:'Air Conditioners',   slug:'air-conditioners',   icon:'❄️' },
-    { name:'Refrigerators',      slug:'refrigerators',      icon:'🧊' },
-    { name:'Washing Machines',   slug:'washing-machines',   icon:'🫧' },
-    { name:'Televisions',        slug:'televisions',        icon:'📺' },
-    { name:'Solar Solutions',    slug:'solar-solutions',    icon:'☀️' },
-    { name:'Kitchen Appliances', slug:'kitchen-appliances', icon:'🍳' },
-    { name:'Water Dispensers',   slug:'water-dispensers',   icon:'💧' },
-    { name:'Small Appliances',   slug:'small-appliances',   icon:'🔌' },
+    { name:'Air Conditioners',   slug:'air-conditioners',   icon:'❄️', subcategories:[] },
+    { name:'Refrigerators',      slug:'refrigerators',      icon:'🧊', subcategories:[] },
+    { name:'Washing Machines',   slug:'washing-machines',   icon:'🫧', subcategories:[] },
+    { name:'Televisions',        slug:'televisions',        icon:'📺', subcategories:[] },
+    { name:'Solar Solutions',    slug:'solar-solutions',    icon:'☀️', subcategories:[] },
+    { name:'Kitchen Appliances', slug:'kitchen-appliances', icon:'🍳', subcategories:[] },
+    { name:'Water Dispensers',   slug:'water-dispensers',   icon:'💧', subcategories:[] },
+    { name:'Small Appliances',   slug:'small-appliances',   icon:'🔌', subcategories:[] },
   ];
 }
 
@@ -166,12 +217,34 @@ function _rowToProduct(headers, row) {
   var thumbnail  = _isCleanImageUrl(rawMain)    ? rawMain    : '';
   var gallery    = _isCleanImageUrl(rawGallery) ? [rawGallery] : [];
 
+  // Read stored installment amounts if present; fall back to live calculation
+  // (recalculatePrices writes these columns; _rowToProduct must read them back)
+  var calc = _calcAllPlans(retailPrice);
+  var PLAN_COLS = {
+    '2m':  { adv: '2M_Advance',  mo: '2M_Monthly'  },
+    '3m':  { adv: '3M_Advance',  mo: '3M_Monthly'  },
+    '6m':  { adv: '6M_Advance',  mo: '6M_Monthly'  },
+    '12m': { adv: '12M_Advance', mo: '12M_Monthly' },
+  };
+  var plans = {};
+  ['2m','3m','6m','12m'].forEach(function(key) {
+    var storedAdv = parseFloat(obj[PLAN_COLS[key].adv]);
+    var storedMo  = parseFloat(obj[PLAN_COLS[key].mo]);
+    plans[key] = {
+      months:  calc[key].months,
+      total:   calc[key].total,
+      advance: storedAdv > 0 ? storedAdv : calc[key].advance,
+      monthly: storedMo  >= 0 && !isNaN(storedMo) ? storedMo : calc[key].monthly,
+    };
+  });
+
   return {
-    id:          obj['Product_ID']   || '',
-    brand:       obj['Brand']        || '',
-    model:       obj['Model']        || '',
-    category:    obj['Category']     || '',
-    slug:        obj['Slug']         || _slugify(obj['Brand'] + '-' + obj['Model']),
+    id:           obj['Product_ID']   || '',
+    brand:        obj['Brand']        || '',
+    model:        obj['Model']        || '',
+    category:     obj['Category']     || '',
+    sub_category: obj['Sub_Category'] || '',
+    slug:         obj['Slug']         || _slugify(obj['Brand'] + '-' + obj['Model']),
     description: obj['Description']  || '',
     specs:       specs,
     tags:        obj['Tags']         || '',
@@ -182,6 +255,7 @@ function _rowToProduct(headers, row) {
       cash_floor: cashFloor,
     },
     // !! Only PKR amounts returned — NO markup ratios, NO advance percentages
+    // Uses stored sheet values when available, live calculation as fallback
     installments: plans,
     warranty:     obj['Warranty']     || '',
     stock_status: obj['Stock_Status'] || 'In Stock',
@@ -214,6 +288,11 @@ function _importRawProducts() {
   var rawRows = raw.getDataRange().getValues();
   if (rawRows.length < 2) return;
 
+  // Build a header→index map from Raw_Import row 1 so column order never matters
+  var rawHeaders = rawRows[0];
+  var rIdx = {};
+  rawHeaders.forEach(function(h, i) { rIdx[h] = i; });
+
   var masterHeaders = master.getRange(1,1).getValue() === 'Product_ID'
     ? master.getRange(1, 1, 1, master.getLastColumn()).getValues()[0]
     : _setupMasterHeaders(master);
@@ -229,37 +308,45 @@ function _importRawProducts() {
   var added = 0;
   for (var i = 1; i < rawRows.length; i++) {
     var row = rawRows[i];
-    if (!row[0] || !row[1]) continue;
 
-    var brand    = row[0].toString().trim();
-    var model    = row[1].toString().trim();
-    var category = row[2] ? row[2].toString().trim() : _detectCategory(brand, model);
-    var minPrice = parseFloat(row[3]) || 0;
-    var slug     = _slugify(brand + '-' + model);
+    // Read every field by header name — immune to column reordering in Raw_Import
+    var brand    = (rIdx['Brand']    !== undefined ? row[rIdx['Brand']]    : '').toString().trim();
+    var model    = (rIdx['Model']    !== undefined ? row[rIdx['Model']]    : '').toString().trim();
+    var category = (rIdx['Category'] !== undefined ? row[rIdx['Category']] : '').toString().trim();
+    var minPrice = parseFloat(rIdx['Min_Price'] !== undefined ? row[rIdx['Min_Price']] : 0) || 0;
 
+    if (!brand || !model) continue;
+    // Sub_Category is always auto-detected — never manually fed in Raw_Import
+    var detected  = _detectCategoryAndSub(brand, model);
+    if (!category) category = detected.category;
+    var autoSubCat = detected.sub_category;
+
+    var slug = _slugify(brand + '-' + model);
     if (existingSlugs.indexOf(slug) >= 0) continue;
 
-    var retail   = Math.round(minPrice * 1.15);
+    var retail    = Math.round(minPrice * 1.15);
     var cashFloor = Math.round(retail * 0.95);
-    var id       = 'PROD' + (Date.now() % 100000) + i;
+    var id        = 'PROD' + (Date.now() % 100000) + i;
 
     var newRow = new Array(masterHeaders.length).fill('');
+    // Helper uses masterHeaders index map — called immediately, no closure risk
+    var mIdx = {};
+    masterHeaders.forEach(function(h, j) { mIdx[h] = j; });
     var set = function(key, val) {
-      var idx = masterHeaders.indexOf(key);
-      if (idx >= 0) newRow[idx] = val;
+      if (mIdx[key] !== undefined) newRow[mIdx[key]] = val;
     };
 
-    set('Product_ID', id);
-    set('Brand', brand);
-    set('Model', model);
-    set('Category', category);
-    set('Sub_Category', row[4] || '');
-    set('Slug', slug);
-    set('Min_Price', minPrice);
-    set('Retail_Price', retail);
-    set('Cash_Floor', cashFloor);
-    set('Stock_Status', 'In Stock');
-    set('Featured', 'FALSE');
+    set('Product_ID',  id);
+    set('Brand',       brand);
+    set('Model',       model);
+    set('Category',    category);
+    set('Sub_Category',autoSubCat);
+    set('Slug',        slug);
+    set('Min_Price',   minPrice);
+    set('Retail_Price',retail);
+    set('Cash_Floor',  cashFloor);
+    set('Stock_Status','In Stock');
+    set('Featured',    'FALSE');
     set('Import_Date', new Date().toISOString().split('T')[0]);
 
     master.appendRow(newRow);
@@ -302,12 +389,14 @@ function enrichAllProducts() {
       if (col > 0 && val) sheet.getRange(i+1, col).setValue(val);
     };
 
-    if (!obj['Description']) update('Description', enriched_data.description);
-    if (!obj['Warranty'])    update('Warranty',    enriched_data.warranty);
-    if (!obj['Tags'])        update('Tags',        enriched_data.tags);
-    if (!obj['Colors'])      update('Colors',      enriched_data.colors);
-    if (!obj['Specs_JSON'])  update('Specs_JSON',  JSON.stringify(enriched_data.specs));
-    if (!obj['Category'])    update('Category',    category);
+    if (!obj['Description'])  update('Description',  enriched_data.description);
+    if (!obj['Warranty'])     update('Warranty',     enriched_data.warranty);
+    if (!obj['Tags'])         update('Tags',         enriched_data.tags);
+    if (!obj['Colors'])       update('Colors',       enriched_data.colors);
+    if (!obj['Specs_JSON'])   update('Specs_JSON',   JSON.stringify(enriched_data.specs));
+    if (!obj['Category'])     update('Category',     category);
+    // Always backfill Sub_Category if missing — it is auto-owned by _detectCategoryAndSub
+    if (!obj['Sub_Category']) update('Sub_Category', _detectCategoryAndSub(brand, model).sub_category);
 
     // Two clean images from Drive: Image_Main (thumbnail) + Image_Gallery (one gallery shot)
     var images = _fetchImagesFromDrive(brand, model);
@@ -315,6 +404,9 @@ function enrichAllProducts() {
       if (!obj['Image_Main'])    update('Image_Main',    images.thumbnail);
       if (!obj['Image_Gallery']) update('Image_Gallery', images.gallery[0] || '');
     }
+
+    // Stamp Last_Enriched so we can track when each row was last processed
+    update('Last_Enriched', new Date().toISOString().split('T')[0]);
 
     enriched++;
     Utilities.sleep(200); // rate limit
@@ -659,11 +751,14 @@ function addCrmContact(data) {
   var sheet = _getSheet('CRM_Customers');
   var id    = 'CUST-' + Date.now().toString().slice(-7);
 
-  // Check if customer exists by phone
-  var rows = sheet.getDataRange().getValues();
+  // Check if customer exists by phone — use header lookup, not hardcoded index
+  var rows        = sheet.getDataRange().getValues();
+  var crmHeaders  = rows[0];
+  var phoneColIdx = crmHeaders.indexOf('Phone');
+  var idColIdx    = crmHeaders.indexOf('Customer_ID');
   for (var i = 1; i < rows.length; i++) {
-    if (rows[i][2] === data.phone) {
-      return { success: true, customerId: rows[i][0], existing: true };
+    if (phoneColIdx >= 0 && rows[i][phoneColIdx] === data.phone) {
+      return { success: true, customerId: rows[i][idColIdx >= 0 ? idColIdx : 0], existing: true };
     }
   }
 
@@ -834,16 +929,17 @@ function recalculatePrices() {
   var updated   = 0;
 
   // Column indexes
-  var retailCol   = headers.indexOf('Retail_Price') + 1;
-  var cashCol     = headers.indexOf('Cash_Floor') + 1;
-  var p2mACol     = headers.indexOf('2M_Advance') + 1;
-  var p2mMCol     = headers.indexOf('2M_Monthly') + 1;
-  var p3mACol     = headers.indexOf('3M_Advance') + 1;
-  var p3mMCol     = headers.indexOf('3M_Monthly') + 1;
-  var p6mACol     = headers.indexOf('6M_Advance') + 1;
-  var p6mMCol     = headers.indexOf('6M_Monthly') + 1;
-  var p12mACol    = headers.indexOf('12M_Advance') + 1;
-  var p12mMCol    = headers.indexOf('12M_Monthly') + 1;
+  var retailCol    = headers.indexOf('Retail_Price') + 1;
+  var cashCol      = headers.indexOf('Cash_Floor') + 1;
+  var p2mACol      = headers.indexOf('2M_Advance') + 1;
+  var p2mMCol      = headers.indexOf('2M_Monthly') + 1;
+  var p3mACol      = headers.indexOf('3M_Advance') + 1;
+  var p3mMCol      = headers.indexOf('3M_Monthly') + 1;
+  var p6mACol      = headers.indexOf('6M_Advance') + 1;
+  var p6mMCol      = headers.indexOf('6M_Monthly') + 1;
+  var p12mACol     = headers.indexOf('12M_Advance') + 1;
+  var p12mMCol     = headers.indexOf('12M_Monthly') + 1;
+  var lastUpdCol   = headers.indexOf('Last_Updated') + 1;
 
   for (var i = 1; i < rows.length; i++) {
     var row    = rows[i];
@@ -856,14 +952,16 @@ function recalculatePrices() {
 
     if (cashCol > 0 && !rows[i][cashCol-1]) sheet.getRange(i+1, cashCol).setValue(cash);
     // Store PKR amounts in installment columns — no ratios stored here
-    if (p2mACol > 0)  sheet.getRange(i+1, p2mACol).setValue(plans['2m'].advance);
-    if (p2mMCol > 0)  sheet.getRange(i+1, p2mMCol).setValue(plans['2m'].monthly);
-    if (p3mACol > 0)  sheet.getRange(i+1, p3mACol).setValue(plans['3m'].advance);
-    if (p3mMCol > 0)  sheet.getRange(i+1, p3mMCol).setValue(plans['3m'].monthly);
-    if (p6mACol > 0)  sheet.getRange(i+1, p6mACol).setValue(plans['6m'].advance);
-    if (p6mMCol > 0)  sheet.getRange(i+1, p6mMCol).setValue(plans['6m'].monthly);
-    if (p12mACol > 0) sheet.getRange(i+1, p12mACol).setValue(plans['12m'].advance);
-    if (p12mMCol > 0) sheet.getRange(i+1, p12mMCol).setValue(plans['12m'].monthly);
+    if (p2mACol > 0)   sheet.getRange(i+1, p2mACol).setValue(plans['2m'].advance);
+    if (p2mMCol > 0)   sheet.getRange(i+1, p2mMCol).setValue(plans['2m'].monthly);
+    if (p3mACol > 0)   sheet.getRange(i+1, p3mACol).setValue(plans['3m'].advance);
+    if (p3mMCol > 0)   sheet.getRange(i+1, p3mMCol).setValue(plans['3m'].monthly);
+    if (p6mACol > 0)   sheet.getRange(i+1, p6mACol).setValue(plans['6m'].advance);
+    if (p6mMCol > 0)   sheet.getRange(i+1, p6mMCol).setValue(plans['6m'].monthly);
+    if (p12mACol > 0)  sheet.getRange(i+1, p12mACol).setValue(plans['12m'].advance);
+    if (p12mMCol > 0)  sheet.getRange(i+1, p12mMCol).setValue(plans['12m'].monthly);
+    // Stamp Last_Updated so the API can tell clients when prices were last refreshed
+    if (lastUpdCol > 0) sheet.getRange(i+1, lastUpdCol).setValue(new Date().toISOString().split('T')[0]);
 
     updated++;
   }
@@ -1143,7 +1241,7 @@ function setupAllSheets() {
 
   var SHEET_CONFIGS = {
     'Raw_Import': [
-      'Brand','Model','Category','Sub_Category','Min_Price','Notes','Date_Added'
+      'Brand','Model','Category','Min_Price','Notes','Date_Added'
     ],
     'Master_Products': [
       'Product_ID','Brand','Model','Category','Sub_Category','Slug','Description',
@@ -1318,15 +1416,117 @@ function _getSheet(name) {
 }
 
 function _detectCategory(brand, model) {
+  return _detectCategoryAndSub(brand, model).category;
+}
+
+// Returns { category, sub_category } — both auto-detected from brand + model text.
+// Sub_Category is never entered manually; this function owns it entirely.
+function _detectCategoryAndSub(brand, model) {
   var m = (brand + ' ' + model).toLowerCase();
-  if (m.includes('hsu') || m.includes(' ac') || m.includes('inverter') || m.includes('split') || m.includes('fairy') || m.includes('pular') || m.includes('awn')) return 'Air Conditioners';
-  if (m.includes('chrome') || m.includes('fridge') || m.includes('refrig') || m.includes('9150') || m.includes('9170')) return 'Refrigerators';
-  if (m.includes('wash') || m.includes('wm') || m.includes('laundry')) return 'Washing Machines';
-  if (m.includes('tv') || m.includes('oled') || m.includes('qled') || m.includes('crystal') || m.includes('uhd') || m.includes('55') || m.includes('65')) return 'Televisions';
-  if (m.includes('solar') || m.includes('panel') || m.includes('jinko') || m.includes('canadian') || m.includes('longi') || m.includes('huawei') || m.includes('growatt')) return 'Solar Solutions';
-  if (m.includes('dispenser') || m.includes('water')) return 'Water Dispensers';
-  if (m.includes('micro') || m.includes('oven') || m.includes('toaster') || m.includes('blender') || m.includes('juicer')) return 'Kitchen Appliances';
-  return 'Small Appliances';
+
+  // ── Air Conditioners ──────────────────────────────────────────────────
+  if (m.includes('hsu') || m.includes(' ac') || m.includes('split') ||
+      m.includes('fairy') || m.includes('pular') || m.includes('awn') ||
+      m.includes('floor stand') || m.includes('cassette') ||
+      // brand signals
+      m.includes('gree') || m.includes('daikin') || m.includes('hisense ac')) {
+    var sub = 'Split AC';
+    if (m.includes('dc inverter') || m.includes('inverter')) sub = 'DC Inverter AC';
+    if (m.includes('cassette'))   sub = 'Cassette AC';
+    if (m.includes('floor stand') || m.includes('floor-stand')) sub = 'Floor-Standing AC';
+    if (m.includes('window'))     sub = 'Window AC';
+    if (m.includes('portable'))   sub = 'Portable AC';
+    return { category: 'Air Conditioners', sub_category: sub };
+  }
+
+  // ── Refrigerators ─────────────────────────────────────────────────────
+  if (m.includes('chrome') || m.includes('fridge') || m.includes('refrig') ||
+      m.includes('9150')   || m.includes('9170')   || m.includes('9175') ||
+      m.includes('freezer') || m.includes('deep freeze')) {
+    var sub = 'Double Door';
+    if (m.includes('single') || m.includes('1 door')) sub = 'Single Door';
+    if (m.includes('side by side') || m.includes('french door')) sub = 'Side-by-Side';
+    if (m.includes('deep freeze') || m.includes('chest freez')) sub = 'Deep Freezer';
+    if (m.includes('mini') || m.includes('bar fridge')) sub = 'Mini Fridge';
+    return { category: 'Refrigerators', sub_category: sub };
+  }
+
+  // ── Washing Machines ──────────────────────────────────────────────────
+  if (m.includes('wash') || m.includes('laundry') || m.includes('hwm') ||
+      m.includes('wm') || m.includes('dryer')) {
+    var sub = 'Semi-Automatic';
+    if (m.includes('fully') || m.includes('automatic') || m.includes('front load') || m.includes('fl')) sub = 'Fully Automatic';
+    if (m.includes('front load') || m.includes('front-load')) sub = 'Front Load';
+    if (m.includes('top load')   || m.includes('top-load'))   sub = 'Top Load';
+    if (m.includes('dryer'))      sub = 'Dryer';
+    return { category: 'Washing Machines', sub_category: sub };
+  }
+
+  // ── Televisions ───────────────────────────────────────────────────────
+  if (m.includes(' tv') || m.includes('oled') || m.includes('qled') ||
+      m.includes('crystal') || m.includes('uhd') || m.includes('neo qled') ||
+      m.includes('smart tv') || m.includes('led tv')) {
+    var sub = 'Smart TV';
+    if (m.includes('oled'))          sub = 'OLED TV';
+    if (m.includes('qled') || m.includes('neo qled')) sub = 'QLED TV';
+    if (m.includes('4k') || m.includes('uhd'))        sub = '4K UHD TV';
+    if (m.includes('8k'))             sub = '8K TV';
+    if (m.includes('frame') || m.includes('the frame')) sub = 'Lifestyle TV';
+    return { category: 'Televisions', sub_category: sub };
+  }
+
+  // ── Solar Solutions ───────────────────────────────────────────────────
+  if (m.includes('solar') || m.includes('panel') || m.includes('jinko') ||
+      m.includes('canadian') || m.includes('longi') || m.includes('huawei') ||
+      m.includes('growatt') || m.includes('inverex') || m.includes('solis') ||
+      m.includes('deye') || m.includes('goodwe')) {
+    var sub = 'Solar Panel';
+    if (m.includes('inverter') || m.includes('huawei') || m.includes('growatt') ||
+        m.includes('inverex') || m.includes('solis') || m.includes('deye') ||
+        m.includes('goodwe')) sub = 'Solar Inverter';
+    if (m.includes('battery') || m.includes('pylontech') || m.includes('bms')) sub = 'Solar Battery';
+    if (m.includes('system') || m.includes('complete') || m.includes('kit')) sub = 'Complete Solar System';
+    if (m.includes('structure') || m.includes('mounting')) sub = 'Mounting Structure';
+    return { category: 'Solar Solutions', sub_category: sub };
+  }
+
+  // ── Water Dispensers ──────────────────────────────────────────────────
+  if (m.includes('dispenser') || m.includes('water cooler') || m.includes('water heater') ||
+      m.includes('geyser') || m.includes('instant heat')) {
+    var sub = 'Water Dispenser';
+    if (m.includes('geyser') || m.includes('water heater') || m.includes('instant heat')) sub = 'Water Heater / Geyser';
+    if (m.includes('purif') || m.includes('ro filter') || m.includes('reverse osmosis')) sub = 'Water Purifier';
+    return { category: 'Water Dispensers', sub_category: sub };
+  }
+
+  // ── Kitchen Appliances ────────────────────────────────────────────────
+  if (m.includes('micro') || m.includes('oven') || m.includes('toaster') ||
+      m.includes('blender') || m.includes('juicer') || m.includes('rice cooker') ||
+      m.includes('food processor') || m.includes('air fryer') || m.includes('kettle') ||
+      m.includes('iron') || m.includes('sandwich')) {
+    var sub = 'Kitchen Appliance';
+    if (m.includes('micro'))              sub = 'Microwave Oven';
+    if (m.includes('air fryer'))          sub = 'Air Fryer';
+    if (m.includes('blender') || m.includes('juicer') || m.includes('food processor')) sub = 'Blender / Juicer';
+    if (m.includes('rice cooker'))        sub = 'Rice Cooker';
+    if (m.includes('iron'))               sub = 'Clothes Iron';
+    if (m.includes('toaster') || m.includes('sandwich')) sub = 'Toaster / Sandwich Maker';
+    return { category: 'Kitchen Appliances', sub_category: sub };
+  }
+
+  // ── Vacuum Cleaners ───────────────────────────────────────────────────
+  if (m.includes('vacuum') || m.includes('hoover') || m.includes('robot cleaner')) {
+    var sub = m.includes('robot') ? 'Robot Vacuum' : 'Vacuum Cleaner';
+    return { category: 'Vacuum Cleaners', sub_category: sub };
+  }
+
+  // ── UPS / Power Backup ────────────────────────────────────────────────
+  if (m.includes('ups') || m.includes('power backup') || m.includes('home ups') ||
+      m.includes('phoenix') || m.includes('homage')) {
+    return { category: 'UPS & Power Backup', sub_category: 'Home UPS' };
+  }
+
+  return { category: 'Small Appliances', sub_category: 'General' };
 }
 
 function _slugify(str) {

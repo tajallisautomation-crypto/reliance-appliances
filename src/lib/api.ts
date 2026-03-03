@@ -1,12 +1,20 @@
 import { SHEETS_URL } from './config';
 import type { Product, Category } from './types';
 
+// Helper: GAS always returns plain arrays; some wrappers add { data: [...] }
+function _extractArray(json: unknown): unknown[] | null {
+  if (Array.isArray(json)) return json;
+  if (json && typeof json === 'object' && Array.isArray((json as Record<string,unknown>).data))
+    return (json as Record<string,unknown>).data as unknown[];
+  return null;
+}
+
 // ── Offline fallback products (used if Sheets URL not configured) ──────────
 export const FALLBACK_PRODUCTS: Product[] = [
   {
     id: 'haier-hsu18hnf',
     brand: 'Haier', model: 'HSU-18HNF DC Inverter',
-    category: 'Air Conditioners', slug: 'haier-hsu-18hnf-dc-inverter',
+    category: 'Air Conditioners', sub_category: 'DC Inverter AC', slug: 'haier-hsu-18hnf-dc-inverter',
     description: 'Haier HSU-18HNF 1.5 Ton DC Inverter Air Conditioner with triple inverter technology, self-cleaning function, and Wi-Fi control. Ideal for rooms up to 200 sq ft.',
     specs: { Capacity:'1.5 Ton', Technology:'DC Inverter', 'Energy Rating':'5 Star', Refrigerant:'R410A', 'Air Flow':'720 m³/h', 'Noise Level':'20 dB', 'Wi-Fi':'Yes', Color:'White' },
     tags: 'inverter ac,energy saving,wifi ac,1.5 ton,cooling',
@@ -27,7 +35,7 @@ export const FALLBACK_PRODUCTS: Product[] = [
   {
     id: 'gree-gs18pith',
     brand: 'Gree', model: 'GS-18PITH Fairy Inverter',
-    category: 'Air Conditioners', slug: 'gree-gs-18pith-fairy-inverter',
+    category: 'Air Conditioners', sub_category: 'DC Inverter AC', slug: 'gree-gs-18pith-fairy-inverter',
     description: 'Gree Fairy Series 1.5 Ton DC Inverter AC with I-Feel technology, Golden Fin anti-corrosion coating, and Auto Restart function.',
     specs: { Capacity:'1.5 Ton', Technology:'DC Inverter', 'Energy Rating':'5 Star', Refrigerant:'R32', 'Auto Clean':'Yes', 'I-Feel':'Yes', Color:'White' },
     tags: 'gree ac,fairy series,inverter,1.5 ton,i-feel',
@@ -48,7 +56,7 @@ export const FALLBACK_PRODUCTS: Product[] = [
   {
     id: 'dawlance-9150',
     brand: 'Dawlance', model: '9150 Chrome Pro Refrigerator',
-    category: 'Refrigerators', slug: 'dawlance-9150-chrome-pro-refrigerator',
+    category: 'Refrigerators', sub_category: 'Double Door', slug: 'dawlance-9150-chrome-pro-refrigerator',
     description: 'Dawlance 9150 Chrome Pro 14 CFT double door refrigerator with No-Frost technology, glass shelves, and full inverter compressor for 40% energy savings.',
     specs: { Capacity:'14 CFT / 397L', Type:'Double Door', Technology:'Full Inverter', 'No Frost':'Yes', 'Energy Saving':'40%', Refrigerant:'R600a', Color:'Chrome', 'Water Dispenser':'No' },
     tags: 'dawlance fridge,no frost,inverter refrigerator,double door,14 cft',
@@ -69,7 +77,7 @@ export const FALLBACK_PRODUCTS: Product[] = [
   {
     id: 'haier-hwm70',
     brand: 'Haier', model: 'HWM 70-826S Washing Machine',
-    category: 'Washing Machines', slug: 'haier-hwm-70-826s-washing-machine',
+    category: 'Washing Machines', sub_category: 'Semi-Automatic', slug: 'haier-hwm-70-826s-washing-machine',
     description: 'Haier 7kg Semi-Automatic Washing Machine with powerful pulsator wash, 3 wash programs, and energy-efficient motor. Perfect for medium-sized families.',
     specs: { Capacity:'7 Kg', Type:'Semi-Automatic', Programs:'3 Wash + 3 Spin', Motor:'Copper Wire', 'Water Level':'5 Levels', Color:'White/Grey' },
     tags: 'haier washing machine,semi automatic,7kg,front load',
@@ -90,7 +98,7 @@ export const FALLBACK_PRODUCTS: Product[] = [
   {
     id: 'samsung-55-4k',
     brand: 'Samsung', model: '55" Crystal 4K UHD TV',
-    category: 'Televisions', slug: 'samsung-55-crystal-4k-uhd-tv',
+    category: 'Televisions', sub_category: '4K UHD TV', slug: 'samsung-55-crystal-4k-uhd-tv',
     description: 'Samsung 55-inch Crystal 4K UHD Smart TV with Crystal Processor 4K, AirSlim design, and multiple voice assistant support including Bixby and Alexa.',
     specs: { Size:'55 Inch', Resolution:'4K UHD (3840×2160)', Processor:'Crystal 4K', 'Smart TV':'Yes', OS:'Tizen', HDR:'HDR10+', Ports:'3x HDMI, 2x USB', Color:'Black' },
     tags: 'samsung tv,55 inch,4k smart tv,crystal uhd,hdr',
@@ -111,7 +119,7 @@ export const FALLBACK_PRODUCTS: Product[] = [
   {
     id: 'jinko-400w-solar',
     brand: 'Jinko', model: 'JKM400M-54HL Solar Panel',
-    category: 'Solar Solutions', slug: 'jinko-400w-mono-solar-panel',
+    category: 'Solar Solutions', sub_category: 'Solar Panel', slug: 'jinko-400w-mono-solar-panel',
     description: 'Jinko 400W Mono PERC solar panel with 21.3% efficiency, 25-year linear power output warranty, and strong mechanical load resistance up to 5400 Pa.',
     specs: { Power:'400W', Type:'Mono PERC', Efficiency:'21.3%', 'Voc':'49.6V', 'Isc':'10.27A', Dimensions:'1722×1134×35mm', Weight:'21.3 Kg', 'Wind Load':'2400 Pa', 'Snow Load':'5400 Pa' },
     tags: 'solar panel,400w,jinko,mono perc,net metering',
@@ -131,15 +139,19 @@ export const FALLBACK_PRODUCTS: Product[] = [
   },
 ];
 
+// Static fallback — used when Sheets API is unavailable.
+// New categories added in Sheets will appear automatically via fetchCategories().
 export const CATEGORIES: Category[] = [
-  { name:'Air Conditioners',  slug:'air-conditioners',  icon:'❄️' },
-  { name:'Refrigerators',     slug:'refrigerators',     icon:'🧊' },
-  { name:'Washing Machines',  slug:'washing-machines',  icon:'🫧' },
-  { name:'Televisions',       slug:'televisions',       icon:'📺' },
-  { name:'Solar Solutions',   slug:'solar-solutions',   icon:'☀️' },
-  { name:'Kitchen Appliances',slug:'kitchen-appliances',icon:'🍳' },
-  { name:'Water Heaters',     slug:'water-heaters',     icon:'🚿' },
-  { name:'Vacuum Cleaners',   slug:'vacuum-cleaners',   icon:'🌀' },
+  { name:'Air Conditioners',  slug:'air-conditioners',  icon:'❄️', subcategories:[] },
+  { name:'Refrigerators',     slug:'refrigerators',     icon:'🧊', subcategories:[] },
+  { name:'Washing Machines',  slug:'washing-machines',  icon:'🫧', subcategories:[] },
+  { name:'Televisions',       slug:'televisions',       icon:'📺', subcategories:[] },
+  { name:'Solar Solutions',   slug:'solar-solutions',   icon:'☀️', subcategories:[] },
+  { name:'Kitchen Appliances',slug:'kitchen-appliances',icon:'🍳', subcategories:[] },
+  { name:'Water Dispensers',  slug:'water-dispensers',  icon:'💧', subcategories:[] },
+  { name:'Vacuum Cleaners',   slug:'vacuum-cleaners',   icon:'🌀', subcategories:[] },
+  { name:'UPS & Power Backup',slug:'ups-power-backup',  icon:'🔋', subcategories:[] },
+  { name:'Small Appliances',  slug:'small-appliances',  icon:'🔌', subcategories:[] },
 ];
 
 // ── API layer ──────────────────────────────────────────────
@@ -155,15 +167,40 @@ export async function fetchProducts(): Promise<Product[]> {
   try {
     const res  = await fetch(`${SHEETS_URL}?action=getProducts`);
     const json = await res.json();
-    if (json.status === 'ok' && Array.isArray(json.data) && json.data.length) {
-      _productsCache = json.data;
+    // GAS returns a plain array; guard against both formats
+    const data = _extractArray(json) as Product[] | null;
+    if (data && data.length > 0) {
+      _productsCache = data;
       _cacheTime     = Date.now();
-      return json.data;
+      return data;
     }
   } catch {
     // Sheets unreachable — use fallback silently
   }
   return FALLBACK_PRODUCTS;
+}
+
+let _categoriesCache: Category[] | null = null;
+let _catCacheTime = 0;
+
+export async function fetchCategories(): Promise<Category[]> {
+  if (_categoriesCache && Date.now() - _catCacheTime < CACHE_MS) return _categoriesCache;
+
+  if (!SHEETS_URL) return CATEGORIES;
+
+  try {
+    const res  = await fetch(`${SHEETS_URL}?action=getCategories`);
+    const json = await res.json();
+    const data = _extractArray(json) as Category[] | null;
+    if (data && data.length > 0) {
+      _categoriesCache = data;
+      _catCacheTime    = Date.now();
+      return data;
+    }
+  } catch {
+    // Sheets unreachable — use static fallback
+  }
+  return CATEGORIES;
 }
 
 export async function getProductBySlug(slug: string): Promise<Product | null> {
