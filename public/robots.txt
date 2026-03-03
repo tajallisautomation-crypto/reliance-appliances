@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /portal
+Disallow: /checkout
+Disallow: /cart
+
+Sitemap: https://relianceappliances.pk/sitemap.xml
