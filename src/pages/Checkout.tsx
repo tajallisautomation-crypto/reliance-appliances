@@ -28,7 +28,7 @@ export default function Checkout() {
 
   const placeOrder = () => {
     const lines = items.map(i =>
-      `• ${i.product.brand} ${i.product.model} ×${i.qty} — PKR ${formatPrice((i.plan==='cash'?i.product.price.cash_floor:i.product.price.retail)*i.qty)}`
+      `• ${i.product.brand} ${i.product.model} ×${i.qty} — PKR ${formatPrice((i.plan==='cash'?i.product.price.cash_floor:i.product.installments[i.plan as '2m'|'3m'|'6m'|'12m']?.total??i.product.price.retail)*i.qty)}`
     ).join('\n');
     const msg = `🛒 NEW ORDER\n\nCustomer: ${form.name}\nPhone: ${form.phone}\nArea: ${form.area}, Karachi\nAddress: ${form.address}\nPayment: ${payType==='cash'?'Cash':globalPlan+' Installment'}\n\nItems:\n${lines}\n\nTotal: PKR ${formatPrice(subtotal())}${form.notes?'\nNotes: '+form.notes:''}`;
     window.open(waOrder(msg), '_blank');

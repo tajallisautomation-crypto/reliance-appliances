@@ -160,8 +160,11 @@ function _rowToProduct(headers, row) {
   var specs = {};
   try { specs = JSON.parse(obj['Specs_JSON'] || '{}'); } catch(e) { specs = {}; }
 
-  // Parse gallery URLs
-  var gallery = (obj['Gallery_URLs'] || '').split(',').map(function(u) { return u.trim(); }).filter(Boolean);
+  // Image_Main → thumbnail, Image_Gallery → single gallery image (clean, no watermarks)
+  var rawMain    = (obj['Image_Main']    || '').toString().trim();
+  var rawGallery = (obj['Image_Gallery'] || '').toString().trim();
+  var thumbnail  = _isCleanImageUrl(rawMain)    ? rawMain    : '';
+  var gallery    = _isCleanImageUrl(rawGallery) ? [rawGallery] : [];
 
   return {
     id:          obj['Product_ID']   || '',
@@ -183,7 +186,7 @@ function _rowToProduct(headers, row) {
     warranty:     obj['Warranty']     || '',
     stock_status: obj['Stock_Status'] || 'In Stock',
     featured:     obj['Featured'] === 'TRUE' || obj['Featured'] === true,
-    thumbnail:    obj['Thumbnail_URL'] || '',
+    thumbnail:    thumbnail,
     gallery:      gallery,
     seo: {
       title:       obj['SEO_Title']       || '',
@@ -306,11 +309,11 @@ function enrichAllProducts() {
     if (!obj['Specs_JSON'])  update('Specs_JSON',  JSON.stringify(enriched_data.specs));
     if (!obj['Category'])    update('Category',    category);
 
-    // Multi-image from Drive
+    // Two clean images from Drive: Image_Main (thumbnail) + Image_Gallery (one gallery shot)
     var images = _fetchImagesFromDrive(brand, model);
     if (images.thumbnail) {
-      if (!obj['Thumbnail_URL']) update('Thumbnail_URL', images.thumbnail);
-      if (!obj['Gallery_URLs'])  update('Gallery_URLs',  images.gallery.join(','));
+      if (!obj['Image_Main'])    update('Image_Main',    images.thumbnail);
+      if (!obj['Image_Gallery']) update('Image_Gallery', images.gallery[0] || '');
     }
 
     enriched++;
@@ -922,14 +925,14 @@ function _fetchImagesFromDrive(brand, model) {
       return result;
     }
 
-    // Make files public and collect URLs
-    images.forEach(function(img, i) {
+    // Only take top 2 images: index 0 → Image_Main, index 1 → Image_Gallery
+    images.slice(0, 2).forEach(function(img, i) {
       try {
         img.file.setSharing(DriveApp.Access.ANYONE, DriveApp.Permission.VIEW);
-        var fileId  = img.file.getId();
-        var url     = 'https://drive.google.com/uc?export=view&id=' + fileId;
+        var fileId = img.file.getId();
+        var url    = 'https://drive.google.com/uc?export=view&id=' + fileId;
         if (i === 0) result.thumbnail = url;
-        else if (i < 6) result.gallery.push(url);
+        else         result.gallery.push(url);
       } catch(e) {}
     });
   } catch(e) {
@@ -948,17 +951,61 @@ function _scoreFilename(filename, tokens) {
   return score;
 }
 
+// ── Watermark / logo guard ────────────────────────────────────────────────
+// Blocks marketplace URLs that embed seller watermarks or logos.
+// Only allows Google Drive direct-view links, Unsplash, and bare HTTPS image URLs
+// that are NOT from known watermarked marketplaces.
+var _BLOCKED_IMAGE_HOSTS = [
+  'daraz.pk','daraz.com','olx.com','olx.com.pk',
+  'homeshopping.pk','yayvo.com','naheed.pk','shophive.com',
+  'symbios.pk','telemart.pk','ishopping.pk','czone.com.pk',
+  'alfatah.com.pk','mega.pk',
+  // social / ad platforms that serve watermarked images
+  'aliexpress.com','alibaba.com','amazon.com','flipkart.com',
+  'ebay.com','wish.com',
+];
+
+function _isCleanImageUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  var trimmed = url.trim();
+  if (trimmed.length < 10) return false;
+  if (!trimmed.match(/^https?:\/\//i)) return false;
+
+  // Must be an image file or a known trusted image host
+  var lc = trimmed.toLowerCase();
+  var isImageFile = lc.match(/\.(jpg|jpeg|png|webp|gif)(\?|$)/);
+  var isGdrive    = lc.includes('drive.google.com/uc') || lc.includes('lh3.googleusercontent.com');
+  var isUnsplash  = lc.includes('unsplash.com');
+  if (!isImageFile && !isGdrive && !isUnsplash) return false;
+
+  // Block known watermarked marketplaces
+  for (var i = 0; i < _BLOCKED_IMAGE_HOSTS.length; i++) {
+    if (lc.includes(_BLOCKED_IMAGE_HOSTS[i])) return false;
+  }
+  return true;
+}
+
 function _getUnsplashFallback(brand, model) {
   var cat = _detectCategory(brand, model).toLowerCase();
-  var queries = {
-    'air': 'air-conditioner', 'fridge': 'refrigerator', 'wash': 'washing-machine',
-    'tv': 'television', 'solar': 'solar-panel', 'kitchen': 'kitchen-appliance',
+  // Category-specific Unsplash photos (clean, no watermarks, no seller logos)
+  var PHOTOS = {
+    'air':     'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=600&q=80',
+    'fridge':  'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=600&q=80',
+    'refrig':  'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=600&q=80',
+    'wash':    'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?w=600&q=80',
+    'tv':      'https://images.unsplash.com/photo-1593359677879-a4bb92f829e1?w=600&q=80',
+    'telev':   'https://images.unsplash.com/photo-1593359677879-a4bb92f829e1?w=600&q=80',
+    'solar':   'https://images.unsplash.com/photo-1509391366360-2e959784a276?w=600&q=80',
+    'kitchen': 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&q=80',
+    'water':   'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80',
+    'vacuum':  'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80',
   };
-  var q = 'appliance';
-  Object.keys(queries).forEach(function(k) {
-    if (cat.includes(k)) q = queries[k];
-  });
-  return 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80&auto=format&fit=crop';
+  var fallback = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80';
+  var keys = Object.keys(PHOTOS);
+  for (var i = 0; i < keys.length; i++) {
+    if (cat.includes(keys[i])) return PHOTOS[keys[i]];
+  }
+  return fallback;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -1103,7 +1150,7 @@ function setupAllSheets() {
       'Specs_JSON','Tags','Colors','Warranty','Min_Price','Retail_Price','Cash_Floor',
       '2M_Advance','2M_Monthly','3M_Advance','3M_Monthly',
       '6M_Advance','6M_Monthly','12M_Advance','12M_Monthly',
-      'Stock_Status','Featured','Thumbnail_URL','Gallery_URLs',
+      'Stock_Status','Featured','Image_Main','Image_Gallery',
       'SEO_Title','SEO_Description','SEO_Keywords',
       'Import_Date','Last_Enriched','Last_Updated',
     ],
@@ -1242,7 +1289,7 @@ function _setupMasterHeaders(sheet) {
     'Specs_JSON','Tags','Colors','Warranty','Min_Price','Retail_Price','Cash_Floor',
     '2M_Advance','2M_Monthly','3M_Advance','3M_Monthly',
     '6M_Advance','6M_Monthly','12M_Advance','12M_Monthly',
-    'Stock_Status','Featured','Thumbnail_URL','Gallery_URLs',
+    'Stock_Status','Featured','Image_Main','Image_Gallery',
     'SEO_Title','SEO_Description','SEO_Keywords',
     'Import_Date','Last_Enriched','Last_Updated',
   ];
