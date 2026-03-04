@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Search, Menu, X, Phone, User, Sun } from 'lucide-react';
+import { ShoppingCart, Search, Menu, X, Phone, User } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { CATEGORIES } from '@/lib/api';
 import CartDrawer from '@/components/cart/CartDrawer';
@@ -36,6 +36,7 @@ export default function Navbar() {
                 ['Products',     '/products'],
                 ['Installments', '/installments'],
                 ['Solar',        '/products/solar-solutions'],
+                ['Tools',        '/tools'],
                 ['Services',     '/services'],
                 ['Corporate',    '/corporate'],
               ].map(([label, href]) => (
@@ -99,7 +100,10 @@ export default function Navbar() {
             </form>
             {[
               ['Products','/products'], ['Installments','/installments'],
-              ['Solar Solutions','/products/solar-solutions'], ['Services','/services'],
+              ['Solar Solutions','/products/solar-solutions'],
+              ['Solar Calculator','/solar-calculator'],
+              ['Tools & Calculators','/tools'],
+              ['Services','/services'],
               ['Corporate','/corporate'], ['About','/about'], ['Contact','/contact'],
             ].map(([l,h]) => (
               <Link key={h} to={h} onClick={() => setMobileOpen(false)}

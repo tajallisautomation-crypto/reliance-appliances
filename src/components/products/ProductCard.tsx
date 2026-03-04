@@ -26,6 +26,10 @@ export default function ProductCard({ product: p }: Props) {
           alt={`${p.brand} ${p.model}`}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
+          onError={e => {
+            (e.currentTarget as HTMLImageElement).src =
+              'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80';
+          }}
         />
         {p.featured && (
           <div className="absolute top-3 left-3 badge-gold">
@@ -54,7 +58,12 @@ export default function ProductCard({ product: p }: Props) {
       {/* Details */}
       <div className="p-4">
         <p className="text-xs font-semibold text-brand-500 uppercase tracking-wide mb-0.5">{p.brand}</p>
-        <h3 className="font-bold text-gray-900 text-sm leading-snug mb-2 line-clamp-2">{p.model}</h3>
+        <h3 className="font-bold text-gray-900 text-sm leading-snug mb-1 line-clamp-2">
+          {p.simplified_name || p.model}
+        </h3>
+        {p.simplified_name && (
+          <p className="text-xs text-gray-400 truncate mb-1">{p.model}</p>
+        )}
 
         {/* Price */}
         <div className="flex items-baseline gap-2 mb-2">

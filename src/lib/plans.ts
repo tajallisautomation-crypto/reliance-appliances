@@ -6,10 +6,13 @@
 
 const _PLANS = {
   '2m':  { markup: 1.10, advRatio: 0.50, installments: 1  },
-  '3m':  { markup: 1.15, advRatio: 0.50, installments: 2  },
+  '3m':  { markup: 1.15, advRatio: 0.45, installments: 2  },
   '6m':  { markup: 1.25, advRatio: 0.40, installments: 5  },
   '12m': { markup: 1.40, advRatio: 0.30, installments: 11 },
 } as const;
+
+/** Round to nearest 100 PKR */
+function r100(n: number): number { return Math.round(n / 100) * 100; }
 
 export type PlanKey = keyof typeof _PLANS;
 
@@ -22,9 +25,9 @@ export interface PlanBreakdown {
 
 export function calcPlan(retailPrice: number, plan: PlanKey): PlanBreakdown {
   const cfg     = _PLANS[plan];
-  const total   = Math.round(retailPrice * cfg.markup);
-  const advance = Math.round(total * cfg.advRatio);
-  const monthly = cfg.installments > 0 ? Math.round((total - advance) / cfg.installments) : 0;
+  const total   = r100(retailPrice * cfg.markup);
+  const advance = r100(total * cfg.advRatio);
+  const monthly = cfg.installments > 0 ? r100((total - advance) / cfg.installments) : 0;
   return {
     months:  parseInt(plan) || (plan === '2m' ? 2 : plan === '3m' ? 3 : plan === '6m' ? 6 : 12),
     total, advance, monthly,

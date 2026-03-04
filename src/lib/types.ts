@@ -12,10 +12,11 @@ export interface InstallmentPlan {
 }
 
 export interface Product {
-  id:           string;
-  brand:        string;
-  model:        string;
-  category:     string;
+  id:              string;
+  brand:           string;
+  model:           string;
+  simplified_name?: string;
+  category:        string;
   sub_category: string;
   slug:         string;
   description: string;
