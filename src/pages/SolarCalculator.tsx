@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { calcAllPlans, roundTo100 as r100, fmtPKR } from '../lib/api'
 import { Sun, Zap, TrendingUp, Plus, Trash2, ChevronDown, ChevronUp, Award, CheckCircle } from 'lucide-react'
 
