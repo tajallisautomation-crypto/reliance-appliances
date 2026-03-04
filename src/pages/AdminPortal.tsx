@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { signIn } from '@/lib/auth';
+import { signIn, signUp } from '@/lib/auth';
 import { useAuthStore } from '@/store/authStore';
 import {
   getProducts, upsertProduct, deleteProduct, uploadProductImage,
@@ -334,11 +334,14 @@ function ImportTab({ onImported }: { onImported: () => void }) {
 export default function AdminPortal() {
   const { isLoggedIn, loading, signOut } = useAuthStore();
 
-  // Login state
-  const [email, setEmail]     = useState('');
+  // Auth state
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [loginErr, setLoginErr] = useState('');
-  const [loggingIn, setLoggingIn] = useState(false);
+  const [confirm, setConfirm]   = useState('');
+  const [authErr, setAuthErr]   = useState('');
+  const [authOk, setAuthOk]     = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   // Products state
   const [products, setProducts] = useState<Product[]>([]);
@@ -350,11 +353,19 @@ export default function AdminPortal() {
   const [deleting, setDeleting] = useState(false);
   const [tab, setTab]           = useState<'products' | 'import'>('products');
 
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault(); setLoginErr(''); setLoggingIn(true);
-    try { await signIn(email, password); }
-    catch (err: any) { setLoginErr(err.message || 'Login failed'); }
-    finally { setLoggingIn(false); }
+  async function handleAuth(e: React.FormEvent) {
+    e.preventDefault(); setAuthErr(''); setAuthOk(''); setSubmitting(true);
+    try {
+      if (authMode === 'signup') {
+        if (password !== confirm) { setAuthErr('Passwords do not match'); setSubmitting(false); return; }
+        await signUp(email, password);
+        setAuthOk('Account created! Check your email to confirm, then sign in.');
+        setAuthMode('signin'); setPassword(''); setConfirm('');
+      } else {
+        await signIn(email, password);
+      }
+    } catch (err: any) { setAuthErr(err.message || 'Something went wrong'); }
+    finally { setSubmitting(false); }
   }
 
   async function loadProducts() {
@@ -390,9 +401,20 @@ export default function AdminPortal() {
               <Package className="w-6 h-6 text-orange-600" />
             </div>
             <h1 className="text-xl font-black text-gray-900">Reliance Admin</h1>
-            <p className="text-sm text-gray-500 mt-1">Sign in to manage products</p>
+            <p className="text-sm text-gray-500 mt-1">{authMode === 'signin' ? 'Sign in to manage products' : 'Create an admin account'}</p>
           </div>
-          <form onSubmit={handleLogin} className="space-y-4">
+
+          {/* Mode tabs */}
+          <div className="flex rounded-xl border border-gray-200 p-1 mb-5">
+            {(['signin', 'signup'] as const).map(m => (
+              <button key={m} type="button" onClick={() => { setAuthMode(m); setAuthErr(''); setAuthOk(''); }}
+                className={`flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors ${authMode === m ? 'bg-orange-500 text-white' : 'text-gray-500 hover:text-gray-700'}`}>
+                {m === 'signin' ? 'Sign In' : 'Sign Up'}
+              </button>
+            ))}
+          </div>
+
+          <form onSubmit={handleAuth} className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus
@@ -403,10 +425,18 @@ export default function AdminPortal() {
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
             </div>
-            {loginErr && <p className="text-red-500 text-xs">{loginErr}</p>}
-            <button type="submit" disabled={loggingIn}
+            {authMode === 'signup' && (
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Confirm Password</label>
+                <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} required
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+              </div>
+            )}
+            {authErr && <p className="text-red-500 text-xs">{authErr}</p>}
+            {authOk  && <p className="text-green-600 text-xs">{authOk}</p>}
+            <button type="submit" disabled={submitting}
               className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg font-bold text-sm disabled:opacity-60 flex items-center justify-center gap-2">
-              {loggingIn ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in…</> : 'Sign In'}
+              {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> {authMode === 'signin' ? 'Signing in…' : 'Creating account…'}</> : (authMode === 'signin' ? 'Sign In' : 'Create Account')}
             </button>
           </form>
         </div>
