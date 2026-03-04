@@ -1,16 +1,17 @@
-import { create } from 'zustand';
-import type { Customer } from '@/lib/types';
-
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 interface AuthStore {
-  customer:    Customer | null;
-  isLoggedIn:  boolean;
-  login:       (c: Customer) => void;
-  logout:      () => void;
+  user: { name: string; phone: string; email: string; tier: string } | null
+  login: (u: any) => void
+  logout: () => void
 }
-
-export const useAuthStore = create<AuthStore>(set => ({
-  customer:   null,
-  isLoggedIn: false,
-  login:  c  => set({ customer: c, isLoggedIn: true }),
-  logout: () => set({ customer: null, isLoggedIn: false }),
-}));
+export const useAuthStore = create<AuthStore>()(
+  persist(
+    set => ({
+      user: null,
+      login: (u) => set({ user: u }),
+      logout: () => set({ user: null }),
+    }),
+    { name: 'reliance-auth' }
+  )
+)
