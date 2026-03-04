@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { calcAllPlans, roundTo100 as r100, fmtPKR } from '../lib/api'
 import { Sun, Zap, TrendingUp, Plus, Trash2, ChevronDown, ChevronUp, Award, CheckCircle } from 'lucide-react'
 
 const APPLIANCES = [
@@ -82,7 +83,7 @@ export default function SolarCalculator() {
       if (sysType!=='on-grid'){bKWh=Math.ceil(dailyU/0.8);bCost=r100(bKWh*18000)}
       const total = r100(pCost+iCost+bCost+25000)
       const msave = r100(dailyU*30*50)
-      const plans = calcAllPlans(total)  // single source of truth from api.ts,
+      const plans = calcAllPlans(total)  // api.ts single source of truth,
       }
       setQuote({systemKW:kw,panels,inverterKW:invKW,batteryKWh:bKWh,type:sysType,
         costs:{panels:pCost,inverter:iCost,battery:bCost,installation:25000,total},
