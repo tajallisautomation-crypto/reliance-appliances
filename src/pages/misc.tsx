@@ -1,5 +1,5 @@
 // Services, Corporate, Portal pages
-import { Phone, MessageCircle, Building2, User, Award, Shield, ClipboardList } from 'lucide-react'
+import { Phone, MessageCircle, Building2, Award, Shield, ClipboardList } from 'lucide-react'
 
 export function Services() {
   const services = [
@@ -77,27 +77,6 @@ export function Corporate() {
               <Phone className="w-4 h-4" /> +92 335 4266238
             </a>
           </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-export function Portal() {
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white py-16 px-4 text-center">
-        <User className="w-12 h-12 mx-auto mb-3 opacity-80" />
-        <h1 className="text-4xl font-black mb-3">Customer Portal</h1>
-        <p className="text-orange-100 text-lg">Track orders, warranties, and service history.</p>
-      </div>
-      <div className="max-w-lg mx-auto px-4 py-14 text-center">
-        <div className="bg-white rounded-3xl p-8 shadow-sm border">
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Coming Soon</h2>
-          <p className="text-gray-500 mb-6">The customer portal is under development.</p>
-          <a href="https://wa.me/923702578788" className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-8 py-3 rounded-xl font-semibold">
-            <MessageCircle className="w-4 h-4" /> Contact Support
-          </a>
         </div>
       </div>
     </div>

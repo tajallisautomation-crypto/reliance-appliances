@@ -27,7 +27,7 @@ export const useCartStore = create<CartStore>()(
         items: qty <= 0 ? s.items.filter(i => i.id !== id) : s.items.map(i => i.id === id ? { ...i, qty } : i)
       })),
       clearCart: () => set({ items: [] }),
-      total: () => get().items.reduce((t, i) => t + i.cashPrice * i.qty, 0),
+      total: () => get().items.reduce((t, i) => t + (i.price?.cash_floor || 0) * i.qty, 0),
     }),
     { name: 'reliance-cart' }
   )

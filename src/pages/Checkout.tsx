@@ -21,14 +21,14 @@ export default function Checkout() {
       const res = await submitOrder({
         customerName: form.name, customerPhone: form.phone, customerEmail: form.email,
         customerAddress: `${form.address}, ${form.city}`,
-        products: items.map(i => ({ id:i.id, model:i.model, brand:i.brand, qty:i.qty, price:i.cashPrice })),
+        products: items.map(i => ({ id:i.id, model:i.model, brand:i.brand, qty:i.qty, price:i.price?.cash_floor || 0 })),
         totalAmount: cartTotal, paymentMethod: plan,
         installmentPlan: selectedPlan ? plan : '',
         advancePaid: selectedPlan ? selectedPlan.advance : cartTotal,
         monthlyAmount: selectedPlan ? selectedPlan.monthly : 0,
         notes: form.notes,
       })
-      setOrderId(res.orderId || 'ORD-' + Date.now())
+      setOrderId('ORD-' + Date.now())
       setDone(true); clearCart()
     } catch(e) { alert('Something went wrong. Please try WhatsApp order instead.') }
     setLoading(false)
@@ -79,7 +79,7 @@ export default function Checkout() {
               </button>
               {Object.entries(plans).map(([key, p]) => (
                 <button key={key} onClick={() => setPlan(key)} className={`w-full p-4 rounded-xl border-2 text-left ${plan===key?'border-orange-500 bg-orange-50':'border-gray-200'}`}>
-                  <div className="font-semibold text-gray-800">{key.replace('month',' Month')} Installment</div>
+                  <div className="font-semibold text-gray-800">{key} Installment</div>
                   <div className="text-sm text-gray-500">Advance: {fmtPKR(p.advance)} ({Math.round(p.advancePct*100)}%) · Then {fmtPKR(p.monthly)}/mo × {p.monthlyPayments}</div>
                 </button>
               ))}
@@ -92,8 +92,8 @@ export default function Checkout() {
             <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
               {items.map(i => (
                 <div key={i.id} className="flex justify-between text-sm">
-                  <span className="text-gray-600">{i.qty}× {i.name.substring(0,30)}…</span>
-                  <span className="font-medium">{fmtPKR(i.cashPrice*i.qty)}</span>
+                  <span className="text-gray-600">{i.qty}× {(i.simplified_name || i.model).substring(0,30)}…</span>
+                  <span className="font-medium">{fmtPKR((i.price?.cash_floor||0)*i.qty)}</span>
                 </div>
               ))}
             </div>

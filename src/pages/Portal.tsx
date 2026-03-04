@@ -1,1 +1,1 @@
-export { Portal as default } from './misc'
+export { default } from './AdminPortal'

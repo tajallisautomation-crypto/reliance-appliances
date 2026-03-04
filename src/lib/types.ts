@@ -1,57 +1,15 @@
+// Re-export unified types from api.ts — all pages should import from here or api.ts
+export type { Product, InstallmentPlan, Category } from './api';
+
 export interface ProductImage {
   url: string;
   alt: string;
   type: 'thumbnail' | 'gallery';
 }
 
-export interface InstallmentPlan {
-  months:  number;
-  total:   number;
-  advance: number;
-  monthly: number;
-}
-
-export interface Product {
-  id:              string;
-  brand:           string;
-  model:           string;
-  simplified_name?: string;
-  category:        string;
-  sub_category: string;
-  slug:         string;
-  description: string;
-  specs:       Record<string, string>;
-  tags:        string;
-  colors:      string;
-  price: {
-    min:      number;
-    retail:   number;
-    cash_floor: number;
-  };
-  installments: {
-    '2m': InstallmentPlan;
-    '3m': InstallmentPlan;
-    '6m': InstallmentPlan;
-    '12m': InstallmentPlan;
-  };
-  warranty:     string;
-  stock_status: string;
-  featured:     boolean;
-  thumbnail:    string;   // primary image URL
-  gallery:      string[]; // additional image URLs
-  seo: { title: string; description: string; keywords: string };
-}
-
 export interface SubCategory {
   name: string;
   slug: string;
-}
-
-export interface Category {
-  name:           string;
-  slug:           string;
-  icon:           string;
-  subcategories?: SubCategory[];
 }
 
 export interface Customer {

@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart, Search, Menu, X, Phone, User } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
-import { CATEGORIES } from '@/lib/api';
 import CartDrawer from '@/components/cart/CartDrawer';
 import { waSales } from '@/lib/whatsapp';
 
@@ -10,7 +9,7 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen]   = useState(false);
   const [cartOpen, setCartOpen]       = useState(false);
   const [searchQ, setSearchQ]         = useState('');
-  const totalItems = useCartStore(s => s.totalItems());
+  const totalItems = useCartStore(s => s.items.reduce((n, i) => n + i.qty, 0));
   const navigate   = useNavigate();
 
   const handleSearch = (e: React.FormEvent) => {

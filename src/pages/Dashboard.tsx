@@ -220,7 +220,7 @@ export default function Dashboard() {
                     <XAxis dataKey="month" tick={{ fontSize:11 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize:11 }} axisLine={false} tickLine={false}
                       tickFormatter={v => `${(v/1000000).toFixed(1)}M`} />
-                    <Tooltip formatter={(v: number) => [`PKR ${formatPrice(v)}`, 'Revenue']} />
+                    <Tooltip formatter={(v: any) => [`PKR ${formatPrice(Number(v))}`, 'Revenue']} />
                     <Area type="monotone" dataKey="revenue" stroke="#0070f3" strokeWidth={2} fill="url(#rev)" />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -252,7 +252,7 @@ export default function Dashboard() {
                         paddingAngle={3} dataKey="value">
                         {CATEGORY_SALES.map((e, i) => <Cell key={i} fill={e.color} />)}
                       </Pie>
-                      <Tooltip formatter={(v: number) => [`${v}%`, '']} />
+                      <Tooltip formatter={(v: any) => [`${v}%`, '']} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="flex-1 space-y-2">

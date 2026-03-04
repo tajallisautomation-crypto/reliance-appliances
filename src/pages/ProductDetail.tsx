@@ -41,7 +41,7 @@ export default function ProductDetail() {
   const INSTALL   = 2000;
   const planData  = plan !== 'cash' ? p.installments[plan] : null;
 
-  const handleAdd = () => { addItem(p, plan); toast.success(`${p.brand} ${p.model} added to cart!`); };
+  const handleAdd = () => { addItem(p); toast.success(`${p.brand} ${p.model} added to cart!`); };
   const handleShare = async () => {
     const url = `${window.location.origin}/products/${p.slug}`;
     try { await navigator.share({ title: `${p.brand} ${p.model}`, url }); }

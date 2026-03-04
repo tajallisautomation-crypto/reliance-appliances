@@ -7,7 +7,7 @@ export default function Cart() {
   const { items, removeItem, updateQty, total } = useCartStore()
   const cartTotal = total()
   const plans = calcAllPlans(cartTotal)
-  const plan12 = plans['12month']
+  const plan12 = plans['12m']
 
   if (items.length === 0) return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center gap-5 px-4">
@@ -28,16 +28,16 @@ export default function Cart() {
           {items.map(item => (
             <div key={item.id} className="flex gap-4 bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
               <div className="w-24 h-24 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0">
-                <img src={fixImageUrl(item.image)} alt={item.name}
+                <img src={item.thumbnail} alt={item.simplified_name || item.model}
                   onError={e => { (e.target as HTMLImageElement).src = '/placeholder-product.svg' }}
                   className="w-full h-full object-contain p-2" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs text-orange-500 font-semibold">{item.brand}</div>
-                <div className="font-semibold text-gray-800 text-sm leading-snug mb-1 line-clamp-2">{item.name}</div>
+                <div className="font-semibold text-gray-800 text-sm leading-snug mb-1 line-clamp-2">{item.simplified_name || item.model}</div>
                 <div className="text-xs text-gray-400 mb-2">{item.model}</div>
-                <div className="font-bold text-gray-900">{fmtPKR(item.cashPrice * item.qty)}</div>
-                {item.qty > 1 && <div className="text-xs text-gray-400">{fmtPKR(item.cashPrice)} each</div>}
+                <div className="font-bold text-gray-900">{fmtPKR(item.price.cash_floor * item.qty)}</div>
+                {item.qty > 1 && <div className="text-xs text-gray-400">{fmtPKR(item.price.cash_floor)} each</div>}
               </div>
               <div className="flex flex-col items-end gap-3">
                 <button onClick={() => removeItem(item.id)} className="text-gray-300 hover:text-red-500 transition-colors">
@@ -78,7 +78,7 @@ export default function Cart() {
               <Link to="/checkout" className="flex items-center justify-center gap-2 w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-semibold">
                 Proceed to Checkout <ArrowRight className="w-4 h-4" />
               </Link>
-              <a href={`https://wa.me/923702578788?text=${encodeURIComponent('Hi! I want to order:\n' + items.map(i => `• ${i.qty}× ${i.name} — ${fmtPKR(i.cashPrice * i.qty)}`).join('\n') + `\n\nTotal: ${fmtPKR(cartTotal)}`)}`}
+              <a href={`https://wa.me/923702578788?text=${encodeURIComponent('Hi! I want to order:\n' + items.map(i => `• ${i.qty}× ${i.simplified_name || i.model} — ${fmtPKR((i.price?.cash_floor || 0) * i.qty)}`).join('\n') + `\n\nTotal: ${fmtPKR(cartTotal)}`)}`}
                 className="flex items-center justify-center gap-2 w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-semibold">
                 💬 Order via WhatsApp
               </a>
