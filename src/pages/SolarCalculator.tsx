@@ -82,10 +82,7 @@ export default function SolarCalculator() {
       if (sysType!=='on-grid'){bKWh=Math.ceil(dailyU/0.8);bCost=r100(bKWh*18000)}
       const total = r100(pCost+iCost+bCost+25000)
       const msave = r100(dailyU*30*50)
-      const plans = {
-        '3month':  {total:r100(total*1.15),advance:r100(total*1.15*0.45),monthly:r100(total*1.15*0.55/2), monthlyPayments:2},
-        '6month':  {total:r100(total*1.25),advance:r100(total*1.25*0.40),monthly:r100(total*1.25*0.60/5), monthlyPayments:5},
-        '12month': {total:r100(total*1.40),advance:r100(total*1.40*0.30),monthly:r100(total*1.40*0.70/11),monthlyPayments:11},
+      const plans = calcAllPlans(total)  // single source of truth from api.ts,
       }
       setQuote({systemKW:kw,panels,inverterKW:invKW,batteryKWh:bKWh,type:sysType,
         costs:{panels:pCost,inverter:iCost,battery:bCost,installation:25000,total},
