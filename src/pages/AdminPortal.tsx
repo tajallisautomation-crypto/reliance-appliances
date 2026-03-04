@@ -358,9 +358,13 @@ export default function AdminPortal() {
     try {
       if (authMode === 'signup') {
         if (password !== confirm) { setAuthErr('Passwords do not match'); setSubmitting(false); return; }
-        await signUp(email, password);
-        setAuthOk('Account created! Check your email to confirm, then sign in.');
-        setAuthMode('signin'); setPassword(''); setConfirm('');
+        const { session } = await signUp(email, password);
+        // If email confirmations are disabled in Supabase, session is returned immediately
+        if (!session) {
+          setAuthOk('Account created! Check your email to confirm, then sign in.');
+          setAuthMode('signin'); setPassword(''); setConfirm('');
+        }
+        // If confirmations are off, onAuthStateChange fires and logs the user in automatically
       } else {
         await signIn(email, password);
       }
