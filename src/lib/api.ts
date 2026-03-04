@@ -1,217 +1,177 @@
-import { SHEETS_URL } from './config';
-import type { Product, Category } from './types';
+// ─── RELIANCE API — lib/api.ts ────────────────────────────────
+// Fixes: image URL 503s, 3-month advance 45%, amounts rounded to 100
 
-// Helper: GAS always returns plain arrays; some wrappers add { data: [...] }
-function _extractArray(json: unknown): unknown[] | null {
-  if (Array.isArray(json)) return json;
-  if (json && typeof json === 'object' && Array.isArray((json as Record<string,unknown>).data))
-    return (json as Record<string,unknown>).data as unknown[];
-  return null;
+const SHEETS_URL = import.meta.env.VITE_SHEETS_URL || ''
+
+export function roundTo100(n: number): number {
+  return Math.round(n / 100) * 100
 }
 
-// ── Offline fallback products (used if Sheets URL not configured) ──────────
+export function fixImageUrl(url: string, size = 400): string {
+  if (!url) return '/placeholder-product.svg'
+  if (url.includes('drive.google.com/thumbnail')) return url
+  if (url.includes('lh3.googleusercontent.com'))  return url
+  if (!url.includes('drive.google.com') && url.startsWith('http')) return url
+  let fileId = ''
+  let m: RegExpMatchArray | null
+  m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)
+  if (m) fileId = m[1]
+  else {
+    m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/)
+    if (m) fileId = m[1]
+    else if (/^[a-zA-Z0-9_-]{20,}$/.test(url.trim())) fileId = url.trim()
+  }
+  if (fileId) return `https://drive.google.com/thumbnail?id=${fileId}&sz=w${size}`
+  return '/placeholder-product.svg'
+}
+
+export interface InstallmentPlan {
+  total: number; advance: number; monthly: number
+  monthlyPayments: number; advancePct: number; markup: number
+}
+
+export function calcInstallmentPlan(basePrice: number, planKey: '2month'|'3month'|'6month'|'12month'): InstallmentPlan {
+  const configs = {
+    '2month':  { markup: 0.10, advancePct: 0.50, totalPayments: 2  },
+    '3month':  { markup: 0.15, advancePct: 0.45, totalPayments: 3  },
+    '6month':  { markup: 0.25, advancePct: 0.40, totalPayments: 6  },
+    '12month': { markup: 0.40, advancePct: 0.30, totalPayments: 12 },
+  }
+  const c = configs[planKey]
+  const total = roundTo100(basePrice * (1 + c.markup))
+  const advance = roundTo100(total * c.advancePct)
+  const remaining = total - advance
+  const monthlyPayments = c.totalPayments - 1
+  const monthly = roundTo100(remaining / monthlyPayments)
+  return { total, advance, monthly, monthlyPayments, advancePct: c.advancePct, markup: c.markup }
+}
+
+export function calcAllPlans(basePrice: number): Record<string, InstallmentPlan> {
+  if (!basePrice) return {}
+  return {
+    '2month':  calcInstallmentPlan(basePrice, '2month'),
+    '3month':  calcInstallmentPlan(basePrice, '3month'),
+    '6month':  calcInstallmentPlan(basePrice, '6month'),
+    '12month': calcInstallmentPlan(basePrice, '12month'),
+  }
+}
+
+export interface Product {
+  id: string; brand: string; model: string; name: string
+  category: string; subCategory: string; cashPrice: number; mrp: number
+  image: string; images: string[]; color: string; warranty: string
+  description: string; specs: string; tonnage: string; cubicFeet: string
+  inverter: boolean; inStock: boolean; featured: boolean
+  plans: Record<string, InstallmentPlan>; seoTitle: string; seoDesc: string; updatedAt: string
+}
+
+function normaliseProduct(raw: any): Product {
+  return {
+    ...raw,
+    image:  fixImageUrl(raw.image  || ''),
+    images: (raw.images || []).map((u: string) => fixImageUrl(u)).filter(Boolean),
+    cashPrice: Number(raw.cashPrice || raw.cash_price || 0),
+    mrp:       Number(raw.mrp || 0),
+    plans:     raw.plans && Object.keys(raw.plans).length > 0 ? raw.plans : calcAllPlans(Number(raw.cashPrice || raw.cash_price || 0)),
+  }
+}
+
+async function apiFetch<T>(params: Record<string, string>, retries = 2): Promise<T> {
+  const url = `${SHEETS_URL}?${new URLSearchParams(params).toString()}`
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      return data as T
+    } catch (e) {
+      if (attempt === retries) throw e
+      await new Promise(r => setTimeout(r, 1000 * (attempt + 1)))
+    }
+  }
+  throw new Error('All retries exhausted')
+}
+
+export async function getProducts(params?: Record<string, string>): Promise<{ products: Product[]; total: number }> {
+  try {
+    const data = await apiFetch<any>({ action: 'getProducts', ...(params||{}) })
+    return { products: (data.products || []).map(normaliseProduct), total: data.total || 0 }
+  } catch { return { products: FALLBACK_PRODUCTS, total: FALLBACK_PRODUCTS.length } }
+}
+
+export async function getProduct(id: string): Promise<Product | null> {
+  try { const data = await apiFetch<any>({ action: 'getProduct', id }); return normaliseProduct(data) }
+  catch { return FALLBACK_PRODUCTS.find(p => p.id === id) || null }
+}
+
+export async function getCategories() {
+  try { return await apiFetch<any>({ action: 'getCategories' }) }
+  catch { return { categories: DEFAULT_CATEGORIES } }
+}
+
+export async function getSolarQuote(params: Record<string, string>) {
+  return apiFetch<any>({ action: 'getSolarQuote', ...params })
+}
+
+export async function getInstallmentPlans(price: number) {
+  try { return await apiFetch<any>({ action: 'getInstallmentPlans', price: String(price) }) }
+  catch { return { price, plans: calcAllPlans(price) } }
+}
+
+export async function getPackages() {
+  try { return await apiFetch<any>({ action: 'getPackages' }) } catch { return { packages: [] } }
+}
+
+export async function getLoyaltyTiers() {
+  try { return await apiFetch<any>({ action: 'getLoyaltyTiers' }) } catch { return { tiers: [] } }
+}
+
+export async function submitOrder(body: any) {
+  const res = await fetch(SHEETS_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'addOrder', ...body }) })
+  return res.json()
+}
+
+export async function submitEnquiry(body: any) {
+  const res = await fetch(SHEETS_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'submitRetailForm', ...body }) })
+  return res.json()
+}
+
+export const DEFAULT_CATEGORIES = [
+  { id:'ac',      name:'Air Conditioners',  icon:'❄️', slug:'air-conditioners'   },
+  { id:'fridge',  name:'Refrigerators',      icon:'🧊', slug:'refrigerators'      },
+  { id:'washing', name:'Washing Machines',   icon:'🫧', slug:'washing-machines'   },
+  { id:'tv',      name:'Televisions',        icon:'📺', slug:'televisions'        },
+  { id:'solar',   name:'Solar Solutions',    icon:'☀️', slug:'solar-solutions'    },
+  { id:'kitchen', name:'Kitchen Appliances', icon:'🍳', slug:'kitchen-appliances' },
+  { id:'water',   name:'Water Dispensers',   icon:'💧', slug:'water-dispensers'   },
+  { id:'vacuum',  name:'Vacuum Cleaners',    icon:'🌀', slug:'vacuum-cleaners'    },
+  { id:'small',   name:'Small Appliances',   icon:'🔌', slug:'small-appliances'   },
+]
+
 export const FALLBACK_PRODUCTS: Product[] = [
   {
-    id: 'haier-hsu18hnf',
-    brand: 'Haier', model: 'HSU-18HNF DC Inverter',
-    category: 'Air Conditioners', sub_category: 'DC Inverter AC', slug: 'haier-hsu-18hnf-dc-inverter',
-    description: 'Haier HSU-18HNF 1.5 Ton DC Inverter Air Conditioner with triple inverter technology, self-cleaning function, and Wi-Fi control. Ideal for rooms up to 200 sq ft.',
-    specs: { Capacity:'1.5 Ton', Technology:'DC Inverter', 'Energy Rating':'5 Star', Refrigerant:'R410A', 'Air Flow':'720 m³/h', 'Noise Level':'20 dB', 'Wi-Fi':'Yes', Color:'White' },
-    tags: 'inverter ac,energy saving,wifi ac,1.5 ton,cooling',
-    colors: 'White',
-    price: { min:120000, retail:132000, cash_floor:126000 },
-    installments: {
-      '2m': { months:2,  total:145200, advance:72600,  monthly:72600 },
-      '3m': { months:3,  total:151800, advance:75900,  monthly:37950 },
-      '6m': { months:6,  total:165000, advance:66000,  monthly:19800 },
-      '12m':{ months:12, total:184800, advance:55440,  monthly:11760 },
-    },
-    warranty: '1 Year Parts & Labour, 5 Years Compressor',
-    stock_status: 'In Stock', featured: true,
-    thumbnail: 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=600&q=80',
-    gallery:   ['https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=800&q=80'],
-    seo: { title:'Haier HSU-18HNF DC Inverter AC 1.5 Ton — Karachi', description:'Buy Haier HSU-18HNF 1.5 Ton DC Inverter AC in Karachi on easy installments. Free delivery, 5-year compressor warranty.', keywords:'Haier inverter AC Karachi, HSU-18HNF price, 1.5 ton AC installment' },
+    id:'fallback-1', brand:'Haier', model:'HSU-13LF',
+    name:'Haier 1.1 Ton Cool Only Inverter Split AC',
+    category:'Air Conditioners', subCategory:'Inverter Split',
+    cashPrice:105973, mrp:111550,
+    image:'https://www.haier.com/pk/content/dam/haier/pk/products/air-conditioner/split-ac/hsu-13lf/hsu-13lf-front.jpg',
+    images:[], color:'White', warranty:'5 years compressor, 1 year parts',
+    description:'1.1 Ton Cool Only Inverter AC with R410A refrigerant.',
+    specs:'Cooling Capacity: 12000 BTU | Input Power: 0.9kW | Refrigerant: R410A',
+    tonnage:'1.1', cubicFeet:'', inverter:true, inStock:true, featured:true,
+    plans: calcAllPlans(105973),
+    seoTitle:'Haier HSU-13LF 1.1 Ton Inverter AC Price in Pakistan',
+    seoDesc:'Buy Haier HSU-13LF 1.1 Ton Cool Only Inverter Split AC.',
+    updatedAt: new Date().toISOString(),
   },
-  {
-    id: 'gree-gs18pith',
-    brand: 'Gree', model: 'GS-18PITH Fairy Inverter',
-    category: 'Air Conditioners', sub_category: 'DC Inverter AC', slug: 'gree-gs-18pith-fairy-inverter',
-    description: 'Gree Fairy Series 1.5 Ton DC Inverter AC with I-Feel technology, Golden Fin anti-corrosion coating, and Auto Restart function.',
-    specs: { Capacity:'1.5 Ton', Technology:'DC Inverter', 'Energy Rating':'5 Star', Refrigerant:'R32', 'Auto Clean':'Yes', 'I-Feel':'Yes', Color:'White' },
-    tags: 'gree ac,fairy series,inverter,1.5 ton,i-feel',
-    colors: 'White, Golden',
-    price: { min:127000, retail:139700, cash_floor:133350 },
-    installments: {
-      '2m': { months:2,  total:153670, advance:76835,  monthly:76835 },
-      '3m': { months:3,  total:160655, advance:80327,  monthly:40163 },
-      '6m': { months:6,  total:174625, advance:69850,  monthly:20955 },
-      '12m':{ months:12, total:195580, advance:58674,  monthly:12446 },
-    },
-    warranty: '1 Year Parts & Labour, 5 Years Compressor',
-    stock_status: 'In Stock', featured: true,
-    thumbnail: 'https://images.unsplash.com/photo-1619048696989-74e1d7b25f7f?w=600&q=80',
-    gallery:   ['https://images.unsplash.com/photo-1619048696989-74e1d7b25f7f?w=800&q=80'],
-    seo: { title:'Gree Fairy GS-18PITH Inverter AC — Karachi', description:'Buy Gree Fairy 1.5 Ton DC Inverter AC in Karachi. I-Feel technology, R32 refrigerant. Easy installments available.', keywords:'Gree Fairy AC Karachi, GS-18PITH price, Gree inverter AC installment' },
-  },
-  {
-    id: 'dawlance-9150',
-    brand: 'Dawlance', model: '9150 Chrome Pro Refrigerator',
-    category: 'Refrigerators', sub_category: 'Double Door', slug: 'dawlance-9150-chrome-pro-refrigerator',
-    description: 'Dawlance 9150 Chrome Pro 14 CFT double door refrigerator with No-Frost technology, glass shelves, and full inverter compressor for 40% energy savings.',
-    specs: { Capacity:'14 CFT / 397L', Type:'Double Door', Technology:'Full Inverter', 'No Frost':'Yes', 'Energy Saving':'40%', Refrigerant:'R600a', Color:'Chrome', 'Water Dispenser':'No' },
-    tags: 'dawlance fridge,no frost,inverter refrigerator,double door,14 cft',
-    colors: 'Chrome Silver, Black Steel',
-    price: { min:98000, retail:107800, cash_floor:102900 },
-    installments: {
-      '2m': { months:2,  total:118580, advance:59290,  monthly:59290 },
-      '3m': { months:3,  total:123970, advance:61985,  monthly:30992 },
-      '6m': { months:6,  total:134750, advance:53900,  monthly:16170 },
-      '12m':{ months:12, total:150920, advance:45276,  monthly:9595  },
-    },
-    warranty: '1 Year Parts & Labour, 10 Years Compressor',
-    stock_status: 'In Stock', featured: true,
-    thumbnail: 'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=600&q=80',
-    gallery:   ['https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=800&q=80'],
-    seo: { title:'Dawlance 9150 Chrome Pro Refrigerator — Karachi', description:'Buy Dawlance Chrome Pro No-Frost refrigerator in Karachi. 10-year compressor warranty. Installments from PKR 9,595/month.', keywords:'Dawlance 9150 Chrome Pro price, no frost fridge Karachi, double door refrigerator installment' },
-  },
-  {
-    id: 'haier-hwm70',
-    brand: 'Haier', model: 'HWM 70-826S Washing Machine',
-    category: 'Washing Machines', sub_category: 'Semi-Automatic', slug: 'haier-hwm-70-826s-washing-machine',
-    description: 'Haier 7kg Semi-Automatic Washing Machine with powerful pulsator wash, 3 wash programs, and energy-efficient motor. Perfect for medium-sized families.',
-    specs: { Capacity:'7 Kg', Type:'Semi-Automatic', Programs:'3 Wash + 3 Spin', Motor:'Copper Wire', 'Water Level':'5 Levels', Color:'White/Grey' },
-    tags: 'haier washing machine,semi automatic,7kg,front load',
-    colors: 'White, Grey',
-    price: { min:35000, retail:38500, cash_floor:36750 },
-    installments: {
-      '2m': { months:2,  total:42350, advance:21175,  monthly:21175 },
-      '3m': { months:3,  total:44275, advance:22137,  monthly:11069 },
-      '6m': { months:6,  total:48125, advance:19250,  monthly:5775  },
-      '12m':{ months:12, total:53900, advance:16170,  monthly:3424  },
-    },
-    warranty: '2 Years Parts & Labour',
-    stock_status: 'In Stock', featured: false,
-    thumbnail: 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?w=600&q=80',
-    gallery:   ['https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?w=800&q=80'],
-    seo: { title:'Haier HWM 70-826S 7kg Washing Machine — Karachi', description:'Buy Haier 7kg Semi-Auto Washing Machine in Karachi. Copper motor, 2-year warranty. Easy installments available.', keywords:'Haier washing machine Karachi, 7kg semi automatic price, washing machine installment' },
-  },
-  {
-    id: 'samsung-55-4k',
-    brand: 'Samsung', model: '55" Crystal 4K UHD TV',
-    category: 'Televisions', sub_category: '4K UHD TV', slug: 'samsung-55-crystal-4k-uhd-tv',
-    description: 'Samsung 55-inch Crystal 4K UHD Smart TV with Crystal Processor 4K, AirSlim design, and multiple voice assistant support including Bixby and Alexa.',
-    specs: { Size:'55 Inch', Resolution:'4K UHD (3840×2160)', Processor:'Crystal 4K', 'Smart TV':'Yes', OS:'Tizen', HDR:'HDR10+', Ports:'3x HDMI, 2x USB', Color:'Black' },
-    tags: 'samsung tv,55 inch,4k smart tv,crystal uhd,hdr',
-    colors: 'Black',
-    price: { min:120000, retail:132000, cash_floor:126000 },
-    installments: {
-      '2m': { months:2,  total:145200, advance:72600,  monthly:72600 },
-      '3m': { months:3,  total:151800, advance:75900,  monthly:37950 },
-      '6m': { months:6,  total:165000, advance:66000,  monthly:19800 },
-      '12m':{ months:12, total:184800, advance:55440,  monthly:11760 },
-    },
-    warranty: '1 Year Parts & Labour, 1 Year Panel',
-    stock_status: 'In Stock', featured: true,
-    thumbnail: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829e1?w=600&q=80',
-    gallery:   ['https://images.unsplash.com/photo-1593359677879-a4bb92f829e1?w=800&q=80'],
-    seo: { title:'Samsung 55" Crystal 4K UHD Smart TV — Karachi', description:'Buy Samsung 55" 4K Smart TV in Karachi. Crystal Processor, Tizen OS, HDR10+. Easy installments available.', keywords:'Samsung 55 inch 4K TV Karachi, Crystal UHD price, smart TV installment Pakistan' },
-  },
-  {
-    id: 'jinko-400w-solar',
-    brand: 'Jinko', model: 'JKM400M-54HL Solar Panel',
-    category: 'Solar Solutions', sub_category: 'Solar Panel', slug: 'jinko-400w-mono-solar-panel',
-    description: 'Jinko 400W Mono PERC solar panel with 21.3% efficiency, 25-year linear power output warranty, and strong mechanical load resistance up to 5400 Pa.',
-    specs: { Power:'400W', Type:'Mono PERC', Efficiency:'21.3%', 'Voc':'49.6V', 'Isc':'10.27A', Dimensions:'1722×1134×35mm', Weight:'21.3 Kg', 'Wind Load':'2400 Pa', 'Snow Load':'5400 Pa' },
-    tags: 'solar panel,400w,jinko,mono perc,net metering',
-    colors: 'Black Frame / White Backsheet',
-    price: { min:29500, retail:32450, cash_floor:30975 },
-    installments: {
-      '2m': { months:2,  total:35695, advance:17847,  monthly:17847 },
-      '3m': { months:3,  total:37317, advance:18658,  monthly:9329  },
-      '6m': { months:6,  total:40562, advance:16225,  monthly:4867  },
-      '12m':{ months:12, total:45430, advance:13629,  monthly:2888  },
-    },
-    warranty: '12 Years Product, 25 Years Linear Power Output',
-    stock_status: 'In Stock', featured: true,
-    thumbnail: 'https://images.unsplash.com/photo-1509391366360-2e959784a276?w=600&q=80',
-    gallery:   ['https://images.unsplash.com/photo-1509391366360-2e959784a276?w=800&q=80'],
-    seo: { title:'Jinko 400W Solar Panel Pakistan — Karachi', description:'Buy Jinko JKM400M 400W Mono PERC solar panel in Karachi. 25-year warranty. Net metering eligible. Easy installments.', keywords:'Jinko 400W solar panel price Pakistan, mono perc solar Karachi, solar installment' },
-  },
-];
+]
 
-// Static fallback — used when Sheets API is unavailable.
-// New categories added in Sheets will appear automatically via fetchCategories().
-export const CATEGORIES: Category[] = [
-  { name:'Air Conditioners',  slug:'air-conditioners',  icon:'❄️', subcategories:[] },
-  { name:'Refrigerators',     slug:'refrigerators',     icon:'🧊', subcategories:[] },
-  { name:'Washing Machines',  slug:'washing-machines',  icon:'🫧', subcategories:[] },
-  { name:'Televisions',       slug:'televisions',       icon:'📺', subcategories:[] },
-  { name:'Solar Solutions',   slug:'solar-solutions',   icon:'☀️', subcategories:[] },
-  { name:'Kitchen Appliances',slug:'kitchen-appliances',icon:'🍳', subcategories:[] },
-  { name:'Water Dispensers',  slug:'water-dispensers',  icon:'💧', subcategories:[] },
-  { name:'Vacuum Cleaners',   slug:'vacuum-cleaners',   icon:'🌀', subcategories:[] },
-  { name:'UPS & Power Backup',slug:'ups-power-backup',  icon:'🔋', subcategories:[] },
-  { name:'Small Appliances',  slug:'small-appliances',  icon:'🔌', subcategories:[] },
-];
-
-// ── API layer ──────────────────────────────────────────────
-let _productsCache: Product[] | null = null;
-let _cacheTime = 0;
-const CACHE_MS = 5 * 60 * 1000; // 5 min
-
-export async function fetchProducts(): Promise<Product[]> {
-  if (_productsCache && Date.now() - _cacheTime < CACHE_MS) return _productsCache;
-
-  if (!SHEETS_URL) return FALLBACK_PRODUCTS;
-
-  try {
-    const res  = await fetch(`${SHEETS_URL}?action=getProducts`);
-    const json = await res.json();
-    // GAS returns a plain array; guard against both formats
-    const data = _extractArray(json) as Product[] | null;
-    if (data && data.length > 0) {
-      _productsCache = data;
-      _cacheTime     = Date.now();
-      return data;
-    }
-  } catch {
-    // Sheets unreachable — use fallback silently
-  }
-  return FALLBACK_PRODUCTS;
+export function fmtPKR(n: number): string {
+  return 'PKR ' + Math.round(n).toLocaleString('en-PK')
 }
 
-let _categoriesCache: Category[] | null = null;
-let _catCacheTime = 0;
-
-export async function fetchCategories(): Promise<Category[]> {
-  if (_categoriesCache && Date.now() - _catCacheTime < CACHE_MS) return _categoriesCache;
-
-  if (!SHEETS_URL) return CATEGORIES;
-
-  try {
-    const res  = await fetch(`${SHEETS_URL}?action=getCategories`);
-    const json = await res.json();
-    const data = _extractArray(json) as Category[] | null;
-    if (data && data.length > 0) {
-      _categoriesCache = data;
-      _catCacheTime    = Date.now();
-      return data;
-    }
-  } catch {
-    // Sheets unreachable — use static fallback
-  }
-  return CATEGORIES;
-}
-
-export async function getProductBySlug(slug: string): Promise<Product | null> {
-  const all = await fetchProducts();
-  return all.find(p => p.slug === slug) ?? null;
-}
-
-export function formatPrice(n: number): string {
-  return Math.round(n).toLocaleString('en-PK');
-}
-
-export function slugifyCategory(cat: string): string {
-  return cat.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+export function discountPct(cashPrice: number, mrp: number): number {
+  if (!mrp || mrp <= cashPrice) return 0
+  return Math.round((mrp - cashPrice) / mrp * 100)
 }
