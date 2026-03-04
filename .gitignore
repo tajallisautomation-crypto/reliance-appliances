@@ -7,5 +7,12 @@ dist
 
 .vercel
 .claude
+
+# GAS / CLASP (no longer used)
+.clasp.json
+.claspignore
+appsscript.json
+check_api.mjs
+diag_products.js
 Appliance Reliance
 test-project
