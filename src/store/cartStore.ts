@@ -1,7 +1,9 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Product } from '../lib/api'
+
 interface CartItem extends Product { qty: number }
+
 interface CartStore {
   items: CartItem[]
   addItem: (p: Product, qty?: number) => void
@@ -10,6 +12,7 @@ interface CartStore {
   clearCart: () => void
   total: () => number
 }
+
 export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
