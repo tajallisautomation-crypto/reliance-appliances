@@ -724,7 +724,12 @@ const _SIZE_DISPLAY_MAP: Record<string, string> = {
 function _getSizeDisplay(brand: string, model: string): string {
   const bNorm = brand.toLowerCase().replace(/[^a-z0-9]/g, '');
   const mNorm = model.toUpperCase().replace(/[-\s]/g, '').toLowerCase();
-  return _SIZE_DISPLAY_MAP[`${bNorm}:${mNorm}`] ?? '';
+  if (_SIZE_DISPLAY_MAP[`${bNorm}:${mNorm}`]) return _SIZE_DISPLAY_MAP[`${bNorm}:${mNorm}`];
+  // Try just the primary model code before any space or slash variant
+  // e.g. "9191 WB Acce Pro" → "9191", "HRF-346 EPB / EPR" → "hrf346"
+  const primary = model.split(/[\s/]/)[0].replace(/-/g, '').toLowerCase();
+  if (primary && primary !== mNorm) return _SIZE_DISPLAY_MAP[`${bNorm}:${primary}`] ?? '';
+  return '';
 }
 
 function _cfFromFridge(model: string): number | '' {
@@ -880,19 +885,20 @@ function _buildSmallSpecs(brand: string, model: string, category: string, cc: st
     specs['Temperature Range'] = '150°C – 210°C';
     specs['Safety'] = 'Cool-Tip, Heat-Resistant Glove Included';
   } else if (cc === 'vacuum') {
-    if (p.litres) specs['Dust Capacity'] = p.litres;
-    if (p.watts) specs['Suction Power'] = p.watts + 'W';
+    if (p.litres) specs['Capacity'] = p.litres;
+    if (p.watts) specs['Power'] = p.watts + 'W';
     specs['Filtration'] = cat.includes('hepa') ? 'HEPA (captures 99.9% particles)' : 'Multi-Stage Filtration';
     specs['Type'] = cat.includes('handy') || cat.includes('hand') ? 'Handheld / Portable'
       : cat.includes('robot') ? 'Robot Vacuum' : 'Upright / Canister';
     specs['Accessories'] = 'Floor Brush, Crevice Tool, Upholstery Brush';
   } else if (cc === 'water_dispenser') {
-    specs['Type'] = cat.includes('floor') ? 'Floor Standing' : 'Counter Top';
-    specs['Temperature'] = 'Hot (90–95°C), Cold (5–10°C), Normal';
-    specs['Bottle'] = 'Standard 19-Litre Bottle';
-    specs['Tank'] = 'Stainless Steel Hot Tank, Food-Grade Cold Tank';
-    specs['Safety'] = 'Hot Water Child Safety Lock';
-    specs['Cooling'] = 'Compressor Cooling';
+    specs['Type']             = cat.includes('bottom') ? 'Bottom Load' : cat.includes('floor') ? 'Floor Standing' : 'Top Load';
+    specs['Hot Temperature']  = '90–95°C';
+    specs['Cold Temperature'] = '5–10°C';
+    specs['Compressor']       = 'Yes — Compressor Cooling';
+    specs['Bottle']           = 'Standard 19-Litre Bottle';
+    specs['Tank']             = 'Stainless Steel Hot Tank, Food-Grade Cold Tank';
+    specs['Safety']           = 'Hot Water Child Safety Lock';
   } else if (cc === 'air_cooler') {
     if (p.watts) specs['Motor Power'] = p.watts + 'W';
     const isInv = /INV|INVERTER|DC\s*12V|AC\/DC/.test(model.toUpperCase());
@@ -1189,10 +1195,12 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
     }
     const isInv = /HNF|PITH|CITH|FAIRY|LOMO|UFLY|ULTRA|INVERTER|\bINV\b|\bDC\b|LF\b|LFW/.test(m);
     const isHC  = /HFC|HFAB|HFTEX|HPU|PRIMA|GALLANT|HEAT|H&C/.test(m);
-    specs['Type']           = isHC ? 'Split AC (Heat & Cool)' : 'Split Air Conditioner';
-    specs['Compressor']     = isInv ? 'DC Inverter (Variable Speed)' : 'Conventional Rotary';
-    specs['Refrigerant']    = 'R32 (Eco-Friendly, Low GWP)';
-    specs['Energy Rating']  = isInv ? '5-Star Inverter' : '3-Star';
+    specs['Type']             = isHC ? 'Split AC (Heat & Cool)' : 'Split Air Conditioner';
+    specs['Inverter']         = isInv ? 'Yes' : 'No';
+    specs['Compressor']       = isInv ? 'DC Inverter (Variable Speed)' : 'Conventional Rotary';
+    specs['Gas Type']         = 'R32 (Eco-Friendly, Low GWP)';
+    if (ton) specs['Power Consumption'] = Math.round(parseFloat(ton) * (isInv ? 850 : 1100)) + 'W';
+    specs['Energy Rating']    = isInv ? '5-Star Inverter' : '3-Star';
     specs['Auto Restart']   = 'Yes — resumes last setting after power failure';
     specs['Turbo Cool']     = 'Yes';
     specs['Sleep Mode']     = 'Yes';
@@ -1218,7 +1226,9 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
     const isGlass= isIG || /IFGA|GLASS/.test(m);
     const isDF   = /HDF/.test(m);
     specs['Type']              = isSBS ? 'Side-by-Side (No-Frost)' : isGlass ? 'Glass Door' : isDF ? 'Deep Freezer' : 'Double Door';
+    specs['Inverter']          = isInv ? 'Yes' : 'No';
     specs['Compressor']        = isInv ? 'Inverter Compressor (Variable Speed, Energy Saving)' : 'Conventional Compressor';
+    specs['Cooling System']    = isInv || isSBS ? 'No Frost (Fan-Forced Cooling)' : 'Direct Cool (Manual Defrost)';
     if (isIF)  specs['Control Display'] = 'Digital LED Temperature Display';
     if (isIP)  specs['Control Display'] = 'Mechanical Thermostat (No Digital Display)';
     if (isIG)  specs['Control Display'] = 'Electronic Controls — Glass Door Model';
@@ -1249,9 +1259,9 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
                            : wt === 'fully_auto'  ? 'Fully Automatic'
                            : wt === 'semi_auto'   ? 'Semi-Automatic'
                            : 'Washing Machine';   // generic — type not confirmed
-    specs['Spin Speed']    = wt === 'front_load' ? 'Up to 1200 RPM'
-                           : wt === 'top_load'   ? 'Up to 800 RPM'
-                           : 'Up to 1350 RPM';
+    specs['RPM']           = wt === 'front_load' ? '1200'
+                           : wt === 'top_load'   ? '800'
+                           : '1350';
     if (wt !== 'generic') {
       specs['Wash Programs'] = wt === 'front_load' ? 'Quick Wash, Normal, Intensive, Eco, Delicate, Spin Only'
                              : wt === 'top_load'   ? 'Normal, Gentle, Heavy Duty, Quick Wash'
@@ -1275,7 +1285,7 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
     const isQled = /QLED/.test(m);
     const isFHD  = /FHD|1080/.test(m);
     specs['Resolution']   = is8K ? '8K Ultra HD (7680 × 4320)' : is4K ? '4K Ultra HD (3840 × 2160)' : isFHD ? 'Full HD (1920 × 1080)' : 'HD Ready (1366 × 768)';
-    specs['Display Type'] = isQled ? 'QLED (Quantum Dot LED)' : 'Direct LED / VA Panel';
+    specs['Panel Type']   = isQled ? 'QLED (Quantum Dot LED)' : 'Direct LED / VA Panel';
     specs['Smart TV']     = 'Yes — Android TV / Google TV';
     specs['HDR Support']  = is4K || is8K ? 'HDR10, HLG, Dolby Vision' : 'Standard';
     if (/120HZ|120H/.test(m)) specs['Refresh Rate'] = '120 Hz';
@@ -1544,6 +1554,63 @@ const _WP_NAMES: Record<string, [string, string]> = {
   'f10':  ['Westpoint Quick Chopper WF-F10',                        'Food Chopper'],
   'f04':  ['Westpoint Vegetable Slicer WF-F04',                     'Food Slicer'],
   'f07':  ['Westpoint Manual Kitchen Slicer WF-F07',                'Food Slicer'],
+  // ── Additional Kitchen Appliance models ─────────────────────────────────────
+  '2610': ['Westpoint Electric Pressure Cooker WF-2610',            'Pressure Cooker'],
+  '6300': ['Westpoint Deluxe Electric Iron WF-6300',                'Electric Iron'],
+  '5805': ['Westpoint Deluxe Room Heater WF-5805',                  'Room Heater'],
+  '2803': ['Westpoint Electric Pressure Cooker WF-2803',            'Pressure Cooker'],
+  '4711': ['Westpoint Blender WF-4711',                             'Blender'],
+  '5259': ['Westpoint Deluxe Electric Oven WF-5259',                'Electric Oven'],
+  '853':  ['Westpoint Deep Fryer WF-853',                           'Deep Fryer'],
+  '9714': ['Westpoint Hand Blender WF-9714',                        'Hand Blender'],
+  '442':  ['Westpoint Deluxe Deep Fryer WF-442',                    'Deep Fryer'],
+  '8266': ['Westpoint Kitchen Chef WF-8266',                        'Kitchen Chef'],
+  '3804': ['Westpoint Dough Maker WF-3804',                         'Dough Maker'],
+  '304':  ['Westpoint Meat Mincer WF-304',                          'Meat Mincer'],
+  '822':  ['Westpoint Deep Fryer WF-822',                           'Deep Fryer'],
+  '6174': ['Westpoint Electric Iron WF-6174',                       'Electric Iron'],
+  '949':  ['Westpoint Juicer WF-949',                               'Juicer'],
+  '8815': ['Westpoint Kitchen Chef WF-8815',                        'Kitchen Chef'],
+  '9215': ['Westpoint Professional Grinder WF-9215',                'Grinder'],
+  '4201': ['Westpoint Blender WF-4201',                             'Blender'],
+  '9816': ['Westpoint Deluxe Hand Mixer WF-9816',                   'Hand Mixer'],
+  '832':  ['Westpoint Deep Fryer WF-832',                           'Deep Fryer'],
+  '1846': ['Westpoint Electric Pressure Cooker WF-1846',            'Pressure Cooker'],
+  '2409': ['Westpoint Electric Pressure Cooker WF-2409',            'Pressure Cooker'],
+  '718':  ['Westpoint Juicer WF-718',                               'Juicer'],
+  '1099': ['Westpoint Room Humidifier WF-1099',                     'Humidifier'],
+  '554':  ['Westpoint Electric Kettle WF-554',                      'Electric Kettle'],
+  '495c': ['Westpoint Electric Kettle WF-495C',                     'Electric Kettle'],
+  '8813': ['Westpoint Kitchen Chef WF-8813',                        'Kitchen Chef'],
+  '496c': ['Westpoint Electric Kettle WF-496C',                     'Electric Kettle'],
+  '9214': ['Westpoint Professional Grinder WF-9214',                'Grinder'],
+  '5253': ['Westpoint Deluxe Electric Oven WF-5253',                'Electric Oven'],
+  '7501': ['Westpoint Deluxe Juicer WF-7501',                       'Juicer'],
+  '1834': ['Westpoint Electric Pressure Cooker WF-1834',            'Pressure Cooker'],
+  '7259': ['Westpoint Deluxe Juicer WF-7259',                       'Juicer'],
+  '4259': ['Westpoint Blender WF-4259',                             'Blender'],
+  '443':  ['Westpoint Deluxe Deep Fryer WF-443',                    'Deep Fryer'],
+  '1833': ['Westpoint Electric Pressure Cooker WF-1833',            'Pressure Cooker'],
+  '497c': ['Westpoint Electric Kettle WF-497C',                     'Electric Kettle'],
+  '5257': ['Westpoint Deluxe Electric Oven WF-5257',                'Electric Oven'],
+  '9936': ['Westpoint Hand Blender WF-9936',                        'Hand Blender'],
+  '1845': ['Westpoint Electric Pressure Cooker WF-1845',            'Pressure Cooker'],
+  '332':  ['Westpoint Baby Bottle Sterilizer WF-332',               'Baby Appliance'],
+  '5500': ['Westpoint Electric Oven WF-5500',                       'Electric Oven'],
+  // ── Additional Small Appliance models ───────────────────────────────────────
+  '2430': ['Westpoint Food Warmer WF-2430',                         'Food Warmer'],
+  '6807': ['Westpoint Hair Clipper WF-6807',                        'Hair Clipper'],
+  '1253': ['Westpoint Ultrasonic Humidifier WF-1253',               'Humidifier'],
+  '1159': ['Westpoint Room Humidifier WF-1159',                     'Humidifier'],
+  '2451': ['Westpoint Food Warmer WF-2451',                         'Food Warmer'],
+  '6201': ['Westpoint Electric Iron WF-6201',                       'Electric Iron'],
+  '1546': ['Westpoint Immersion Rod WF-1546',                       'Immersion Rod'],
+  '1154': ['Westpoint Room Humidifier WF-1154',                     'Humidifier'],
+  '6203': ['Westpoint Electric Iron WF-6203',                       'Electric Iron'],
+  '6280': ['Westpoint Deluxe Electric Iron WF-6280',                'Electric Iron'],
+  '672':  ['Westpoint Hair Trimmer WF-672',                         'Hair Trimmer'],
+  '6808': ['Westpoint Hair Clipper WF-6808',                        'Hair Clipper'],
+  '2064': ['Westpoint Deluxe Food Warmer WF-2064',                  'Food Warmer'],
 };
 
 function _wpLookup(model: string): [string, string] | null {
@@ -1599,7 +1666,8 @@ export function buildSimplifiedName(brand: string, model: string, category: stri
       return [b, ton ? ton + ' Ton' : '', series, isHC ? 'Heat & Cool' : '', isInv ? 'Inverter' : '', 'Air Conditioner'].filter(Boolean).join(' ');
     }
     case 'refrigerator': {
-      const size = _getSizeDisplay(b, mo);
+      let size = _getSizeDisplay(b, mo);
+      if (!size) { const cf = _cfFromFridge(mo); if (cf !== '') size = cf + ' Cu.Ft'; }
       // French T-Door / Triple Door — check before other type detection
       if (/\bTSG\b|\bTBG\b|T-DOOR|TDOOR|FRENCH/i.test(m) || /french/i.test(category)) {
         return [b, size, 'No Frost French T-Door Inverter Refrigerator'].filter(Boolean).join(' ');
@@ -1619,7 +1687,8 @@ export function buildSimplifiedName(brand: string, model: string, category: stri
       return [b, size, isGD && !isSBS ? 'Glass Door' : '', isInv ? 'Inverter' : '', series, typ].filter(Boolean).join(' ');
     }
     case 'deep_freezer': {
-      const size  = _getSizeDisplay(b, mo);
+      let size  = _getSizeDisplay(b, mo);
+      if (!size) { const cf = _cfFromFridge(mo); if (cf !== '') size = cf + ' Cu.Ft'; }
       const isInv = /INV|INVERTER/.test(m);
       const isVF  = /VF[-\s]/.test(m) || category.toLowerCase().includes('vertical');
       const typ   = isVF ? 'Vertical Freezer' : 'Deep Freezer';
