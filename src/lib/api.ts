@@ -790,48 +790,57 @@ function _buildSmallSpecs(brand: string, model: string, category: string, cc: st
 
   if (cc === 'air_fryer') {
     if (p.litres) specs['Capacity'] = p.litres;
-    specs['Technology'] = 'Rapid Hot Air Circulation (up to 95% less oil)';
+    if (p.watts) specs['Power'] = p.watts + 'W'; else specs['Power'] = '1500–2000W';
     specs['Temperature Range'] = '80°C – 200°C';
-    specs['Control'] = p.control === 'Digital' ? 'Digital LED with Touch Controls' : 'Mechanical Dial';
-    specs['Basket Material'] = 'Non-Stick Coated (BPA-Free)';
-    specs['Safety'] = 'Auto Shut-Off, Cool-Touch Body';
-  } else if (cat.includes('microwave')) {
+    specs['Timer']        = 'Up to 60 min with Auto Shut-Off';
+    specs['Basket Type']  = 'Removable Non-Stick Basket (BPA-Free)';
+    specs['Technology']   = 'Rapid Hot Air Circulation (up to 95% less oil)';
+    specs['Control']      = p.control === 'Digital' ? 'Digital LED with Touch Controls' : 'Mechanical Dial';
+    specs['Safety']       = 'Auto Shut-Off, Cool-Touch Body';
+  } else if (cat.includes('microwave') || cc === 'microwave') {
     if (p.litres) specs['Capacity'] = p.litres;
+    specs['Power']            = p.watts ? p.watts + 'W' : '1000W';
     specs['Heating Technology'] = 'Microwave + Grill (Combo)';
-    specs['Control'] = p.control === 'Digital' ? 'Digital Touch Panel' : 'Mechanical Knobs';
-    specs['Turntable'] = 'Yes (rotating glass plate)';
-    specs['Safety'] = 'Child Lock, Overheat Protection';
-  } else if (cat.includes('kettle')) {
+    specs['Control']          = p.control === 'Digital' ? 'Digital Touch Panel' : 'Mechanical Knobs';
+    specs['Turntable']        = 'Yes (rotating glass plate)';
+    specs['Safety']           = 'Child Lock, Overheat Protection';
+  } else if (cat.includes('kettle') || cc === 'kettle') {
     specs['Capacity'] = p.litres || '1.7L';
+    specs['Power']    = p.watts ? p.watts + 'W' : '1500W';
     specs['Material'] = p.material === 'Stainless' || p.material === 'Steel'
       ? 'Stainless Steel Interior, Cool-Touch Exterior'
       : 'Food-Grade Plastic (BPA-Free)';
     specs['Safety'] = 'Auto Shut-Off, Boil-Dry Protection, 360° Swivel Base';
     specs['Filter'] = 'Removable Limescale Filter';
-  } else if (cat.includes('toaster')) {
-    specs['Capacity'] = (p.slices || 2) + '-Slice';
+  } else if (cat.includes('toaster') || cc === 'toaster') {
+    specs['Capacity']        = (p.slices || 2) + '-Slice';
+    specs['Power']           = p.watts ? p.watts + 'W' : '900W';
     specs['Browning Control'] = '7-Level Browning Control';
-    specs['Functions'] = 'Toast, Defrost, Reheat, Cancel';
-    specs['Crumb Tray'] = 'Yes (removable, easy-clean)';
-  } else if (cat.includes('sandwich') || (cat.includes('grill') && !cat.includes('microw'))) {
-    specs['Plates'] = 'Non-Stick Coated Plates';
+    specs['Functions']       = 'Toast, Defrost, Reheat, Cancel';
+    specs['Crumb Tray']      = 'Yes (removable, easy-clean)';
+  } else if (cat.includes('sandwich') || cc === 'sandwich_maker' || (cat.includes('grill') && !cat.includes('microw'))) {
+    specs['Power']     = p.watts ? p.watts + 'W' : '750W';
+    specs['Plates']    = 'Non-Stick Coated Plates';
     specs['Indicator'] = 'Power + Ready Indicator Lights';
-    specs['Body'] = 'Cool-Touch Housing';
+    specs['Body']      = 'Cool-Touch Housing';
     if (p.multiFunc) specs['Interchangeable Plates'] = 'Yes (' + p.multiFunc + '-in-1)';
-  } else if (cat.includes('hand blend') || (cat.includes('blend') && cat.includes('hand'))) {
-    if (p.watts) specs['Motor Power'] = p.watts + 'W';
-    specs['Blade'] = 'Stainless Steel Detachable Blade';
+  } else if (cat.includes('hand blend') || (cat.includes('blend') && cat.includes('hand')) || cc === 'hand_blender') {
+    if (p.watts) specs['Power'] = p.watts + 'W'; else specs['Power'] = '200–800W';
+    specs['Type']   = 'Immersion / Stick Blender';
+    specs['Blade']  = 'Stainless Steel Detachable Blade';
     specs['Speeds'] = '2-Speed + Turbo';
-    specs['Body'] = 'Ergonomic Grip, Splash Guard';
-  } else if (cat.includes('juicer') || cat.includes('citrus')) {
-    if (p.watts) specs['Motor Power'] = p.watts + 'W';
-    specs['Strainer'] = 'Stainless Steel Anti-Drip Strainer';
+    specs['Body']   = 'Ergonomic Grip, Splash Guard';
+  } else if (cat.includes('juicer') || cat.includes('citrus') || cc === 'juicer') {
+    if (p.watts) specs['Power'] = p.watts + 'W'; else specs['Power'] = '400–800W';
+    specs['Type']         = cat.includes('citrus') || cc === 'juicer' ? 'Centrifugal / Citrus Juicer' : 'Juicer Blender';
+    specs['Strainer']     = 'Stainless Steel Anti-Drip Strainer';
     specs['Pulp Control'] = cat.includes('citrus') ? 'Reversible Cone + Adjustable Pulp Control' : 'Fine / Coarse Filter';
-  } else if (cat.includes('food proc')) {
-    if (p.litres) specs['Bowl Capacity'] = p.litres;
-    if (p.watts) specs['Motor Power'] = p.watts + 'W';
+  } else if (cat.includes('food proc') || cc === 'food_processor') {
+    if (p.litres) specs['Capacity'] = p.litres; else specs['Capacity'] = 'Multi-function';
+    if (p.watts) specs['Power'] = p.watts + 'W'; else specs['Power'] = '600–1000W';
+    specs['Type']      = 'Food Processor / Kitchen Chef';
     specs['Functions'] = 'Chop, Slice, Shred, Blend, Knead';
-    specs['Safety'] = 'Lid-Lock Safety Mechanism';
+    specs['Safety']    = 'Lid-Lock Safety Mechanism';
   } else if (cc === 'iron') {
     const isSteam = !cat.includes('dry iron');
     specs['Type'] = isSteam ? (p.control === 'Digital' ? 'Digital Steam Iron' : 'Steam Iron') : 'Dry Iron';
@@ -1297,19 +1306,20 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
   // ── Solar Solutions ──
   else if (cc === 'solar') {
     const kwM = m.match(/(\d+\.?\d*)\s*KW/);
-    if (kwM) {
-      const kw = parseFloat(kwM[1]);
-      specs['System Capacity']        = kw + ' kW';
-      specs['Estimated Daily Output']  = (kw * 4).toFixed(0) + '–' + (kw * 5).toFixed(0) + ' kWh/day (avg. Karachi sun)';
-      specs['Est. Annual Saving']      = 'Approx. PKR ' + Math.round(kw * 4 * 365 * 20).toLocaleString() + ' (at PKR 20/unit)';
-    }
     const isHybrid  = /HYBRID/.test(m);
     const isOnGrid  = /ON.GRID|ONGRID/.test(m);
     const isBattery = /BATTERY|BATT/.test(m);
     const isPanel   = /PANEL/.test(m);
-    specs['System Type']               = isBattery ? 'Battery Storage' : isHybrid ? 'Hybrid (Grid-Tied + Battery Backup)' : isOnGrid ? 'On-Grid (Grid-Tied)' : isPanel ? 'Solar Panel (Monocrystalline)' : 'Hybrid Solar System';
+    if (kwM) {
+      const kw = parseFloat(kwM[1]);
+      specs['Wattage']                = kw + ' kW (' + Math.round(kw * 1000) + 'W)';
+      specs['System Capacity']        = kw + ' kW';
+      specs['Estimated Daily Output'] = (kw * 4).toFixed(0) + '–' + (kw * 5).toFixed(0) + ' kWh/day (avg. Karachi sun)';
+      specs['Est. Annual Saving']     = 'Approx. PKR ' + Math.round(kw * 4 * 365 * 20).toLocaleString() + ' (at PKR 20/unit)';
+    }
+    specs['Type']                      = isBattery ? 'Battery Storage' : isHybrid ? 'Hybrid (Grid-Tied + Battery)' : isOnGrid ? 'On-Grid (Grid-Tied)' : isPanel ? 'Solar Panel' : 'Hybrid Solar System';
+    specs['Efficiency']                = '≥ 21.5%';
     specs['Panel Technology']          = 'Monocrystalline PERC';
-    specs['Panel Efficiency']          = '≥ 21.5%';
     specs['Works During Loadshedding'] = isHybrid || isBattery ? 'Yes — battery backup included' : 'No (grid required)';
     specs['Inverter Type']             = isHybrid ? 'Hybrid MPPT Inverter' : 'Grid-Tie MPPT Inverter';
     specs['Protection']                = 'Over-Voltage, Short Circuit, Over-Temperature';
@@ -1554,63 +1564,63 @@ const _WP_NAMES: Record<string, [string, string]> = {
   'f10':  ['Westpoint Quick Chopper WF-F10',                        'Food Chopper'],
   'f04':  ['Westpoint Vegetable Slicer WF-F04',                     'Food Slicer'],
   'f07':  ['Westpoint Manual Kitchen Slicer WF-F07',                'Food Slicer'],
-  // ── Additional Kitchen Appliance models ─────────────────────────────────────
-  '2610': ['Westpoint Electric Pressure Cooker WF-2610',            'Pressure Cooker'],
-  '6300': ['Westpoint Deluxe Electric Iron WF-6300',                'Electric Iron'],
-  '5805': ['Westpoint Deluxe Room Heater WF-5805',                  'Room Heater'],
-  '2803': ['Westpoint Electric Pressure Cooker WF-2803',            'Pressure Cooker'],
-  '4711': ['Westpoint Blender WF-4711',                             'Blender'],
-  '5259': ['Westpoint Deluxe Electric Oven WF-5259',                'Electric Oven'],
-  '853':  ['Westpoint Deep Fryer WF-853',                           'Deep Fryer'],
+  // ── Kitchen Appliances (verified via westpoint.pk) ───────────────────────────
+  '2610': ['Westpoint Convection Rotisserie Oven WF-2610',          'Rotisserie Oven'],
+  '6300': ['Westpoint Convection Rotisserie Oven WF-6300',          'Rotisserie Oven'],
+  '5805': ['Westpoint Kitchen Chef WF-5805',                        'Kitchen Chef'],
+  '2803': ['Westpoint Jumbo Kitchen Chef WF-2803',                  'Kitchen Chef'],
+  '4711': ['Westpoint Convection Rotisserie Oven WF-4711',          'Rotisserie Oven'],
+  '5259': ['Westpoint Air Fryer Rotisserie Oven WF-5259',           'Air Fryer'],
+  '853':  ['Westpoint Microwave Oven WF-853',                       'Microwave Oven'],
   '9714': ['Westpoint Hand Blender WF-9714',                        'Hand Blender'],
-  '442':  ['Westpoint Deluxe Deep Fryer WF-442',                    'Deep Fryer'],
-  '8266': ['Westpoint Kitchen Chef WF-8266',                        'Kitchen Chef'],
-  '3804': ['Westpoint Dough Maker WF-3804',                         'Dough Maker'],
-  '304':  ['Westpoint Meat Mincer WF-304',                          'Meat Mincer'],
-  '822':  ['Westpoint Deep Fryer WF-822',                           'Deep Fryer'],
-  '6174': ['Westpoint Electric Iron WF-6174',                       'Electric Iron'],
-  '949':  ['Westpoint Juicer WF-949',                               'Juicer'],
-  '8815': ['Westpoint Kitchen Chef WF-8815',                        'Kitchen Chef'],
-  '9215': ['Westpoint Professional Grinder WF-9215',                'Grinder'],
-  '4201': ['Westpoint Blender WF-4201',                             'Blender'],
-  '9816': ['Westpoint Deluxe Hand Mixer WF-9816',                   'Hand Mixer'],
-  '832':  ['Westpoint Deep Fryer WF-832',                           'Deep Fryer'],
-  '1846': ['Westpoint Electric Pressure Cooker WF-1846',            'Pressure Cooker'],
-  '2409': ['Westpoint Electric Pressure Cooker WF-2409',            'Pressure Cooker'],
-  '718':  ['Westpoint Juicer WF-718',                               'Juicer'],
-  '1099': ['Westpoint Room Humidifier WF-1099',                     'Humidifier'],
-  '554':  ['Westpoint Electric Kettle WF-554',                      'Electric Kettle'],
-  '495c': ['Westpoint Electric Kettle WF-495C',                     'Electric Kettle'],
-  '8813': ['Westpoint Kitchen Chef WF-8813',                        'Kitchen Chef'],
-  '496c': ['Westpoint Electric Kettle WF-496C',                     'Electric Kettle'],
-  '9214': ['Westpoint Professional Grinder WF-9214',                'Grinder'],
-  '5253': ['Westpoint Deluxe Electric Oven WF-5253',                'Electric Oven'],
-  '7501': ['Westpoint Deluxe Juicer WF-7501',                       'Juicer'],
-  '1834': ['Westpoint Electric Pressure Cooker WF-1834',            'Pressure Cooker'],
-  '7259': ['Westpoint Deluxe Juicer WF-7259',                       'Juicer'],
-  '4259': ['Westpoint Blender WF-4259',                             'Blender'],
-  '443':  ['Westpoint Deluxe Deep Fryer WF-443',                    'Deep Fryer'],
-  '1833': ['Westpoint Electric Pressure Cooker WF-1833',            'Pressure Cooker'],
-  '497c': ['Westpoint Electric Kettle WF-497C',                     'Electric Kettle'],
-  '5257': ['Westpoint Deluxe Electric Oven WF-5257',                'Electric Oven'],
+  '442':  ['Westpoint Kitchen Chef WF-442',                         'Kitchen Chef'],
+  '8266': ['Westpoint Cordless Electric Kettle WF-8266',            'Electric Kettle'],
+  '3804': ['Westpoint Kitchen Chef WF-3804',                        'Kitchen Chef'],
+  '304':  ['Westpoint Blender Grinder WF-304',                      'Blender'],
+  '822':  ['Westpoint Microwave Oven WF-822',                       'Microwave Oven'],
+  '6174': ['Westpoint Cordless Electric Kettle WF-6174',            'Electric Kettle'],
+  '949':  ['Westpoint Blender Grinder WF-949',                      'Blender'],
+  '8815': ['Westpoint Kitchen Robot WF-8815',                       'Kitchen Robot'],
+  '9215': ['Westpoint Hand Blender WF-9215',                        'Hand Blender'],
+  '4201': ['Westpoint 3-in-1 Hand Blender WF-4201',                 'Hand Blender'],
+  '9816': ['Westpoint Hand Blender WF-9816',                        'Hand Blender'],
+  '832':  ['Westpoint Microwave Oven WF-832',                       'Microwave Oven'],
+  '1846': ['Westpoint Juicer Mincer WF-1846',                       'Juicer'],
+  '2409': ['Westpoint Juicer Blender Drymill WF-2409',              'Juicer Blender'],
+  '718':  ['Westpoint Blender Grinder WF-718',                      'Blender'],
+  '1099': ['Westpoint Food Chopper WF-1099',                        'Food Chopper'],
+  '554':  ['Westpoint Citrus Juicer WF-554',                        'Juicer'],
+  '495c': ['Westpoint Food Chopper WF-495C',                        'Food Chopper'],
+  '8813': ['Westpoint Juicer Blender Drymill WF-8813',              'Juicer Blender'],
+  '496c': ['Westpoint Kitchen Robot WF-496C',                       'Kitchen Robot'],
+  '9214': ['Westpoint Hand Blender WF-9214',                        'Hand Blender'],
+  '5253': ['Westpoint Deluxe Air Fryer WF-5253',                    'Air Fryer'],
+  '7501': ['Westpoint Juicer Blender Drymill WF-7501',              'Juicer Blender'],
+  '1834': ['Westpoint Kitchen Chef WF-1834',                        'Kitchen Chef'],
+  '7259': ['Westpoint Deluxe Air Fryer WF-7259',                    'Air Fryer'],
+  '4259': ['Westpoint Deluxe Air Fryer WF-4259',                    'Air Fryer'],
+  '443':  ['Westpoint Kitchen Chef WF-443',                         'Kitchen Chef'],
+  '1833': ['Westpoint Kitchen Chef WF-1833',                        'Kitchen Chef'],
+  '497c': ['Westpoint Kitchen Robot WF-497C',                       'Kitchen Robot'],
+  '5257': ['Westpoint Deluxe Air Fryer WF-5257',                    'Air Fryer'],
   '9936': ['Westpoint Hand Blender WF-9936',                        'Hand Blender'],
-  '1845': ['Westpoint Electric Pressure Cooker WF-1845',            'Pressure Cooker'],
-  '332':  ['Westpoint Baby Bottle Sterilizer WF-332',               'Baby Appliance'],
-  '5500': ['Westpoint Electric Oven WF-5500',                       'Electric Oven'],
-  // ── Additional Small Appliance models ───────────────────────────────────────
-  '2430': ['Westpoint Food Warmer WF-2430',                         'Food Warmer'],
-  '6807': ['Westpoint Hair Clipper WF-6807',                        'Hair Clipper'],
-  '1253': ['Westpoint Ultrasonic Humidifier WF-1253',               'Humidifier'],
-  '1159': ['Westpoint Room Humidifier WF-1159',                     'Humidifier'],
-  '2451': ['Westpoint Food Warmer WF-2451',                         'Food Warmer'],
-  '6201': ['Westpoint Electric Iron WF-6201',                       'Electric Iron'],
-  '1546': ['Westpoint Immersion Rod WF-1546',                       'Immersion Rod'],
-  '1154': ['Westpoint Room Humidifier WF-1154',                     'Humidifier'],
-  '6203': ['Westpoint Electric Iron WF-6203',                       'Electric Iron'],
-  '6280': ['Westpoint Deluxe Electric Iron WF-6280',                'Electric Iron'],
-  '672':  ['Westpoint Hair Trimmer WF-672',                         'Hair Trimmer'],
-  '6808': ['Westpoint Hair Clipper WF-6808',                        'Hair Clipper'],
-  '2064': ['Westpoint Deluxe Food Warmer WF-2064',                  'Food Warmer'],
+  '1845': ['Westpoint Kitchen Chef WF-1845',                        'Kitchen Chef'],
+  '332':  ['Westpoint Blender Grinder WF-332',                      'Blender'],
+  '5500': ['Westpoint Professional Rotisserie Baking Oven WF-5500', 'Rotisserie Oven'],
+  // ── Small Appliances (verified via westpoint.pk) ─────────────────────────────
+  '2430': ['Westpoint Deluxe Dry Iron WF-2430',                     'Electric Iron'],
+  '6807': ['Westpoint Hair Straightener WF-6807',                   'Hair Straightener'],
+  '1253': ['Westpoint Garment Steamer WF-1253',                     'Garment Steamer'],
+  '1159': ['Westpoint Garment Steamer WF-1159',                     'Garment Steamer'],
+  '2451': ['Westpoint Dry Iron WF-2451',                            'Electric Iron'],
+  '6201': ['Westpoint Hair Dryer WF-6201',                          'Hair Dryer'],
+  '1546': ['Westpoint Deluxe Tower Fan WF-1546',                    'Tower Fan'],
+  '1154': ['Westpoint Garment Steamer WF-1154',                     'Garment Steamer'],
+  '6203': ['Westpoint Hair Dryer WF-6203',                          'Hair Dryer'],
+  '6280': ['Westpoint Hair Dryer WF-6280',                          'Hair Dryer'],
+  '672':  ['Westpoint Dry Iron WF-672',                             'Electric Iron'],
+  '6808': ['Westpoint Hair Straightener WF-6808',                   'Hair Straightener'],
+  '2064': ['Westpoint Steam Iron WF-2064',                          'Electric Iron'],
 };
 
 function _wpLookup(model: string): [string, string] | null {
@@ -2103,11 +2113,45 @@ function _generateDescription(brand: string, model: string, simplifiedName: stri
   }
 }
 
+// ── Westpoint sub-category → canonical cc mapping ─────────────────────────────
+// Used when resolveCanonicalCategory returns 'unknown' for generic DB categories
+// like "Kitchen Appliances" but _wpLookup provides the real product sub-type.
+function _wpSubCatToCC(sub: string): string | null {
+  const s = sub.toLowerCase();
+  if (s.includes('air fry'))          return 'air_fryer';
+  if (s.includes('microwave'))        return 'microwave';
+  if (s.includes('rotisserie') || (s.includes('oven') && !s.includes('micro'))) return 'oven';
+  if (s.includes('kettle'))           return 'kettle';
+  if (s.includes('hand blender'))     return 'hand_blender';
+  if (s.includes('blender') || s.includes('grinder') || s.includes('drymill')) return 'blender';
+  if (s.includes('juicer'))           return 'juicer';
+  if (s.includes('chopper'))          return 'chopper';
+  if (s.includes('food processor') || s.includes('kitchen chef') || s.includes('kitchen robot')) return 'food_processor';
+  if (s.includes('rice cooker'))      return 'rice_cooker';
+  if (s.includes('toaster'))          return 'toaster';
+  if (s.includes('sandwich'))         return 'sandwich_maker';
+  if (s.includes('iron'))             return 'iron';
+  if (s.includes('hair dryer'))       return 'hair_dryer';
+  if (s.includes('hair straightener')) return 'hair_straightener';
+  if (s.includes('steamer'))          return 'steamer';
+  if (s.includes('fan'))              return 'fan';
+  if (s.includes('heater'))           return 'heater';
+  if (s.includes('humidifier'))       return 'air_purifier'; // closest spec set
+  if (s.includes('vacuum'))           return 'vacuum';
+  return null;
+}
+
 // ── Enrichment: master function ───────────────────────────────────────────────
 
 export function enrichProduct(brand: string, model: string, category: string): Record<string, any> {
   // Resolve canonical category ONCE — used by all sub-functions
-  const cc            = resolveCanonicalCategory(brand, model, category);
+  let cc = resolveCanonicalCategory(brand, model, category);
+  // For Westpoint products with generic DB categories ("Kitchen Appliances",
+  // "Small Appliances"), use the sub-category from _wpLookup to get proper specs.
+  if (cc === 'unknown' && brand.toLowerCase().includes('westpoint')) {
+    const wp = _wpLookup(model);
+    if (wp) { const wpCc = _wpSubCatToCC(wp[1]); if (wpCc) cc = wpCc; }
+  }
   const specs         = _buildSpecs(brand, model, category, cc);
   const simplified_name = buildSimplifiedName(brand, model, category, cc);
   const warranty      = lookupWarranty(brand, model, category, cc);
