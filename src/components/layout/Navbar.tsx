@@ -1,41 +1,35 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Search, Menu, X, Phone, User } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ShoppingCart, Menu, X, Phone, User } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import CartDrawer from '@/components/cart/CartDrawer';
+import SearchBar from '@/components/SearchBar';
 import { waSales } from '@/lib/whatsapp';
 
 export default function Navbar() {
-  const [mobileOpen, setMobileOpen]   = useState(false);
-  const [cartOpen, setCartOpen]       = useState(false);
-  const [searchQ, setSearchQ]         = useState('');
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [cartOpen,   setCartOpen]   = useState(false);
   const totalItems = useCartStore(s => s.items.reduce((n, i) => n + i.qty, 0));
-  const navigate   = useNavigate();
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQ.trim()) { navigate(`/products?q=${encodeURIComponent(searchQ.trim())}`); setSearchQ(''); }
-  };
 
   return (
     <>
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 h-16">
+
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2 font-black text-lg text-gray-900 shrink-0 mr-2">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-black"
-                style={{ background: 'linear-gradient(135deg,#0070f3,#f5c842)' }}>R</div>
-              <span className="hidden sm:inline">Reliance</span>
+                style={{ background: 'linear-gradient(135deg,#f97316,#f5c842)' }}>T</div>
+              <span className="hidden sm:inline">Tajalli's</span>
             </Link>
 
             {/* Nav links — desktop */}
-            <nav className="hidden md:flex items-center gap-1 flex-1">
+            <nav className="hidden md:flex items-center gap-1">
               {[
                 ['Products',     '/products'],
                 ['Installments', '/installments'],
-                ['Solar',        '/products/solar-solutions'],
-                ['Tools',        '/tools'],
+                ['Solar',        '/solar'],
                 ['Services',     '/services'],
                 ['Corporate',    '/corporate'],
               ].map(([label, href]) => (
@@ -46,20 +40,16 @@ export default function Navbar() {
               ))}
             </nav>
 
-            {/* Search */}
-            <form onSubmit={handleSearch} className="hidden sm:flex flex-1 max-w-xs">
-              <div className="relative w-full">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                <input
-                  value={searchQ} onChange={e => setSearchQ(e.target.value)}
-                  placeholder="Search products…"
-                  className="pl-9 pr-4 py-2 w-full rounded-full bg-surface-secondary border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-                />
-              </div>
-            </form>
+            {/* Search — grows to fill space */}
+            <div className="hidden sm:block flex-1 max-w-md">
+              <SearchBar
+                placeholder="Search products, models, brands…"
+                inputClass="bg-gray-50"
+              />
+            </div>
 
             {/* Right icons */}
-            <div className="flex items-center gap-1 ml-auto md:ml-0">
+            <div className="flex items-center gap-1 ml-auto sm:ml-0 shrink-0">
               <a href={waSales()} target="_blank" rel="noreferrer" aria-label="WhatsApp"
                 className="hidden sm:flex w-9 h-9 items-center justify-center rounded-full hover:bg-green-50 transition-colors"
                 style={{ color: '#25d366' }}>
@@ -89,22 +79,15 @@ export default function Navbar() {
         {/* Mobile menu */}
         {mobileOpen && (
           <div className="md:hidden border-t border-gray-100 bg-white px-4 py-3 space-y-1">
-            <form onSubmit={handleSearch} className="mb-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input value={searchQ} onChange={e => setSearchQ(e.target.value)}
-                  placeholder="Search products…"
-                  className="pl-9 pr-4 py-2.5 w-full rounded-full bg-surface-secondary border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
-              </div>
-            </form>
+            <div className="mb-3">
+              <SearchBar placeholder="Search products…" />
+            </div>
             {[
               ['Products','/products'], ['Installments','/installments'],
-              ['Solar Solutions','/products/solar-solutions'],
-              ['Solar Calculator','/solar-calculator'],
-              ['Tools & Calculators','/tools'],
-              ['Services','/services'],
+              ['Solar Solutions','/solar'], ['Solar Calculator','/solar-calculator'],
+              ['Tools & Calculators','/tools'], ['Services','/services'],
               ['Corporate','/corporate'], ['About','/about'], ['Contact','/contact'],
-            ].map(([l,h]) => (
+            ].map(([l, h]) => (
               <Link key={h} to={h} onClick={() => setMobileOpen(false)}
                 className="block px-3 py-2.5 rounded-apple text-sm font-medium text-gray-700 hover:bg-surface-secondary">
                 {l}

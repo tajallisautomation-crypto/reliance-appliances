@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ShoppingCart, MessageCircle, Shield, Truck, Award, Check, Wrench, Share2, ChevronDown, ChevronUp, Star, ZoomIn } from 'lucide-react';
-import { getProductBySlug, formatPrice } from '@/lib/api';
+import { ArrowLeft, ShoppingCart, MessageCircle, Shield, Truck, Award, Check, Wrench, Share2, ChevronDown, ChevronUp, Star } from 'lucide-react';
+import { getProductBySlug, getRelatedProducts, formatPrice, DEFAULT_CATEGORIES } from '@/lib/api';
 import type { Product } from '@/lib/types';
+import ProductCard from '@/components/products/ProductCard';
+import CompareButton from '@/components/CompareButton';
 import SEO from '@/components/ui/SEO';
 import Spinner from '@/components/ui/Spinner';
 import { useCartStore } from '@/store/cartStore';
@@ -16,9 +18,10 @@ const PLAN_LABELS: Record<string, string> = {
 export default function ProductDetail() {
   const { slug }                = useParams<{ slug: string }>();
   const navigate                = useNavigate();
-  const [product, setProduct]   = useState<Product | null>(null);
-  const [loading, setLoading]   = useState(true);
-  const [plan, setPlan]         = useState<'cash'|'2m'|'3m'|'6m'|'12m'>('cash');
+  const [product, setProduct]       = useState<Product | null>(null);
+  const [related, setRelated]       = useState<Product[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [plan, setPlan]             = useState<'cash'|'2m'|'3m'|'6m'|'12m'>('cash');
   const [withInstall, setWithInstall] = useState(false);
   const [specsOpen, setSpecsOpen]     = useState(true);
   const [activeImg, setActiveImg]     = useState(0);
@@ -30,6 +33,7 @@ export default function ProductDetail() {
       if (!p) { navigate('/products', { replace: true }); return; }
       setProduct(p);
       setLoading(false);
+      getRelatedProducts(p.id, p.category, 4).then(setRelated);
     });
   }, [slug, navigate]);
 
@@ -60,7 +64,7 @@ export default function ProductDetail() {
       <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6 flex-wrap">
         <Link to="/" className="hover:text-brand-600">Home</Link><span>/</span>
         <Link to="/products" className="hover:text-brand-600">Products</Link><span>/</span>
-        <Link to={`/products/category/${p.category.toLowerCase().replace(/\s+/g,'-')}`}
+        <Link to={`/products/category/${DEFAULT_CATEGORIES.find(c => c.slug === p.category.toLowerCase().replace(/\s+/g, '-'))?.slug ?? p.category.toLowerCase().replace(/\s+/g, '-')}`}
           className="hover:text-brand-600">{p.category}</Link><span>/</span>
         <span className="text-gray-900 font-medium truncate max-w-xs">{p.model}</span>
       </nav>
@@ -117,15 +121,21 @@ export default function ProductDetail() {
           {/* Plan selector */}
           <div className="bg-surface-secondary rounded-apple-xl p-5 mb-5">
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Select Payment Plan</p>
-            <div className="grid grid-cols-5 gap-2 mb-4">
-              {(['cash','2m','3m','6m','12m'] as const).map(pl => (
-                <button key={pl} onClick={() => setPlan(pl)}
-                  className={`py-2 px-1 rounded-lg text-xs font-bold text-center transition-all border focus-visible:ring-2 focus-visible:ring-brand-500
-                    ${plan === pl ? 'bg-brand-500 text-white border-brand-500 shadow-blue' : 'bg-white border-gray-200 text-gray-600 hover:border-brand-300'}`}>
-                  {pl === 'cash' ? 'Cash' : pl}
-                </button>
-              ))}
-            </div>
+            {(() => {
+              const availablePlans = (['cash', '2m', '3m', '6m', '12m'] as const).filter(pl => pl === 'cash' || !!p.installments[pl]);
+              const cols = availablePlans.length <= 4 ? availablePlans.length : 5;
+              return (
+                <div className={`grid gap-2 mb-4`} style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+                  {availablePlans.map(pl => (
+                    <button key={pl} onClick={() => setPlan(pl)}
+                      className={`py-2 px-1 rounded-lg text-xs font-bold text-center transition-all border focus-visible:ring-2 focus-visible:ring-brand-500
+                        ${plan === pl ? 'bg-brand-500 text-white border-brand-500 shadow-blue' : 'bg-white border-gray-200 text-gray-600 hover:border-brand-300'}`}>
+                      {pl === 'cash' ? 'Cash' : pl}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
 
             {/* Price display — NO advance %, NO markup shown */}
             <div className="bg-white rounded-apple p-4">
@@ -195,6 +205,7 @@ export default function ProductDetail() {
           <Link to="/checkout" onClick={handleAdd} className="btn-gold w-full justify-center py-3.5 text-base">
             Buy Now
           </Link>
+          <CompareButton product={p} variant="full" className="w-full justify-center mt-2" />
 
           {/* Trust icons */}
           <div className="grid grid-cols-3 gap-2 mt-5">
@@ -250,6 +261,18 @@ export default function ProductDetail() {
               #{tag}
             </Link>
           ))}
+        </div>
+      )}
+
+      {/* Related products */}
+      {related.length > 0 && (
+        <div className="mt-14">
+          <h2 className="text-lg font-extrabold text-gray-900 mb-5">
+            More {p.category}
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {related.map(r => <ProductCard key={r.id} product={r} />)}
+          </div>
         </div>
       )}
 

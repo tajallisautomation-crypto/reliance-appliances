@@ -85,7 +85,7 @@ const PAGE_PERF = [
 
 type Tab = 'overview'|'analytics'|'products'|'crm'|'competitor'|'performance';
 
-const ADMIN_PASS = 'reliance2025'; // In production this comes from env
+const ADMIN_PASS = (import.meta as any).env?.VITE_ADMIN_PASS || 'reliance2025';
 
 export default function Dashboard() {
   const [authed, setAuthed]   = useState(false);
@@ -137,7 +137,7 @@ export default function Dashboard() {
     { key:'overview',    label:'Overview',    icon:BarChart2   },
     { key:'analytics',   label:'Analytics',   icon:TrendingUp  },
     { key:'products',    label:'Products',    icon:Package     },
-    { key:'crm',         label:'CRM & CRM',   icon:Users       },
+    { key:'crm',         label:'CRM',         icon:Users       },
     { key:'competitor',  label:'Competitor',  icon:Search      },
     { key:'performance', label:'Performance', icon:Activity    },
   ];

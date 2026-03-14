@@ -4,6 +4,7 @@ import type { Product } from '@/lib/types';
 import { formatPrice } from '@/lib/api';
 import { waProduct } from '@/lib/whatsapp';
 import { useCartStore } from '@/store/cartStore';
+import CompareButton from '@/components/CompareButton';
 import toast from 'react-hot-toast';
 
 interface Props { product: Product; }
@@ -46,6 +47,7 @@ export default function ProductCard({ product: p }: Props) {
             className="w-9 h-9 rounded-full bg-white shadow-apple-lg flex items-center justify-center text-brand-500 hover:bg-brand-500 hover:text-white transition-colors">
             <ShoppingCart className="w-4 h-4" />
           </button>
+          <CompareButton product={p} variant="icon" />
           <a href={waProduct(p.brand, p.model)} target="_blank" rel="noreferrer"
             aria-label={`Enquire about ${p.model}`} onClick={e => e.stopPropagation()}
             className="w-9 h-9 rounded-full bg-white shadow-apple-lg flex items-center justify-center"
@@ -73,13 +75,18 @@ export default function ProductCard({ product: p }: Props) {
           )}
         </div>
 
-        {/* Installment hint — only show monthly amount, no advance % or markup */}
-        <div className="flex items-center gap-1 mb-3">
-          <span className="text-xs text-brand-600 font-semibold">
-            Or PKR {formatPrice(p.installments['12m'].monthly)}/mo
-          </span>
-          <span className="text-xs text-gray-400">· 12 months</span>
-        </div>
+        {/* Installment hint — show best available plan */}
+        {(() => {
+          const plan = p.installments['12m'] ?? p.installments['6m'] ?? p.installments['3m'];
+          return plan ? (
+            <div className="flex items-center gap-1 mb-3">
+              <span className="text-xs text-brand-600 font-semibold">
+                Or PKR {formatPrice(plan.monthly)}/mo
+              </span>
+              <span className="text-xs text-gray-400">· {plan.months} months</span>
+            </div>
+          ) : <div className="mb-3" />;
+        })()}
 
         {/* Warranty badge */}
         <div className="flex items-center gap-1">

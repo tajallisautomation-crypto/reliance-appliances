@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Trash2, Plus, Minus, ShoppingCart, ArrowRight } from 'lucide-react'
 import { useCartStore } from '../store/cartStore'
 import { fmtPKR, fixImageUrl, calcAllPlans } from '../lib/api'
+import SEO from '../components/ui/SEO'
 
 export default function Cart() {
   const { items, removeItem, updateQty, total } = useCartStore()
@@ -22,6 +23,7 @@ export default function Cart() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
+      <SEO title="Your Cart — Reliance Appliances" noIndex />
       <h1 className="text-2xl font-black text-gray-900 mb-8">Your Cart ({items.length} item{items.length !== 1 ? 's' : ''})</h1>
       <div className="grid md:grid-cols-3 gap-8">
         <div className="md:col-span-2 space-y-4">

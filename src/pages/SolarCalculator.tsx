@@ -50,6 +50,7 @@ export default function SolarCalculator() {
   const [openCat, setOpenCat] = useState<string|null>('Cooling')
   const [contact, setContact] = useState({name:'',phone:'',email:''})
   const [submitted, setSubmitted] = useState(false)
+  const [submitErr, setSubmitErr] = useState('')
   const [custom, setCustom]   = useState({name:'',watts:'',qty:'1',hours:'4'})
 
   const totalW = items.reduce((s,i)=>s+i.watts*i.qty,0)
@@ -99,8 +100,17 @@ export default function SolarCalculator() {
 
   const submit = async () => {
     if (!contact.name||!contact.phone) return
-    try { await fetch(SHEET_URL,{method:'POST',body:JSON.stringify({action:'submitRetailForm',...contact,interests:'Solar',notes:'Load:'+totalW+'W'})}) } catch {}
-    setSubmitted(true)
+    setSubmitErr('')
+    try {
+      if (SHEET_URL) {
+        const res = await fetch(SHEET_URL, { method:'POST', body: JSON.stringify({ action:'submitRetailForm', ...contact, interests:'Solar', notes:'Load:'+totalW+'W' }) })
+        if (!res.ok) throw new Error('Server error')
+      }
+      setSubmitted(true)
+    } catch (e: any) {
+      console.error('[SolarCalculator submit]', e)
+      setSubmitErr('Quote request failed. Please use the WhatsApp button below to send your quote directly.')
+    }
   }
   const wa = () => {
     const msg = encodeURIComponent('Hi Reliance! Solar quote request\nSystem: '+quote.systemKW+'kW '+sysType+'\nLoad: '+totalW+'W\nCost: '+fmtPKR(quote.costs.total)+'\nMonthly saving: '+fmtPKR(quote.savings.monthlySaving))
@@ -289,6 +299,7 @@ export default function SolarCalculator() {
                   <input className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400" placeholder="Phone number *" value={contact.phone} onChange={e=>setContact(p=>({...p,phone:e.target.value}))}/>
                   <input className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400" placeholder="Email (optional)" value={contact.email} onChange={e=>setContact(p=>({...p,email:e.target.value}))}/>
                 </div>
+                {submitErr && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3 mt-3">{submitErr}</p>}
                 <div className="grid md:grid-cols-2 gap-3 mt-3">
                   <button onClick={submit} disabled={!contact.name||!contact.phone} className="bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl py-3 font-semibold disabled:opacity-50 hover:shadow-lg transition-all">Request Detailed Quote</button>
                   <button onClick={wa} className="bg-green-500 hover:bg-green-600 text-white rounded-xl py-3 font-semibold transition-all">WhatsApp This Quote</button>

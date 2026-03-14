@@ -28,7 +28,7 @@ export default function Footer() {
         <div>
           <h3 className="font-bold text-sm uppercase tracking-wider text-gray-300 mb-3">Products</h3>
           <ul className="space-y-2">
-            {['Air Conditioners','Refrigerators','Washing Machines','Televisions','Solar Solutions','Kitchen Appliances'].map(c => (
+            {['Air Conditioners','Refrigerators','Freezers','Washing Machines','Televisions','Solar Solutions','Kitchen Appliances'].map(c => (
               <li key={c}>
                 <Link to={`/products/category/${c.toLowerCase().replace(/\s+/g,'-')}`}
                   className="text-sm text-gray-400 hover:text-white transition-colors">{c}</Link>
@@ -42,7 +42,7 @@ export default function Footer() {
           <h3 className="font-bold text-sm uppercase tracking-wider text-gray-300 mb-3">Services</h3>
           <ul className="space-y-2">
             {[['Installment Plans','/installments'],['Installation','/services'],['Warranty Claims','/services'],
-              ['Solar Solutions','/products/solar-solutions'],['Corporate','/corporate'],['Customer Portal','/portal']].map(([l,h]) => (
+              ['Solar Solutions','/solar'],['Corporate','/corporate'],['Customer Portal','/portal']].map(([l,h]) => (
               <li key={h}><Link to={h} className="text-sm text-gray-400 hover:text-white transition-colors">{l}</Link></li>
             ))}
           </ul>

@@ -1,5 +1,7 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import Layout from './components/layout/Layout'
+import ErrorBoundary from './components/ui/ErrorBoundary'
 import Home from './pages/Home'
 import Products from './pages/Products'
 import ProductDetail from './pages/ProductDetail'
@@ -12,15 +14,30 @@ import ToolsPage from './pages/ToolsPage'
 import Services from './pages/Services'
 import Corporate from './pages/Corporate'
 import Portal from './pages/Portal'
+import AdminPortal from './pages/AdminPortal'
+import About from './pages/About'
+import Contact from './pages/Contact'
+import PolicyPage from './pages/PolicyPage'
+import SearchResults from './pages/SearchResults'
+import ComparePage from './pages/ComparePage'
+
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  useEffect(() => { window.scrollTo(0, 0) }, [pathname])
+  return null
+}
 
 export default function App() {
   return (
     <Router>
+      <ScrollToTop />
+      <ErrorBoundary>
       <Layout>
         <Routes>
           <Route path="/"                 element={<Home />} />
-          <Route path="/products"         element={<Products />} />
-          <Route path="/products/:id"     element={<ProductDetail />} />
+          <Route path="/products"                           element={<Products />} />
+          <Route path="/products/category/:categorySlug"  element={<Products />} />
+          <Route path="/products/:slug"                   element={<ProductDetail />} />
           <Route path="/cart"             element={<Cart />} />
           <Route path="/checkout"         element={<Checkout />} />
           <Route path="/installments"     element={<Installments />} />
@@ -30,6 +47,12 @@ export default function App() {
           <Route path="/services"         element={<Services />} />
           <Route path="/corporate"        element={<Corporate />} />
           <Route path="/portal"           element={<Portal />} />
+          <Route path="/admin"            element={<AdminPortal />} />
+          <Route path="/about"            element={<About />} />
+          <Route path="/contact"          element={<Contact />} />
+          <Route path="/search"           element={<SearchResults />} />
+          <Route path="/compare"          element={<ComparePage />} />
+          <Route path="/policy/:type"     element={<PolicyPage />} />
           <Route path="*" element={
             <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
               <div className="text-6xl font-black text-gray-100">404</div>
@@ -39,6 +62,7 @@ export default function App() {
           } />
         </Routes>
       </Layout>
+      </ErrorBoundary>
     </Router>
   )
 }

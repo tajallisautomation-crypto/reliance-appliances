@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, Sun, Calculator, ShieldCheck, Truck, CreditCard, Headphones, ChevronRight, Zap, Star } from 'lucide-react'
 import { getProducts, DEFAULT_CATEGORIES, type Product, fmtPKR } from '../lib/api'
 import ProductCard from '../components/products/ProductCard'
+import SEO from '../components/ui/SEO'
 
 const HERO_SLIDES = [
   { badge:'Summer Sale', title:'Beat the Heat\nThis Summer', subtitle:'Inverter ACs starting from PKR 96,140 · Easy installments available', cta:'Shop ACs', ctaHref:'/products?category=ac', bg:'from-blue-600 via-cyan-600 to-teal-500', emoji:'❄️' },
@@ -26,11 +27,26 @@ export default function Home() {
   const [slide, setSlide] = useState(0)
   const [featured, setFeatured] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [totalProducts, setTotalProducts] = useState(0)
   useEffect(() => { const t = setInterval(() => setSlide(s => (s+1)%HERO_SLIDES.length), 5000); return () => clearInterval(t) }, [])
-  useEffect(() => { getProducts({ featured:'true', sort:'price_asc' }).then(d => { setFeatured(d.products.slice(0,8)); setLoading(false) }) }, [])
+  useEffect(() => {
+    getProducts({ featured:'true', sort:'price_asc' }).then(d => {
+      // Only show products that have a real image (not the Unsplash placeholder)
+      const withImages = d.products.filter(p => p.thumbnail && !p.thumbnail.includes('unsplash.com'));
+      setFeatured(withImages.slice(0, 8));
+      setLoading(false);
+    })
+    getProducts().then(d => setTotalProducts(d.total))
+  }, [])
   const s = HERO_SLIDES[slide]
   return (
     <div className="min-h-screen bg-white">
+      <SEO
+        title="Reliance Appliances — Premium Home Appliances Karachi"
+        description="Shop ACs, refrigerators, washing machines, TVs & solar systems on easy installments. Karachi's most trusted appliance store since 2015. Genuine products, home delivery & after-sale support."
+        keywords="home appliances karachi, buy ac karachi, refrigerator installment karachi, solar panels karachi, haier dawlance price pakistan"
+        path="/"
+      />
       <section className={`relative overflow-hidden bg-gradient-to-br ${s.bg} text-white transition-all duration-700`}>
         <div className="absolute inset-0 opacity-10"><div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-white translate-x-1/2 -translate-y-1/2" /><div className="absolute bottom-0 left-0 w-64 h-64 rounded-full bg-white -translate-x-1/2 translate-y-1/2" /></div>
         <div className="relative max-w-7xl mx-auto px-4 py-20 md:py-28">
@@ -53,7 +69,7 @@ export default function Home() {
           <Link to="/products?featured=true" className="hidden sm:flex items-center gap-1 text-orange-600 font-medium text-sm">View All <ChevronRight className="w-4 h-4" /></Link>
         </div>
         {loading ? <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">{Array.from({length:8}).map((_,i)=><div key={i} className="bg-gray-100 rounded-2xl h-72 animate-pulse"/>)}</div> : <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">{featured.map(p=><ProductCard key={p.id} product={p}/>)}</div>}
-        <div className="text-center mt-8"><Link to="/products" className="inline-flex items-center gap-2 border-2 border-orange-500 text-orange-600 font-semibold px-8 py-3 rounded-2xl hover:bg-orange-500 hover:text-white transition-all">Browse All 406 Products <ArrowRight className="w-4 h-4" /></Link></div>
+        <div className="text-center mt-8"><Link to="/products" className="inline-flex items-center gap-2 border-2 border-orange-500 text-orange-600 font-semibold px-8 py-3 rounded-2xl hover:bg-orange-500 hover:text-white transition-all">Browse All {totalProducts > 0 ? `${totalProducts} ` : ''}Products <ArrowRight className="w-4 h-4" /></Link></div>
       </section>
       <section className="bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-400 mx-4 md:mx-8 rounded-3xl overflow-hidden my-4">
         <div className="max-w-5xl mx-auto px-6 py-12 md:py-16 flex flex-col md:flex-row items-center justify-between gap-8">
@@ -72,7 +88,7 @@ export default function Home() {
       <section className="max-w-7xl mx-auto px-4 pb-10"><h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Brands We Carry</h2><div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">{BRANDS.map(b=><Link key={b.slug} to={`/products?brand=${b.slug}`} className="group flex items-center gap-4 bg-white border border-gray-100 hover:border-orange-300 hover:shadow-md rounded-2xl p-5 transition-all"><div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-black text-xl" style={{backgroundColor:b.color}}>{b.name[0]}</div><div><div className="font-bold text-gray-800 group-hover:text-orange-700">{b.name}</div><div className="text-xs text-gray-500">{b.desc}</div></div><ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-orange-500 ml-auto"/></Link>)}</div></section>
       <section className="bg-gray-50 py-14"><div className="max-w-7xl mx-auto px-4"><div className="text-center mb-10"><div className="text-orange-500 text-sm font-semibold mb-2 flex items-center gap-1 justify-center"><Zap className="w-4 h-4"/> Free Tools</div><h2 className="text-2xl md:text-3xl font-bold text-gray-900">Make Smarter Decisions</h2></div><div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">{[{icon:'🔢',title:'Solar Calculator',desc:'Find out exactly what solar system you need.',href:'/solar-calculator'},{icon:'💡',title:'Bill Savings Calc',desc:'See how much solar can reduce your electricity bill.',href:'/tools'},{icon:'📈',title:'Payback Calculator',desc:'Calculate when your solar investment pays back.',href:'/tools'},{icon:'⚡',title:'Net Metering Check',desc:"Check if you're eligible to sell power to the grid.",href:'/tools'}].map(t=><Link key={t.title} to={t.href} className="group bg-white rounded-2xl border border-gray-100 hover:border-orange-300 hover:shadow-md p-6 transition-all"><div className="text-3xl mb-3">{t.icon}</div><div className="font-bold text-gray-800 mb-1 group-hover:text-orange-700">{t.title}</div><div className="text-sm text-gray-500 mb-4">{t.desc}</div><div className="flex items-center gap-1 text-orange-600 text-sm font-medium">Try it free <ChevronRight className="w-3 h-3"/></div></Link>)}</div></div></section>
       <section className="max-w-7xl mx-auto px-4 py-14"><div className="text-center mb-10"><h2 className="text-2xl md:text-3xl font-bold text-gray-900">Why Choose Reliance?</h2></div><div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">{WHY_RELIANCE.map(item=><div key={item.title} className="text-center p-6"><div className={`w-14 h-14 bg-${item.color}-100 rounded-2xl flex items-center justify-center mx-auto mb-4`}><item.icon className={`w-7 h-7 text-${item.color}-600`}/></div><h3 className="font-bold text-gray-800 mb-2">{item.title}</h3><p className="text-sm text-gray-500">{item.desc}</p></div>)}</div></section>
-      <section className="bg-gray-900 text-white py-16 px-4"><div className="max-w-3xl mx-auto text-center"><h2 className="text-3xl font-black mb-4">Ready to shop?</h2><p className="text-gray-400 mb-8 text-lg">Browse 406 products from Haier, Dawlance, Crown & Westpoint with easy installments.</p><div className="flex flex-col sm:flex-row gap-4 justify-center"><Link to="/products" className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-8 py-4 rounded-2xl">Shop All Products</Link><a href="https://wa.me/923702578788" className="bg-green-600 hover:bg-green-700 text-white font-bold px-8 py-4 rounded-2xl flex items-center gap-2 justify-center">💬 WhatsApp Us</a></div></div></section>
+      <section className="bg-gray-900 text-white py-16 px-4"><div className="max-w-3xl mx-auto text-center"><h2 className="text-3xl font-black mb-4">Ready to shop?</h2><p className="text-gray-400 mb-8 text-lg">Browse {totalProducts > 0 ? totalProducts : '400+'} products from Haier, Dawlance, Crown &amp; Westpoint with easy installments.</p><div className="flex flex-col sm:flex-row gap-4 justify-center"><Link to="/products" className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-8 py-4 rounded-2xl">Shop All Products</Link><a href="https://wa.me/923702578788" className="bg-green-600 hover:bg-green-700 text-white font-bold px-8 py-4 rounded-2xl flex items-center gap-2 justify-center">💬 WhatsApp Us</a></div></div></section>
     </div>
   )
 }
