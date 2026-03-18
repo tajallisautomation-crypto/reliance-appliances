@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import Layout from './components/layout/Layout'
+import { useSettingsStore } from './store/settingsStore'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import Home from './pages/Home'
 import Products from './pages/Products'
@@ -13,6 +14,8 @@ import SolarCalculator from './pages/SolarCalculator'
 import ToolsPage from './pages/ToolsPage'
 import Services from './pages/Services'
 import Corporate from './pages/Corporate'
+import GreenCorridor from './pages/GreenCorridor'
+import Partner from './pages/Partner'
 import Portal from './pages/Portal'
 import AdminPortal from './pages/AdminPortal'
 import About from './pages/About'
@@ -28,6 +31,8 @@ function ScrollToTop() {
 }
 
 export default function App() {
+  useEffect(() => { useSettingsStore.getState().load(); }, []);
+
   return (
     <Router>
       <ScrollToTop />
@@ -44,7 +49,9 @@ export default function App() {
           <Route path="/solar"            element={<SolarPage />} />
           <Route path="/solar-calculator" element={<SolarCalculator />} />
           <Route path="/tools"            element={<ToolsPage />} />
-          <Route path="/services"         element={<Services />} />
+          <Route path="/services"          element={<Services />} />
+          <Route path="/green-corridor"   element={<GreenCorridor />} />
+          <Route path="/partner"          element={<Partner />} />
           <Route path="/corporate"        element={<Corporate />} />
           <Route path="/portal"           element={<Portal />} />
           <Route path="/admin"            element={<AdminPortal />} />

@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { signIn, signUp } from '@/lib/auth';
+import { useState, useEffect, useRef, useMemo, useDeferredValue, useCallback } from 'react';
+import { signIn, signUp, resetPasswordForEmail, updatePassword } from '@/lib/auth';
 import { useAuthStore } from '@/store/authStore';
+import { supabase } from '@/lib/supabase';
 import {
   getProducts, upsertProduct, deleteProduct,
   uploadBrandImage, updateProductImages, fetchAndUploadOrSaveUrl,
@@ -16,7 +17,9 @@ import {
   ChevronDown, ChevronUp, Package, FileUp, Loader2, Sparkles, Image as ImageIcon,
   RefreshCw, AlertTriangle, Camera, ImageOff, Tag, Wand2, ListChecks, MessageCircle,
   CheckSquare, Square, Filter, History, Edit2, Star, MoveUp, MoveDown,
+  Building2, Phone, Mail, Bell, Settings, ShoppingBag, CalendarDays,
 } from 'lucide-react';
+import { useSettingsStore, SETTING_DEFAULTS } from '@/store/settingsStore';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -300,7 +303,142 @@ function emptyForm() {
     images: [] as ProductGalleryImage[],
     description: '', warranty: '', tags: '',
     colors: '', seo_title: '', seo_desc: '',
+    specs: {} as Record<string, string>,
   };
+}
+
+// ── Specs Editor ──────────────────────────────────────────────────────────────
+
+// Row shape used internally by SpecsEditor
+interface SpecRow { uid: number; key: string; val: string; }
+
+let _specUid = 0;
+function toRows(specs: Record<string, string>): SpecRow[] {
+  return Object.entries(specs).map(([key, val]) => ({ uid: ++_specUid, key, val }));
+}
+function fromRows(rows: SpecRow[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const r of rows) {
+    const k = r.key.trim();
+    if (k) out[k] = r.val;
+  }
+  return out;
+}
+
+function SpecsEditor({
+  specs, onChange,
+}: {
+  specs: Record<string, string>;
+  onChange: (specs: Record<string, string>) => void;
+}) {
+  // Local rows — typing never touches parent state (no INP lag).
+  // Keyed by product id in ProductModal, so remounts fresh per product.
+  const [rows, setRows] = useState<SpecRow[]>(() => toRows(specs));
+  const [newKey, setNewKey] = useState('');
+  const [newVal, setNewVal] = useState('');
+
+  // Ref always points to latest rows — avoids stale-closure bugs on blur
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+
+  function push(nextRows: SpecRow[]) {
+    rowsRef.current = nextRows;
+    onChange(fromRows(nextRows));
+  }
+
+  function updateRow(uid: number, field: 'key' | 'val', value: string) {
+    setRows(prev => prev.map(r => r.uid === uid ? { ...r, [field]: value } : r));
+    // don't push on every keystroke — onBlur handles it
+  }
+
+  function flushOnBlur() {
+    // rowsRef.current is always the latest rows, even if re-render hasn't committed yet
+    onChange(fromRows(rowsRef.current));
+  }
+
+  function removeRow(uid: number) {
+    const next = rows.filter(r => r.uid !== uid);
+    push(next);
+    setRows(next);
+  }
+
+  function addRow() {
+    const k = newKey.trim();
+    const v = newVal.trim();
+    if (!k || !v) return;
+    const next = [...rowsRef.current, { uid: ++_specUid, key: k, val: v }];
+    push(next);
+    setRows(next);
+    setNewKey(''); setNewVal('');
+  }
+
+  return (
+    <div className="space-y-2">
+      <label className="block text-xs font-medium text-gray-600">
+        Specifications <span className="text-gray-400">({rows.length})</span>
+      </label>
+
+      {rows.length === 0 && (
+        <p className="text-xs text-gray-400 italic">No specs yet — add rows below.</p>
+      )}
+
+      <div className="space-y-1.5">
+        {rows.map(row => (
+          <div key={row.uid} className="flex items-center gap-2">
+            <input
+              value={row.key}
+              onChange={e => updateRow(row.uid, 'key', e.target.value)}
+              onBlur={flushOnBlur}
+              placeholder="Spec name"
+              className="w-36 shrink-0 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400 font-medium"
+            />
+            <input
+              value={row.val}
+              onChange={e => updateRow(row.uid, 'val', e.target.value)}
+              onBlur={flushOnBlur}
+              placeholder="Value"
+              className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400"
+            />
+            <button
+              type="button"
+              onClick={() => removeRow(row.uid)}
+              className="p-1 text-red-400 hover:text-red-600 shrink-0"
+              title="Remove spec"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Add new row */}
+      <div className="flex items-center gap-2 pt-1">
+        <input
+          value={newKey}
+          onChange={e => setNewKey(e.target.value)}
+          placeholder="Spec name"
+          className="w-36 shrink-0 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400"
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addRow(); } }}
+        />
+        <input
+          value={newVal}
+          onChange={e => setNewVal(e.target.value)}
+          placeholder="Value"
+          className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400"
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addRow(); } }}
+        />
+        <button
+          type="button"
+          onClick={addRow}
+          disabled={!newKey.trim() || !newVal.trim()}
+          className="p-1 text-orange-500 hover:text-orange-700 disabled:opacity-30 shrink-0"
+          title="Add spec"
+        >
+          <Plus className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
 }
 
 // ── Product Form Modal ────────────────────────────────────────────────────────
@@ -344,8 +482,7 @@ function ProductModal({
   }
 
   async function doSave() {
-    setConfirmSave(false);
-    setSaving(true); setErr('');
+    setConfirmSave(false); setSaving(true); setErr('');
     try {
       const id = form.id || slugify(`${form.brand}-${form.model}-${Date.now()}`);
       const { images: imgs, ...formRest } = form;
@@ -413,6 +550,25 @@ function ProductModal({
             </div>
           )}
 
+          {/* Specs editor — keyed so it remounts fresh when switching products */}
+          <div className="col-span-2 border border-gray-100 rounded-xl p-3 bg-gray-50">
+            <SpecsEditor
+              key={form.id || '__new__'}
+              specs={form.specs || {}}
+              onChange={s => set('specs', s)}
+            />
+          </div>
+
+          {/* Tags */}
+          <div className="col-span-2">
+            <Field label="Tags (comma-separated)" value={form.tags} onChange={v => set('tags', v)} placeholder="inverter, 1.5 ton, energy-saving" />
+          </div>
+
+          {/* Description */}
+          <div className="col-span-2">
+            <Field label="Description" value={form.description} onChange={v => set('description', v)} multiline />
+          </div>
+
           {/* Image Manager */}
           <div className="col-span-2 space-y-3">
             <ProductImageManager
@@ -438,13 +594,8 @@ function ProductModal({
             </div>
           </div>
 
-          {/* Other fields */}
-          <div className="col-span-2">
-            <Field label="Description" value={form.description} onChange={v => set('description', v)} multiline />
-          </div>
           <Field label="Warranty" value={form.warranty} onChange={v => set('warranty', v)} placeholder="5 years compressor" />
           <Field label="Colors" value={form.colors} onChange={v => set('colors', v)} placeholder="White, Silver" />
-          <Field label="Tags" value={form.tags} onChange={v => set('tags', v)} placeholder="inverter, 1.5 ton" />
           <Field label="SEO Title" value={form.seo_title} onChange={v => set('seo_title', v)} />
           <div className="col-span-2">
             <Field label="SEO Description" value={form.seo_desc} onChange={v => set('seo_desc', v)} />
@@ -2762,12 +2913,1108 @@ function CatalogExportPanel({ products }: { products: Product[] }) {
   );
 }
 
+// ── Reviews Tab ───────────────────────────────────────────────────────────────
+
+interface ReviewRow {
+  id: string;
+  product_id: string;
+  customer_name: string;
+  city: string | null;
+  rating: number;
+  comment: string;
+  verified_purchase: boolean;
+  created_at: string;
+}
+
+function ReviewsTab() {
+  const [reviews,   setReviews]   = useState<ReviewRow[]>([]);
+  const [prodNames, setProdNames] = useState<Record<string, string>>({});
+  const [loading,   setLoading]   = useState(true);
+  const [search,    setSearch]    = useState('');
+  const deferredSearch            = useDeferredValue(search);
+  const [ratingFilter, setRatingFilter] = useState(0);
+  const [confirmDel, setConfirmDel] = useState<ReviewRow | null>(null);
+  const [deleting,  setDeleting]  = useState<string | null>(null);
+  const [toggling,  setToggling]  = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    const { data: revs } = await supabase
+      .from('reviews')
+      .select('*')
+      .order('created_at', { ascending: false });
+    const rows = (revs ?? []) as ReviewRow[];
+    setReviews(rows);
+    const ids = [...new Set(rows.map(r => r.product_id))];
+    if (ids.length) {
+      const { data: prods } = await supabase
+        .from('products')
+        .select('id, simplified_name, model, brand')
+        .in('id', ids);
+      const map: Record<string, string> = {};
+      (prods ?? []).forEach((p: any) => {
+        map[p.id] = p.simplified_name || `${p.brand} ${p.model}`;
+      });
+      setProdNames(map);
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function handleDelete(id: string) {
+    setDeleting(id);
+    await supabase.from('reviews').delete().eq('id', id);
+    setReviews(prev => prev.filter(r => r.id !== id));
+    setDeleting(null);
+    setConfirmDel(null);
+  }
+
+  async function toggleVerified(r: ReviewRow) {
+    setToggling(r.id);
+    const { data } = await supabase
+      .from('reviews')
+      .update({ verified_purchase: !r.verified_purchase })
+      .eq('id', r.id)
+      .select()
+      .single();
+    if (data) setReviews(prev => prev.map(x => x.id === r.id ? data as ReviewRow : x));
+    setToggling(null);
+  }
+
+  const filtered = reviews.filter(r => {
+    if (ratingFilter && r.rating !== ratingFilter) return false;
+    if (deferredSearch) {
+      const q = deferredSearch.toLowerCase();
+      return r.customer_name.toLowerCase().includes(q)
+        || r.comment.toLowerCase().includes(q)
+        || (prodNames[r.product_id] || '').toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  const avg = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : 0;
+
+  return (
+    <div className="max-w-6xl mx-auto py-6 space-y-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Total Reviews', value: reviews.length,                                   color: 'text-gray-900' },
+          { label: 'Avg Rating',    value: reviews.length ? avg.toFixed(1) : '—',            color: avg >= 4 ? 'text-green-600' : avg >= 3 ? 'text-amber-600' : 'text-red-600' },
+          { label: 'Verified',      value: reviews.filter(r => r.verified_purchase).length,  color: 'text-green-600' },
+          { label: '5-Star',        value: reviews.filter(r => r.rating === 5).length,       color: 'text-amber-600' },
+        ].map(s => (
+          <div key={s.label} className="bg-white rounded-xl border border-gray-100 p-4">
+            <div className={`text-2xl font-black ${s.color}`}>{s.value}</div>
+            <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-3 flex-wrap items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search by product, customer, comment…"
+            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+        </div>
+        <div className="flex gap-1">
+          {[0, 5, 4, 3, 2, 1].map(n => (
+            <button key={n} onClick={() => setRatingFilter(ratingFilter === n ? 0 : n)}
+              className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors
+                ${ratingFilter === n ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+              {n === 0 ? 'All' : `${n}★`}
+            </button>
+          ))}
+        </div>
+        <button onClick={load} className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:border-orange-300 px-3 py-2 rounded-lg text-xs font-semibold">
+          <RefreshCw className="w-3.5 h-3.5" /> Refresh
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-orange-400" /></div>
+      ) : reviews.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
+          <Star className="w-10 h-10 mx-auto mb-3 text-gray-200" />
+          <p className="font-medium text-gray-500">No reviews yet</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Product</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Customer</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 w-28">Rating</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Comment</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 w-28">Date</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 w-32">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {filtered.map(r => (
+                  <tr key={r.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 max-w-[160px]">
+                      <div className="text-xs font-medium text-gray-800 truncate">
+                        {prodNames[r.product_id] || <span className="text-gray-400 italic">{r.product_id.slice(0, 12)}…</span>}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-gray-900 text-xs">{r.customer_name}</div>
+                      {r.city && <div className="text-xs text-gray-400">{r.city}</div>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-0.5">
+                        {[1, 2, 3, 4, 5].map(n => (
+                          <Star key={n} className={`w-3.5 h-3.5 ${n <= r.rating ? 'fill-amber-400 text-amber-400' : 'text-gray-200'}`} />
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 max-w-xs">
+                      <p className="text-xs text-gray-700 truncate">{r.comment}</p>
+                      {r.verified_purchase && (
+                        <span className="text-[10px] text-green-700 font-semibold">✓ Verified purchase</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                      {new Date(r.created_at).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' })}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1 items-center">
+                        <button
+                          onClick={() => toggleVerified(r)}
+                          disabled={toggling === r.id}
+                          className={`text-[10px] font-bold px-2 py-1 rounded-lg transition-colors disabled:opacity-50 ${
+                            r.verified_purchase
+                              ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}>
+                          {toggling === r.id ? <Loader2 className="w-3 h-3 animate-spin" /> : r.verified_purchase ? '✓ Verified' : 'Verify'}
+                        </button>
+                        <button onClick={() => setConfirmDel(r)}
+                          className="p-1.5 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-lg">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {filtered.length < reviews.length && (
+            <div className="px-4 py-2 border-t border-gray-50 text-xs text-gray-400">
+              Showing {filtered.length} of {reviews.length} reviews
+            </div>
+          )}
+        </div>
+      )}
+
+      {confirmDel && (
+        <ConfirmDialog
+          title="Delete this review?"
+          message={`"${confirmDel.comment.slice(0, 100)}"\n— ${confirmDel.customer_name}`}
+          confirmLabel="Delete Review"
+          danger
+          onConfirm={() => handleDelete(confirmDel.id)}
+          onCancel={() => setConfirmDel(null)}
+        />
+      )}
+      {deleting && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-white" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// ── Partner Leads Tab ─────────────────────────────────────────────────────────
+
+interface PartnerLead {
+  id: string;
+  company_name: string;
+  contact_person: string;
+  phone: string;
+  email: string | null;
+  category: string;
+  monthly_volume: string | null;
+  website: string | null;
+  message: string | null;
+  status: 'new' | 'contacted' | 'qualified' | 'closed' | 'rejected';
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+const LEAD_STATUSES = ['new', 'contacted', 'qualified', 'closed', 'rejected'] as const;
+
+const LEAD_STATUS_COLORS: Record<string, string> = {
+  new:       'bg-blue-100 text-blue-700',
+  contacted: 'bg-orange-100 text-orange-700',
+  qualified: 'bg-green-100 text-green-700',
+  closed:    'bg-purple-100 text-purple-700',
+  rejected:  'bg-red-100 text-red-600',
+};
+
+function PartnerLeadsTab() {
+  const [leads,        setLeads]        = useState<PartnerLead[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [loadError,    setLoadError]    = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [expanded,     setExpanded]     = useState<string | null>(null);
+  const [updatingId,   setUpdatingId]   = useState<string | null>(null);
+  const [noteEditing,  setNoteEditing]  = useState<string | null>(null);
+  const [noteValue,    setNoteValue]    = useState('');
+  const [savingNote,   setSavingNote]   = useState(false);
+
+  async function load() {
+    setLoading(true); setLoadError('');
+    const { data, error } = await supabase
+      .from('partner_leads')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) setLoadError(error.message);
+    setLeads((data ?? []) as PartnerLead[]);
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function updateStatus(id: string, status: string) {
+    setUpdatingId(id);
+    const { data } = await supabase
+      .from('partner_leads')
+      .update({ status })
+      .eq('id', id)
+      .select()
+      .single();
+    if (data) setLeads(prev => prev.map(l => l.id === id ? data as PartnerLead : l));
+    setUpdatingId(null);
+  }
+
+  async function saveNote(id: string) {
+    setSavingNote(true);
+    const { data } = await supabase
+      .from('partner_leads')
+      .update({ notes: noteValue })
+      .eq('id', id)
+      .select()
+      .single();
+    if (data) setLeads(prev => prev.map(l => l.id === id ? data as PartnerLead : l));
+    setSavingNote(false);
+    setNoteEditing(null);
+  }
+
+  const filtered = statusFilter === 'all' ? leads : leads.filter(l => l.status === statusFilter);
+  const counts = Object.fromEntries(LEAD_STATUSES.map(s => [s, leads.filter(l => l.status === s).length]));
+
+  return (
+    <div className="max-w-6xl mx-auto py-6 space-y-5">
+      {/* Pipeline stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        {LEAD_STATUSES.map(s => (
+          <button key={s} onClick={() => setStatusFilter(statusFilter === s ? 'all' : s)}
+            className={`rounded-xl border p-4 text-left transition-colors ${
+              statusFilter === s ? 'border-orange-400 bg-orange-50' : 'bg-white border-gray-100 hover:border-gray-200'
+            }`}>
+            <div className="text-2xl font-black text-gray-900">{counts[s]}</div>
+            <div className="mt-1">
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${LEAD_STATUS_COLORS[s]}`}>{s}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-3">
+        <span className="text-sm text-gray-500">
+          {filtered.length} lead{filtered.length !== 1 ? 's' : ''}
+          {statusFilter !== 'all' && ` · ${statusFilter}`}
+        </span>
+        {statusFilter !== 'all' && (
+          <button onClick={() => setStatusFilter('all')} className="text-xs text-orange-500 hover:text-orange-700 font-medium">
+            Show all
+          </button>
+        )}
+        <div className="flex-1" />
+        <button onClick={load} className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:border-orange-300 px-3 py-2 rounded-lg text-xs font-semibold">
+          <RefreshCw className="w-3.5 h-3.5" /> Refresh
+        </button>
+      </div>
+
+      {loadError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+          <strong>Error loading leads:</strong> {loadError}
+          {loadError.includes('permission') || loadError.includes('policy') ? (
+            <p className="mt-1 text-xs">Run <code className="bg-red-100 px-1 rounded">20260315_admin_rls.sql</code> in Supabase SQL Editor to grant authenticated access.</p>
+          ) : null}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-orange-400" /></div>
+      ) : !loadError && leads.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
+          <Building2 className="w-10 h-10 mx-auto mb-3 text-gray-200" />
+          <p className="font-medium text-gray-500">No partner applications yet</p>
+          <p className="text-xs text-gray-400 mt-1">Submissions from /partner will appear here</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Company</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Contact</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Category</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 w-40">Status</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 w-28">Date</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 w-20">WA</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(lead => (
+                  <>
+                    <tr key={lead.id}
+                      className={`border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors ${expanded === lead.id ? 'bg-orange-50/30' : ''}`}
+                      onClick={() => setExpanded(expanded === lead.id ? null : lead.id)}>
+                      <td className="px-4 py-3">
+                        <div className="font-semibold text-gray-900 text-sm">{lead.company_name}</div>
+                        {lead.monthly_volume && <div className="text-xs text-gray-400">{lead.monthly_volume}/mo</div>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm text-gray-800">{lead.contact_person}</div>
+                        <a href={`tel:${lead.phone}`} className="text-xs text-blue-500 hover:underline" onClick={e => e.stopPropagation()}>
+                          {lead.phone}
+                        </a>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 capitalize">{lead.category}</td>
+                      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center gap-1.5">
+                          <select
+                            value={lead.status}
+                            onChange={e => updateStatus(lead.id, e.target.value)}
+                            disabled={updatingId === lead.id}
+                            className={`text-xs font-semibold rounded-lg px-2 py-1 border focus:outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer capitalize
+                              ${LEAD_STATUS_COLORS[lead.status]} border-transparent disabled:opacity-60`}>
+                            {LEAD_STATUSES.map(s => (
+                              <option key={s} value={s} className="bg-white text-gray-800 font-normal capitalize">{s}</option>
+                            ))}
+                          </select>
+                          {updatingId === lead.id && <Loader2 className="w-3 h-3 animate-spin text-orange-400" />}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                        {new Date(lead.created_at).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' })}
+                      </td>
+                      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                        <a
+                          href={`https://wa.me/${lead.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${lead.contact_person}, this is Reliance Appliances regarding your partner application.`)}`}
+                          target="_blank" rel="noreferrer"
+                          className="p-1.5 hover:bg-green-50 text-green-600 rounded-lg flex items-center justify-center w-8 h-8"
+                          title="WhatsApp">
+                          <MessageCircle className="w-4 h-4" />
+                        </a>
+                      </td>
+                    </tr>
+
+                    {expanded === lead.id && (
+                      <tr key={`${lead.id}-detail`} className="bg-orange-50/20 border-b border-orange-100">
+                        <td colSpan={6} className="px-6 py-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                            {lead.email && (
+                              <div>
+                                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5">Email</p>
+                                <a href={`mailto:${lead.email}`} className="text-blue-500 hover:underline text-sm">{lead.email}</a>
+                              </div>
+                            )}
+                            {lead.website && (
+                              <div>
+                                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5">Website</p>
+                                <a href={lead.website} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline text-sm truncate block">{lead.website}</a>
+                              </div>
+                            )}
+                            {lead.message && (
+                              <div className="sm:col-span-2">
+                                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5">Their Message</p>
+                                <p className="text-sm text-gray-700 bg-white rounded-lg px-3 py-2 border border-gray-100">{lead.message}</p>
+                              </div>
+                            )}
+                            <div className="sm:col-span-2">
+                              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Internal Notes</p>
+                              {noteEditing === lead.id ? (
+                                <div className="flex gap-2">
+                                  <textarea
+                                    value={noteValue}
+                                    onChange={e => setNoteValue(e.target.value)}
+                                    rows={2}
+                                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none bg-white"
+                                  />
+                                  <div className="flex flex-col gap-1">
+                                    <button onClick={() => saveNote(lead.id)} disabled={savingNote}
+                                      className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-xs font-bold rounded-lg">
+                                      {savingNote ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save'}
+                                    </button>
+                                    <button onClick={() => setNoteEditing(null)}
+                                      className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs rounded-lg">
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex items-start gap-2">
+                                  <p className="text-sm text-gray-700 flex-1 bg-white rounded-lg px-3 py-2 border border-gray-100 min-h-[40px]">
+                                    {lead.notes || <span className="text-gray-300 italic">No notes yet</span>}
+                                  </p>
+                                  <button
+                                    onClick={() => { setNoteEditing(lead.id); setNoteValue(lead.notes ?? ''); }}
+                                    className="text-xs text-orange-500 hover:text-orange-700 font-semibold shrink-0 mt-2">
+                                    Edit
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// ── Orders Tab ────────────────────────────────────────────────────────────────
+
+interface Order {
+  id: string;
+  customer_name: string;
+  customer_phone: string;
+  email: string | null;
+  address: string | null;
+  city: string | null;
+  products: Array<{ model: string; brand: string; qty: number; price: number }>;
+  total_amount: number;
+  payment_method: string | null;
+  plan: string | null;
+  status: string;
+  created_at: string;
+}
+
+const ORDER_STATUSES = ['pending', 'confirmed', 'processing', 'delivered', 'cancelled'] as const;
+
+const ORDER_STATUS_COLORS: Record<string, string> = {
+  pending:    'bg-yellow-100 text-yellow-700',
+  confirmed:  'bg-blue-100 text-blue-700',
+  processing: 'bg-orange-100 text-orange-700',
+  delivered:  'bg-green-100 text-green-700',
+  cancelled:  'bg-red-100 text-red-600',
+};
+
+function OrdersTab() {
+  const [orders,      setOrders]      = useState<Order[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [loadError,   setLoadError]   = useState('');
+  const [statusFilter,setStatusFilter]= useState('all');
+  const [search,      setSearch]      = useState('');
+  const deferredSearch                = useDeferredValue(search);
+  const [expanded,    setExpanded]    = useState<string | null>(null);
+  const [updatingId,  setUpdatingId]  = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true); setLoadError('');
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) setLoadError(error.message);
+    setOrders((data ?? []) as Order[]);
+    setLoading(false);
+  }
+  useEffect(() => { load(); }, []);
+
+  async function updateStatus(id: string, status: string) {
+    setUpdatingId(id);
+    const { data } = await supabase.from('orders').update({ status }).eq('id', id).select().single();
+    if (data) setOrders(prev => prev.map(o => o.id === id ? data as Order : o));
+    setUpdatingId(null);
+  }
+
+  const filtered = orders.filter(o => {
+    if (statusFilter !== 'all' && o.status !== statusFilter) return false;
+    if (deferredSearch) {
+      const q = deferredSearch.toLowerCase();
+      return o.customer_name?.toLowerCase().includes(q)
+          || o.customer_phone?.includes(q)
+          || o.id.toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  const counts = Object.fromEntries(ORDER_STATUSES.map(s => [s, orders.filter(o => o.status === s).length]));
+  const revenue = orders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + (o.total_amount || 0), 0);
+  const todayCount = orders.filter(o => new Date(o.created_at).toDateString() === new Date().toDateString()).length;
+
+  return (
+    <div className="max-w-6xl mx-auto py-6 space-y-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Total Orders',   value: orders.length,                          color: 'text-gray-900' },
+          { label: "Today",          value: todayCount,                             color: 'text-blue-600' },
+          { label: 'Pending',        value: counts['pending'] || 0,                 color: counts['pending'] > 0 ? 'text-amber-600' : 'text-gray-400' },
+          { label: 'Total Revenue',  value: `PKR ${revenue.toLocaleString()}`,      color: 'text-green-600' },
+        ].map(s => (
+          <div key={s.label} className="bg-white rounded-xl border border-gray-100 p-4">
+            <div className={`text-xl font-black ${s.color}`}>{s.value}</div>
+            <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-2 items-center">
+        {(['all', ...ORDER_STATUSES] as string[]).map(s => (
+          <button key={s} onClick={() => setStatusFilter(s)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors ${
+              statusFilter === s ? 'bg-orange-500 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'
+            }`}>
+            {s === 'all' ? `All (${orders.length})` : `${s} (${counts[s] || 0})`}
+          </button>
+        ))}
+        <div className="flex-1" />
+        <button onClick={load} className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:border-orange-300 px-3 py-2 rounded-lg text-xs font-semibold">
+          <RefreshCw className="w-3.5 h-3.5" /> Refresh
+        </button>
+      </div>
+
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Search by name, phone, order ID…"
+          className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+      </div>
+
+      {loadError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+          <strong>Error:</strong> {loadError}
+          {(loadError.includes('permission') || loadError.includes('policy') || loadError.includes('relation')) && (
+            <p className="mt-1 text-xs">Run <code className="bg-red-100 px-1 rounded">20260316_admin_orders.sql</code> in Supabase SQL Editor.</p>
+          )}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-orange-400" /></div>
+      ) : !loadError && orders.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
+          <ShoppingBag className="w-10 h-10 mx-auto mb-3 text-gray-200" />
+          <p className="font-medium text-gray-500">No orders yet</p>
+          <p className="text-xs text-gray-400 mt-1">Orders placed via /checkout will appear here</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 w-28">Order</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Customer</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Items</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 w-28">Total</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 w-40">Status</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 w-28">Date</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 w-16">WA</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(order => {
+                  const prods = Array.isArray(order.products) ? order.products : [];
+                  return (
+                    <>
+                      <tr key={order.id}
+                        className={`border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors ${expanded === order.id ? 'bg-orange-50/30' : ''}`}
+                        onClick={() => setExpanded(expanded === order.id ? null : order.id)}>
+                        <td className="px-4 py-3 font-mono text-xs text-gray-500">{order.id.slice(0, 8)}…</td>
+                        <td className="px-4 py-3">
+                          <div className="font-semibold text-gray-900 text-sm">{order.customer_name}</div>
+                          <a href={`tel:${order.customer_phone}`} className="text-xs text-blue-500 hover:underline" onClick={e => e.stopPropagation()}>{order.customer_phone}</a>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="text-xs text-gray-700">
+                            {prods.slice(0, 2).map((p, i) => <div key={i}>{p.brand} {p.model}{p.qty > 1 ? ` ×${p.qty}` : ''}</div>)}
+                            {prods.length > 2 && <div className="text-gray-400">+{prods.length - 2} more</div>}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-gray-900 text-sm">PKR {(order.total_amount || 0).toLocaleString()}</td>
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center gap-1.5">
+                            <select
+                              value={order.status || 'pending'}
+                              onChange={e => updateStatus(order.id, e.target.value)}
+                              disabled={updatingId === order.id}
+                              className={`text-xs font-semibold rounded-lg px-2 py-1 border-0 focus:outline-none focus:ring-2 focus:ring-orange-400 capitalize cursor-pointer disabled:opacity-60
+                                ${ORDER_STATUS_COLORS[order.status] || 'bg-gray-100 text-gray-600'}`}>
+                              {ORDER_STATUSES.map(s => <option key={s} value={s} className="bg-white text-gray-800 font-normal capitalize">{s}</option>)}
+                            </select>
+                            {updatingId === order.id && <Loader2 className="w-3 h-3 animate-spin text-orange-400" />}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                          {new Date(order.created_at).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' })}
+                        </td>
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                          <a
+                            href={`https://wa.me/${order.customer_phone?.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${order.customer_name}, your Reliance Appliances order (ref: ${order.id.slice(0, 8)}) has been received. We'll confirm shortly.`)}`}
+                            target="_blank" rel="noreferrer"
+                            className="p-1.5 hover:bg-green-50 text-green-600 rounded-lg flex items-center justify-center w-8 h-8">
+                            <MessageCircle className="w-4 h-4" />
+                          </a>
+                        </td>
+                      </tr>
+
+                      {expanded === order.id && (
+                        <tr key={`${order.id}-d`} className="bg-orange-50/20 border-b border-orange-100">
+                          <td colSpan={7} className="px-6 py-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                              <div>
+                                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Customer</p>
+                                <p className="text-sm font-medium text-gray-900">{order.customer_name}</p>
+                                <p className="text-xs text-gray-500">{order.customer_phone}</p>
+                                {order.email && <p className="text-xs text-gray-500">{order.email}</p>}
+                                {order.address && <p className="text-xs text-gray-500 mt-1">{order.address}{order.city ? `, ${order.city}` : ''}</p>}
+                              </div>
+                              <div>
+                                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Payment</p>
+                                <p className="text-sm text-gray-800 capitalize">{order.payment_method || '—'}</p>
+                                {order.plan && <p className="text-xs text-gray-500">{order.plan} plan</p>}
+                              </div>
+                              <div>
+                                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Items</p>
+                                {prods.map((p, i) => (
+                                  <div key={i} className="flex justify-between text-xs text-gray-700">
+                                    <span>{p.brand} {p.model}{p.qty > 1 ? ` ×${p.qty}` : ''}</span>
+                                    <span className="text-gray-400 ml-4">PKR {(p.price || 0).toLocaleString()}</span>
+                                  </div>
+                                ))}
+                                <div className="flex justify-between text-sm font-bold text-gray-900 mt-1 pt-1 border-t border-gray-100">
+                                  <span>Total</span><span>PKR {(order.total_amount || 0).toLocaleString()}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {filtered.length < orders.length && (
+            <div className="px-4 py-2 border-t border-gray-50 text-xs text-gray-400">
+              Showing {filtered.length} of {orders.length} orders
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// ── Enquiries Tab ─────────────────────────────────────────────────────────────
+
+interface Enquiry {
+  id: string;
+  event: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  message: string | null;
+  product_id: string | null;
+  brand: string | null;
+  model: string | null;
+  created_at: string;
+}
+
+function EnquiriesTab() {
+  const [items,      setItems]      = useState<Enquiry[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [loadError,  setLoadError]  = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
+
+  async function load() {
+    setLoading(true); setLoadError('');
+    const { data, error } = await supabase
+      .from('analytics')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(500);
+    if (error) setLoadError(error.message);
+    setItems((data ?? []) as Enquiry[]);
+    setLoading(false);
+  }
+  useEffect(() => { load(); }, []);
+
+  const types = [...new Set(items.map(i => i.event))].filter(Boolean);
+  const filtered = typeFilter === 'all' ? items : items.filter(i => i.event === typeFilter);
+  const counts = Object.fromEntries(types.map(t => [t, items.filter(i => i.event === t).length]));
+  const todayCount = items.filter(i => new Date(i.created_at).toDateString() === new Date().toDateString()).length;
+
+  return (
+    <div className="max-w-6xl mx-auto py-6 space-y-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Total',   value: items.length,           color: 'text-gray-900' },
+          { label: 'Today',   value: todayCount,             color: 'text-blue-600' },
+          { label: 'Contact', value: counts['contact'] || 0, color: 'text-purple-600' },
+          { label: 'Enquiry', value: counts['enquiry'] || 0, color: 'text-orange-600' },
+        ].map(s => (
+          <div key={s.label} className="bg-white rounded-xl border border-gray-100 p-4">
+            <div className={`text-2xl font-black ${s.color}`}>{s.value}</div>
+            <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        {(['all', ...types] as string[]).map(t => (
+          <button key={t} onClick={() => setTypeFilter(t)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors ${
+              typeFilter === t ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}>
+            {t === 'all' ? `All (${items.length})` : `${t} (${counts[t] || 0})`}
+          </button>
+        ))}
+        <div className="flex-1" />
+        <button onClick={load} className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:border-orange-300 px-3 py-2 rounded-lg text-xs font-semibold">
+          <RefreshCw className="w-3.5 h-3.5" /> Refresh
+        </button>
+      </div>
+
+      {loadError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+          <strong>Error:</strong> {loadError}
+          {(loadError.includes('permission') || loadError.includes('policy') || loadError.includes('relation')) && (
+            <p className="mt-1 text-xs">Run <code className="bg-red-100 px-1 rounded">20260316_admin_orders.sql</code> in Supabase SQL Editor.</p>
+          )}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-orange-400" /></div>
+      ) : !loadError && items.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
+          <Mail className="w-10 h-10 mx-auto mb-3 text-gray-200" />
+          <p className="font-medium text-gray-500">No enquiries yet</p>
+          <p className="text-xs text-gray-400 mt-1">Contact form and product enquiries appear here</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Name</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Contact</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 w-24">Type</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Message / Product</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 w-28">Date</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600 w-20">Reach</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {filtered.map(item => (
+                  <tr key={item.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-900 text-sm">{item.name || '—'}</td>
+                    <td className="px-4 py-3">
+                      {item.phone && <a href={`tel:${item.phone}`} className="text-xs text-blue-500 hover:underline block">{item.phone}</a>}
+                      {item.email && <a href={`mailto:${item.email}`} className="text-xs text-gray-400 hover:underline block">{item.email}</a>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${
+                        item.event === 'contact' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'
+                      }`}>{item.event}</span>
+                    </td>
+                    <td className="px-4 py-3 max-w-xs">
+                      {item.brand && item.model
+                        ? <span className="text-xs font-medium text-gray-800">{item.brand} {item.model}</span>
+                        : <span className="text-xs text-gray-600 line-clamp-2">{item.message || '—'}</span>}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                      {new Date(item.created_at).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' })}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1">
+                        {item.phone && (
+                          <a href={`https://wa.me/${item.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${item.name || ''}, thank you for contacting Reliance Appliances!`)}`}
+                            target="_blank" rel="noreferrer"
+                            className="p-1.5 hover:bg-green-50 text-green-600 rounded-lg">
+                            <MessageCircle className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                        {item.email && (
+                          <a href={`mailto:${item.email}`}
+                            className="p-1.5 hover:bg-blue-50 text-blue-500 rounded-lg">
+                            <Mail className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {filtered.length < items.length && (
+            <div className="px-4 py-2 border-t border-gray-50 text-xs text-gray-400">
+              Showing {filtered.length} of {items.length} entries
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// ── Settings Tab ──────────────────────────────────────────────────────────────
+
+interface SiteSettingRow { key: string; value: string; label: string | null; }
+
+function SettingsTab() {
+  const [rows,       setRows]       = useState<SiteSettingRow[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [loadError,  setLoadError]  = useState('');
+  const [local,      setLocal]      = useState<Record<string, string>>({});
+  const [saving,     setSaving]     = useState<string | null>(null);
+  const [saved,      setSaved]      = useState<Set<string>>(new Set());
+
+  async function load() {
+    setLoading(true); setLoadError('');
+    const { data, error } = await supabase.from('site_settings').select('*').order('key');
+    if (error) { setLoadError(error.message); setLoading(false); return; }
+    const r = (data ?? []) as SiteSettingRow[];
+    setRows(r);
+    setLocal(Object.fromEntries(r.map(s => [s.key, s.value])));
+    setLoading(false);
+  }
+  useEffect(() => { load(); }, []);
+
+  function setField(key: string, value: string) {
+    setLocal(prev => ({ ...prev, [key]: value }));
+  }
+
+  async function saveSetting(key: string) {
+    setSaving(key);
+    const value = local[key] ?? '';
+    await supabase.from('site_settings').upsert({ key, value, updated_at: new Date().toISOString() });
+    setRows(prev => prev.map(r => r.key === key ? { ...r, value } : r));
+    // Reload the settings store so changes take effect sitewide immediately
+    await useSettingsStore.getState().load();
+    setSaved(prev => new Set([...prev, key]));
+    setTimeout(() => setSaved(prev => { const n = new Set(prev); n.delete(key); return n; }), 2500);
+    setSaving(null);
+  }
+
+  async function saveAll(keys: string[]) {
+    for (const key of keys) await saveSetting(key);
+  }
+
+  function FieldRow({ k, label, type = 'text', min, max, step, unit, hint }: {
+    k: string; label: string; type?: string; min?: number; max?: number; step?: number; unit?: string; hint?: string;
+  }) {
+    return (
+      <div className="flex items-center gap-3">
+        <label className="text-sm font-medium text-gray-700 w-48 shrink-0">{label}</label>
+        <div className="flex items-center gap-2 flex-1">
+          {unit && <span className="text-xs text-gray-400">{unit}</span>}
+          <input
+            type={type}
+            value={local[k] ?? ''}
+            onChange={e => setField(k, e.target.value)}
+            min={min} max={max} step={step}
+            className="w-36 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+          />
+          {hint && <span className="text-xs text-gray-400">{hint}</span>}
+        </div>
+        <button onClick={() => saveSetting(k)} disabled={saving === k}
+          className="flex items-center gap-1 text-xs font-bold bg-orange-100 hover:bg-orange-200 disabled:opacity-50 text-orange-700 px-3 py-2 rounded-lg whitespace-nowrap">
+          {saving === k ? <Loader2 className="w-3 h-3 animate-spin" /> : saved.has(k) ? <><Check className="w-3 h-3" /> Saved</> : 'Save'}
+        </button>
+      </div>
+    );
+  }
+
+  if (loading) return <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-orange-400" /></div>;
+
+  return (
+    <div className="max-w-3xl mx-auto py-6 space-y-6">
+      {loadError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+          <strong>Error:</strong> {loadError}
+          {(loadError.includes('relation') || loadError.includes('does not exist')) && (
+            <p className="mt-1 text-xs">Run <code className="bg-red-100 px-1 rounded">20260316_admin_orders.sql</code> in Supabase SQL Editor to create the site_settings table first.</p>
+          )}
+        </div>
+      )}
+
+      {/* Announcement Banner */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
+        <div className="flex items-center gap-2 mb-1">
+          <Bell className="w-4 h-4 text-orange-500" />
+          <h3 className="font-bold text-gray-900">Announcement Banner</h3>
+          <span className="text-xs text-gray-400 ml-auto">Shown sitewide above the navbar — dismissable by visitors</span>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox"
+              checked={local['announcement_enabled'] === 'true'}
+              onChange={e => setField('announcement_enabled', String(e.target.checked))}
+              className="w-4 h-4 accent-orange-500" />
+            <span className="text-sm font-medium text-gray-700">Enable banner</span>
+          </label>
+          <button onClick={() => saveSetting('announcement_enabled')} disabled={saving === 'announcement_enabled'}
+            className="flex items-center gap-1 text-xs font-bold bg-orange-100 hover:bg-orange-200 disabled:opacity-50 text-orange-700 px-3 py-1.5 rounded-lg">
+            {saving === 'announcement_enabled' ? <Loader2 className="w-3 h-3 animate-spin" /> : saved.has('announcement_enabled') ? <><Check className="w-3 h-3" /> Saved</> : 'Save'}
+          </button>
+        </div>
+
+        <div className="flex gap-3">
+          <input
+            value={local['announcement_text'] ?? ''}
+            onChange={e => setField('announcement_text', e.target.value)}
+            placeholder="e.g. Eid Sale — extra 5% off on all ACs this week only!"
+            className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+          />
+          <button onClick={() => saveSetting('announcement_text')} disabled={saving === 'announcement_text'}
+            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap">
+            {saving === 'announcement_text' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : saved.has('announcement_text') ? '✓ Saved!' : 'Save Text'}
+          </button>
+        </div>
+      </div>
+
+      {/* Consultation Threshold */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <Phone className="w-4 h-4 text-orange-500" />
+          <h3 className="font-bold text-gray-900">Consultation Threshold</h3>
+        </div>
+        <p className="text-sm text-gray-500">Products at or above this price show "Book Free Consultation" instead of Add to Cart. Changes take effect immediately on the product page.</p>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-500 shrink-0">PKR</span>
+          <input type="number" min={0} step={10000}
+            value={local['consultation_threshold'] ?? SETTING_DEFAULTS.consultationThreshold}
+            onChange={e => setField('consultation_threshold', e.target.value)}
+            className="w-40 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          <button onClick={() => saveSetting('consultation_threshold')} disabled={saving === 'consultation_threshold'}
+            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-xs font-bold px-4 py-2 rounded-xl">
+            {saving === 'consultation_threshold' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : saved.has('consultation_threshold') ? '✓ Saved!' : 'Save'}
+          </button>
+          <span className="text-xs text-gray-400">Default: PKR {SETTING_DEFAULTS.consultationThreshold.toLocaleString()}</span>
+        </div>
+      </div>
+
+      {/* Installment Plan Rates */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <CalendarDays className="w-4 h-4 text-orange-500" />
+            <h3 className="font-bold text-gray-900">Installment Plan Rates</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Live — applies on next page load</span>
+            <button onClick={() => saveAll(['plan_2m_markup','plan_2m_advance','plan_3m_markup','plan_3m_advance','plan_6m_markup','plan_6m_advance','plan_12m_markup','plan_12m_advance'])}
+              className="text-xs font-bold bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg">
+              Save All Plans
+            </button>
+          </div>
+        </div>
+        <p className="text-sm text-gray-500">Markup multiplier and advance ratio for each plan. Changes are stored in Supabase and applied to all installment price displays.</p>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 rounded-xl">
+              <tr>
+                <th className="text-left px-4 py-2 font-medium text-gray-600 w-16">Plan</th>
+                <th className="text-left px-4 py-2 font-medium text-gray-600">Markup multiplier</th>
+                <th className="text-left px-4 py-2 font-medium text-gray-600">Advance ratio</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {(['2m', '3m', '6m', '12m'] as const).map(plan => {
+                const mk = `plan_${plan}_markup`;
+                const av = `plan_${plan}_advance`;
+                const markup = parseFloat(local[mk] ?? '1');
+                const adv    = parseFloat(local[av]  ?? '0');
+                return (
+                  <tr key={plan}>
+                    <td className="px-4 py-3 font-black text-gray-900">{plan}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <input type="number" step="0.01" min="1" max="3"
+                          value={local[mk] ?? ''}
+                          onChange={e => setField(mk, e.target.value)}
+                          className="w-24 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                        <span className="text-xs text-gray-400">= {isNaN(markup) ? '?' : ((markup - 1) * 100).toFixed(0)}% surcharge</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <input type="number" step="0.01" min="0" max="1"
+                          value={local[av] ?? ''}
+                          onChange={e => setField(av, e.target.value)}
+                          className="w-24 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                        <span className="text-xs text-gray-400">{isNaN(adv) ? '?' : (adv * 100).toFixed(0)}% advance</span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Raw settings viewer */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-bold text-gray-900 flex items-center gap-2"><Settings className="w-4 h-4 text-gray-400" /> All Settings (Raw)</h3>
+          <button onClick={load} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600">
+            <RefreshCw className="w-3.5 h-3.5" /> Reload from DB
+          </button>
+        </div>
+        <div className="space-y-1.5">
+          {rows.map(s => (
+            <div key={s.key} className="flex items-center gap-3 py-1 border-b border-gray-50 last:border-0">
+              <span className="font-mono text-xs text-gray-500 w-52 shrink-0">{s.key}</span>
+              <span className="text-xs text-gray-800">{s.value || <span className="italic text-gray-300">empty</span>}</span>
+            </div>
+          ))}
+          {rows.length === 0 && <p className="text-xs text-gray-400 italic">No settings stored yet — they'll appear here after you save above.</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 // ── Main AdminPortal ──────────────────────────────────────────────────────────
 
 export default function AdminPortal() {
-  const { isLoggedIn, loading, signOut } = useAuthStore();
+  const { isLoggedIn, loading, signOut, isRecovery, setRecovery } = useAuthStore();
 
-  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm]   = useState('');
@@ -2778,6 +4025,7 @@ export default function AdminPortal() {
   const [products, setProducts]   = useState<Product[]>([]);
   const [fetching, setFetching]   = useState(false);
   const [search, setSearch]       = useState('');
+  const deferredSearch            = useDeferredValue(search);
   const [catFilter, setCatFilter] = useState('');
   const [brandFilter, setBrandFilter]   = useState('');
   const [missingImgFilter, setMissingImgFilter] = useState(false);
@@ -2789,7 +4037,7 @@ export default function AdminPortal() {
   const [deleteId, setDeleteId]   = useState<string | null>(null);
   const [deleting, setDeleting]   = useState(false);
   const [quickImg, setQuickImg]   = useState<Product | null>(null);
-  const [tab, setTab]             = useState<'products' | 'images' | 'import' | 'tools' | 'qc' | 'audit' | 'schema'>('products');
+  const [tab, setTab]             = useState<'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'settings' | 'schema' | 'audit'>('products');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
   const [bulkRunning, setBulkRunning] = useState(false);
@@ -2798,7 +4046,11 @@ export default function AdminPortal() {
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault(); setAuthErr(''); setAuthOk(''); setSubmitting(true);
     try {
-      if (authMode === 'signup') {
+      if (authMode === 'forgot') {
+        const redirectTo = `${window.location.origin}/admin`;
+        await resetPasswordForEmail(email, redirectTo);
+        setAuthOk('Password reset email sent! Check your inbox and click the link.');
+      } else if (authMode === 'signup') {
         if (password !== confirm) { setAuthErr('Passwords do not match'); setSubmitting(false); return; }
         const { session } = await signUp(email, password);
         if (!session) {
@@ -2808,6 +4060,18 @@ export default function AdminPortal() {
       } else {
         await signIn(email, password);
       }
+    } catch (err: any) { setAuthErr(err.message || 'Something went wrong'); }
+    finally { setSubmitting(false); }
+  }
+
+  async function handleSetNewPassword(e: React.FormEvent) {
+    e.preventDefault(); setAuthErr(''); setAuthOk(''); setSubmitting(true);
+    try {
+      if (password !== confirm) { setAuthErr('Passwords do not match'); setSubmitting(false); return; }
+      await updatePassword(password);
+      setAuthOk('Password updated! Signing you in…');
+      setRecovery(false);
+      setPassword(''); setConfirm('');
     } catch (err: any) { setAuthErr(err.message || 'Something went wrong'); }
     finally { setSubmitting(false); }
   }
@@ -2826,10 +4090,11 @@ export default function AdminPortal() {
   // All unique brands for filter dropdown
   const allBrands = useMemo(() => [...new Set(products.map(p => p.brand))].sort(), [products]);
 
-  // Use search engine for text search; then apply additional filter bar filters
+  // Use search engine for text search; then apply additional filter bar filters.
+  // deferredSearch lets the input feel instant while the expensive filter runs at lower priority.
   const filtered = useMemo(() => {
-    let list = search.trim()
-      ? adminSearch(searchIndex, search).map(r => r.product)
+    let list = deferredSearch.trim()
+      ? adminSearch(searchIndex, deferredSearch).map(r => r.product)
       : products;
     if (brandFilter) list = list.filter(p => p.brand === brandFilter);
     if (missingImgFilter) list = list.filter(p => !productHasImage(p));
@@ -2837,7 +4102,7 @@ export default function AdminPortal() {
     if (priceMin) list = list.filter(p => p.price.cash_floor >= Number(priceMin));
     if (priceMax) list = list.filter(p => p.price.cash_floor <= Number(priceMax));
     return list;
-  }, [search, searchIndex, products, brandFilter, missingImgFilter, installFilter, priceMin, priceMax]);
+  }, [deferredSearch, searchIndex, products, brandFilter, missingImgFilter, installFilter, priceMin, priceMax]);
 
   const activeFilterCount = [brandFilter, missingImgFilter, installFilter, priceMin, priceMax].filter(Boolean).length;
 
@@ -2876,6 +4141,41 @@ export default function AdminPortal() {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>;
   }
 
+  // ── Password recovery screen (user clicked the reset email link) ─────────────
+  if (isRecovery) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-sm border w-full max-w-sm p-8">
+          <div className="text-center mb-6">
+            <div className="w-12 h-12 bg-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <Package className="w-6 h-6 text-orange-600" />
+            </div>
+            <h1 className="text-xl font-black text-gray-900">Set New Password</h1>
+            <p className="text-sm text-gray-500 mt-1">Enter and confirm your new password</p>
+          </div>
+          <form onSubmit={handleSetNewPassword} className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">New Password</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} required autoFocus minLength={8}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Confirm New Password</label>
+              <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} required minLength={8}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            </div>
+            {authErr && <p className="text-red-500 text-xs">{authErr}</p>}
+            {authOk  && <p className="text-green-600 text-xs">{authOk}</p>}
+            <button type="submit" disabled={submitting}
+              className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg font-bold text-sm disabled:opacity-60 flex items-center justify-center gap-2">
+              {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Updating…</> : 'Set New Password'}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -2885,27 +4185,35 @@ export default function AdminPortal() {
               <Package className="w-6 h-6 text-orange-600" />
             </div>
             <h1 className="text-xl font-black text-gray-900">Reliance Admin</h1>
-            <p className="text-sm text-gray-500 mt-1">{authMode === 'signin' ? 'Sign in to manage products' : 'Create an admin account'}</p>
+            <p className="text-sm text-gray-500 mt-1">
+              {authMode === 'forgot' ? 'Reset your password' : authMode === 'signin' ? 'Sign in to manage products' : 'Create an admin account'}
+            </p>
           </div>
-          <div className="flex rounded-xl border border-gray-200 p-1 mb-5">
-            {(['signin', 'signup'] as const).map(m => (
-              <button key={m} type="button" onClick={() => { setAuthMode(m); setAuthErr(''); setAuthOk(''); }}
-                className={`flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors ${authMode === m ? 'bg-orange-500 text-white' : 'text-gray-500 hover:text-gray-700'}`}>
-                {m === 'signin' ? 'Sign In' : 'Sign Up'}
-              </button>
-            ))}
-          </div>
+
+          {authMode !== 'forgot' && (
+            <div className="flex rounded-xl border border-gray-200 p-1 mb-5">
+              {(['signin', 'signup'] as const).map(m => (
+                <button key={m} type="button" onClick={() => { setAuthMode(m); setAuthErr(''); setAuthOk(''); }}
+                  className={`flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors ${authMode === m ? 'bg-orange-500 text-white' : 'text-gray-500 hover:text-gray-700'}`}>
+                  {m === 'signin' ? 'Sign In' : 'Sign Up'}
+                </button>
+              ))}
+            </div>
+          )}
+
           <form onSubmit={handleAuth} className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Password</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-            </div>
+            {authMode !== 'forgot' && (
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Password</label>
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+              </div>
+            )}
             {authMode === 'signup' && (
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Confirm Password</label>
@@ -2918,9 +4226,21 @@ export default function AdminPortal() {
             <button type="submit" disabled={submitting}
               className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg font-bold text-sm disabled:opacity-60 flex items-center justify-center gap-2">
               {submitting
-                ? <><Loader2 className="w-4 h-4 animate-spin" /> {authMode === 'signin' ? 'Signing in…' : 'Creating account…'}</>
-                : (authMode === 'signin' ? 'Sign In' : 'Create Account')}
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> {authMode === 'signin' ? 'Signing in…' : authMode === 'forgot' ? 'Sending…' : 'Creating account…'}</>
+                : (authMode === 'signin' ? 'Sign In' : authMode === 'forgot' ? 'Send Reset Email' : 'Create Account')}
             </button>
+            {authMode === 'signin' && (
+              <button type="button" onClick={() => { setAuthMode('forgot'); setAuthErr(''); setAuthOk(''); }}
+                className="w-full text-center text-xs text-gray-400 hover:text-orange-500 mt-1">
+                Forgot password?
+              </button>
+            )}
+            {authMode === 'forgot' && (
+              <button type="button" onClick={() => { setAuthMode('signin'); setAuthErr(''); setAuthOk(''); }}
+                className="w-full text-center text-xs text-gray-400 hover:text-orange-500 mt-1">
+                ← Back to Sign In
+              </button>
+            )}
           </form>
         </div>
       </div>
@@ -2947,24 +4267,36 @@ export default function AdminPortal() {
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="bg-white border-b border-gray-100 px-4 flex gap-1">
-        {([
-          { id: 'products', label: 'Products' },
-          { id: 'images',   label: `Images${missingImgCount > 0 ? ` (${missingImgCount} missing)` : ''}` },
-          { id: 'import',   label: 'Import CSV' },
-          { id: 'tools',    label: 'Data Tools' },
-          { id: 'qc',       label: `QC Queue${products.length > 0 ? ` (${qcSummary(products).qcIssues})` : ''}` },
-          { id: 'schema',   label: 'Spec Schema' },
-          { id: 'audit',    label: 'Audit Log' },
-        ] as const).map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-              tab === t.id ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}>
-            {t.label}
-          </button>
-        ))}
+      {/* Tabs — grouped by function */}
+      <div className="bg-white border-b border-gray-100 px-4 overflow-x-auto">
+        <div className="flex gap-1 min-w-max">
+          {([
+            { id: 'products',  label: 'Products',    group: 'catalog' },
+            { id: 'images',    label: `Images${missingImgCount > 0 ? ` (${missingImgCount})` : ''}`, group: 'catalog' },
+            { id: 'import',    label: 'Import CSV',  group: 'catalog' },
+            { id: 'tools',     label: 'Data Tools',  group: 'catalog' },
+            { id: 'qc',        label: `QC${products.length > 0 ? ` (${qcSummary(products).qcIssues})` : ''}`, group: 'catalog' },
+            { id: 'orders',    label: 'Orders',      group: 'crm' },
+            { id: 'enquiries', label: 'Enquiries',   group: 'crm' },
+            { id: 'reviews',   label: 'Reviews',     group: 'crm' },
+            { id: 'leads',     label: 'Partners',    group: 'crm' },
+            { id: 'settings',  label: 'Settings',    group: 'config' },
+            { id: 'schema',    label: 'Spec Schema', group: 'config' },
+            { id: 'audit',     label: 'Audit Log',   group: 'config' },
+          ] as const).map((t, i, arr) => {
+            const prevGroup = i > 0 ? arr[i - 1].group : t.group;
+            return (
+              <div key={t.id} className={`flex items-center ${prevGroup !== t.group && i > 0 ? 'ml-2 pl-2 border-l border-gray-200' : ''}`}>
+                <button onClick={() => setTab(t.id)}
+                  className={`px-3 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                    tab === t.id ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}>
+                  {t.label}
+                </button>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-6">
@@ -2976,6 +4308,16 @@ export default function AdminPortal() {
           <ImagesTab products={products} onRefresh={loadProducts} />
         ) : tab === 'qc' ? (
           <QCQueueTab products={products} onRefresh={loadProducts} />
+        ) : tab === 'orders' ? (
+          <OrdersTab />
+        ) : tab === 'enquiries' ? (
+          <EnquiriesTab />
+        ) : tab === 'reviews' ? (
+          <ReviewsTab />
+        ) : tab === 'leads' ? (
+          <PartnerLeadsTab />
+        ) : tab === 'settings' ? (
+          <SettingsTab />
         ) : tab === 'schema' ? (
           <SpecSchemaTab />
         ) : tab === 'audit' ? (
@@ -3153,7 +4495,7 @@ export default function AdminPortal() {
                 )}
               </div>
             ) : (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden transition-opacity duration-150 ${deferredSearch !== search ? 'opacity-60' : ''}`}>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 border-b border-gray-100">
@@ -3265,6 +4607,7 @@ export default function AdminPortal() {
               images: composeImages(p.thumbnail, p.gallery),
               description: p.description, warranty: p.warranty,
               tags: p.tags || '', colors: p.colors || '',
+              specs: p.specs || {},
               seo_title: p.seo?.title || '', seo_desc: p.seo?.description || '',
             };
           })()}

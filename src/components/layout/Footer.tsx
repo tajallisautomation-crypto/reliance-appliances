@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Phone, Mail, MapPin, MessageCircle } from 'lucide-react';
+import { Phone, Mail, MapPin, MessageCircle, Leaf } from 'lucide-react';
 import { waSales } from '@/lib/whatsapp';
 
 export default function Footer() {
@@ -11,7 +11,7 @@ export default function Footer() {
         <div className="col-span-2 md:col-span-1">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-black"
-              style={{ background: 'linear-gradient(135deg,#0070f3,#f5c842)' }}>R</div>
+              style={{ background: 'linear-gradient(135deg,#f97316,#f5c842)' }}>R</div>
             <span className="font-black text-lg">Reliance Appliances</span>
           </div>
           <p className="text-sm text-gray-400 leading-relaxed mb-4">
@@ -41,9 +41,20 @@ export default function Footer() {
         <div>
           <h3 className="font-bold text-sm uppercase tracking-wider text-gray-300 mb-3">Services</h3>
           <ul className="space-y-2">
-            {[['Installment Plans','/installments'],['Installation','/services'],['Warranty Claims','/services'],
-              ['Solar Solutions','/solar'],['Corporate','/corporate'],['Customer Portal','/portal']].map(([l,h]) => (
-              <li key={h}><Link to={h} className="text-sm text-gray-400 hover:text-white transition-colors">{l}</Link></li>
+            {[
+              ['Installment Plans',  '/installments'],
+              ['Installation',       '/services'],
+              ['Warranty Claims',    '/services'],
+              ['Green Corridor',     '/green-corridor'],
+              ['Partner With Us',    '/partner'],
+              ['Customer Portal',    '/portal'],
+            ].map(([l, h]) => (
+              <li key={l}>
+                <Link to={h}
+                  className={`text-sm transition-colors flex items-center gap-1.5 ${h === '/green-corridor' ? 'text-eco-400 hover:text-eco-300' : 'text-gray-400 hover:text-white'}`}>
+                  {h === '/green-corridor' && <Leaf className="w-3 h-3" />}{l}
+                </Link>
+              </li>
             ))}
           </ul>
         </div>

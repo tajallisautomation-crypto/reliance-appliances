@@ -6,7 +6,9 @@ interface AuthStore {
   session:    Session | null;
   isLoggedIn: boolean;
   loading:    boolean;
+  isRecovery: boolean;
   setSession: (s: Session | null) => void;
+  setRecovery: (v: boolean) => void;
   signOut:    () => Promise<void>;
 }
 
@@ -14,12 +16,14 @@ export const useAuthStore = create<AuthStore>(set => ({
   session:    null,
   isLoggedIn: false,
   loading:    true,
+  isRecovery: false,
 
-  setSession: s => set({ session: s, isLoggedIn: !!s, loading: false }),
+  setSession:  s => set({ session: s, isLoggedIn: !!s, loading: false }),
+  setRecovery: v => set({ isRecovery: v, loading: false }),
 
   signOut: async () => {
     await supabase.auth.signOut();
-    set({ session: null, isLoggedIn: false });
+    set({ session: null, isLoggedIn: false, isRecovery: false });
   },
 }));
 
@@ -28,6 +32,11 @@ supabase.auth.getSession().then(({ data }) => {
   useAuthStore.getState().setSession(data.session);
 });
 
-supabase.auth.onAuthStateChange((_event, session) => {
-  useAuthStore.getState().setSession(session);
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'PASSWORD_RECOVERY') {
+    // Reset-email link was clicked — show the set-new-password form
+    useAuthStore.getState().setRecovery(true);
+  } else {
+    useAuthStore.getState().setSession(session);
+  }
 });

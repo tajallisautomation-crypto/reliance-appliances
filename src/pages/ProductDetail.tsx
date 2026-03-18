@@ -1,31 +1,52 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ShoppingCart, MessageCircle, Shield, Truck, Award, Check, Wrench, Share2, ChevronDown, ChevronUp, Star } from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
+import {
+  ArrowLeft, ShoppingCart, MessageCircle, Shield, Truck, Award,
+  Check, Wrench, Share2, Star, Phone, CalendarDays,
+} from 'lucide-react';
 import { getProductBySlug, getRelatedProducts, formatPrice, DEFAULT_CATEGORIES } from '@/lib/api';
 import type { Product } from '@/lib/types';
 import ProductCard from '@/components/products/ProductCard';
+import ReviewSection from '@/components/products/ReviewSection';
 import CompareButton from '@/components/CompareButton';
 import SEO from '@/components/ui/SEO';
 import Spinner from '@/components/ui/Spinner';
 import { useCartStore } from '@/store/cartStore';
-import { waProduct, waInstallment } from '@/lib/whatsapp';
+import { useSettingsStore } from '@/store/settingsStore';
+import { waProduct, waInstallment, waSales } from '@/lib/whatsapp';
 import toast from 'react-hot-toast';
 
 const PLAN_LABELS: Record<string, string> = {
   cash: 'Cash Price', '2m': '2 Months', '3m': '3 Months', '6m': '6 Months', '12m': '12 Months',
 };
 
+/** Price threshold above which consultation flow replaces add-to-cart — overridable via admin Settings */
+const CONSULTATION_THRESHOLD_DEFAULT = 200_000;
+
+type TabKey = 'specs' | 'about' | 'installation' | 'reviews';
+
+const INSTALL_SERVICES = [
+  { title: 'Professional Installation', desc: 'Trained technician arrives same day in Karachi.' },
+  { title: 'Site Inspection',           desc: 'Free assessment before any large-system install.' },
+  { title: 'Post-Install Check',        desc: '48-hour follow-up to ensure everything runs perfectly.' },
+  { title: 'Annual Maintenance',        desc: 'Optional AMC available at time of purchase.' },
+];
+
 export default function ProductDetail() {
-  const { slug }                = useParams<{ slug: string }>();
-  const navigate                = useNavigate();
-  const [product, setProduct]       = useState<Product | null>(null);
-  const [related, setRelated]       = useState<Product[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [plan, setPlan]             = useState<'cash'|'2m'|'3m'|'6m'|'12m'>('cash');
+  const { slug }    = useParams<{ slug: string }>();
+  const navigate    = useNavigate();
+
+  const [product,    setProduct]    = useState<Product | null>(null);
+  const [related,    setRelated]    = useState<Product[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [plan,       setPlan]       = useState<'cash'|'2m'|'3m'|'6m'|'12m'>('cash');
   const [withInstall, setWithInstall] = useState(false);
-  const [specsOpen, setSpecsOpen]     = useState(true);
-  const [activeImg, setActiveImg]     = useState(0);
+  const [activeImg,  setActiveImg]  = useState(0);
+  const [activeTab,  setActiveTab]  = useState<TabKey>('specs');
+
   const addItem = useCartStore(s => s.addItem);
+  const consultationThreshold = useSettingsStore(s => s.consultationThreshold) ?? CONSULTATION_THRESHOLD_DEFAULT;
 
   useEffect(() => {
     if (!slug) { navigate('/products'); return; }
@@ -40,12 +61,14 @@ export default function ProductDetail() {
   if (loading) return <Spinner />;
   if (!product) return null;
 
-  const p         = product;
-  const allImages = [p.thumbnail, ...p.gallery].filter(Boolean);
-  const INSTALL   = 2000;
-  const planData  = plan !== 'cash' ? p.installments[plan] : null;
+  const p          = product;
+  const allImages  = [p.thumbnail, ...p.gallery].filter(Boolean);
+  const INSTALL    = 2000;
+  const planData   = plan !== 'cash' ? p.installments[plan] : null;
+  const isHighTicket = p.price.cash_floor >= consultationThreshold;
 
   const handleAdd = () => { addItem(p); toast.success(`${p.brand} ${p.model} added to cart!`); };
+
   const handleShare = async () => {
     const url = `${window.location.origin}/products/${p.slug}`;
     try { await navigator.share({ title: `${p.brand} ${p.model}`, url }); }
@@ -53,26 +76,68 @@ export default function ProductDetail() {
   };
 
   const specEntries = Object.entries(p.specs || {}).filter(([, v]) => v);
-  const tags = (p.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+  const tags        = (p.tags || '').split(',').map(t => t.trim()).filter(Boolean);
+
+  // WhatsApp CTA URL
+  const waUrl = plan === 'cash'
+    ? waProduct(p.brand, p.model)
+    : waInstallment(p.brand, p.model, PLAN_LABELS[plan]);
+
+  const waConsultUrl = waSales(
+    `Hi, I'm interested in the ${p.brand} ${p.simplified_name || p.model} and would like to book a free consultation.`
+  );
+
+  // Product structured data
+  const productSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: p.simplified_name || p.model,
+    description: p.description,
+    brand: { '@type': 'Brand', name: p.brand },
+    model: p.model,
+    image: allImages.filter(Boolean),
+    offers: {
+      '@type': 'Offer',
+      price: p.price.cash_floor,
+      priceCurrency: 'PKR',
+      availability: p.stock_status === 'In Stock'
+        ? 'https://schema.org/InStock'
+        : 'https://schema.org/OutOfStock',
+      seller: { '@type': 'Organization', name: 'Reliance Appliances' },
+    },
+  };
+
+  const TABS: { key: TabKey; label: string }[] = [
+    { key: 'specs',        label: 'Specifications' },
+    { key: 'about',        label: 'About'          },
+    { key: 'installation', label: 'Installation'   },
+    { key: 'reviews',      label: 'Reviews'        },
+  ];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <SEO path={`/products/${p.slug}`} title={p.seo.title} description={p.seo.description}
         keywords={p.seo.keywords} ogImage={p.thumbnail} type="product" />
 
+      <Helmet>
+        <script type="application/ld+json">{JSON.stringify(productSchema)}</script>
+      </Helmet>
+
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6 flex-wrap">
         <Link to="/" className="hover:text-brand-600">Home</Link><span>/</span>
         <Link to="/products" className="hover:text-brand-600">Products</Link><span>/</span>
-        <Link to={`/products/category/${DEFAULT_CATEGORIES.find(c => c.slug === p.category.toLowerCase().replace(/\s+/g, '-'))?.slug ?? p.category.toLowerCase().replace(/\s+/g, '-')}`}
+        <Link
+          to={`/products/category/${DEFAULT_CATEGORIES.find(c => c.slug === p.category.toLowerCase().replace(/\s+/g, '-'))?.slug ?? p.category.toLowerCase().replace(/\s+/g, '-')}`}
           className="hover:text-brand-600">{p.category}</Link><span>/</span>
         <span className="text-gray-900 font-medium truncate max-w-xs">{p.model}</span>
       </nav>
 
       <div className="grid md:grid-cols-2 gap-10 lg:gap-16">
-        {/* Images */}
+
+        {/* ── Images (sticky) ── */}
         <div className="md:sticky md:top-24 self-start">
-          <div className="aspect-square rounded-apple-xl overflow-hidden bg-surface-secondary mb-3 shadow-apple relative group">
+          <div className="aspect-square rounded-3xl overflow-hidden bg-gray-50 mb-3 shadow-apple-lg relative group">
             <img src={allImages[activeImg] || p.thumbnail} alt={`${p.brand} ${p.model}`}
               className="w-full h-full object-cover" />
             <button onClick={handleShare}
@@ -81,55 +146,62 @@ export default function ProductDetail() {
             </button>
           </div>
           {allImages.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            <div className="flex gap-2 overflow-x-auto pb-1">
               {allImages.map((img, i) => (
                 <button key={i} onClick={() => setActiveImg(i)}
-                  className={`flex-shrink-0 w-16 h-16 rounded-apple overflow-hidden border-2 transition-all ${activeImg === i ? 'border-brand-500' : 'border-gray-100 hover:border-brand-200'}`}>
+                  className={`flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-all ${activeImg === i ? 'border-brand-500' : 'border-gray-100 hover:border-brand-200'}`}>
                   <img src={img} alt="" className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
           )}
           {p.featured && (
-            <div className="mt-3 badge-gold inline-flex">
+            <div className="mt-3 inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-full text-xs font-semibold">
               <Star className="h-3 w-3 fill-current" /> Featured Product
             </div>
           )}
         </div>
 
-        {/* Details */}
+        {/* ── Details ── */}
         <div>
-          <div className="mb-1">
-            <p className="text-brand-500 font-bold text-xs uppercase tracking-widest">{p.brand}</p>
-          </div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight leading-tight mb-2">
-            {p.model}
+          <p className="text-brand-500 font-bold text-xs uppercase tracking-widest mb-1">{p.brand}</p>
+          <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight leading-tight mb-1">
+            {p.brand} {p.simplified_name || p.model}
           </h1>
+          {p.simplified_name && (
+            <p className="text-gray-400 text-sm mb-1 font-mono">Model: {p.model}</p>
+          )}
           <p className="text-gray-400 text-sm mb-4">{p.category}</p>
 
-          {/* Stock + warranty badges */}
+          {/* Badges */}
           <div className="flex flex-wrap gap-2 mb-5">
-            <span className={`badge ${p.stock_status === 'In Stock' ? 'badge-green' : 'badge-red'}`}>
+            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${p.stock_status === 'In Stock' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
               <Check className="h-3 w-3" /> {p.stock_status}
             </span>
-            {p.warranty && <span className="badge badge-blue"><Shield className="h-3 w-3" /> {p.warranty.split(',')[0]}</span>}
-            <span className="badge badge-gold"><Truck className="h-3 w-3" /> Free Delivery Karachi</span>
+            {p.warranty && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                <Shield className="h-3 w-3" /> {p.warranty.split(',')[0]}
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+              <Truck className="h-3 w-3" /> Free Delivery Karachi
+            </span>
           </div>
 
-          <p className="text-gray-600 text-sm leading-relaxed mb-6">{p.description}</p>
-
-          {/* Plan selector */}
-          <div className="bg-surface-secondary rounded-apple-xl p-5 mb-5">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Select Payment Plan</p>
+          {/* Payment plan selector */}
+          <div className="bg-gray-50 rounded-2xl p-5 mb-5 border border-gray-100">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Payment Plan</p>
             {(() => {
-              const availablePlans = (['cash', '2m', '3m', '6m', '12m'] as const).filter(pl => pl === 'cash' || !!p.installments[pl]);
-              const cols = availablePlans.length <= 4 ? availablePlans.length : 5;
+              const available = (['cash', '2m', '3m', '6m', '12m'] as const).filter(pl => pl === 'cash' || !!p.installments[pl]);
               return (
-                <div className={`grid gap-2 mb-4`} style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
-                  {availablePlans.map(pl => (
+                <div className="flex gap-1.5 flex-wrap mb-4">
+                  {available.map(pl => (
                     <button key={pl} onClick={() => setPlan(pl)}
-                      className={`py-2 px-1 rounded-lg text-xs font-bold text-center transition-all border focus-visible:ring-2 focus-visible:ring-brand-500
-                        ${plan === pl ? 'bg-brand-500 text-white border-brand-500 shadow-blue' : 'bg-white border-gray-200 text-gray-600 hover:border-brand-300'}`}>
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+                        plan === pl
+                          ? 'bg-gray-900 text-white border-gray-900'
+                          : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400'
+                      }`}>
                       {pl === 'cash' ? 'Cash' : pl}
                     </button>
                   ))}
@@ -137,8 +209,7 @@ export default function ProductDetail() {
               );
             })()}
 
-            {/* Price display — NO advance %, NO markup shown */}
-            <div className="bg-white rounded-apple p-4">
+            <div className="bg-white rounded-xl p-4 border border-gray-100">
               {plan === 'cash' ? (
                 <>
                   <div className="flex items-baseline justify-between">
@@ -147,9 +218,7 @@ export default function ProductDetail() {
                       <span className="text-sm text-gray-400 line-through">PKR {formatPrice(p.price.retail)}</span>
                     )}
                   </div>
-                  <p className="text-xs text-emerald-600 font-medium mt-1">
-                    Best price — pay in full at delivery
-                  </p>
+                  <p className="text-xs text-emerald-600 font-medium mt-1">Best price — pay in full at delivery</p>
                 </>
               ) : planData ? (
                 <>
@@ -172,44 +241,68 @@ export default function ProductDetail() {
               ) : null}
             </div>
 
-            {/* Installation */}
+            {/* Installation add-on */}
             <button onClick={() => setWithInstall(!withInstall)}
-              className={`mt-3 w-full flex items-center justify-between p-3 rounded-lg border transition-all
-                ${withInstall ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-200 text-gray-600 hover:border-blue-200'}`}>
+              className={`mt-3 w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
+                withInstall ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-200 text-gray-600 hover:border-blue-200'
+              }`}>
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Wrench className="h-4 w-4" /> Professional Installation
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold">+ PKR {formatPrice(INSTALL)}</span>
-                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all
-                  ${withInstall ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`}>
+                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${withInstall ? 'bg-blue-500 border-blue-500' : 'border-gray-300'}`}>
                   {withInstall && <Check className="h-3 w-3 text-white" />}
                 </div>
               </div>
             </button>
           </div>
 
-          {/* Actions */}
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <button onClick={handleAdd} disabled={p.stock_status !== 'In Stock'}
-              className="btn-primary py-4 text-base disabled:opacity-50">
-              <ShoppingCart className="h-5 w-5" /> Add to Cart
-            </button>
-            <a href={plan === 'cash' ? waProduct(p.brand, p.model) : waInstallment(p.brand, p.model, PLAN_LABELS[plan])}
-              target="_blank" rel="noreferrer"
-              className="inline-flex items-center justify-center gap-2 py-4 rounded-full text-base font-bold text-white hover:opacity-90 transition-all"
-              style={{ background: '#25d366' }}>
-              <MessageCircle className="h-5 w-5" /> WhatsApp
-            </a>
-          </div>
-          <Link to="/checkout" onClick={handleAdd} className="btn-gold w-full justify-center py-3.5 text-base">
-            Buy Now
-          </Link>
-          <CompareButton product={p} variant="full" className="w-full justify-center mt-2" />
+          {/* ── CTAs ── */}
+          {isHighTicket ? (
+            /* Consultation flow for high-ticket items */
+            <div className="bg-gray-50 rounded-2xl p-6 mb-3 border border-gray-100">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Premium Product</p>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">This product requires a site assessment.</h3>
+              <p className="text-sm text-gray-500 leading-relaxed mb-5">
+                Our engineer will visit, assess your space, and design a solution that's right for your home.
+                No obligation. Free of charge.
+              </p>
+              <div className="grid grid-cols-1 gap-3">
+                <a href={waConsultUrl} target="_blank" rel="noreferrer"
+                  className="flex items-center justify-center gap-2 py-4 rounded-2xl text-base font-bold text-white transition-all hover:opacity-90"
+                  style={{ background: '#25d366' }}>
+                  <CalendarDays className="h-5 w-5" /> Book Free Consultation
+                </a>
+                <a href="tel:+923702578788"
+                  className="flex items-center justify-center gap-2 py-3.5 rounded-2xl text-base font-bold text-gray-900 bg-white border-2 border-gray-200 hover:border-gray-400 transition-all">
+                  <Phone className="h-5 w-5" /> Call Now
+                </a>
+              </div>
+            </div>
+          ) : (
+            /* Standard purchase flow */
+            <div className="space-y-3 mb-3">
+              {/* WhatsApp — PRIMARY */}
+              <a href={waUrl} target="_blank" rel="noreferrer"
+                className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-base font-bold text-white hover:opacity-90 transition-all"
+                style={{ background: '#25d366' }}>
+                <MessageCircle className="h-5 w-5" />
+                {plan === 'cash' ? 'WhatsApp — Enquire Now' : `WhatsApp — Get ${PLAN_LABELS[plan]} Quote`}
+              </a>
+              {/* Add to Cart — SECONDARY */}
+              <button onClick={handleAdd} disabled={p.stock_status !== 'In Stock'}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-base font-bold text-gray-900 bg-white border-2 border-gray-200 hover:border-gray-400 disabled:opacity-40 transition-all">
+                <ShoppingCart className="h-5 w-5" /> Add to Cart
+              </button>
+            </div>
+          )}
 
-          {/* Trust icons */}
-          <div className="grid grid-cols-3 gap-2 mt-5">
-            {[{Icon:Shield,text:'Warranty Backed'},{Icon:Truck,text:'6–48hr Delivery'},{Icon:Award,text:'Genuine Product'}].map(i => (
+          <CompareButton product={p} variant="full" className="w-full justify-center mb-5" />
+
+          {/* Trust strip */}
+          <div className="grid grid-cols-3 gap-2">
+            {[{ Icon: Shield, text: 'Warranty Backed' }, { Icon: Truck, text: '6–48hr Delivery' }, { Icon: Award, text: 'Genuine Product' }].map(i => (
               <div key={i.text} className="flex flex-col items-center gap-1 text-center p-2">
                 <i.Icon className="h-4 w-4 text-brand-500" />
                 <span className="text-[10px] text-gray-500 font-medium leading-tight">{i.text}</span>
@@ -219,57 +312,112 @@ export default function ProductDetail() {
         </div>
       </div>
 
-      {/* Specs accordion */}
-      {specEntries.length > 0 && (
-        <div className="mt-12 border border-gray-100 rounded-apple-xl overflow-hidden">
-          <button onClick={() => setSpecsOpen(!specsOpen)}
-            className="w-full flex items-center justify-between p-5 bg-surface-secondary hover:bg-gray-100 transition-colors font-semibold text-gray-900">
-            <span>Specifications</span>
-            {specsOpen ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
-          </button>
-          {specsOpen && (
-            <div className="p-5 animate-fade-in">
+      {/* ── TABBED CONTENT ────────────────────────────────────────── */}
+      <div className="mt-14">
+        {/* Tab bar */}
+        <div className="flex gap-1 border-b border-gray-100 mb-8 overflow-x-auto">
+          {TABS.map(tab => (
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+              className={`px-5 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-all -mb-px ${
+                activeTab === tab.key
+                  ? 'border-brand-500 text-brand-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-800'
+              }`}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Specs tab */}
+        {activeTab === 'specs' && (
+          <div className="animate-fade-in">
+            {specEntries.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {specEntries.map(([key, val]) => (
-                  <div key={key} className="bg-surface-secondary rounded-apple p-3">
-                    <p className="text-xs text-gray-400 uppercase tracking-wide mb-0.5 capitalize">{key.replace(/_/g,' ')}</p>
+                  <div key={key} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                    <p className="text-xs text-gray-400 uppercase tracking-wide mb-0.5 capitalize">{key.replace(/_/g, ' ')}</p>
                     <p className="text-sm font-semibold text-gray-900">{val as string}</p>
                   </div>
                 ))}
               </div>
-              {p.colors && (
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Available Colors</p>
-                  <p className="text-sm font-semibold text-gray-900">{p.colors}</p>
-                </div>
-              )}
+            ) : (
+              <p className="text-gray-400 text-sm">Detailed specifications coming soon.</p>
+            )}
+            {p.colors && (
+              <div className="mt-6 pt-6 border-t border-gray-100">
+                <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Available Colors</p>
+                <p className="text-sm font-semibold text-gray-900">{p.colors}</p>
+              </div>
+            )}
+            {p.warranty && (
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Warranty</p>
                 <p className="text-sm text-gray-700">{p.warranty}</p>
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
 
-      {/* Tags */}
-      {tags.length > 0 && (
-        <div className="mt-6 flex flex-wrap gap-2">
-          {tags.map(tag => (
-            <Link key={tag} to={`/products?q=${encodeURIComponent(tag)}`}
-              className="px-3 py-1 rounded-full text-xs bg-surface-secondary text-gray-500 hover:bg-brand-50 hover:text-brand-600 transition-colors border border-gray-100">
-              #{tag}
-            </Link>
-          ))}
-        </div>
-      )}
+        {/* About tab */}
+        {activeTab === 'about' && (
+          <div className="animate-fade-in max-w-2xl">
+            <p className="text-gray-600 leading-relaxed text-base mb-6">{p.description}</p>
+            {tags.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {tags.map(tag => (
+                  <Link key={tag} to={`/products?q=${encodeURIComponent(tag)}`}
+                    className="px-3 py-1 rounded-full text-xs bg-gray-100 text-gray-500 hover:bg-brand-50 hover:text-brand-600 transition-colors border border-gray-200">
+                    #{tag}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Installation tab */}
+        {activeTab === 'installation' && (
+          <div className="animate-fade-in">
+            <div className="grid sm:grid-cols-2 gap-4 mb-8">
+              {INSTALL_SERVICES.map(s => (
+                <div key={s.title} className="flex gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                  <div className="w-8 h-8 bg-brand-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Wrench className="w-4 h-4 text-brand-500" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900 text-sm mb-0.5">{s.title}</p>
+                    <p className="text-xs text-gray-500">{s.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="bg-brand-50 rounded-2xl p-6 border border-brand-100">
+              <h3 className="font-bold text-gray-900 mb-2">Book Installation</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Professional installation available same-day in Karachi. PKR 2,000 flat fee — includes all labour and basic fittings.
+              </p>
+              <a href={waSales(`Hi, I'd like to book installation for ${p.brand} ${p.simplified_name || p.model}.`)}
+                target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-2 font-bold text-white px-6 py-3 rounded-xl transition-all hover:opacity-90"
+                style={{ background: '#25d366' }}>
+                <MessageCircle className="h-4 w-4" /> Book via WhatsApp
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* Reviews tab */}
+        {activeTab === 'reviews' && (
+          <div className="animate-fade-in">
+            <ReviewSection productId={p.id} productName={p.simplified_name || p.model} />
+          </div>
+        )}
+      </div>
 
       {/* Related products */}
       {related.length > 0 && (
         <div className="mt-14">
-          <h2 className="text-lg font-extrabold text-gray-900 mb-5">
-            More {p.category}
-          </h2>
+          <h2 className="text-lg font-extrabold text-gray-900 mb-5">More {p.category}</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {related.map(r => <ProductCard key={r.id} product={r} />)}
           </div>

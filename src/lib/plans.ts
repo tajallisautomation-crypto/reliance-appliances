@@ -4,17 +4,28 @@
  * The customer only sees: advance amount (PKR), monthly amount (PKR), total (PKR).
  */
 
-const _PLANS = {
+type PlanRatio = { markup: number; advRatio: number; installments: number };
+type PlanRatioMap = Record<'2m' | '3m' | '6m' | '12m', PlanRatio>;
+
+const _DEFAULT_PLANS: PlanRatioMap = {
   '2m':  { markup: 1.10, advRatio: 0.50, installments: 1  },
   '3m':  { markup: 1.15, advRatio: 0.45, installments: 2  },
   '6m':  { markup: 1.25, advRatio: 0.40, installments: 5  },
   '12m': { markup: 1.40, advRatio: 0.30, installments: 11 },
-} as const;
+};
+
+// Runtime-overridable ratios (set by settingsStore after loading from Supabase)
+let _activeRatios: PlanRatioMap = { ..._DEFAULT_PLANS };
+
+/** Called by settingsStore.load() to apply live plan rates from Supabase. */
+export function setActivePlanRatios(r: PlanRatioMap) { _activeRatios = r; }
+
+export function getDefaultPlanRatios(): PlanRatioMap { return _DEFAULT_PLANS; }
 
 /** Round to nearest 100 PKR */
 function r100(n: number): number { return Math.round(n / 100) * 100; }
 
-export type PlanKey = keyof typeof _PLANS;
+export type PlanKey = keyof PlanRatioMap;
 
 export interface PlanBreakdown {
   months:   number;
@@ -24,12 +35,12 @@ export interface PlanBreakdown {
 }
 
 export function calcPlan(retailPrice: number, plan: PlanKey): PlanBreakdown {
-  const cfg     = _PLANS[plan];
+  const cfg     = _activeRatios[plan];
   const total   = r100(retailPrice * cfg.markup);
   const advance = r100(total * cfg.advRatio);
   const monthly = cfg.installments > 0 ? r100((total - advance) / cfg.installments) : 0;
   return {
-    months:  parseInt(plan) || (plan === '2m' ? 2 : plan === '3m' ? 3 : plan === '6m' ? 6 : 12),
+    months: plan === '2m' ? 2 : plan === '3m' ? 3 : plan === '6m' ? 6 : 12,
     total, advance, monthly,
   };
 }
