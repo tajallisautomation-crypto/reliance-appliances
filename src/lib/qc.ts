@@ -200,20 +200,22 @@ export function qcSummary(products: Product[]) {
     results.filter(r => r.issues.some(i => i.code === code)).length;
 
   return {
-    total:          products.length,
-    qcIssues:       results.filter(r => r.score < 90).length,
-    missingImage:   issuesByCode('MISSING_IMAGE'),
-    imageMismatch:  issuesByCode('IMAGE_CATEGORY_MISMATCH'),
-    missingSpecs:   issuesByCode('SPEC_INCOMPLETE'),
-    invalidName:    issuesByCode('NAME_INVALID'),
-    missingDesc:    issuesByCode('MISSING_DESC'),
-    priceError:     issuesByCode('PRICE_RULE_ERROR'),
+    total:              products.length,
+    qcIssues:           results.filter(r => r.score < 90).length,
+    missingImage:       issuesByCode('MISSING_IMAGE'),
+    missingPrimary:     issuesByCode('MISSING_PRIMARY_IMAGE'),
+    imageMismatch:      issuesByCode('IMAGE_CATEGORY_MISMATCH'),
+    missingSpecs:       issuesByCode('SPEC_INCOMPLETE'),
+    invalidName:        issuesByCode('NAME_INVALID'),
+    missingDesc:        issuesByCode('MISSING_DESC'),
+    priceError:         issuesByCode('PRICE_RULE_ERROR'),
   };
 }
 
 export const QC_FILTER_OPTIONS: { code: QCCode | 'all'; label: string }[] = [
   { code: 'all',                      label: 'All Issues' },
-  { code: 'MISSING_IMAGE',            label: 'Missing Images' },
+  { code: 'MISSING_IMAGE',            label: 'No Image' },
+  { code: 'MISSING_PRIMARY_IMAGE',    label: 'No Thumbnail' },
   { code: 'IMAGE_CATEGORY_MISMATCH',  label: 'Image Mismatch' },
   { code: 'SPEC_INCOMPLETE',          label: 'Missing Specs' },
   { code: 'NAME_INVALID',             label: 'Invalid Name' },

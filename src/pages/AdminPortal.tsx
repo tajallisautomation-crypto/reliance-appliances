@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import {
   getProducts, upsertProduct, deleteProduct,
   uploadBrandImage, updateProductImages, fetchAndUploadOrSaveUrl,
-  calcAllPlans, fmtPKR, CATEGORY_MAP,
+  calcAllPlans, roundUp500, fmtPKR, CATEGORY_MAP,
   processCSVImport, reenrichAllProducts, rematchAllImages, getDataAudit, scanBucket, fixAllCategories,
   composeImages, decomposeImages, logAdminAction, getAuditLog, clearAuditLog,
   type ImportSummary, type CsvImportRow, type Product, type AuditProduct, type BucketScanResult,
@@ -1020,7 +1020,7 @@ function ImagesTab({ products, onRefresh }: { products: Product[]; onRefresh: ()
                   <tr key={p.id} className={`transition-colors ${hasImage ? 'hover:bg-gray-50' : 'hover:bg-amber-50 bg-amber-50/40'}`}>
                     <td className="px-4 py-3">
                       {hasImage
-                        ? <img src={p.thumbnail} alt={p.model} className="w-10 h-10 object-cover rounded-lg border bg-gray-100" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                        ? <img src={productDisplayImage(p)} alt={p.model} className="w-10 h-10 object-cover rounded-lg border bg-gray-100" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                         : <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center"><ImageOff className="w-5 h-5 text-gray-300" /></div>
                       }
                     </td>
@@ -1031,9 +1031,11 @@ function ImagesTab({ products, onRefresh }: { products: Product[]; onRefresh: ()
                     <td className="px-4 py-3 text-gray-600 text-xs">{p.simplified_name || '—'}</td>
                     <td className="px-4 py-3 text-[10px] text-gray-400 font-mono">{path}</td>
                     <td className="px-4 py-3">
-                      {hasImage
-                        ? <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Has image</span>
-                        : <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">Missing</span>}
+                      {p.thumbnail?.startsWith('http')
+                        ? <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Thumbnail ✓</span>
+                        : hasImage
+                          ? <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">Gallery only</span>
+                          : <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">Missing</span>}
                     </td>
                     <td className="px-4 py-3">
                       <button onClick={() => setQuickImg(p)}
@@ -1448,7 +1450,16 @@ function BulkEditPanel({
               patch.description = action === 'append'
                 ? [p.description, value].filter(Boolean).join('\n') : value;
             } else if (field === 'price') {
-              patch.retail_price = Number(value);
+              const newPrice = Number(value);
+              const cashFloor = roundUp500(newPrice);
+              const plans = calcAllPlans(cashFloor, p.category);
+              const p2 = plans['2m'], p3 = plans['3m'], p6 = plans['6m'], p12 = plans['12m'];
+              patch.retail_price  = newPrice;
+              patch.cash_floor    = cashFloor;
+              patch.adv_2m = p2?.advance ?? null;  patch.monthly_2m = p2?.monthly ?? null;  patch.total_2m = p2?.total ?? null;
+              patch.adv_3m = p3?.advance ?? null;  patch.monthly_3m = p3?.monthly ?? null;  patch.total_3m = p3?.total ?? null;
+              patch.adv_6m = p6?.advance ?? null;  patch.monthly_6m = p6?.monthly ?? null;  patch.total_6m = p6?.total ?? null;
+              patch.adv_12m = p12?.advance ?? null; patch.monthly_12m = p12?.monthly ?? null; patch.total_12m = p12?.total ?? null;
             } else if (field === 'category') {
               patch.category = value;
             } else if (field === 'sub_category') {
@@ -1587,11 +1598,18 @@ function BulkEditPanel({
                 {(['merge', 'replace'] as BulkAction[]).map(a => (
                   <button key={a} type="button" onClick={() => setAction(a)}
                     className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors
-                      ${action === a ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                    {a === 'merge' ? 'Merge (keep existing)' : 'Replace all specs'}
+                      ${action === a
+                        ? a === 'replace' ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                    {a === 'merge' ? 'Merge (keep existing)' : '⚠ Replace all specs'}
                   </button>
                 ))}
               </div>
+              {action === 'replace' && (
+                <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 font-medium">
+                  Warning: this will delete ALL existing specs on {n} product{n !== 1 ? 's' : ''} and replace with only the one spec you enter below.
+                </p>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs font-medium text-gray-600 mb-1 block">Spec Key</label>
@@ -1812,7 +1830,7 @@ function AuditLogTab() {
 
 // ── QC Queue Tab ─────────────────────────────────────────────────────────────
 
-import { runQC, qcSummary, QC_FILTER_OPTIONS, REQUIRED_SPECS, flagImageMismatch, clearImageMismatch, getImageMismatchFlags, type QCCode, type QCResult } from '@/lib/qc';
+import { runQC, qcSummary, scoreProduct, QC_FILTER_OPTIONS, REQUIRED_SPECS, flagImageMismatch, clearImageMismatch, getImageMismatchFlags, type QCCode, type QCResult } from '@/lib/qc';
 import { SPEC_SCHEMA, getEffectiveSpecFields, saveCustomSpecField, removeCustomSpecField, getAllSchemaCategories, type SpecField } from '@/lib/compare';
 type QCFilterCode = QCCode | 'all';
 
@@ -2050,25 +2068,26 @@ function QCQueueTab({ products, onRefresh }: { products: Product[]; onRefresh: (
 
   return (
     <div className="max-w-6xl mx-auto py-6 space-y-5">
-      {/* Summary stats — 7 cards */}
+      {/* Summary stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total Products',   value: summary.total,          color: 'text-gray-900' },
-          { label: 'QC Issues',        value: summary.qcIssues,       color: summary.qcIssues > 0 ? 'text-red-600' : 'text-green-600' },
-          { label: 'Missing Images',   value: summary.missingImage,   color: summary.missingImage > 0 ? 'text-amber-600' : 'text-gray-400' },
-          { label: 'Image Mismatch',   value: summary.imageMismatch,  color: summary.imageMismatch > 0 ? 'text-rose-600' : 'text-gray-400' },
+          { label: 'Total Products',    value: summary.total,           color: 'text-gray-900', bg: '' },
+          { label: 'QC Issues',         value: summary.qcIssues,        color: summary.qcIssues > 0 ? 'text-red-600' : 'text-green-600', bg: summary.qcIssues > 0 ? 'border-red-200' : '' },
+          { label: 'No Image',          value: summary.missingImage,    color: summary.missingImage > 0 ? 'text-red-600' : 'text-gray-400', bg: summary.missingImage > 0 ? 'border-red-200' : '' },
+          { label: 'Gallery Only (no thumbnail)', value: summary.missingPrimary, color: summary.missingPrimary > 0 ? 'text-amber-600' : 'text-gray-400', bg: '' },
         ].map(s => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-100 p-4">
+          <div key={s.label} className={`bg-white rounded-xl border p-4 ${s.bg || 'border-gray-100'}`}>
             <div className={`text-2xl font-black ${s.color}`}>{s.value}</div>
             <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Invalid Names',  value: summary.invalidName, color: 'text-purple-600' },
-          { label: 'Price Errors',   value: summary.priceError,  color: 'text-red-500' },
-          { label: 'Missing Desc',   value: summary.missingDesc, color: 'text-gray-600' },
+          { label: 'Missing Specs',  value: summary.missingSpecs, color: summary.missingSpecs > 0 ? 'text-blue-600' : 'text-gray-400' },
+          { label: 'Invalid Names',  value: summary.invalidName,  color: summary.invalidName > 0 ? 'text-purple-600' : 'text-gray-400' },
+          { label: 'Missing Desc',   value: summary.missingDesc,  color: summary.missingDesc > 0 ? 'text-gray-600' : 'text-gray-400' },
+          { label: 'Price Errors',   value: summary.priceError,   color: summary.priceError > 0 ? 'text-red-500' : 'text-gray-400' },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-xl border border-gray-100 p-4">
             <div className={`text-xl font-black ${s.color}`}>{s.value}</div>
@@ -2165,8 +2184,8 @@ function QCQueueTab({ products, onRefresh }: { products: Product[]; onRefresh: (
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 shrink-0 flex items-center justify-center">
-                          {p.thumbnail?.startsWith('http')
-                            ? <img src={p.thumbnail} alt="" className="w-full h-full object-cover"
+                          {productHasImage(p)
+                            ? <img src={productDisplayImage(p)} alt="" className="w-full h-full object-cover"
                                 onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                             : <ImageOff className="w-4 h-4 text-gray-300" />}
                         </div>
@@ -2823,7 +2842,7 @@ function CatalogExportPanel({ products }: { products: Product[] }) {
       <div className="grid grid-cols-3 gap-3">
         {[
           { label: 'Products in feed', value: products.filter(p => p.stock_status !== 'Discontinued').length, color: 'text-gray-900' },
-          { label: 'With images',      value: products.filter(p => p.thumbnail?.startsWith('http')).length,    color: 'text-green-600' },
+          { label: 'With images',      value: products.filter(productHasImage).length,    color: 'text-green-600' },
           { label: 'With installments',value: products.filter(p => Object.keys(p.installments || {}).length > 0).length, color: 'text-blue-600' },
         ].map(s => (
           <div key={s.label} className="bg-gray-50 rounded-xl p-3 text-center">
@@ -4569,8 +4588,13 @@ export default function AdminPortal() {
                         const hasImg = productHasImage(p);
                         const isSelected = selectedIds.has(p.id);
                         const isEnriching = enrichingId === p.id;
+                        const qc = scoreProduct(p);
+                        const qcFail = qc.score < 90;
+                        const noImage = !hasImg;
+                        const noName  = !p.simplified_name?.trim();
+                        const noSpecs = !p.specs || Object.keys(p.specs).length === 0;
                         return (
-                          <tr key={p.id} className={`transition-colors ${isSelected ? 'bg-orange-50/60' : 'hover:bg-gray-50'}`}>
+                          <tr key={p.id} className={`transition-colors ${isSelected ? 'bg-orange-50/60' : noImage ? 'bg-amber-50/40 hover:bg-amber-50' : 'hover:bg-gray-50'}`}>
                             <td className="px-4 py-3">
                               <button onClick={() => toggleSelect(p.id)} className="text-gray-300 hover:text-orange-500 transition-colors">
                                 {isSelected ? <CheckSquare className="w-4 h-4 text-orange-500" /> : <Square className="w-4 h-4" />}
@@ -4600,6 +4624,14 @@ export default function AdminPortal() {
                                 {p.simplified_name || <span className="text-amber-500 italic text-xs">No name yet</span>}
                               </div>
                               <div className="text-xs text-gray-400">{p.brand} · {p.model}</div>
+                              {qcFail && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {noImage && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-red-100 text-red-600">NO IMAGE</span>}
+                                  {noName  && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">NO NAME</span>}
+                                  {noSpecs && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">NO SPECS</span>}
+                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${qc.score < 70 ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-700'}`}>QC {qc.score}</span>
+                                </div>
+                              )}
                             </td>
                             <td className="px-4 py-3 text-gray-600">{p.category}<br/>
                               {p.sub_category && <span className="text-xs text-gray-400">{p.sub_category}</span>}
