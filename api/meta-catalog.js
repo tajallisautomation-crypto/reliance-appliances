@@ -212,8 +212,9 @@ export default async function handler(req, res) {
   const { data: products, error } = await supabase
     .from('products')
     .select('id, brand, model, simplified_name, category, description, retail_price, cash_floor, thumbnail_url, gallery_urls, specs, tags')
-    .order('category', { ascending: true })
-    .order('brand',    { ascending: true });
+    .order('category',       { ascending: true })
+    .order('brand',          { ascending: true })
+    .order('simplified_name',{ ascending: true });
 
   if (error) { res.status(500).json({ error: error.message }); return; }
 

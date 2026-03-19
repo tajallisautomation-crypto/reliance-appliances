@@ -2440,7 +2440,8 @@ export function resolveProductImages(
 
 export async function processCSVImport(
   rows: CsvImportRow[],
-  onProgress: (msg: string) => void
+  onProgress: (msg: string) => void,
+  opts: { rematchImages?: boolean } = {},
 ): Promise<ImportSummary> {
   const summary: ImportSummary = { added: 0, updated: 0, discontinued: 0, imagesFound: 0, imagesMissing: 0, errors: [] };
   if (rows.length === 0) return summary;
@@ -2484,8 +2485,8 @@ export async function processCSVImport(
       const model    = (row.Model || '').trim();
       const category = (row.Category || '').trim();
       const price    = Number(row.Retail_Price || row['Retail Price'] || row['Price'] || 0);
-      if (!brand || !model || !category || !price) {
-        const missing = [!brand && 'Brand', !model && 'Model', !category && 'Category', !price && 'Price'].filter(Boolean).join(', ');
+      if (!brand || !model || !category || !price || price <= 0) {
+        const missing = [!brand && 'Brand', !model && 'Model', !category && 'Category', (!price || price <= 0) && 'Price > 0'].filter(Boolean).join(', ');
         summary.errors.push(`Skipped: Brand="${brand}" Model="${model}" Cat="${category}" Price=${price} — missing: ${missing}`);
         return;
       }
@@ -2496,6 +2497,9 @@ export async function processCSVImport(
 
       const cashFloor = roundUp500(price);
       const rowCC = resolveCanonicalCategory(brand, model, category);
+      if (rowCC === 'unknown') {
+        summary.errors.push(`Warning: Category "${category}" not recognized for ${brand} ${model} — specs may be incomplete`);
+      }
       const p2 = calcPlan(cashFloor, '2m'); const p3 = calcPlan(cashFloor, '3m');
       const p6 = calcPlan(cashFloor, '6m');
       const p12 = allows12m(cashFloor, rowCC) ? calcPlan(cashFloor, '12m') : null;
@@ -2509,10 +2513,17 @@ export async function processCSVImport(
       try {
         if (isUpdate) {
           // Existing product: price + installments only — leave enriched fields untouched
-          const { error } = await supabase.from('products').update({
+          const updatePatch: Record<string, unknown> = {
             retail_price: price, cash_floor: cashFloor, ...installmentCols,
             missing_count: 0, stock_status: 'In Stock', updated_at: new Date().toISOString(),
-          }).eq('id', id);
+          };
+          if (opts.rematchImages) {
+            const fileMap = brandImageCache.get(brand.toLowerCase()) ?? new Map();
+            const { thumbnail_url, gallery_urls } = resolveProductImages(fileMap, model);
+            if (thumbnail_url) { updatePatch.thumbnail_url = thumbnail_url; updatePatch.gallery_urls = gallery_urls; summary.imagesFound++; }
+            else summary.imagesMissing++;
+          }
+          const { error } = await supabase.from('products').update(updatePatch).eq('id', id);
           if (error) throw error;
           summary.updated++;
         } else {

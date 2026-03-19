@@ -25,9 +25,15 @@ import { useSettingsStore, SETTING_DEFAULTS } from '@/store/settingsStore';
 
 function slugify(s: string) { return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
 
-/** A product "has an image" if it has any valid URL — not just Supabase Storage. */
-function productHasImage(p: { thumbnail?: string }): boolean {
-  return !!(p.thumbnail?.startsWith('http'));
+/** A product "has an image" if it has a thumbnail or at least one gallery image. */
+function productHasImage(p: { thumbnail?: string; gallery?: string[] }): boolean {
+  return !!(p.thumbnail?.startsWith('http')) || (p.gallery?.some(u => u?.startsWith('http')) ?? false);
+}
+
+/** Returns the best displayable image URL — thumbnail first, then first gallery item. */
+function productDisplayImage(p: { thumbnail?: string; gallery?: string[] }): string | undefined {
+  if (p.thumbnail?.startsWith('http')) return p.thumbnail;
+  return p.gallery?.find(u => u?.startsWith('http'));
 }
 
 const STOCK_OPTIONS = ['In Stock', 'Out of Stock', 'Coming Soon', 'Discontinued'];
@@ -1136,10 +1142,11 @@ function SummaryCard({ label, value, color }: { label: string; value: number; co
 }
 
 function ImportTab({ onImported }: { onImported: () => void }) {
-  const [rows, setRows]         = useState<CsvImportRow[]>([]);
-  const [progress, setProgress] = useState<string>('');
-  const [summary, setSummary]   = useState<ImportSummary | null>(null);
-  const [err, setErr]           = useState('');
+  const [rows, setRows]           = useState<CsvImportRow[]>([]);
+  const [progress, setProgress]   = useState<string>('');
+  const [summary, setSummary]     = useState<ImportSummary | null>(null);
+  const [err, setErr]             = useState('');
+  const [rematchImgs, setRematchImgs] = useState(false);
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
@@ -1156,7 +1163,7 @@ function ImportTab({ onImported }: { onImported: () => void }) {
     if (rows.length === 0) return;
     setErr(''); setSummary(null);
     try {
-      const result = await processCSVImport(rows, msg => setProgress(msg));
+      const result = await processCSVImport(rows, msg => setProgress(msg), { rematchImages: rematchImgs });
       setSummary(result);
       if (result.errors.length > 0) {
         setErr(result.errors.slice(0, 5).join('\n') + (result.errors.length > 5 ? `\n…and ${result.errors.length - 5} more` : ''));
@@ -1196,7 +1203,13 @@ function ImportTab({ onImported }: { onImported: () => void }) {
       {rows.length > 0 && !summary && (
         <div className="mt-6">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium text-gray-700">{rows.length} rows detected — preview:</p>
+            <div>
+              <p className="text-sm font-medium text-gray-700">{rows.length} rows detected — preview:</p>
+              <label className="flex items-center gap-2 mt-1 cursor-pointer select-none">
+                <input type="checkbox" checked={rematchImgs} onChange={e => setRematchImgs(e.target.checked)} className="accent-orange-500" />
+                <span className="text-xs text-gray-500">Re-match images for existing products</span>
+              </label>
+            </div>
             <button onClick={handleImport} disabled={!!progress}
               className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg text-sm font-bold disabled:opacity-60">
               {progress
@@ -4053,6 +4066,7 @@ export default function AdminPortal() {
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
   const [bulkRunning, setBulkRunning] = useState(false);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault(); setAuthErr(''); setAuthOk(''); setSubmitting(true);
@@ -4149,6 +4163,19 @@ export default function AdminPortal() {
       setSelectedIds(new Set());
     } else {
       setSelectedIds(new Set(filtered.map(p => p.id)));
+    }
+  }
+
+  async function handleBulkDelete() {
+    setBulkRunning(true);
+    try {
+      for (const id of selectedIds) await deleteProduct(id);
+      logAdminAction({ action: 'Bulk Delete', productsAffected: selectedIds.size, fields: [] });
+      await loadProducts();
+      setSelectedIds(new Set());
+    } finally {
+      setBulkRunning(false);
+      setBulkDeleteConfirm(false);
     }
   }
 
@@ -4483,6 +4510,11 @@ export default function AdminPortal() {
                   className="flex items-center gap-1.5 bg-purple-500 hover:bg-purple-600 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg">
                   <ImageIcon className="w-3.5 h-3.5" /> Match Images
                 </button>
+                <button disabled={bulkRunning}
+                  onClick={() => setBulkDeleteConfirm(true)}
+                  className="flex items-center gap-1.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg">
+                  <Trash2 className="w-3.5 h-3.5" /> Delete Selected
+                </button>
                 <div className="flex-1" />
                 <button disabled={bulkRunning} onClick={() => setSelectedIds(new Set())} className="p-1 text-orange-400 hover:text-orange-700 disabled:opacity-40">
                   <X className="w-4 h-4" />
@@ -4547,7 +4579,7 @@ export default function AdminPortal() {
                             <td className="px-4 py-3">
                               <div className="relative group w-10 h-10">
                                 {hasImg
-                                  ? <img src={p.thumbnail} alt={p.simplified_name || p.model}
+                                  ? <img src={productDisplayImage(p)} alt={p.simplified_name || p.model}
                                       onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                                       className="w-10 h-10 object-cover rounded-lg bg-gray-100" />
                                   : <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
@@ -4650,6 +4682,24 @@ export default function AdminPortal() {
           onDone={() => { setQuickImg(null); loadProducts(); }}
           onCancel={() => setQuickImg(null)}
         />
+      )}
+
+      {/* Bulk delete confirm */}
+      {bulkDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full text-center">
+            <Trash2 className="w-10 h-10 text-red-400 mx-auto mb-3" />
+            <h3 className="font-bold text-gray-900 mb-2">Delete {selectedIds.size} product{selectedIds.size !== 1 ? 's' : ''}?</h3>
+            <p className="text-sm text-gray-500 mb-5">This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setBulkDeleteConfirm(false)} className="flex-1 border border-gray-200 rounded-lg py-2 text-sm font-medium hover:bg-gray-50">Cancel</button>
+              <button onClick={handleBulkDelete} disabled={bulkRunning}
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-lg py-2 text-sm font-bold disabled:opacity-60 flex items-center justify-center gap-2">
+                {bulkRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Delete All
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Delete confirm */}
