@@ -1227,12 +1227,16 @@ function ImportTab({ onImported }: { onImported: () => void }) {
       {summary && (
         <div className="mt-6 bg-green-50 rounded-2xl p-6 space-y-4">
           <h4 className="font-bold text-gray-900">Import Complete</h4>
+          <p className="text-xs text-gray-500">
+            Existing products had <strong>prices &amp; installment plans updated only</strong> — names, specs, images and descriptions were preserved.
+            New products were fully enriched. All price changes were logged to history.
+          </p>
           <div className="grid grid-cols-2 gap-3">
-            <SummaryCard label="Added"          value={summary.added}         color="text-green-700"  />
-            <SummaryCard label="Updated"        value={summary.updated}       color="text-blue-700"   />
-            <SummaryCard label="Discontinued"   value={summary.discontinued}  color="text-red-600"    />
-            <SummaryCard label="Images Found"   value={summary.imagesFound}   color="text-purple-700" />
-            <SummaryCard label="Images Missing" value={summary.imagesMissing} color={summary.imagesMissing > 0 ? 'text-amber-600' : 'text-gray-400'} />
+            <SummaryCard label="New Products"    value={summary.added}         color="text-green-700"  />
+            <SummaryCard label="Prices Updated"  value={summary.updated}       color="text-blue-700"   />
+            <SummaryCard label="Discontinued"    value={summary.discontinued}  color="text-red-600"    />
+            <SummaryCard label="Images Found"    value={summary.imagesFound}   color="text-purple-700" />
+            <SummaryCard label="Images Missing"  value={summary.imagesMissing} color={summary.imagesMissing > 0 ? 'text-amber-600' : 'text-gray-400'} />
           </div>
           {err && (
             <div className="bg-red-50 rounded-lg p-3">
@@ -4037,7 +4041,14 @@ export default function AdminPortal() {
   const [deleteId, setDeleteId]   = useState<string | null>(null);
   const [deleting, setDeleting]   = useState(false);
   const [quickImg, setQuickImg]   = useState<Product | null>(null);
-  const [tab, setTab]             = useState<'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'settings' | 'schema' | 'audit'>('products');
+  type AdminTab = 'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'settings' | 'schema' | 'audit';
+  const VALID_TABS: AdminTab[] = ['products','images','import','tools','qc','reviews','leads','orders','enquiries','settings','schema','audit'];
+  const tabFromHash = (): AdminTab => {
+    const h = window.location.hash.slice(1) as AdminTab;
+    return VALID_TABS.includes(h) ? h : 'products';
+  };
+  const [tab, setTab] = useState<AdminTab>(tabFromHash);
+  const changeTab = (t: AdminTab) => { setTab(t); window.location.hash = t; };
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
   const [bulkRunning, setBulkRunning] = useState(false);
@@ -4081,6 +4092,12 @@ export default function AdminPortal() {
     const { products: p } = await getProducts(catFilter ? { category: catFilter } : undefined);
     setProducts(p); setFetching(false);
   }
+
+  useEffect(() => {
+    const onHash = () => setTab(tabFromHash());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
 
   useEffect(() => { if (isLoggedIn) loadProducts(); }, [isLoggedIn, catFilter]);
 
@@ -4287,7 +4304,7 @@ export default function AdminPortal() {
             const prevGroup = i > 0 ? arr[i - 1].group : t.group;
             return (
               <div key={t.id} className={`flex items-center ${prevGroup !== t.group && i > 0 ? 'ml-2 pl-2 border-l border-gray-200' : ''}`}>
-                <button onClick={() => setTab(t.id)}
+                <button onClick={() => changeTab(t.id)}
                   className={`px-3 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                     tab === t.id ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}>
