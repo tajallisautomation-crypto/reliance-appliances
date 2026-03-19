@@ -1491,16 +1491,16 @@ const _WP_NAMES: Record<string, [string, string]> = {
   '843':  ['Westpoint Deep Fryer WF-843',                           'Deep Fryer'],
   '851':  ['Westpoint Deluxe Deep Fryer WF-851',                    'Deep Fryer'],
   '841':  ['Westpoint Deep Fryer WF-841',                           'Deep Fryer'],
-  '830':  ['Westpoint Deep Fryer WF-830',                           'Deep Fryer'],
-  '4800': ['Westpoint Deluxe Air Fryer WF-4800',                    'Air Fryer'],
+  '830':  ['Westpoint Air Fryer WF-830',                            'Air Fryer'],
+  '4800': ['Westpoint Microwave Oven WF-4800',                      'Microwave Oven'],
   '4805': ['Westpoint Deluxe Air Fryer WF-4805',                    'Air Fryer'],
   '4981': ['Westpoint Deluxe Air Fryer WF-4981',                    'Air Fryer'],
-  '4500': ['Westpoint Air Fryer WF-4500',                           'Air Fryer'],
-  '364':  ['Westpoint Deluxe Chopper WF-364',                       'Food Chopper'],
+  '4500': ['Westpoint Electric Oven WF-4500',                       'Electric Oven'],
+  '364':  ['Westpoint Electric Oven WF-364',                        'Electric Oven'],
   '343':  ['Westpoint Deluxe Chopper WF-343',                       'Food Chopper'],
   '342':  ['Westpoint Chopper WF-342',                              'Food Chopper'],
-  '333':  ['Westpoint Chopper WF-333',                              'Food Chopper'],
-  '408':  ['Westpoint Glass Electric Kettle WF-408',                'Electric Kettle'],
+  '333':  ['Westpoint Blender WF-333',                              'Blender'],
+  '408':  ['Westpoint Food Factory WF-408',                         'Food Processor'],
   '445':  ['Westpoint Electric Kettle WF-445',                      'Electric Kettle'],
   '498':  ['Westpoint Electric Kettle WF-498',                      'Electric Kettle'],
   '550':  ['Westpoint Electric Kettle WF-550',                      'Electric Kettle'],
@@ -1565,10 +1565,10 @@ const _WP_NAMES: Record<string, [string, string]> = {
   'f04':  ['Westpoint Vegetable Slicer WF-F04',                     'Food Slicer'],
   'f07':  ['Westpoint Manual Kitchen Slicer WF-F07',                'Food Slicer'],
   // ── Kitchen Appliances (verified via westpoint.pk) ───────────────────────────
-  '2610': ['Westpoint Convection Rotisserie Oven WF-2610',          'Rotisserie Oven'],
-  '6300': ['Westpoint Convection Rotisserie Oven WF-6300',          'Rotisserie Oven'],
+  '2610': ['Westpoint Convection Oven WF-2610',                     'Electric Oven'],
+  '6300': ['Westpoint Convection Rotisserie Oven WF-6300',          'Electric Oven'],
   '5805': ['Westpoint Kitchen Chef WF-5805',                        'Kitchen Chef'],
-  '2803': ['Westpoint Jumbo Kitchen Chef WF-2803',                  'Kitchen Chef'],
+  '2803': ['Westpoint Food Factory Jumbo WF-2803',                  'Food Processor'],
   '4711': ['Westpoint Convection Rotisserie Oven WF-4711',          'Rotisserie Oven'],
   '5259': ['Westpoint Air Fryer Rotisserie Oven WF-5259',           'Air Fryer'],
   '853':  ['Westpoint Microwave Oven WF-853',                       'Microwave Oven'],
@@ -1621,6 +1621,37 @@ const _WP_NAMES: Record<string, [string, string]> = {
   '672':  ['Westpoint Dry Iron WF-672',                             'Electric Iron'],
   '6808': ['Westpoint Hair Straightener WF-6808',                   'Hair Straightener'],
   '2064': ['Westpoint Steam Iron WF-2064',                          'Electric Iron'],
+  // ── Additional models from DB ─────────────────────────────────────────────
+  '1201': ['Westpoint Ultrasonic Room Humidifier WF-1201',          'Humidifier'],
+  '1205': ['Westpoint Deluxe Ultrasonic Humidifier WF-1205',        'Humidifier'],
+  '2024': ['Westpoint Coffee Maker WF-2024',                        'Coffee Maker'],
+  '210':  ['Westpoint Dual Baby Bottle Warmer WF-210',              'Baby Appliance'],
+  '2528': ['Westpoint Pop-Up Toaster 4-Slice WF-2528',              'Bread Toaster'],
+  '2561': ['Westpoint Pop-Up Toaster 2-Slice WF-2561',              'Bread Toaster'],
+  '2563': ['Westpoint Pop-Up Toaster 4-Slice Double WF-2563',       'Bread Toaster'],
+  '261':  ['Westpoint Professional Single Hot Plate WF-261',        'Hot Plate'],
+  '262':  ['Westpoint Professional Double Hot Plate WF-262',        'Hot Plate'],
+  '292':  ['Westpoint Professional Ceramic Cooker Double WF-292',   'Ceramic Cooker'],
+  '3050': ['Westpoint Meat Mincer WF-3050',                         'Meat Mincer'],
+  '3166': ['Westpoint Non-Stick Pizza Pan WF-3166',                 'Kitchen Accessory'],
+  '329':  ['Westpoint Baby Bottle Sterilizer WF-329',               'Baby Appliance'],
+  '3870': ['Westpoint Foot Massager WF-3870',                       'Massager'],
+  '4616': ['Westpoint Deluxe Hand Mixer WF-4616',                   'Hand Mixer'],
+  '4626': ['Westpoint Deluxe Hand Mixer WF-4626',                   'Hand Mixer'],
+  '502':  ['Westpoint Kitchen Robot WF-502',                        'Food Processor'],
+  '505':  ['Westpoint Kitchen Robot WF-505',                        'Food Processor'],
+  '636':  ['Westpoint Deluxe Sandwich Toaster WF-636',              'Sandwich Toaster'],
+  '6362': ['Westpoint Epilator WF-6362',                            'Epilator'],
+  '6686': ['Westpoint Deluxe Sandwich Toaster WF-6686',             'Sandwich Toaster'],
+  '6713': ['Westpoint Professional Hair Clipper WF-6713',           'Hair Clipper'],
+  '7010': ['Westpoint Digital Weight Scale WF-7010',                'Digital Scale'],
+  '7108': ['Westpoint Electric Insect Killer WF-7108',              'Insect Killer'],
+  '7110': ['Westpoint Electric Insect Killer WF-7110',              'Insect Killer'],
+  '7112': ['Westpoint Electric Insect Killer WF-7112',              'Insect Killer'],
+  '9224': ['Westpoint Professional Coffee Grinder WF-9224',         'Coffee Grinder'],
+  '9601': ['Westpoint Egg Beater WF-9601',                          'Hand Mixer'],
+  '9801': ['Westpoint Steel Egg Beater WF-9801',                    'Hand Mixer'],
+  'f05':  ['Westpoint Manual Fries Cutter WF-F05',                  'Food Slicer'],
 };
 
 function _wpLookup(model: string): [string, string] | null {
@@ -2118,26 +2149,36 @@ function _generateDescription(brand: string, model: string, simplifiedName: stri
 // like "Kitchen Appliances" but _wpLookup provides the real product sub-type.
 function _wpSubCatToCC(sub: string): string | null {
   const s = sub.toLowerCase();
-  if (s.includes('air fry'))          return 'air_fryer';
-  if (s.includes('microwave'))        return 'microwave';
-  if (s.includes('rotisserie') || (s.includes('oven') && !s.includes('micro'))) return 'oven';
-  if (s.includes('kettle'))           return 'kettle';
-  if (s.includes('hand blender'))     return 'hand_blender';
+  if (s.includes('air fry'))                                                   return 'air_fryer';
+  if (s.includes('microwave'))                                                 return 'microwave';
+  if (s.includes('rotisserie') || s.includes('electric oven') || (s.includes('oven') && !s.includes('micro'))) return 'oven';
+  if (s.includes('deep fry'))                                                  return 'air_fryer'; // deep fryers use air-fryer spec set
+  if (s.includes('kettle'))                                                    return 'kettle';
+  if (s.includes('hand blender'))                                              return 'hand_blender';
   if (s.includes('blender') || s.includes('grinder') || s.includes('drymill')) return 'blender';
-  if (s.includes('juicer'))           return 'juicer';
-  if (s.includes('chopper'))          return 'chopper';
-  if (s.includes('food processor') || s.includes('kitchen chef') || s.includes('kitchen robot')) return 'food_processor';
-  if (s.includes('rice cooker'))      return 'rice_cooker';
-  if (s.includes('toaster'))          return 'toaster';
-  if (s.includes('sandwich'))         return 'sandwich_maker';
-  if (s.includes('iron'))             return 'iron';
-  if (s.includes('hair dryer'))       return 'hair_dryer';
-  if (s.includes('hair straightener')) return 'hair_straightener';
-  if (s.includes('steamer'))          return 'steamer';
-  if (s.includes('fan'))              return 'fan';
-  if (s.includes('heater'))           return 'heater';
-  if (s.includes('humidifier'))       return 'air_purifier'; // closest spec set
-  if (s.includes('vacuum'))           return 'vacuum';
+  if (s.includes('juicer'))                                                    return 'juicer';
+  if (s.includes('chopper'))                                                   return 'chopper';
+  if (s.includes('food processor') || s.includes('food factory') || s.includes('kitchen chef') || s.includes('kitchen robot')) return 'food_processor';
+  if (s.includes('rice cooker'))                                               return 'rice_cooker';
+  if (s.includes('pressure cooker'))                                           return 'food_processor'; // closest spec set
+  if (s.includes('bread toaster') || s.includes('toaster'))                   return 'toaster';
+  if (s.includes('sandwich'))                                                  return 'sandwich_maker';
+  if (s.includes('iron') && !s.includes('steamer'))                           return 'iron';
+  if (s.includes('hair dryer'))                                                return 'hair_dryer';
+  if (s.includes('hair straightener') || s.includes('straightening brush'))   return 'hair_straightener';
+  if (s.includes('hair clipper') || s.includes('hair trimmer'))               return 'hair_clipper';
+  if (s.includes('garment steamer') || s.includes('steamer'))                 return 'steamer';
+  if (s.includes('tower fan') || s.includes('fan'))                           return 'fan';
+  if (s.includes('room heater') || s.includes('fan heater') || s.includes('heater')) return 'heater';
+  if (s.includes('humidifier') || s.includes('air purifier'))                 return 'air_purifier';
+  if (s.includes('vacuum'))                                                    return 'vacuum';
+  if (s.includes('water dispenser'))                                           return 'water_dispenser';
+  if (s.includes('water boiler'))                                              return 'kettle'; // closest spec set
+  if (s.includes('meat mincer'))                                               return 'blender'; // closest spec set
+  if (s.includes('hand mixer'))                                                return 'hand_blender';
+  if (s.includes('roti maker') || s.includes('dough maker'))                  return 'sandwich_maker'; // closest spec set
+  if (s.includes('egg boiler') || s.includes('coffee maker'))                 return 'kettle'; // closest spec set
+  if (s.includes('immersion rod'))                                             return 'kettle'; // closest spec set
   return null;
 }
 
