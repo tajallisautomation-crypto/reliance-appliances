@@ -20,6 +20,7 @@
  */
 
 const META_API  = 'https://graph.facebook.com/v21.0';
+const FEED_URL  = 'https://reliance.tajallis.com.pk/api/meta-catalog';
 
 // ── Category sets to maintain ─────────────────────────────────────────────────
 // key   = exact value of custom_label_0 in the CSV feed (= p.category in DB)
@@ -161,7 +162,7 @@ export default async function handler(req, res) {
     );
     const feed = feedsData.data?.[0];
     if (feed) {
-      const uploadData = await metaPost(`${feed.id}/uploads`, {}, token);
+      const uploadData = await metaPost(`${feed.id}/uploads`, { url: FEED_URL }, token);
       feedFetch = uploadData.error
         ? { ok: false, error: uploadData.error.message, feedId: feed.id, feedName: feed.name }
         : { ok: true, feedId: feed.id, feedName: feed.name };
