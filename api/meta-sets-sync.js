@@ -62,12 +62,6 @@ async function metaPost(path, body, token) {
   return r.json();
 }
 
-async function metaDelete(path, token) {
-  const r = await fetch(`${META_API}/${path}?access_token=${token}`, {
-    method: 'DELETE',
-  });
-  return r.json();
-}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -139,15 +133,13 @@ export default async function handler(req, res) {
     }
   }
 
-  // ── 3. Delete orphan sets (exist in Meta but not in our list) ─────────────
+  // ── 3. Identify orphan sets (do NOT delete — just report them) ───────────
+  // Deletion is intentionally disabled: removing sets that WhatsApp Business
+  // is actively using disconnects the catalog from WhatsApp.
+  // To clean up manually, delete orphan sets directly in Commerce Manager.
   for (const s of existingSets) {
     if (!wantedLabels.has(s.name)) {
-      const data = await metaDelete(`${s.id}`, token);
-      if (data.error) {
-        results.failed.push({ name: s.name, op: 'delete', error: data.error.message });
-      } else {
-        results.deleted.push({ name: s.name, id: s.id });
-      }
+      results.deleted.push({ name: s.name, id: s.id, note: 'orphan — not deleted, remove manually in Commerce Manager if needed' });
     }
   }
 
