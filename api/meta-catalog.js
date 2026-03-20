@@ -212,6 +212,7 @@ export default async function handler(req, res) {
   const { data: products, error } = await supabase
     .from('products')
     .select('id, brand, model, simplified_name, category, description, retail_price, cash_floor, thumbnail_url, gallery_urls, specs, tags')
+    .gt('retail_price', 0)           // exclude zero-price / unpublished products
     .order('category',       { ascending: true })
     .order('brand',          { ascending: true })
     .order('simplified_name',{ ascending: true });
@@ -236,6 +237,7 @@ export default async function handler(req, res) {
     'brand',
     'product_type',
     'google_product_category',
+    'custom_label_0',   // plain category name — used by Sets filter (no special chars)
     'retailer_id',
   ));
 
@@ -263,6 +265,7 @@ export default async function handler(req, res) {
       p.brand || '',
       PRODUCT_TYPE[p.category]    || 'Small Appliances',
       GOOGLE_CATEGORY[p.category] || 'Appliances',
+      p.category || 'Small Appliances',  // custom_label_0 — plain, no special chars
       p.id,   // retailer_id mirrors id for cross-channel matching
     ));
   }
