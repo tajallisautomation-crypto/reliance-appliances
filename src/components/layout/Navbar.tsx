@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ShoppingCart, Menu, X, Phone, User, Leaf } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
@@ -31,14 +31,21 @@ const MOBILE_LINKS = [
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cartOpen,   setCartOpen]   = useState(false);
+  const [scrolled,   setScrolled]   = useState(false);
   const location = useLocation();
   const totalItems = useCartStore(s => s.items.reduce((n, i) => n + i.qty, 0));
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const isActive = (href: string) => location.pathname === href;
 
   return (
     <>
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-gray-100">
+      <header className={`sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-gray-100 transition-shadow duration-200 ${scrolled ? 'shadow-apple-lg' : ''}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 h-16">
 

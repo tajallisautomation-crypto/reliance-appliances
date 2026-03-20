@@ -4,8 +4,9 @@ import { Helmet } from 'react-helmet-async';
 import {
   ArrowLeft, ShoppingCart, MessageCircle, Shield, Truck, Award,
   Check, Wrench, Share2, Star, Phone, CalendarDays,
+  TrendingDown, TrendingUp, History,
 } from 'lucide-react';
-import { getProductBySlug, getRelatedProducts, formatPrice, DEFAULT_CATEGORIES } from '@/lib/api';
+import { getProductBySlug, getRelatedProducts, getPriceHistory, formatPrice, DEFAULT_CATEGORIES } from '@/lib/api';
 import type { Product } from '@/lib/types';
 import ProductCard from '@/components/products/ProductCard';
 import ReviewSection from '@/components/products/ReviewSection';
@@ -24,7 +25,7 @@ const PLAN_LABELS: Record<string, string> = {
 /** Price threshold above which consultation flow replaces add-to-cart — overridable via admin Settings */
 const CONSULTATION_THRESHOLD_DEFAULT = 200_000;
 
-type TabKey = 'specs' | 'about' | 'installation' | 'reviews';
+type TabKey = 'specs' | 'about' | 'installation' | 'reviews' | 'price-history';
 
 const INSTALL_SERVICES = [
   { title: 'Professional Installation', desc: 'Trained technician arrives same day in Karachi.' },
@@ -44,6 +45,7 @@ export default function ProductDetail() {
   const [withInstall, setWithInstall] = useState(false);
   const [activeImg,  setActiveImg]  = useState(0);
   const [activeTab,  setActiveTab]  = useState<TabKey>('specs');
+  const [priceHistory, setPriceHistory] = useState<{ retail_price: number; imported_at: string }[]>([]);
 
   const addItem = useCartStore(s => s.addItem);
   const consultationThreshold = useSettingsStore(s => s.consultationThreshold) ?? CONSULTATION_THRESHOLD_DEFAULT;
@@ -55,6 +57,7 @@ export default function ProductDetail() {
       setProduct(p);
       setLoading(false);
       getRelatedProducts(p.id, p.category, 4).then(setRelated);
+      getPriceHistory(p.id).then(setPriceHistory);
     });
   }, [slug, navigate]);
 
@@ -108,10 +111,11 @@ export default function ProductDetail() {
   };
 
   const TABS: { key: TabKey; label: string }[] = [
-    { key: 'specs',        label: 'Specifications' },
-    { key: 'about',        label: 'About'          },
-    { key: 'installation', label: 'Installation'   },
-    { key: 'reviews',      label: 'Reviews'        },
+    { key: 'specs',         label: 'Specifications' },
+    { key: 'about',         label: 'About'          },
+    { key: 'price-history', label: `Price History${priceHistory.length > 0 ? ` (${priceHistory.length})` : ''}` },
+    { key: 'installation',  label: 'Installation'   },
+    { key: 'reviews',       label: 'Reviews'        },
   ];
 
   return (
@@ -139,7 +143,7 @@ export default function ProductDetail() {
         <div className="md:sticky md:top-24 self-start">
           <div className="aspect-square rounded-3xl overflow-hidden bg-gray-50 mb-3 shadow-apple-lg relative group">
             <img src={allImages[activeImg] || p.thumbnail} alt={`${p.brand} ${p.model}`}
-              className="w-full h-full object-cover" />
+              className="w-full h-full object-cover transition-opacity duration-300" />
             <button onClick={handleShare}
               className="absolute top-3 right-3 w-9 h-9 bg-white/90 rounded-full flex items-center justify-center text-gray-500 hover:text-brand-500 shadow-apple transition-colors opacity-0 group-hover:opacity-100">
               <Share2 className="h-4 w-4" />
@@ -403,6 +407,69 @@ export default function ProductDetail() {
                 <MessageCircle className="h-4 w-4" /> Book via WhatsApp
               </a>
             </div>
+          </div>
+        )}
+
+        {/* Price History tab */}
+        {activeTab === 'price-history' && (
+          <div className="animate-fade-in max-w-2xl">
+            {priceHistory.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <History className="w-10 h-10 text-gray-200 mb-3" />
+                <p className="text-sm text-gray-400 font-medium">No price history recorded yet.</p>
+                <p className="text-xs text-gray-300 mt-1">Prices are logged each time the catalog is updated.</p>
+              </div>
+            ) : (() => {
+              const maxPrice = Math.max(...priceHistory.map(e => e.retail_price));
+              const minPrice = Math.min(...priceHistory.map(e => e.retail_price));
+              return (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">Retail price tracked since {new Date(priceHistory[priceHistory.length - 1].imported_at).toLocaleDateString('en-PK', { month: 'short', year: 'numeric' })}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">Cash price is always lower — contact us for best offer.</p>
+                    </div>
+                    {minPrice < maxPrice && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <TrendingDown className="w-3 h-3" /> Down {Math.round((1 - minPrice / maxPrice) * 100)}% from peak
+                      </span>
+                    )}
+                  </div>
+                  {priceHistory.map((entry, i) => {
+                    const prev = priceHistory[i + 1];
+                    const delta = prev ? entry.retail_price - prev.retail_price : 0;
+                    const barPct = Math.round((entry.retail_price / maxPrice) * 100);
+                    const isCurrent = i === 0;
+                    return (
+                      <div key={entry.imported_at}
+                        className={`rounded-2xl border p-4 transition-all ${isCurrent ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-100 hover:border-gray-200'}`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <span className={`text-xs font-semibold ${isCurrent ? 'text-gray-400' : 'text-gray-400'}`}>
+                              {isCurrent ? 'Current' : new Date(entry.imported_at).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </span>
+                            <p className={`text-xl font-black mt-0.5 ${isCurrent ? 'text-white' : 'text-gray-900'}`}>
+                              PKR {formatPrice(entry.retail_price)}
+                            </p>
+                          </div>
+                          {delta !== 0 && (
+                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${delta < 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                              {delta < 0
+                                ? <><TrendingDown className="w-3 h-3" /> {formatPrice(Math.abs(delta))}</>
+                                : <><TrendingUp className="w-3 h-3" /> +{formatPrice(delta)}</>}
+                            </span>
+                          )}
+                        </div>
+                        <div className={`h-1.5 rounded-full overflow-hidden ${isCurrent ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                          <div className={`h-full rounded-full transition-all ${isCurrent ? 'bg-orange-500' : delta < 0 ? 'bg-emerald-400' : delta > 0 ? 'bg-red-400' : 'bg-gray-300'}`}
+                            style={{ width: `${barPct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         )}
 

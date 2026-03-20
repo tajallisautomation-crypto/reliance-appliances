@@ -104,23 +104,21 @@ export default function Home() {
                 <img
                   src={heroProduct.thumbnail}
                   alt={heroProduct.simplified_name || heroProduct.model}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover animate-fade-in"
                   loading="eager"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <span className="text-[8rem] select-none">🏠</span>
-                </div>
+                <div className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 animate-pulse" />
               )}
             </div>
             {/* Floating badges */}
-            <div className="absolute -bottom-5 -left-5 bg-white rounded-2xl shadow-apple-xl p-4 border border-gray-100">
+            <div className="absolute -bottom-5 -left-5 bg-white rounded-2xl shadow-apple-xl px-5 py-4 border border-gray-100 animate-slide-up">
               <p className="text-2xl font-black text-gray-900 leading-none">14,000+</p>
-              <p className="text-xs text-gray-500 mt-0.5">Homes served</p>
+              <p className="text-xs text-gray-400 mt-0.5 font-medium">Homes served</p>
             </div>
-            <div className="absolute -top-5 -right-5 bg-brand-500 text-white rounded-2xl shadow-brand p-4">
-              <p className="text-2xl font-black leading-none">98%</p>
-              <p className="text-xs opacity-80 mt-0.5">Credit recovery</p>
+            <div className="absolute -top-5 -right-5 bg-gray-900 text-white rounded-2xl shadow-apple-xl px-5 py-4 animate-slide-up">
+              <p className="text-2xl font-black leading-none text-brand-400">98%</p>
+              <p className="text-xs opacity-60 mt-0.5 font-medium">Credit recovery</p>
             </div>
           </div>
         </div>
@@ -172,7 +170,19 @@ export default function Home() {
           </Link>
         </div>
         {loading
-          ? <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="bg-gray-100 rounded-2xl h-72 animate-pulse" />)}</div>
+          ? <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                  <div className="aspect-square bg-gray-100 animate-pulse" />
+                  <div className="p-4 space-y-2.5">
+                    <div className="h-2.5 w-16 bg-gray-100 rounded-full animate-pulse" />
+                    <div className="h-3.5 w-3/4 bg-gray-100 rounded-full animate-pulse" />
+                    <div className="h-3.5 w-1/2 bg-gray-100 rounded-full animate-pulse" />
+                    <div className="h-3 w-1/3 bg-gray-100 rounded-full animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
           : <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">{featured.map(p => <ProductCard key={p.id} product={p} />)}</div>
         }
         <div className="text-center mt-8">
