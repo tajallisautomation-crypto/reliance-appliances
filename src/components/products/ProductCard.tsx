@@ -22,16 +22,19 @@ export default function ProductCard({ product: p }: Props) {
     <Link to={`/products/${p.slug}`} className="product-card group block">
       {/* Image */}
       <div className="relative aspect-square bg-surface-secondary overflow-hidden">
-        <img
-          src={p.thumbnail || 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80'}
-          alt={`${p.brand} ${p.model}`}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          loading="lazy"
-          onError={e => {
-            (e.currentTarget as HTMLImageElement).src =
-              'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80';
-          }}
-        />
+        {p.thumbnail ? (
+          <img
+            src={p.thumbnail}
+            alt={`${p.brand} ${p.model}`}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            loading="lazy"
+            onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gray-100">
+            <span className="text-xs text-gray-400">No image</span>
+          </div>
+        )}
         {p.featured && (
           <div className="absolute top-3 left-3 badge-gold">
             <Star className="w-3 h-3 fill-current" /> Featured

@@ -112,14 +112,20 @@ export function scoreProduct(p: Product): QCResult {
   } else if (hasAnyImage) {
     score += 25;
   } else {
-    issues.push({ code: 'MISSING_IMAGE', label: 'No image', severity: 'error' });
+    issues.push({
+      code: 'MISSING_IMAGE',
+      label: 'No image — hidden from website & catalog',
+      severity: 'error',
+      detail: 'This product is NOT visible on the website or in any catalog until an image is added by the admin.',
+    });
   }
 
   // ── Primary image (10) ────────────────────────────────────────────────────
   if (p.thumbnail?.startsWith('http') && !isMismatched) {
     score += 10;
-  } else if (!isMismatched) {
-    issues.push({ code: 'MISSING_PRIMARY_IMAGE', label: 'Missing primary image', severity: 'warning' });
+  } else if (!isMismatched && hasAnyImage) {
+    issues.push({ code: 'MISSING_PRIMARY_IMAGE', label: 'Missing primary (thumbnail) image', severity: 'warning',
+      detail: 'Gallery images exist but no primary thumbnail is set. Product may display without a cover image.' });
   }
 
   // ── Specs complete (25) ───────────────────────────────────────────────────

@@ -137,7 +137,7 @@ function rowToProduct(r: any): Product {
       }
     : calcAllPlans(cashFloor, cc);
 
-  const thumb = fixImageUrl(r.thumbnail_url || '') || 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80';
+  const thumb = fixImageUrl(r.thumbnail_url || '') || '';
   const gallery = Array.isArray(r.gallery_urls) ? r.gallery_urls.map((u: string) => fixImageUrl(u)).filter(Boolean) : [];
 
   return {
@@ -185,7 +185,10 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
   if (hit) return hit;
 
   try {
-    let q = supabase.from('products').select('*').order('featured', { ascending: false }).order('updated_at', { ascending: false });
+    let q = supabase.from('products').select('*')
+      .not('thumbnail_url', 'is', null)
+      .neq('thumbnail_url', '')
+      .order('featured', { ascending: false }).order('updated_at', { ascending: false });
     if (params?.brand) q = q.ilike('brand', params.brand);
     if (params?.stock_status) q = q.eq('stock_status', params.stock_status);
     if (params?.category) {

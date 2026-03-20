@@ -49,9 +49,8 @@ export default function Home() {
 
   useEffect(() => {
     getProducts({ featured: 'true', sort: 'price_asc' }).then(d => {
-      const withImages = d.products.filter(p => p.thumbnail && !p.thumbnail.includes('unsplash.com'))
-      setHeroProduct(withImages[0] ?? null)
-      setFeatured(withImages.slice(0, 8))
+      setHeroProduct(d.products[0] ?? null)
+      setFeatured(d.products.slice(0, 8))
       setLoading(false)
     })
     getProducts().then(d => setTotalProducts(d.total))

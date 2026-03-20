@@ -17,7 +17,7 @@ import {
   ChevronDown, ChevronUp, Package, FileUp, Loader2, Sparkles, Image as ImageIcon,
   RefreshCw, AlertTriangle, Camera, ImageOff, Tag, Wand2, ListChecks, MessageCircle,
   CheckSquare, Square, Filter, History, Edit2, Star, MoveUp, MoveDown,
-  Building2, Phone, Mail, Bell, Settings, ShoppingBag, CalendarDays,
+  Building2, Phone, Mail, Bell, Settings, ShoppingBag, CalendarDays, CheckCircle,
 } from 'lucide-react';
 import { useSettingsStore, SETTING_DEFAULTS } from '@/store/settingsStore';
 
@@ -84,21 +84,31 @@ function bucketPath(brand: string, model: string, isGallery = false) {
 // ── Image Drop Zone ───────────────────────────────────────────────────────────
 
 function ImageDropZone({
-  label, currentUrl, pathPreview, onFile, uploading,
+  label, currentUrl, pathPreview, onFile, onUrl, uploading,
 }: {
   label: string;
   currentUrl: string;
   pathPreview: string;
   onFile: (f: File) => void;
+  onUrl?: (url: string) => Promise<void>;
   uploading: boolean;
 }) {
-  const [dragging, setDragging] = useState(false);
+  const [dragging, setDragging]   = useState(false);
+  const [urlInput, setUrlInput]   = useState('');
+  const [fetchingUrl, setFetchingUrl] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault(); setDragging(false);
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith('image/')) onFile(file);
+  }
+
+  async function handleFetchUrl() {
+    if (!urlInput.trim() || !onUrl) return;
+    setFetchingUrl(true);
+    try { await onUrl(urlInput.trim()); setUrlInput(''); }
+    finally { setFetchingUrl(false); }
   }
 
   return (
@@ -141,6 +151,29 @@ function ImageDropZone({
           </div>
         )}
       </div>
+
+      {/* URL fetch row */}
+      {onUrl && (
+        <div className="flex gap-1 mt-1.5" onClick={e => e.stopPropagation()}>
+          <input
+            type="url"
+            value={urlInput}
+            onChange={e => setUrlInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleFetchUrl(); } }}
+            placeholder="Paste image URL and press Fetch…"
+            className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-400"
+          />
+          <button
+            type="button"
+            onClick={handleFetchUrl}
+            disabled={!urlInput.trim() || fetchingUrl || uploading}
+            className="px-2.5 py-1 bg-orange-500 text-white text-xs rounded-lg hover:bg-orange-600 disabled:opacity-40 flex items-center gap-1"
+          >
+            {fetchingUrl ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+            Fetch
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -479,6 +512,22 @@ function ProductModal({
     finally { setUploadingFile(false); }
   }
 
+  // Fetch an image from a URL and upload it to storage
+  async function handleImageUrl(urlStr: string) {
+    if (!form.brand || !form.model) { setErr('Set Brand and Model first.'); return; }
+    setUploadingFile(true); setErr('');
+    try {
+      const pId = form.id || slugify(`${form.brand}-${form.model}`);
+      const { savedUrl: url } = await fetchAndUploadOrSaveUrl(urlStr, pId, form.brand, form.model);
+      const existing = (form.images as ProductGalleryImage[]) || [];
+      if (!existing.some(i => i.url === url)) {
+        const next = [...existing, { url, position: existing.length + 1, is_primary: existing.length === 0 }];
+        set('images', next.map((img, idx) => ({ ...img, position: idx + 1, is_primary: idx === 0 })));
+      }
+    } catch (e: any) { setErr(e.message); }
+    finally { setUploadingFile(false); }
+  }
+
   function requestSave() {
     if (!form.brand || !form.model || !form.category || !form.retail_price) {
       setErr('Brand, Model, Category, and Retail Price are required.'); return;
@@ -588,6 +637,7 @@ function ProductModal({
                 currentUrl={(form.images as ProductGalleryImage[])?.[0]?.url || ''}
                 pathPreview={thumbPath}
                 onFile={f => handleImageFile(f, false)}
+                onUrl={url => handleImageUrl(url)}
                 uploading={uploadingFile}
               />
               <ImageDropZone
@@ -595,6 +645,7 @@ function ProductModal({
                 currentUrl=""
                 pathPreview={galleryPath}
                 onFile={f => handleImageFile(f, true)}
+                onUrl={url => handleImageUrl(url)}
                 uploading={uploadingFile}
               />
             </div>
@@ -2765,20 +2816,22 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
         />
       )}
 
-      {/* ── WhatsApp / Meta Catalog Export ── */}
-      <CatalogExportPanel products={products} />
     </div>
   );
 }
 
 // ── WhatsApp Catalog Export Panel ─────────────────────────────────────────────
 
+const FEED_URL = 'https://reliance.tajallis.com.pk/api/meta-catalog';
+
 function CatalogExportPanel({ products }: { products: Product[] }) {
   const [view,       setView]       = useState<'summary' | 'issues' | 'sets'>('summary');
   const [validating, setValidating] = useState(false);
   const [validation, setValidation] = useState<import('@/lib/catalog').CatalogValidationResult | null>(null);
   const [sets,       setSets]       = useState<import('@/lib/catalog').WAProductSet[]>([]);
-  const [exporting,  setExporting]  = useState(false);
+  const [syncing,    setSyncing]    = useState(false);
+  const [syncResult, setSyncResult] = useState<{ created: number; updated: number; failed: number; details?: any; feedFetch?: { ok: boolean; feedId?: string; feedName?: string; error?: string } } | null>(null);
+  const [copied,     setCopied]     = useState(false);
 
   async function runValidation() {
     setValidating(true);
@@ -2789,54 +2842,107 @@ function CatalogExportPanel({ products }: { products: Product[] }) {
     setValidating(false);
   }
 
-  async function handleExportCSV() {
-    setExporting(true);
-    const { buildCatalogFeed, downloadCatalogCSV } = await import('@/lib/catalog');
-    const feed = buildCatalogFeed(products);
-    downloadCatalogCSV(feed, `catalog-${new Date().toISOString().slice(0,10)}.csv`);
-    setExporting(false);
+  async function handleSyncSets() {
+    setSyncing(true); setSyncResult(null);
+    try {
+      const r = await fetch('/api/meta-sets-sync', { method: 'POST' });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Sync failed');
+      setSyncResult(data);
+    } catch (e: any) {
+      setSyncResult({ created: 0, updated: 0, failed: -1, details: { error: e.message } });
+    } finally {
+      setSyncing(false);
+    }
   }
 
-  async function handleExportJSON() {
-    setExporting(true);
-    const { buildCatalogFeed, downloadCatalogJSON } = await import('@/lib/catalog');
-    const feed = buildCatalogFeed(products);
-    downloadCatalogJSON(feed, `catalog-${new Date().toISOString().slice(0,10)}.json`);
-    setExporting(false);
+  function copyFeedUrl() {
+    navigator.clipboard.writeText(FEED_URL).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   }
 
   const formatPrice = (n: number) => n.toLocaleString();
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-5">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h3 className="font-bold text-gray-900 flex items-center gap-2">
-            <MessageCircle className="w-4 h-4 text-green-500" />
-            WhatsApp / Meta Catalog Export
-          </h3>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Export your product catalog for Meta Commerce Manager, WhatsApp Shopping, and Facebook/Instagram Shop.
-          </p>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <button onClick={runValidation} disabled={validating || products.length === 0}
-            className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:border-orange-300 text-xs font-semibold px-3 py-2 rounded-lg">
-            {validating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ListChecks className="w-3.5 h-3.5" />}
-            Validate
-          </button>
-          <button onClick={handleExportCSV} disabled={exporting || products.length === 0}
-            className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 disabled:opacity-40 text-white text-xs font-bold px-3 py-2 rounded-lg">
-            {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />}
-            Export CSV
-          </button>
-          <button onClick={handleExportJSON} disabled={exporting || products.length === 0}
-            className="flex items-center gap-1.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-40 text-white text-xs font-bold px-3 py-2 rounded-lg">
-            {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />}
-            Export JSON
-          </button>
-        </div>
+      <div>
+        <h3 className="font-bold text-gray-900 flex items-center gap-2">
+          <MessageCircle className="w-4 h-4 text-green-500" />
+          WhatsApp / Meta Catalog
+        </h3>
+        <p className="text-sm text-gray-500 mt-0.5">
+          Your catalog auto-syncs live — Meta fetches the feed URL below on its own schedule.
+          No manual export needed.
+        </p>
       </div>
+
+      {/* Live feed URL */}
+      <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-emerald-700 mb-0.5">Live Feed URL (Meta Data Source)</p>
+          <p className="text-xs font-mono text-emerald-900 truncate">{FEED_URL}</p>
+        </div>
+        <button onClick={copyFeedUrl}
+          className="shrink-0 flex items-center gap-1.5 border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-100 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+          {copied ? <CheckCircle className="w-3.5 h-3.5" /> : <FileUp className="w-3.5 h-3.5" />}
+          {copied ? 'Copied!' : 'Copy URL'}
+        </button>
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-2 flex-wrap">
+        <button onClick={runValidation} disabled={validating || products.length === 0}
+          className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:border-orange-300 text-xs font-semibold px-3 py-2 rounded-lg">
+          {validating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ListChecks className="w-3.5 h-3.5" />}
+          Validate Feed
+        </button>
+        <button onClick={handleSyncSets} disabled={syncing}
+          className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-bold px-3 py-2 rounded-lg">
+          {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5" />}
+          Sync WA Category Sets
+        </button>
+      </div>
+
+      {/* Sync result banner */}
+      {syncResult && (
+        <div className={`rounded-xl px-4 py-3 text-xs flex items-start gap-2
+          ${syncResult.failed === -1 ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-800'}`}>
+          {syncResult.failed === -1 ? (
+            <>
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span><strong>Sync failed:</strong> {syncResult.details?.error}
+                {syncResult.details?.help && <><br />{syncResult.details.help}</>}
+              </span>
+            </>
+          ) : (
+            <div className="flex-1 space-y-1">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 shrink-0 text-emerald-600" />
+                <span>
+                  WA Sets synced — <strong>{syncResult.created} created</strong>,{' '}
+                  <strong>{syncResult.updated} updated</strong>
+                  {syncResult.failed > 0 ? `, ${syncResult.failed} failed` : ''}.
+                </span>
+              </div>
+              {syncResult.feedFetch && (
+                <div className={`flex items-center gap-2 pl-6 text-xs ${syncResult.feedFetch.ok ? 'text-emerald-700' : 'text-amber-700'}`}>
+                  {syncResult.feedFetch.ok ? (
+                    <><CheckCircle className="w-3 h-3 shrink-0" />
+                      <span>Feed re-crawl triggered on <strong>{syncResult.feedFetch.feedName}</strong>. Products will appear in category tabs once Meta finishes indexing (usually 1–5 min).</span>
+                    </>
+                  ) : (
+                    <><AlertTriangle className="w-3 h-3 shrink-0" />
+                      <span>Could not trigger re-crawl: {syncResult.feedFetch.error}. Go to Commerce Manager → Catalog → Data Sources → Fetch Now.</span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Quick info bar */}
       <div className="grid grid-cols-3 gap-3">
@@ -2931,16 +3037,14 @@ function CatalogExportPanel({ products }: { products: Product[] }) {
             </div>
           )}
 
-          {/* Export instructions */}
+          {/* Feed instructions */}
           <details className="text-xs text-gray-500">
-            <summary className="cursor-pointer hover:text-gray-700 font-medium">How to upload to Meta Commerce Manager →</summary>
+            <summary className="cursor-pointer hover:text-gray-700 font-medium">How the live feed works →</summary>
             <ol className="mt-2 space-y-1 pl-4 list-decimal text-gray-500">
-              <li>Go to <strong>business.facebook.com</strong> → Commerce Manager</li>
-              <li>Select or create a Catalog → Data Sources</li>
-              <li>Click <strong>Add Items</strong> → Use a Data Feed</li>
-              <li>Upload the exported CSV file (or host it at a public URL)</li>
-              <li>Map the columns — they match Meta's standard schema</li>
-              <li>Set up a scheduled sync if you host the feed at a URL</li>
+              <li>The feed URL above is already set as the Data Source in Meta Commerce Manager.</li>
+              <li>Meta auto-crawls it on a schedule — no manual upload needed.</li>
+              <li>To force a refresh: go to <strong>Commerce Manager → Catalog → Data Sources</strong> and click <strong>Fetch Now</strong>.</li>
+              <li>After clicking <strong>Sync WA Category Sets</strong>, trigger a re-crawl so new sets pick up their products.</li>
             </ol>
           </details>
         </div>
@@ -4073,8 +4177,8 @@ export default function AdminPortal() {
   const [deleteId, setDeleteId]   = useState<string | null>(null);
   const [deleting, setDeleting]   = useState(false);
   const [quickImg, setQuickImg]   = useState<Product | null>(null);
-  type AdminTab = 'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'settings' | 'schema' | 'audit';
-  const VALID_TABS: AdminTab[] = ['products','images','import','tools','qc','reviews','leads','orders','enquiries','settings','schema','audit'];
+  type AdminTab = 'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'settings' | 'schema' | 'audit' | 'catalog';
+  const VALID_TABS: AdminTab[] = ['products','images','import','tools','qc','reviews','leads','orders','enquiries','settings','schema','audit','catalog'];
   const tabFromHash = (): AdminTab => {
     const h = window.location.hash.slice(1) as AdminTab;
     return VALID_TABS.includes(h) ? h : 'products';
@@ -4339,6 +4443,7 @@ export default function AdminPortal() {
             { id: 'import',    label: 'Import CSV',  group: 'catalog' },
             { id: 'tools',     label: 'Data Tools',  group: 'catalog' },
             { id: 'qc',        label: `QC${products.length > 0 ? ` (${qcSummary(products).qcIssues})` : ''}`, group: 'catalog' },
+            { id: 'catalog',   label: 'WhatsApp Catalog', group: 'catalog' },
             { id: 'orders',    label: 'Orders',      group: 'crm' },
             { id: 'enquiries', label: 'Enquiries',   group: 'crm' },
             { id: 'reviews',   label: 'Reviews',     group: 'crm' },
@@ -4385,6 +4490,8 @@ export default function AdminPortal() {
           <SpecSchemaTab />
         ) : tab === 'audit' ? (
           <AuditLogTab />
+        ) : tab === 'catalog' ? (
+          <CatalogExportPanel products={products} />
         ) : (
           <>
             {/* Toolbar */}

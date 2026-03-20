@@ -150,13 +150,35 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── 4. Force Meta to re-crawl the product feed ────────────────────────────
+  // Without a re-crawl, custom_label_0 values are not indexed and the sets match
+  // zero products even though the CSV contains them.
+  let feedFetch = null;
+  try {
+    const feedsData = await metaGet(
+      `${catalogId}/product_feeds?fields=id,name&limit=10`,
+      token
+    );
+    const feed = feedsData.data?.[0];
+    if (feed) {
+      const uploadData = await metaPost(`${feed.id}/uploads`, {}, token);
+      feedFetch = uploadData.error
+        ? { ok: false, error: uploadData.error.message, feedId: feed.id, feedName: feed.name }
+        : { ok: true, feedId: feed.id, feedName: feed.name };
+    } else {
+      feedFetch = { ok: false, error: 'No product feed found on this catalog.' };
+    }
+  } catch (err) {
+    feedFetch = { ok: false, error: err.message };
+  }
+
   res.status(200).json({
     catalogId,
-    note: 'Sets filter on custom_label_0 (exact match). Ensure the catalog feed has been re-crawled by Meta after any changes.',
     created: results.created.length,
     updated: results.updated.length,
     deleted: results.deleted.length,
     failed:  results.failed.length,
     details: results,
+    feedFetch,
   });
 }
