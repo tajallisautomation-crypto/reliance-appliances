@@ -32,18 +32,19 @@ const SETS = [
   { category: 'Freezer',            label: 'Freezers'                 },
   { category: 'Washing Machines',   label: 'Washing Machines'         },
   { category: 'Water Dispensers',   label: 'Water Dispensers'         },
-  { category: 'Televisions',        label: 'Televisions and LEDs'     },
-  { category: 'Vacuum Cleaners',    label: 'Vacuum Cleaners'          },
+  { category: 'Televisions',        label: 'Televisions and LEDs',  op: 'i_contains' },
+  { category: 'Vacuum Cleaners',    label: 'Vacuum Cleaners',        op: 'i_contains' },
   { category: 'Kitchen Appliances', label: 'Kitchen Appliances'       },
   { category: 'Small Appliances',   label: 'Small Appliances'         },
   { category: 'Solar Solutions',    label: 'Solar Solutions'          },
 ];
 
-// Build filter JSON for a given category
-// Uses custom_label_0 (eq = exact match) — most reliably indexed by Meta.
-function buildFilter(category) {
+// Build filter JSON for a given category.
+// op defaults to 'eq' (exact match); use 'i_contains' for sets that Meta
+// rejects with "Invalid parameter" when no products exist for that label yet.
+function buildFilter(category, op = 'eq') {
   return JSON.stringify({
-    custom_label_0: { eq: category },
+    custom_label_0: { [op]: category },
   });
 }
 
@@ -102,8 +103,8 @@ export default async function handler(req, res) {
   const results = { created: [], updated: [], deleted: [], failed: [] };
 
   // ── 2. Create or UPDATE each desired set ──────────────────────────────────
-  for (const { category, label } of SETS) {
-    const filter       = buildFilter(category);
+  for (const { category, label, op } of SETS) {
+    const filter       = buildFilter(category, op);
     const existing     = byName.get(label);
 
     if (existing) {
