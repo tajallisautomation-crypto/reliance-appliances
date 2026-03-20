@@ -2917,23 +2917,35 @@ function CatalogExportPanel({ products }: { products: Product[] }) {
               </span>
             </>
           ) : (
-            <div className="flex-1 space-y-1">
+            <div className="flex-1 space-y-2">
               <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 shrink-0 text-emerald-600" />
+                {syncResult.failed > 0 && syncResult.created === 0 && syncResult.updated === 0
+                  ? <AlertTriangle className="w-4 h-4 shrink-0 text-red-500" />
+                  : <CheckCircle className="w-4 h-4 shrink-0 text-emerald-600" />}
                 <span>
-                  WA Sets synced — <strong>{syncResult.created} created</strong>,{' '}
+                  WA Sets — <strong>{syncResult.created} created</strong>,{' '}
                   <strong>{syncResult.updated} updated</strong>
-                  {syncResult.failed > 0 ? `, ${syncResult.failed} failed` : ''}.
+                  {syncResult.failed > 0 && <>, <strong className="text-red-600">{syncResult.failed} failed</strong></>}.
                 </span>
               </div>
+              {/* Per-set failure details */}
+              {syncResult.details?.failed?.length > 0 && (
+                <div className="pl-6 space-y-1">
+                  {syncResult.details.failed.map((f: any, i: number) => (
+                    <p key={i} className="text-red-600">
+                      <strong>{f.name}</strong> ({f.op}): {f.error}
+                    </p>
+                  ))}
+                </div>
+              )}
               {syncResult.feedFetch && (
-                <div className={`flex items-center gap-2 pl-6 text-xs ${syncResult.feedFetch.ok ? 'text-emerald-700' : 'text-amber-700'}`}>
+                <div className={`flex items-start gap-2 pl-6 ${syncResult.feedFetch.ok ? 'text-emerald-700' : 'text-amber-700'}`}>
                   {syncResult.feedFetch.ok ? (
-                    <><CheckCircle className="w-3 h-3 shrink-0" />
+                    <><CheckCircle className="w-3 h-3 shrink-0 mt-0.5" />
                       <span>Feed re-crawl triggered on <strong>{syncResult.feedFetch.feedName}</strong>. Products will appear in category tabs once Meta finishes indexing (usually 1–5 min).</span>
                     </>
                   ) : (
-                    <><AlertTriangle className="w-3 h-3 shrink-0" />
+                    <><AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
                       <span>Could not trigger re-crawl: {syncResult.feedFetch.error}. Go to Commerce Manager → Catalog → Data Sources → Fetch Now.</span>
                     </>
                   )}
