@@ -32,7 +32,7 @@ const SETS = [
   { category: 'Freezer',            label: 'Freezers'                 },
   { category: 'Washing Machines',   label: 'Washing Machines'         },
   { category: 'Water Dispensers',   label: 'Water Dispensers'         },
-  { category: 'Televisions',        label: 'Televisions & LEDs'       },
+  { category: 'Televisions',        label: 'Televisions and LEDs'     },
   { category: 'Vacuum Cleaners',    label: 'Vacuum Cleaners'          },
   { category: 'Kitchen Appliances', label: 'Kitchen Appliances'       },
   { category: 'Small Appliances',   label: 'Small Appliances'         },
@@ -126,7 +126,24 @@ export default async function handler(req, res) {
         token
       );
       if (data.error) {
-        results.failed.push({ name: label, op: 'create', error: data.error.message });
+        // CREATE failed — a set with this name may already exist but wasn't
+        // returned in the initial fetch (e.g. created under a different session).
+        // Search for it by name and fall back to UPDATE.
+        const searchData = await metaGet(
+          `${catalogId}/product_sets?fields=id,name&limit=100`,
+          token
+        );
+        const match = (searchData.data || []).find((s) => s.name === label);
+        if (match) {
+          const updateData = await metaPost(`${match.id}`, { name: label, filter }, token);
+          if (updateData.error) {
+            results.failed.push({ name: label, op: 'create+update', error: updateData.error.message });
+          } else {
+            results.updated.push({ name: label, id: match.id });
+          }
+        } else {
+          results.failed.push({ name: label, op: 'create', error: data.error.message });
+        }
       } else {
         results.created.push({ name: label, id: data.id });
       }
