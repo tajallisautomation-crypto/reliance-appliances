@@ -1020,7 +1020,10 @@ const _CATEGORY_RULES: _CatRule[] = [
     keywords: ['air conditioner', 'air conditioning', 'split ac', 'inverter ac', 'window ac', 'portable ac', 'cassette ac', 'dc inverter',
                'floor standing', 'floor stand', 'cassette unit', 'duct ac', 'ducted ac', 'concealed ac',
                'charmo', 'pular', 'lomo', 'fairy', 'clivia', 'u-crown', 'u crown', 'bora',
-               'splits'],   // Dawlance CSV uses "Splits" as the category name
+               'splits',                                    // Dawlance CSV category name
+               'cool only', 'heat cool', 'heat & cool',    // EcoStar mode-based names
+               'duke', 'ario', 'emperor', 'nova', 'prince', // EcoStar series names
+               'cassette', 'floor stand', 'commercial'],   // unit-type names
     modelRx: /^(?:HSU|HPU|GS-?|GF-?|GEA|PAC-?|OSA|OWS|WSA|KWA?|KE-|ON-|DC-|RAS|SAC)\d{2}/i },
   // Deep freezer — checked BEFORE refrigerator so 'chest freezer' / 'deep freezer' don't fall to refrigerator
   { id: 'deep_freezer',
