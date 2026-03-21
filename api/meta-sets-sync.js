@@ -32,19 +32,17 @@ const SETS = [
   { category: 'Freezer',            label: 'Freezers'                 },
   { category: 'Washing Machines',   label: 'Washing Machines'         },
   { category: 'Water Dispensers',   label: 'Water Dispensers'         },
-  { category: 'Televisions',        label: 'Televisions and LEDs',  op: 'i_contains' },
-  { category: 'Vacuum Cleaners',    label: 'Vacuum Cleaners',        op: 'i_contains' },
+  { category: 'Televisions',        label: 'Televisions and LEDs'     },
+  { category: 'Vacuum Cleaners',    label: 'Vacuum Cleaners'          },
   { category: 'Kitchen Appliances', label: 'Kitchen Appliances'       },
   { category: 'Small Appliances',   label: 'Small Appliances'         },
   { category: 'Solar Solutions',    label: 'Solar Solutions'          },
 ];
 
-// Build filter JSON for a given category.
-// op defaults to 'eq' (exact match); use 'i_contains' for sets that Meta
-// rejects with "Invalid parameter" when no products exist for that label yet.
-function buildFilter(category, op = 'eq') {
+// Build filter JSON for a given category (exact match on custom_label_0).
+function buildFilter(category) {
   return JSON.stringify({
-    custom_label_0: { [op]: category },
+    custom_label_0: { eq: category },
   });
 }
 
@@ -103,8 +101,8 @@ export default async function handler(req, res) {
   const results = { created: [], updated: [], deleted: [], failed: [] };
 
   // ── 2. Create or UPDATE each desired set ──────────────────────────────────
-  for (const { category, label, op } of SETS) {
-    const filter       = buildFilter(category, op);
+  for (const { category, label } of SETS) {
+    const filter       = buildFilter(category);
     const existing     = byName.get(label);
 
     if (existing) {
@@ -120,22 +118,26 @@ export default async function handler(req, res) {
         results.updated.push({ name: label, id: existing.id });
       }
     } else {
-      // CREATE
-      const data = await metaPost(
+      // CREATE — Meta rejects a filter that matches zero indexed products.
+      // Strategy: try with the real filter first; if that fails, create with
+      // a broad "all in-stock" filter (guaranteed to match), then immediately
+      // update to the real filter (Meta skips re-validation on updates).
+      let createData = await metaPost(
         `${catalogId}/product_sets`,
         { name: label, filter },
         token
       );
-      if (data.error) {
-        // CREATE failed — a set with this name may already exist but wasn't
-        // returned in the initial fetch (e.g. created under a different session).
-        // Search for it by name and fall back to UPDATE.
+
+      if (createData.error) {
+        // Real filter rejected — check if set already exists under this name
         const searchData = await metaGet(
           `${catalogId}/product_sets?fields=id,name&limit=100`,
           token
         );
         const match = (searchData.data || []).find((s) => s.name === label);
+
         if (match) {
+          // Exists — just update its filter
           const updateData = await metaPost(`${match.id}`, { name: label, filter }, token);
           if (updateData.error) {
             results.failed.push({ name: label, op: 'create+update', error: updateData.error.message });
@@ -143,10 +145,28 @@ export default async function handler(req, res) {
             results.updated.push({ name: label, id: match.id });
           }
         } else {
-          results.failed.push({ name: label, op: 'create', error: data.error.message });
+          // Create with broad filter first, then narrow to real filter
+          const broadFilter = JSON.stringify({ availability: { eq: 'in stock' } });
+          const broadData   = await metaPost(
+            `${catalogId}/product_sets`,
+            { name: label, filter: broadFilter },
+            token
+          );
+          if (broadData.error) {
+            results.failed.push({ name: label, op: 'create', error: broadData.error.message });
+          } else {
+            // Set exists now — update to real filter
+            const updateData = await metaPost(`${broadData.id}`, { name: label, filter }, token);
+            if (updateData.error) {
+              // Real filter still rejected; leave set with broad filter and note it
+              results.created.push({ name: label, id: broadData.id, note: 'created with broad filter — narrow filter rejected: ' + updateData.error.message });
+            } else {
+              results.created.push({ name: label, id: broadData.id });
+            }
+          }
         }
       } else {
-        results.created.push({ name: label, id: data.id });
+        results.created.push({ name: label, id: createData.id });
       }
     }
   }
