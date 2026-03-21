@@ -60,7 +60,7 @@ const PARTNER_TYPES = [
     iconBg: 'bg-blue-50',
     title: 'EV & Charging Brands',
     pitch: "Pakistan's EV transition is happening. We have the households.",
-    body: 'Our customer base skews toward upper-middle income families in North Karachi — exactly the demographic buying EVs in Pakistan today.',
+    body: 'Our customer base skews toward upper-middle income families across Karachi — exactly the demographic buying EVs in Pakistan today.',
     proof: 'Growing 1,600-member community actively discussing EV adoption.',
   },
   {
@@ -174,7 +174,7 @@ export default function Partner() {
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {[
-              { target: 15,    suffix: ' Years', label: 'In Business',         sub: 'Established 2010 in North Karachi' },
+              { target: 15,    suffix: ' Years', label: 'In Business',         sub: 'Established 2010, serving all Karachi' },
               { target: 14000, suffix: '+',      label: 'Households in Network', sub: 'Verified buying customers' },
               { target: 23000, suffix: '+',      label: 'Invoices Processed',   sub: 'Documented transaction history' },
               { target: 98,    suffix: '%',       label: 'Credit Recovery Rate', sub: 'Our SLA to finance partners' },
@@ -195,7 +195,7 @@ export default function Partner() {
               <Building2 className="w-8 h-8 text-brand-500" />
             </div>
             <div>
-              <h3 className="font-black text-gray-900 text-xl mb-1">North Karachi Experience Corner</h3>
+              <h3 className="font-black text-gray-900 text-xl mb-1">Karachi Experience Corner</h3>
               <p className="text-gray-600 text-sm leading-relaxed max-w-2xl">
                 An 800 sq.ft. physical showroom with live product demonstrations and walk-in customers.
                 Partner products are displayed with branding, pricing, and installation showcases.

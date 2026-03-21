@@ -716,7 +716,10 @@ const FRIDGE_CF_MAP: Record<string, number> = {
 // Dawlance 9xxx series Cu.Ft values per Dawlance Pakistan product pages.
 const DAWLANCE_CF_MAP: Record<string, number> = {
   '9106': 4, '9140': 9, '9148': 9, '9149': 9, '9160': 10,
-  '9169': 12, '9173': 13, '9178': 14, '9191': 18, '9193': 18, '91999': 20,
+  '9161': 10, '9163': 11, '9166': 12, '9169': 12, '9173': 13,
+  '9178': 14, '9188': 16, '9191': 18, '9193': 18, '91999': 20,
+  // Newer MDW/ERF/FF series mapped by Cu.Ft
+  'MDW': 12,
 };
 
 // Deterministic display-size map: brand:modelNorm → human display string.
@@ -753,19 +756,41 @@ function _getSizeDisplay(brand: string, model: string): string {
 
 function _cfFromFridge(model: string): number | '' {
   const m = model.toUpperCase();
-  // Haier HDF (deep freezer) series: the 3-digit number is the gross capacity in litres.
-  // e.g. HDF-175 = 175L = ~6 Cu.Ft,  HDF-255 = 255L = ~9 Cu.Ft,  HDF-385 = 385L = ~14 Cu.Ft
+
+  // Haier HDF (deep freezer) series: the 3-digit number is gross litres.
+  // e.g. HDF-175 = 175L ≈ 6 Cu.Ft
   const hdfM = m.match(/\bHDF-?(\d{3,4})\b/);
   if (hdfM) {
     const liters = parseInt(hdfM[1]);
     if (liters >= 100 && liters <= 700) return Math.round(liters / 28.316);
   }
+
   // Dawlance 9xxx series
   const dlM = m.match(/\b(9\d{3,4})\b/);
   if (dlM && DAWLANCE_CF_MAP[dlM[1]] !== undefined) return DAWLANCE_CF_MAP[dlM[1]];
-  // Lookup table for Haier HRF and other known series
+
+  // EcoStar / Orient / PEL ER-D / PR-xxx series: 3-digit suffix = litres
+  // e.g. ER-D250 = 250L ≈ 9 Cu.Ft, ORF-380 = 380L ≈ 13 Cu.Ft
+  const erM = m.match(/\b(?:ER-?D|ERF-?|ORF-?|PRF-?|LRF-?|GRF-?)(\d{3,4})\b/);
+  if (erM) {
+    const liters = parseInt(erM[1]);
+    if (liters >= 100 && liters <= 800) return Math.round(liters / 28.316);
+  }
+
+  // Lookup table for Haier HRF and other numeric-coded series
   const keys = Object.keys(FRIDGE_CF_MAP).sort((a, b) => b.length - a.length);
   for (const k of keys) { if (m.includes(k)) return FRIDGE_CF_MAP[k]; }
+
+  // Generic fallback: extract any 3-4 digit number that plausibly encodes litres (150–700L)
+  // Only fire if none of the above matched — avoids misreading unrelated digits.
+  const genM = m.match(/\b(\d{3,4})\b/g);
+  if (genM) {
+    for (const numStr of genM) {
+      const n = parseInt(numStr);
+      if (n >= 150 && n <= 700) return Math.round(n / 28.316);
+    }
+  }
+
   return '';
 }
 
@@ -1878,7 +1903,7 @@ function _wpLookup(model: string): [string, string] | null {
 
 // ── Enrichment: simplified name ───────────────────────────────────────────────
 
-export function buildSimplifiedName(brand: string, model: string, category: string, _cc?: string): string {
+export function buildSimplifiedName(brand: string, model: string, category: string, _cc?: string, specs?: Record<string, string>): string {
   const b  = brand.trim();
   const mo = model.trim();
   if (!b && !mo) return '';
@@ -1925,6 +1950,12 @@ export function buildSimplifiedName(brand: string, model: string, category: stri
     case 'refrigerator': {
       let size = _getSizeDisplay(b, mo);
       if (!size) { const cf = _cfFromFridge(mo); if (cf !== '') size = cf + ' Cu.Ft'; }
+      // Final fallback: use already-enriched specs if available (e.g. after re-enrich pass)
+      if (!size && specs?.['Capacity']) {
+        const capStr = specs['Capacity'];
+        const cfMatch = capStr.match(/(\d+(?:\.\d+)?)\s*Cu\.?Ft/i);
+        if (cfMatch) size = cfMatch[1] + ' Cu.Ft';
+      }
       // French T-Door / Triple Door — check before other type detection
       if (/\bTSG\b|\bTBG\b|T-DOOR|TDOOR|FRENCH/i.test(m) || /french/i.test(category)) {
         return [b, size, 'No Frost French T-Door Inverter Refrigerator'].filter(Boolean).join(' ');
@@ -1946,6 +1977,10 @@ export function buildSimplifiedName(brand: string, model: string, category: stri
     case 'deep_freezer': {
       let size  = _getSizeDisplay(b, mo);
       if (!size) { const cf = _cfFromFridge(mo); if (cf !== '') size = cf + ' Cu.Ft'; }
+      if (!size && specs?.['Capacity']) {
+        const cfMatch = specs['Capacity'].match(/(\d+(?:\.\d+)?)\s*Cu\.?Ft/i);
+        if (cfMatch) size = cfMatch[1] + ' Cu.Ft';
+      }
       const isInv = /INV|INVERTER/.test(m);
       const isVF  = /VF[-\s]/.test(m) || category.toLowerCase().includes('vertical');
       const typ   = isVF ? 'Vertical Freezer' : 'Deep Freezer';
@@ -1967,8 +2002,10 @@ export function buildSimplifiedName(brand: string, model: string, category: stri
             if (dw) { const d = dw[1]; const two = parseInt(d.slice(0, 2)); return two <= 20 ? two : parseInt(d.slice(0, 1)); }
             return 0;
           })();
+      // Fallback to specs if model string doesn't encode kg (e.g. EcoStar ESW-DE)
+      const kgStr = kgNum ? kgNum + 'kg' : (specs?.['Capacity'] || '');
       const typeLabel = _wmSubLabel(model, category);
-      return [b, kgNum ? kgNum + 'kg' : '', typeLabel, 'Washing Machine'].filter(Boolean).join(' ');
+      return [b, kgStr, typeLabel, 'Washing Machine'].filter(Boolean).join(' ');
     }
     case 'television': {
       const szM = m.match(/(\d{2,3})["']?\s*(?:INCH|IN\b)/);
@@ -2042,11 +2079,99 @@ export function buildSimplifiedName(brand: string, model: string, category: stri
       const isInv = /INV|INVERTER|DC\s*12V|AC\/DC/.test(m);
       return [b, watM ? watM[1] + 'W' : '', isInv ? 'Inverter' : '', 'Air Cooler'].filter(Boolean).join(' ');
     }
+    // ── Small appliances: include capacity/size from specs when model doesn't encode it ──
+    case 'kettle': {
+      const cap = p.litres || specs?.['Capacity'] || '';
+      return [b, cap, 'Electric Kettle'].filter(Boolean).join(' ');
+    }
+    case 'air_fryer': {
+      const cap = p.litres || specs?.['Capacity'] || '';
+      return [b, cap, 'Air Fryer'].filter(Boolean).join(' ');
+    }
+    case 'rice_cooker': {
+      const cap = p.litres || specs?.['Capacity'] || '';
+      return [b, cap, 'Rice Cooker'].filter(Boolean).join(' ');
+    }
+    case 'toaster': {
+      const slices = p.slices ? p.slices + '-Slice' : (specs?.['Capacity'] || '');
+      return [b, slices, 'Bread Toaster'].filter(Boolean).join(' ');
+    }
+    case 'sandwich_maker': {
+      return [b, 'Sandwich Maker'].filter(Boolean).join(' ');
+    }
+    case 'blender': {
+      const cap = p.litres || specs?.['Capacity'] || '';
+      return [b, cap, 'Blender'].filter(Boolean).join(' ');
+    }
+    case 'hand_blender': {
+      const wat = specs?.['Power'] || '';
+      return [b, wat, 'Hand Blender'].filter(Boolean).join(' ');
+    }
+    case 'juicer': {
+      const cap = p.litres || specs?.['Capacity'] || '';
+      return [b, cap, 'Juicer'].filter(Boolean).join(' ');
+    }
+    case 'food_processor': {
+      const cap = p.litres || specs?.['Capacity'] || '';
+      return [b, cap, 'Food Processor'].filter(Boolean).join(' ');
+    }
+    case 'chopper': {
+      return [b, 'Food Chopper'].filter(Boolean).join(' ');
+    }
+    case 'iron': {
+      const isStream = /STEAM/i.test(m);
+      const isDry    = /DRY/i.test(m) || /DWDI/i.test(m);
+      const typ = isStream ? 'Steam Iron' : isDry ? 'Dry Iron' : 'Electric Iron';
+      const wat = specs?.['Power'] || '';
+      return [b, wat, typ].filter(Boolean).join(' ');
+    }
+    case 'steamer': {
+      return [b, 'Garment Steamer'].filter(Boolean).join(' ');
+    }
+    case 'hair_dryer': {
+      const wat = specs?.['Power'] || '';
+      return [b, wat, 'Hair Dryer'].filter(Boolean).join(' ');
+    }
+    case 'hair_straightener': {
+      return [b, 'Hair Straightener'].filter(Boolean).join(' ');
+    }
+    case 'hair_crimper': {
+      return [b, 'Hair Crimper'].filter(Boolean).join(' ');
+    }
+    case 'curling_iron': {
+      return [b, 'Hair Curler'].filter(Boolean).join(' ');
+    }
+    case 'vacuum': {
+      const wat = specs?.['Power'] || '';
+      return [b, wat, 'Vacuum Cleaner'].filter(Boolean).join(' ');
+    }
+    case 'fan': {
+      const isRem = /REMOTE|REM/.test(m);
+      const typ = /CEILING/.test(m) ? 'Ceiling Fan' : /PEDESTAL|STAND/.test(m) ? 'Pedestal Fan' : /WALL/.test(m) ? 'Wall Fan' : 'Fan';
+      return [b, isRem ? 'Remote Control' : '', typ].filter(Boolean).join(' ');
+    }
+    case 'heater': {
+      const wat = specs?.['Power'] || '';
+      const typ = /OIL/.test(m) ? 'Oil Filled Heater' : /FAN/.test(m) ? 'Fan Heater' : 'Room Heater';
+      return [b, wat, typ].filter(Boolean).join(' ');
+    }
+    case 'water_dispenser': {
+      const isHC = /HOT.*COLD|H&C|COLD.*HOT/.test(m) || (specs?.['Temperature'] || '').includes('Hot');
+      return [b, isHC ? 'Hot & Cold' : 'Cold', 'Water Dispenser'].filter(Boolean).join(' ');
+    }
+    case 'induction': {
+      const wat = specs?.['Power'] || '';
+      return [b, wat, 'Induction Cooker'].filter(Boolean).join(' ');
+    }
+    case 'chimney': {
+      return [b, 'Kitchen Chimney'].filter(Boolean).join(' ');
+    }
     default: {
       // For canonical types we know (fan, iron, vacuum etc.) use the display name — avoid dumping raw CSV category
       const displayType = cc !== 'unknown' ? (CANONICAL_DISPLAY[cc] ?? '') : '';
       if (displayType) {
-        const size = p.litres ?? (p.slices ? p.slices + '-Slice' : p.kg ?? '');
+        const specCap = specs?.['Capacity'] || specs?.['Water Tank'] || '';
+        const size = p.litres ?? (p.slices ? p.slices + '-Slice' : p.kg ?? '') || specCap;
         return [b, displayType, size || mo].filter(Boolean).join(' ');
       }
       // For Westpoint (or other brands) where the DB category encodes the specific product type
@@ -2410,7 +2535,7 @@ export function enrichProduct(brand: string, model: string, category: string): R
     if (wp) { const wpCc = _wpSubCatToCC(wp[1]); if (wpCc) cc = wpCc; }
   }
   const specs         = _buildSpecs(brand, model, category, cc);
-  const simplified_name = buildSimplifiedName(brand, model, category, cc);
+  const simplified_name = buildSimplifiedName(brand, model, category, cc, specs);
   const warranty      = lookupWarranty(brand, model, category, cc);
   const sub_category  = deriveSubCategory(brand, model, category, cc);
   const tags          = _generateTags(brand, model, category, cc, specs, simplified_name);

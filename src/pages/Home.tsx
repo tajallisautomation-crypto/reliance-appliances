@@ -82,7 +82,7 @@ export default function Home() {
             </h1>
             <p className="text-lg text-gray-500 leading-relaxed mb-8 max-w-md">
               Every appliance. Every service. Cash or installments.<br className="hidden md:block" />
-              One call — from North Karachi to your doorstep.
+              One call — delivered across Karachi to your doorstep.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link to="/products"
