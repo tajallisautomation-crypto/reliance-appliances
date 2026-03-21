@@ -1009,7 +1009,8 @@ const _CATEGORY_RULES: _CatRule[] = [
   { id: 'curling_iron',      keywords: ['curling iron', 'curling wand', 'hair curler', 'curl iron'] },
   { id: 'vacuum',            keywords: ['vacuum cleaner', 'vacuum', 'vacum'] },
   { id: 'water_dispenser',   keywords: ['water dispenser', 'water cooler dispenser', 'water cooler and dispenser', 'hot and cold dispenser'] },
-  { id: 'water_heater',      keywords: ['water heater', 'geyser', 'instant water'] },
+  { id: 'water_heater',      keywords: ['water heater', 'geyser', 'instant water'],
+    modelRx: /^(?:DWHP|SGW|IWH|SWH|EWH)\d/i },
   { id: 'heater',            keywords: ['room heater', 'oil heater', 'fan heater', 'electric heater', 'oil filled heater', 'halogen heater', 'convector heater'] },
   { id: 'fan',               keywords: ['pedestal fan', 'wall fan', 'table fan', 'ceiling fan', 'stand fan', 'bracket fan'], forbid: ['heater', 'microwave', 'cooler'] },
   { id: 'chimney',           keywords: ['kitchen chimney', 'exhaust hood', 'kitchen hood', 'range hood'] },
@@ -1038,8 +1039,9 @@ const _CATEGORY_RULES: _CatRule[] = [
     keywords: ['spin dryer', 'spinner', 'spin only', 'spinning machine', 'spin machine', 'centrifuge dryer'],
     modelRx: /^HD[-\s]\d/i },
   { id: 'washing_machine',
-    keywords: ['washing machine', 'front load', 'top load', 'twin tub', 'fully automatic', 'semi automatic', 'automatic washer', 'washer dryer'],
-    modelRx: /^(?:HWM|DWF|DWT|DWH|HWD|DW-|WF-|WM-|TW-)[\s-]?\d/i,
+    keywords: ['washing machine', 'front load', 'top load', 'twin tub', 'fully automatic', 'semi automatic', 'automatic washer', 'washer dryer',
+               'usb'],   // EcoStar CSV uses "USB" as the category name for their ESW-series washers
+    modelRx: /^(?:HWM|DWF|DWT|DWH|HWD|DW-|WF-|WM-|TW-|ESW-)[\s-]?\d/i,
     forbid: ['dish'] },
   { id: 'television',
     keywords: ['television', 'smart tv', 'led tv', 'qled tv', 'oled tv', '4k tv', 'android tv', 'google tv'],
@@ -2623,12 +2625,14 @@ export async function processCSVImport(
   const csvCategories = new Set(rows.map(r => r.Category).filter(Boolean));
   const csvKeys = new Set(rows.map(r => `${(r.Brand || '').toLowerCase()}::${(r.Model || '').toLowerCase()}`));
 
-  // Step 3 — Fetch existing DB products for affected categories
+  // Step 3 — Fetch existing DB products by brand (not category) so we find products
+  // that were previously imported and then rebalanced to a different category.
+  // Filtering by category would miss them, causing duplicate-slug INSERT errors.
   onProgress('Loading existing products…');
   const { data: existingRows, error: fetchErr } = await supabase
     .from('products')
     .select('id, brand, model, category, stock_status, missing_count')
-    .in('category', [...csvCategories]);
+    .in('brand', uniqueBrands);
   if (fetchErr) { summary.errors.push('DB fetch failed: ' + fetchErr.message); return summary; }
 
   // brand::model → existing DB row id (handles timestamp IDs from manual product creation)
