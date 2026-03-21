@@ -1265,7 +1265,7 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
     specs['Voltage Tolerance'] = '130V – 260V (No Stabilizer Required)';
     specs['Climate Class']     = 'T — Tropical (Designed for Pakistan)';
     if (!isDF) specs['Crisper Drawer'] = 'Yes — humidity-controlled';
-    const cfNum = parseFloat(cf || '0');
+    const cfNum = parseFloat(String(cf || 0));
     // Shelves and door shelves estimated by capacity
     if (!isDF && cfNum > 0) {
       const shelves     = cfNum <= 10 ? 2 : cfNum <= 14 ? 3 : cfNum <= 18 ? 3 : 4;
@@ -1476,7 +1476,7 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
     specs['Basket']            = 'Wire storage basket(s) included';
     specs['Door Alarm']        = 'Yes — audible alarm if door left open';
     // Power consumption estimated by capacity
-    const cfNumFz = parseFloat(cf || '0');
+    const cfNumFz = parseFloat(String(cf || 0));
     if (cfNumFz > 0) {
       const pw = Math.round((40 + cfNumFz * 4) / 5) * 5;
       specs['Power Consumption'] = pw + 'W (avg.)';
