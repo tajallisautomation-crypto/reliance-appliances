@@ -205,16 +205,16 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
       // – raw DB category strings lowercased (refrigerators, gas appliances …)
       const CAT_TERMS: Record<string, string[]> = {
         // ── Short button IDs ──────────────────────────────────────
-        'ac':      ['air condition'],
-        'fridge':  ['refrigerat'],
-        'freezer': ['deep freezer', 'freezer'],
-        'washing': ['washing'],
+        'ac':      ['air condition', 'ton air'],   // matches "1 Ton Air Conditioners" etc.
+        'fridge':  ['refrigerat'],                 // matches "Small/Medium/Large Refrigerators"
+        'freezer': ['freezer'],
+        'washing': ['washing'],                    // matches "Automatic/Semi-Automatic Washing Machines"
         'tv':      ['television', 'led', 'smart led', 'smart tv', 'qled'],
         'solar':   ['solar'],
-        'kitchen': ['kitchen', 'microwave', 'gas appli'],
+        'kitchen': ['kitchen'],                    // matches all "Kitchen …" subcategories
         'water':   ['water dispenser'],
         'vacuum':  ['vacuum'],
-        'small':   ['small appli', 'small and medium'],
+        'small':   ['personal care', 'home & heating'],  // new subcategory names
         // ── Canonical snake_case IDs ──────────────────────────────
         'air_conditioner':  ['air condition'],
         'refrigerator':     ['refrigerat'],
@@ -236,7 +236,7 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
         'refrigerators':               ['refrigerat'],
         'deep-freezer':                ['deep freezer', 'freezer'],
         'washing-machines':            ['washing'],
-        'automatic-washing-machines':  ['automatic washing', 'washing'],
+        'automatic-washing-machines':  ['automatic washing'],
         'televisions':                 ['television', 'led', 'smart led', 'qled'],
         'led':                         ['led', 'television', 'smart led', 'qled'],
         'solar-solutions':             ['solar'],
@@ -246,8 +246,8 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
         'microwave-ovens':             ['microwave'],
         'water-dispensers':            ['water dispenser'],
         'vacuum-cleaners':             ['vacuum'],
-        'small-appliances':            ['small appli', 'small and medium'],
-        'small-and-medium-appliances': ['small and medium', 'small appli'],
+        'small-appliances':            ['personal care', 'home & heating'],
+        'small-and-medium-appliances': ['personal care', 'home & heating'],
         'power-solutions':             ['power solution'],
         'accessories':                 ['accessories'],
         'master-foam':                 ['master foam'],
@@ -263,7 +263,21 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
         'water-dispenser':             ['water dispenser'],
         'vacuum-cleaner':              ['vacuum'],
         'kitchen-appliance':           ['kitchen', 'microwave', 'gas appli'],
-        'small-appliance':             ['small appli', 'small and medium'],
+        'small-appliance':             ['personal care', 'home & heating'],
+        // ── New subcategory slugs (post-rebalance) ────────────────
+        '1-ton-air-conditioners':         ['1 ton air'],
+        '1.5-ton-air-conditioners':       ['1.5 ton air'],
+        '2-ton-air-conditioners':         ['2 ton air'],
+        'small-refrigerators':            ['small refrigerat'],
+        'medium-refrigerators':           ['medium refrigerat'],
+        'large-refrigerators':            ['large refrigerat'],
+        'semi-automatic-washing-machines':['semi-automatic washing'],
+        'kitchen-food-processors':        ['kitchen food proc'],
+        'kitchen-blenders-juicers':       ['kitchen blender'],
+        'kitchen-cooking-appliances':     ['kitchen cooking'],
+        'kitchen-breakfast-beverages':    ['kitchen breakfast'],
+        'personal-care-appliances':       ['personal care'],
+        'home-heating-appliances':        ['home & heating'],
         'gas-appliance':               ['gas appli'],
         // raw DB category slugs from CSV
         'led-tv':                      ['led', 'television', 'smart led', 'qled'],
@@ -2905,6 +2919,153 @@ export async function fixAllCategories(
     if (upErr) { result.errors.push(`${row.model}: ${upErr.message}`); }
     else result.fixed++;
   }
+  clearCache();
+  onProgress('');
+  return result;
+}
+
+// ── Category size constants ───────────────────────────────────────────────────
+export const CAT_MIN = 10;
+export const CAT_MAX = 40;
+
+/** Returns the number of products per category. */
+export async function getCategoryCounts(): Promise<Record<string, number>> {
+  const { data } = await supabase.from('products').select('category');
+  const counts: Record<string, number> = {};
+  (data || []).forEach((r: any) => {
+    const c = r.category || '(none)';
+    counts[c] = (counts[c] || 0) + 1;
+  });
+  return counts;
+}
+
+// ── Category assignment rules (mirrors scripts/rebalance-categories.mjs) ──────
+
+function _acCategory(s: string, m: string, specs: Record<string, any>): string {
+  const ton = parseFloat(String(specs['Tonnage'] || specs['tonnage'] || specs['Capacity'] || '0'));
+  if (ton > 0) {
+    if (ton <= 1.3) return '1 Ton Air Conditioners';
+    if (ton <= 1.7) return '1.5 Ton Air Conditioners';
+    return '2 Ton Air Conditioners';
+  }
+  if (/\b(0\.75|0\.8|0\.9|1\.0|1\.2)\s*ton|\b1\s*ton(?!\s*\.5)/i.test(s)) return '1 Ton Air Conditioners';
+  if (/1\.5\s*ton|1\.5ton/i.test(s))  return '1.5 Ton Air Conditioners';
+  if (/1\.7\s*ton|2\.0\s*ton|2\s*ton|floor\s*stand|cassette|commercial|\b3\s*ton|\b4\s*ton/i.test(s))
+    return '2 Ton Air Conditioners';
+  if (/-12[a-z]|^es-?12|^gs-?12|^gf-?12|^hsu-?12|^dc-?12/i.test(m)) return '1 Ton Air Conditioners';
+  if (/-18[a-z]|^es-?18|^gs-?18|^gf-?18|^hsu-?18|^dc-?18/i.test(m)) return '1.5 Ton Air Conditioners';
+  if (/-24[a-z]|-36|-48|^es-?24|^gs-?24|^gf-?24|^gf-?36|^gf-?48|^hsu-?24|^hpu-/i.test(m)) return '2 Ton Air Conditioners';
+  return '1.5 Ton Air Conditioners';
+}
+
+function _fridgeCategory(s: string, m: string, specs: Record<string, any>): string {
+  const cf = s.match(/\b(\d+(?:\.\d+)?)\s*cu\.?\s*ft\b|\b(\d+)\s*cubic\b/i);
+  if (cf) {
+    const n = parseFloat(cf[1] || cf[2]);
+    if (n <= 12) return 'Small Refrigerators';
+    if (n <= 17) return 'Medium Refrigerators';
+    return 'Large Refrigerators';
+  }
+  const cap = parseFloat(String(specs['Capacity'] || specs['capacity'] || '0'));
+  if (cap > 0) {
+    if (cap <= 12) return 'Small Refrigerators';
+    if (cap <= 17) return 'Medium Refrigerators';
+    return 'Large Refrigerators';
+  }
+  if (/glass\s*door|inverter\s*avante|avante\+|kenwood|homage/i.test(s)) return 'Large Refrigerators';
+  return 'Medium Refrigerators';
+}
+
+function _washerCategory(s: string, m: string): string {
+  if (/twin\s*tub|semi.?auto|spinner|esw-/i.test(s + ' ' + m)) return 'Semi-Automatic Washing Machines';
+  return 'Automatic Washing Machines';
+}
+
+function _kitchenCategory(s: string): string {
+  if (/kitchen\s*(chef|robot)|food\s*(factory|process)|meat\s*minc|minc|chopper|slicer|fries\s*cut|vegetable\s*sl/i.test(s))
+    return 'Kitchen Food Processors';
+  if (/\boven\b|air\s*fr|microwave|pressure\s*cook|slow\s*cook|hot\s*plate|ceramic\s*cook|deep\s*fr|rice\s*cook|convect|rotisserie|induction/i.test(s))
+    return 'Kitchen Cooking Appliances';
+  if (/blender|juicer|mixer|beater|citrus|hand\s*mix|grinder/i.test(s))
+    return 'Kitchen Blenders & Juicers';
+  if (/kettle|toaster|sandwich|coffee|roti|egg\s*boil|water\s*boil|pizza|scale|dough/i.test(s))
+    return 'Kitchen Breakfast & Beverages';
+  return 'Kitchen Cooking Appliances';
+}
+
+function _smallCategory(s: string): string {
+  if (/hair\s*(dry|straight|crimp|curl|clip)|epilator|facial|face\s*steam|foot\s*massag|baby|bottle|weight\s*scale|digital\s*weight|insect\s*kill/i.test(s))
+    return 'Personal Care Appliances';
+  return 'Home & Heating Appliances';
+}
+
+/** Compute the correct balanced category for a single product row. Returns null if no rule matches. */
+function _computeProductCategory(p: { brand?: string | null; model?: string | null; simplified_name?: string | null; category?: string | null; specs?: Record<string, any> | null }): string | null {
+  const s    = (p.simplified_name || '').toLowerCase();
+  const m    = (p.model           || '').toLowerCase();
+  const cat  = (p.category        || '').toLowerCase();
+  const brand = (p.brand          || '').toLowerCase();
+  const specs = p.specs || {};
+
+  const MISCAT_AC = ['duke', 'ario t3', 'emperor', 'nova t3', 'prince t3',
+                     'floor standing', 'commercial ac', 'cool only'];
+  const isMiscatAC = MISCAT_AC.includes(cat) || (cat === 'televisions' && brand === 'gree');
+  const isUSBWasher = cat === 'usb' && brand === 'ecostar';
+
+  if (isMiscatAC)                      return _acCategory(s, m, specs);
+  if (isUSBWasher)                      return _washerCategory(s, m);
+  if (cat.includes('air condition') || cat.includes('ton air'))  return _acCategory(s, m, specs);
+  if (cat.includes('refrigerat'))       return _fridgeCategory(s, m, specs);
+  if (cat === 'freezer' || cat === 'freezers') return 'Freezers';
+  if (cat.includes('washing'))          return _washerCategory(s, m);
+  if (cat === 'kitchen appliances')     return _kitchenCategory(s);
+  if (cat === 'small appliances')       return _smallCategory(s);
+  if (cat.includes('solar'))            return 'Solar Solutions';
+  if (cat === 'televisions')            return 'Televisions';
+  if (cat.includes('water dispenser'))  return 'Water Dispensers';
+  return null;
+}
+
+/**
+ * Rebalances all DB categories so each has 10–40 products.
+ * Runs in-browser with the authenticated admin session.
+ * Also fixes miscategorized products (wrong Gree/EcoStar series names, etc.)
+ */
+export async function rebalanceCategories(
+  onProgress: (msg: string) => void,
+  ids?: string[]
+): Promise<{ updated: number; unchanged: number; byCategory: Record<string, number>; errors: string[] }> {
+  const result = { updated: 0, unchanged: 0, byCategory: {} as Record<string, number>, errors: [] as string[] };
+
+  onProgress('Loading products…');
+  let q = supabase.from('products').select('id, brand, model, simplified_name, category, specs');
+  if (ids?.length) q = q.in('id', ids);
+  const { data, error } = await q;
+  if (error) { result.errors.push(error.message); onProgress(''); return result; }
+
+  const rows = data || [];
+  const changes: Array<{ id: string; newCategory: string }> = [];
+
+  for (const r of rows) {
+    const newCat = _computeProductCategory(r as any);
+    if (!newCat) { result.unchanged++; continue; }
+    if (newCat === r.category) { result.unchanged++; continue; }
+    changes.push({ id: r.id, newCategory: newCat });
+  }
+
+  const BATCH = 50;
+  for (let i = 0; i < changes.length; i += BATCH) {
+    onProgress(`Updating ${i + 1}–${Math.min(i + BATCH, changes.length)} of ${changes.length}…`);
+    await Promise.all(changes.slice(i, i + BATCH).map(async ({ id, newCategory }) => {
+      try {
+        const { error: e } = await supabase.from('products').update({ category: newCategory }).eq('id', id);
+        if (e) throw e;
+        result.updated++;
+        result.byCategory[newCategory] = (result.byCategory[newCategory] || 0) + 1;
+      } catch (e: any) { result.errors.push(`${id}: ${e.message}`); }
+    }));
+  }
+
   clearCache();
   onProgress('');
   return result;

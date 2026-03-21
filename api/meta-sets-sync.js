@@ -26,17 +26,30 @@ const FEED_URL  = 'https://reliance.tajallis.com.pk/api/meta-catalog';
 // key   = exact value of custom_label_0 in the CSV feed (= p.category in DB)
 // label = human-readable name shown as tab in WhatsApp
 const SETS = [
-  { category: 'Air Conditioners',   label: 'Air Conditioners'         },
-  { category: 'Commercial AC',      label: 'Commercial Air Conditioners' },
-  { category: 'Refrigerators',      label: 'Refrigerators'            },
-  { category: 'Freezer',            label: 'Freezers'                 },
-  { category: 'Washing Machines',   label: 'Washing Machines'         },
-  { category: 'Water Dispensers',   label: 'Water Dispensers'         },
-  { category: 'Televisions',        label: 'Televisions and LEDs'     },
-  { category: 'Vacuum Cleaners',    label: 'Vacuum Cleaners'          },
-  { category: 'Kitchen Appliances', label: 'Kitchen Appliances'       },
-  { category: 'Small Appliances',   label: 'Small Appliances'         },
-  { category: 'Solar Solutions',    label: 'Solar Solutions'          },
+  // ── Air Conditioners (by tonnage) ────────────────────────────────────────
+  { category: '1 Ton Air Conditioners',   label: '1 Ton Air Conditioners'   },
+  { category: '1.5 Ton Air Conditioners', label: '1.5 Ton Air Conditioners' },
+  { category: '2 Ton Air Conditioners',   label: '2 Ton Air Conditioners'   },
+  // ── Refrigerators (by size) ───────────────────────────────────────────────
+  { category: 'Small Refrigerators',      label: 'Compact Refrigerators'    },
+  { category: 'Medium Refrigerators',     label: 'Medium Refrigerators'     },
+  { category: 'Large Refrigerators',      label: 'Large Refrigerators'      },
+  // ── Washing Machines (by type) ────────────────────────────────────────────
+  { category: 'Automatic Washing Machines',      label: 'Automatic Washing Machines'      },
+  { category: 'Semi-Automatic Washing Machines', label: 'Semi-Automatic Washing Machines' },
+  // ── Kitchen Appliances (by type) ─────────────────────────────────────────
+  { category: 'Kitchen Food Processors',       label: 'Food Processors & Mincers'   },
+  { category: 'Kitchen Blenders & Juicers',    label: 'Blenders & Juicers'          },
+  { category: 'Kitchen Cooking Appliances',    label: 'Ovens, Fryers & Cookers'     },
+  { category: 'Kitchen Breakfast & Beverages', label: 'Kettles, Toasters & Coffee'  },
+  // ── Small Appliances (by type) ────────────────────────────────────────────
+  { category: 'Personal Care Appliances',  label: 'Personal Care & Baby'      },
+  { category: 'Home & Heating Appliances', label: 'Irons, Heaters & Home'     },
+  // ── Other ─────────────────────────────────────────────────────────────────
+  { category: 'Freezers',          label: 'Freezers'               },
+  { category: 'Water Dispensers',  label: 'Water Dispensers'       },
+  { category: 'Televisions',       label: 'Televisions & LEDs'     },
+  { category: 'Solar Solutions',   label: 'Solar Solutions'        },
 ];
 
 // Build filter JSON for a given category (exact match on custom_label_0).

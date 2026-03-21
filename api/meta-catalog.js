@@ -22,11 +22,25 @@ const WA_NUMBER         = process.env.VITE_WA_SALES          || '923702578788';
 // ── Category → WhatsApp product_type section name ────────────────────────────
 // product_type is what creates the visible "category tabs" inside the WA catalog.
 const PRODUCT_TYPE = {
+  // ── Air Conditioners (split by tonnage) ────────────────────────────────────
+  '1 Ton Air Conditioners':     'Cooling & Climate > 1 Ton Air Conditioners',
+  '1.5 Ton Air Conditioners':   'Cooling & Climate > 1.5 Ton Air Conditioners',
+  '2 Ton Air Conditioners':     'Cooling & Climate > 2 Ton Air Conditioners',
+  // Legacy broad names (kept for backward compat)
   'Air Conditioners':           'Cooling & Climate > Air Conditioners',
   'Commercial AC':              'Cooling & Climate > Commercial Air Conditioners',
+  // ── Refrigerators (split by size) ─────────────────────────────────────────
+  'Small Refrigerators':        'Kitchen Appliances > Compact Refrigerators',
+  'Medium Refrigerators':       'Kitchen Appliances > Refrigerators',
+  'Large Refrigerators':        'Kitchen Appliances > Large Refrigerators',
   'Refrigerators':              'Kitchen Appliances > Refrigerators',
+  // ── Freezers ──────────────────────────────────────────────────────────────
+  'Freezers':                   'Kitchen Appliances > Freezers',
   'Freezer':                    'Kitchen Appliances > Freezers',
-  'Washing Machines':           'Laundry > Washing Machines',
+  // ── Washing Machines (split by type) ──────────────────────────────────────
+  'Automatic Washing Machines':      'Laundry > Automatic Washing Machines',
+  'Semi-Automatic Washing Machines': 'Laundry > Semi-Automatic Washing Machines',
+  'Washing Machines':                'Laundry > Washing Machines',
   'Water Dispensers':           'Kitchen Appliances > Water Dispensers',
   'Televisions':                'Electronics > Televisions',
   'Vacuum Cleaners':            'Cleaning > Vacuum Cleaners',
@@ -72,17 +86,36 @@ const PRODUCT_TYPE = {
   'Insect Killer':              'Home & Garden > Insect Killers',
   'Humidifier Ultrasonic':      'Home & Garden > Humidifiers',
   'Humidifier Ultrasonic Deluxe': 'Home & Garden > Humidifiers',
-  'Kitchen Appliances':         'Kitchen Appliances > Small Appliances',
-  'Small Appliances':           'Small Appliances',
+  // ── Kitchen (split by type) ────────────────────────────────────────────────
+  'Kitchen Food Processors':        'Kitchen Appliances > Food Processors & Mincers',
+  'Kitchen Blenders & Juicers':     'Kitchen Appliances > Blenders & Juicers',
+  'Kitchen Cooking Appliances':     'Kitchen Appliances > Ovens, Fryers & Cookers',
+  'Kitchen Breakfast & Beverages':  'Kitchen Appliances > Kettles, Toasters & Coffee',
+  'Kitchen Appliances':             'Kitchen Appliances > Small Appliances',
+  // ── Small Appliances (split by type) ──────────────────────────────────────
+  'Personal Care Appliances':       'Personal Care > Personal Care & Baby',
+  'Home & Heating Appliances':      'Home & Garden > Irons, Heaters & Home',
+  'Small Appliances':               'Small Appliances',
+  // ── Solar ─────────────────────────────────────────────────────────────────
+  'Solar Solutions':                'Home & Garden > Solar Solutions',
 };
 
 // ── Google Product Category (for Meta ad targeting) ───────────────────────────
 const GOOGLE_CATEGORY = {
-  'Air Conditioners':   'Appliances > Climate Control > Air Conditioners',
-  'Commercial AC':      'Appliances > Climate Control > Air Conditioners',
-  'Refrigerators':      'Appliances > Kitchen Appliances > Refrigerators',
-  'Freezer':            'Appliances > Kitchen Appliances > Freezers',
-  'Washing Machines':   'Appliances > Laundry Appliances > Washing Machines & Dryers',
+  '1 Ton Air Conditioners':     'Appliances > Climate Control > Air Conditioners',
+  '1.5 Ton Air Conditioners':   'Appliances > Climate Control > Air Conditioners',
+  '2 Ton Air Conditioners':     'Appliances > Climate Control > Air Conditioners',
+  'Air Conditioners':           'Appliances > Climate Control > Air Conditioners',
+  'Commercial AC':              'Appliances > Climate Control > Air Conditioners',
+  'Small Refrigerators':        'Appliances > Kitchen Appliances > Refrigerators',
+  'Medium Refrigerators':       'Appliances > Kitchen Appliances > Refrigerators',
+  'Large Refrigerators':        'Appliances > Kitchen Appliances > Refrigerators',
+  'Refrigerators':              'Appliances > Kitchen Appliances > Refrigerators',
+  'Freezers':                   'Appliances > Kitchen Appliances > Freezers',
+  'Freezer':                    'Appliances > Kitchen Appliances > Freezers',
+  'Automatic Washing Machines':      'Appliances > Laundry Appliances > Washing Machines & Dryers',
+  'Semi-Automatic Washing Machines': 'Appliances > Laundry Appliances > Washing Machines & Dryers',
+  'Washing Machines':           'Appliances > Laundry Appliances > Washing Machines & Dryers',
   'Water Dispensers':   'Appliances > Kitchen Appliances > Water Dispensers',
   'Televisions':        'Electronics > Video > Televisions',
   'Vacuum Cleaners':    'Appliances > Vacuums',
@@ -102,22 +135,46 @@ const GOOGLE_CATEGORY = {
   'Hair Clipper':       'Health & Beauty > Personal Care > Hair Care > Hair Clippers & Trimmers',
   'Epilator':           'Health & Beauty > Personal Care > Hair Removal',
   'Digital Weight Scale': 'Health & Beauty > Health Care > Scales',
-  'Baby Bottle Sterilizer': 'Baby & Toddler > Feeding > Bottle Sterilizers',
-  'Baby Bottle Warmer': 'Baby & Toddler > Feeding > Bottle Warmers',
-  'Dual Bottle Warmer': 'Baby & Toddler > Feeding > Bottle Warmers',
+  'Baby Bottle Sterilizer':     'Baby & Toddler > Feeding > Bottle Sterilizers',
+  'Baby Bottle Warmer':         'Baby & Toddler > Feeding > Bottle Warmers',
+  'Dual Bottle Warmer':         'Baby & Toddler > Feeding > Bottle Warmers',
+  'Kitchen Food Processors':    'Appliances > Kitchen Appliances > Food Processors',
+  'Kitchen Blenders & Juicers': 'Appliances > Kitchen Appliances > Blenders & Juicers',
+  'Kitchen Cooking Appliances': 'Appliances > Kitchen Appliances',
+  'Kitchen Breakfast & Beverages': 'Appliances > Kitchen Appliances',
+  'Personal Care Appliances':   'Health & Beauty > Personal Care',
+  'Home & Heating Appliances':  'Appliances > Household Appliances',
+  'Solar Solutions':            'Hardware > Electrical > Solar Energy',
 };
 
 // ── Spec keys to highlight in description, by category ───────────────────────
 // First match wins per product.
 const SPEC_HIGHLIGHTS = {
-  'Refrigerators':    ['Capacity', 'Defrost', 'Cooling System', 'Inverter', 'defrost_type'],
-  'Freezer':          ['Capacity', 'Defrost', 'Inverter'],
-  'Washing Machines': ['Capacity', 'Type', 'Inverter', 'Spin Speed'],
-  'Air Conditioners': ['Tonnage', 'Capacity', 'Inverter', 'Energy Rating', 'BTU'],
-  'Commercial AC':    ['Tonnage', 'Capacity', 'Inverter', 'BTU'],
-  'Televisions':      ['Screen Size', 'Resolution', 'Smart TV', 'Panel Type'],
-  'Water Dispensers': ['Type', 'Cooling', 'Heating'],
-  'default':          ['Power', 'Capacity', 'Type', 'Wattage', 'Power Supply'],
+  // Refrigerators
+  'Small Refrigerators':        ['Capacity', 'Defrost', 'Cooling System', 'Inverter'],
+  'Medium Refrigerators':       ['Capacity', 'Defrost', 'Cooling System', 'Inverter'],
+  'Large Refrigerators':        ['Capacity', 'Defrost', 'Cooling System', 'Inverter'],
+  'Refrigerators':              ['Capacity', 'Defrost', 'Cooling System', 'Inverter', 'defrost_type'],
+  'Freezers':                   ['Capacity', 'Defrost', 'Inverter'],
+  'Freezer':                    ['Capacity', 'Defrost', 'Inverter'],
+  // Washing machines
+  'Automatic Washing Machines':      ['Capacity', 'Type', 'Inverter', 'Spin Speed'],
+  'Semi-Automatic Washing Machines': ['Capacity', 'Type', 'Spin Speed'],
+  'Washing Machines':                ['Capacity', 'Type', 'Inverter', 'Spin Speed'],
+  // Air conditioners
+  '1 Ton Air Conditioners':     ['Tonnage', 'Inverter', 'Energy Rating', 'BTU'],
+  '1.5 Ton Air Conditioners':   ['Tonnage', 'Inverter', 'Energy Rating', 'BTU'],
+  '2 Ton Air Conditioners':     ['Tonnage', 'Inverter', 'Energy Rating', 'BTU'],
+  'Air Conditioners':           ['Tonnage', 'Capacity', 'Inverter', 'Energy Rating', 'BTU'],
+  'Commercial AC':              ['Tonnage', 'Capacity', 'Inverter', 'BTU'],
+  // Other
+  'Televisions':                ['Screen Size', 'Resolution', 'Smart TV', 'Panel Type'],
+  'Water Dispensers':           ['Type', 'Cooling', 'Heating'],
+  'Kitchen Food Processors':    ['Power', 'Capacity', 'Type', 'Wattage'],
+  'Kitchen Blenders & Juicers': ['Power', 'Capacity', 'Wattage'],
+  'Kitchen Cooking Appliances': ['Power', 'Capacity', 'Type', 'Wattage'],
+  'Kitchen Breakfast & Beverages': ['Power', 'Capacity', 'Wattage'],
+  'default':                    ['Power', 'Capacity', 'Type', 'Wattage', 'Power Supply'],
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

@@ -7,6 +7,7 @@ import {
   uploadBrandImage, updateProductImages, fetchAndUploadOrSaveUrl,
   calcAllPlans, roundUp500, fmtPKR, CATEGORY_MAP,
   processCSVImport, reenrichAllProducts, rematchAllImages, getDataAudit, scanBucket, fixAllCategories,
+  rebalanceCategories, getCategoryCounts, CAT_MIN, CAT_MAX,
   composeImages, decomposeImages, logAdminAction, getAuditLog, clearAuditLog,
   type ImportSummary, type CsvImportRow, type Product, type AuditProduct, type BucketScanResult,
   type ProductGalleryImage, type AuditLogEntry,
@@ -2530,6 +2531,10 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
   const [auditLoading,   setAuditLoading]   = useState(false);
   const [fixingId,       setFixingId]       = useState<string | null>(null);
   const [confirmBulk,    setConfirmBulk]    = useState<null | { title: string; message: string; action: () => void }>(null);
+  const [rebalProgress,  setRebalProgress]  = useState('');
+  const [rebalResult,    setRebalResult]    = useState<{ updated: number; unchanged: number; byCategory: Record<string, number>; errors: string[] } | null>(null);
+  const [catCounts,      setCatCounts]      = useState<Record<string, number> | null>(null);
+  const [catCountsLoading, setCatCountsLoading] = useState(false);
 
   const unenrichedIds = products.filter(p => !p.simplified_name?.trim()).map(p => p.id);
 
@@ -2545,7 +2550,7 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
     return `${selectedIds.size} selected product${selectedIds.size !== 1 ? 's' : ''}`;
   }
 
-  function isBusy() { return !!enrichProgress || !!imageProgress || !!catProgress; }
+  function isBusy() { return !!enrichProgress || !!imageProgress || !!catProgress || !!rebalProgress; }
 
   async function loadAudit() {
     setAuditLoading(true);
@@ -2591,6 +2596,22 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
     const r = await scanBucket();
     setScanResult(r); setScanLoading(false);
   }
+
+  async function loadCatCounts() {
+    setCatCountsLoading(true);
+    setCatCounts(await getCategoryCounts());
+    setCatCountsLoading(false);
+  }
+
+  async function handleRebalance() {
+    setRebalResult(null); setAllResult(null);
+    const r = await rebalanceCategories(setRebalProgress, getScopeIds());
+    setRebalResult(r);
+    await loadCatCounts();
+    onRefresh(); loadAudit();
+  }
+
+  useEffect(() => { loadCatCounts(); }, []);
 
   const counts = audit ? Object.fromEntries(
     ['Image','Name','Desc','Warranty','Tags','SEO'].map(k => [k, audit.filter(p => p.missing.includes(k)).length])
@@ -2684,6 +2705,33 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
             )}
           </div>
 
+            {/* Rebalance Categories */}
+          <div className="border border-orange-100 rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 bg-orange-50 rounded-lg flex items-center justify-center">
+                <Filter className="w-3.5 h-3.5 text-orange-500" />
+              </div>
+              <span className="font-semibold text-gray-800 text-sm">Rebalance Categories</span>
+            </div>
+            <p className="text-xs text-gray-400">
+              Splits oversized categories and fixes miscategorized products so every category stays within {CAT_MIN}–{CAT_MAX} products.
+              Runs automatically based on tonnage, size, and product type.
+            </p>
+            <button
+              onClick={() => setConfirmBulk({ title: 'Rebalance Categories?', message: `Apply subcategory rules (tonnage, size, type) to ${getScopeLabel()}. This will move products between categories automatically.`, action: handleRebalance })}
+              disabled={isBusy() || !!rebalProgress || scopeEmpty}
+              className="w-full flex items-center justify-center gap-1.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white py-2 rounded-lg text-xs font-bold">
+              {rebalProgress
+                ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /><span className="truncate max-w-[140px]">{rebalProgress}</span></>
+                : <><Filter className="w-3.5 h-3.5" />Rebalance Categories</>}
+            </button>
+            {rebalResult && (
+              <p className={`text-xs font-medium ${rebalResult.errors.length ? 'text-amber-600' : 'text-green-600'}`}>
+                {rebalResult.updated} moved · {rebalResult.unchanged} ok{rebalResult.errors.length ? ` · ${rebalResult.errors.length} errors` : ' ✓'}
+              </p>
+            )}
+          </div>
+
           {/* Match Images */}
           <div className="border border-gray-100 rounded-xl p-4 space-y-3">
             <div className="flex items-center gap-2">
@@ -2721,6 +2769,39 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
             {scanLoading ? <><Loader2 className="w-4 h-4 animate-spin" />Scanning…</> : <><RefreshCw className="w-4 h-4" />Scan Bucket</>}
           </button>
           {allResult && <p className="text-sm font-medium text-green-600">{allResult} ✓</p>}
+        </div>
+
+        {/* Category Size Monitor */}
+        <div className="border border-gray-100 rounded-xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
+            <span className="text-sm font-semibold text-gray-700">Category Sizes (target: {CAT_MIN}–{CAT_MAX} products)</span>
+            <button onClick={loadCatCounts} disabled={catCountsLoading}
+              className="flex items-center gap-1 text-xs text-gray-500 hover:text-orange-500">
+              {catCountsLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+              Refresh
+            </button>
+          </div>
+          {catCounts ? (
+            <div className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
+              {Object.entries(catCounts)
+                .sort((a, b) => b[1] - a[1])
+                .map(([cat, n]) => {
+                  const over  = n > CAT_MAX;
+                  const under = n < CAT_MIN;
+                  return (
+                    <div key={cat} className={`flex items-center gap-3 px-4 py-2 text-xs ${over ? 'bg-red-50' : under ? 'bg-amber-50' : ''}`}>
+                      <span className={`w-8 text-right font-bold tabular-nums ${over ? 'text-red-600' : under ? 'text-amber-600' : 'text-gray-700'}`}>{n}</span>
+                      <span className="flex-1 text-gray-700">{cat}</span>
+                      {over  && <span className="text-red-500 font-semibold">↑ over</span>}
+                      {under && <span className="text-amber-500 font-semibold">↓ under</span>}
+                      {!over && !under && <span className="text-green-500">✓</span>}
+                    </div>
+                  );
+                })}
+            </div>
+          ) : (
+            <div className="px-4 py-3 text-xs text-gray-400">Loading…</div>
+          )}
         </div>
 
         {/* Scan result */}
