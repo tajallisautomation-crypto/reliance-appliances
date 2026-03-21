@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useDeferredValue, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useDeferredValue, useCallback } from 'react';
 import { signIn, signUp, resetPasswordForEmail, updatePassword } from '@/lib/auth';
 import { useAuthStore } from '@/store/authStore';
 import { supabase } from '@/lib/supabase';
@@ -44,7 +44,7 @@ function ConfirmDialog({
   title, message, confirmLabel = 'Confirm', danger = false,
   onConfirm, onCancel,
 }: {
-  title: string; message: string; confirmLabel?: string; danger?: boolean;
+  title: string; message: React.ReactNode; confirmLabel?: string; danger?: boolean;
   onConfirm: () => void; onCancel: () => void;
 }) {
   return (
@@ -54,7 +54,7 @@ function ConfirmDialog({
           <AlertTriangle className={`w-6 h-6 mt-0.5 shrink-0 ${danger ? 'text-red-500' : 'text-amber-500'}`} />
           <div>
             <h3 className="font-bold text-gray-900">{title}</h3>
-            <p className="text-sm text-gray-500 mt-1 whitespace-pre-line">{message}</p>
+            <div className="text-sm text-gray-500 mt-1 whitespace-pre-line">{message}</div>
           </div>
         </div>
         <div className="flex gap-3 justify-end pt-1">
@@ -974,7 +974,8 @@ function ImagesTab({ products, onRefresh }: { products: Product[]; onRefresh: ()
   const [missingOnly, setMissingOnly]     = useState(false);
   const [quickImg, setQuickImg]           = useState<Product | null>(null);
   const [rematching, setRematching]       = useState(false);
-  const [rematchResult, setRematchResult] = useState<{ found: number; missing: number } | null>(null);
+  const [rematchResult, setRematchResult] = useState<{ found: number; missing: number; cleared: number } | null>(null);
+  const [clearUnmatched, setClearUnmatched] = useState(false);
   const [fixQueueOpen, setFixQueueOpen]   = useState(false);
   const [confirmRematch, setConfirmRematch] = useState(false);
 
@@ -993,7 +994,7 @@ function ImagesTab({ products, onRefresh }: { products: Product[]; onRefresh: ()
 
   async function handleRematch() {
     setRematching(true); setRematchResult(null);
-    const r = await rematchAllImages(() => {});
+    const r = await rematchAllImages(() => {}, undefined, { clearUnmatched });
     setRematchResult(r); setRematching(false); onRefresh();
   }
 
@@ -1043,6 +1044,7 @@ function ImagesTab({ products, onRefresh }: { products: Product[]; onRefresh: ()
       {rematchResult && (
         <p className={`text-sm font-medium ${rematchResult.missing > 0 ? 'text-amber-600' : 'text-green-600'}`}>
           Re-match done: {rematchResult.found} matched · {rematchResult.missing} still missing
+          {rematchResult.cleared > 0 && ` · ${rematchResult.cleared} stock images cleared`}
         </p>
       )}
 
@@ -1121,7 +1123,15 @@ function ImagesTab({ products, onRefresh }: { products: Product[]; onRefresh: ()
       {confirmRematch && (
         <ConfirmDialog
           title="Auto Re-match All Images?"
-          message="This will scan the storage bucket and update thumbnail/gallery URLs for every product."
+          message={
+            <div className="space-y-3">
+              <p>This will scan the storage bucket and update thumbnail/gallery URLs for every product.</p>
+              <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                <input type="checkbox" checked={clearUnmatched} onChange={e => setClearUnmatched(e.target.checked)} className="accent-orange-500" />
+                <span>Also clear stock/wrong images for products with no Storage match</span>
+              </label>
+            </div>
+          }
           confirmLabel="Yes, Re-match"
           onConfirm={() => { setConfirmRematch(false); handleRematch(); }}
           onCancel={() => setConfirmRematch(false)}
@@ -2482,7 +2492,7 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
   const [enrichProgress, setEnrichProgress] = useState('');
   const [enrichResult,   setEnrichResult]   = useState<{ done: number; errors: string[] } | null>(null);
   const [imageProgress,  setImageProgress]  = useState('');
-  const [imageResult,    setImageResult]    = useState<{ found: number; missing: number; errors: string[] } | null>(null);
+  const [imageResult,    setImageResult]    = useState<{ found: number; missing: number; cleared: number; errors: string[] } | null>(null);
   const [catProgress,    setCatProgress]    = useState('');
   const [catResult,      setCatResult]      = useState<{ fixed: number; skipped: number; errors: string[] } | null>(null);
   const [allResult,      setAllResult]      = useState<string | null>(null);
@@ -2663,7 +2673,7 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
             </button>
             {imageResult && (
               <p className={`text-xs font-medium ${imageResult.missing > 0 ? 'text-amber-600' : 'text-green-600'}`}>
-                {imageResult.found} matched · {imageResult.missing} missing{imageResult.errors.length ? ` · ${imageResult.errors.length} err` : ''}
+                {imageResult.found} matched · {imageResult.missing} missing{imageResult.cleared > 0 ? ` · ${imageResult.cleared} cleared` : ''}{imageResult.errors.length ? ` · ${imageResult.errors.length} err` : ''}
               </p>
             )}
           </div>

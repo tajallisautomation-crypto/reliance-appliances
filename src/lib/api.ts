@@ -1158,12 +1158,14 @@ function _wmType(model: string, category: string): _WMType {
   if (label === 'Semi-Automatic')  return 'semi_auto';
 
   // Step 2: model codes — only use for unambiguous structural indicators
-  // DWF/WDF/HWD = drum front-loader, DWT/WDT = drum top-loader, TWIN = twin-tub
-  // HWM alone gives no type info — Haier uses HWM for both automatic and semi models
   const m = (model || '').toUpperCase();
   if (/\bDWF\b|\bWDF\b|\bHWD\b/.test(m)) return 'front_load';
   if (/\bDWT\b|\bWDT\b/.test(m))          return 'top_load';
   if (/\bTWIN\b/.test(m))                  return 'twin_tub';
+  // Dawlance DW (semi-auto twin-tub) and DS (spinner), Haier HD (front-load)
+  if (/\bDW[- ]?\d{4}/.test(m))           return 'twin_tub';
+  if (/\bDS[- ]?\d/.test(m))              return 'semi_auto';
+  if (/\bHD[- ]?\d{2}/.test(m))          return 'front_load';
 
   // Type cannot be determined — return generic so we publish nothing false
   return 'generic';
@@ -1178,9 +1180,13 @@ function _wmSubLabel(model: string, category: string): string {
   if (label === 'Twin Tub')        return 'Semi-Automatic';
   if (label === 'Semi-Automatic')  return 'Semi-Automatic';
   const m = model.toUpperCase();
-  // Dawlance DWT = top-load drum, DWF = front-load drum
-  if (/\bDWT\b|\bDWT-/.test(m)) return 'Top-Load Fully Automatic';
-  if (/\bDWF\b|\bDWF-/.test(m)) return 'Front-Load Fully Automatic';
+  // Dawlance model series detection
+  if (/\bDWF\b|\bDWF-/.test(m))  return 'Front-Load Fully Automatic';
+  if (/\bDWT\b|\bDWT-/.test(m))  return 'Top-Load Fully Automatic';
+  if (/\bDS[- ]?\d/.test(m))     return 'Spinner (Semi-Automatic)';
+  if (/\bDW[- ]?\d{4}/.test(m))  return 'Twin Tub — Semi-Automatic';
+  // Haier HD = front-load automatic
+  if (/\bHD[- ]?\d{2}/.test(m))  return 'Front-Load Fully Automatic';
   // Haier HWM series detection from model suffix (model suffix after the kg digits)
   if (/\bHWM\b/.test(m)) {
     // Semi-automatic series: 1217 (twin-tub), 35 FF (twin-tub)
@@ -1296,12 +1302,41 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
   // ── Washing Machines ──
   else if (cc === 'washing_machine') {
     const wt = _wmType(model, category);
-    // Capacity: HWM series encodes kg×10 (HWM 120 = 12 kg, HWM-120-826S6 = 12 kg)
-    // [\s-]? allows optional space or hyphen between "HWM" and the digits
+    // ── Capacity extraction ──────────────────────────────────────────────────
+    // Haier HWM: HWM-120-xxx → 120/10 = 12 kg; HWM-75-AS → 7.5 kg
     const hwmM = m.match(/\bHWM[\s-]?(\d{2,3})[-\s]/);
-    const kgRaw = hwmM
-      ? parseInt(hwmM[1]) / 10
-      : (() => { const ex = m.match(/(\d{2,3})\s*KG/); return ex ? parseInt(ex[1]) : 0; })();
+    // Haier HD front-load/dryer: HD-60-50 → 6 kg, HD-80-60 → 8 kg
+    const hdM  = !hwmM && m.match(/\bHD[- ]?(\d{2})[- ]/);
+    // Dawlance DWF front-load: DWF-7120 → 7 kg, DWF-8200 → 8 kg
+    const dwfM = !hwmM && !hdM && m.match(/\bDWF[- ]?(\d)/);
+    // Dawlance DW semi-auto: DW-7500 → 7500/1000 = 7.5 kg, DW-9100 → 9 kg
+    const dwM  = !hwmM && !hdM && !dwfM && m.match(/\bDW[- ]?(\d{4,5})\b/);
+    // Dawlance DS spinner: DS-9000 → 9 kg, DS-6000 → 6 kg
+    const dsM  = !hwmM && !hdM && !dwfM && !dwM && m.match(/\bDS[- ]?(\d)/);
+    // Dawlance DWT top-load (complex numbering — heuristic based on known lineup):
+    // DWT-1775 → 7.5 kg; DWT-1166/AWM-1165 → 6 kg; most DWT → 7 kg
+    const dwtM = !hwmM && !hdM && !dwfM && !dwM && !dsM && m.match(/\b(?:AWM[- ])?DWT[- ]?(\d+)/);
+
+    let kgRaw: number = 0;
+    if (hwmM) {
+      kgRaw = parseInt(hwmM[1]) / 10;
+    } else if (hdM) {
+      kgRaw = parseInt(hdM[1]) / 10;
+    } else if (dwfM) {
+      kgRaw = parseInt(dwfM[1]);
+    } else if (dwM) {
+      kgRaw = parseInt(dwM[1]) / 1000;
+    } else if (dsM) {
+      kgRaw = parseInt(dsM[1]);
+    } else if (dwtM) {
+      const d = dwtM[1];
+      if (/75/.test(d))                                            kgRaw = 7.5;
+      else if (/^1166/.test(d) || /^1165/.test(d) || d === '260') kgRaw = 6;
+      else                                                          kgRaw = 7; // most DWT models are 7 kg
+    } else {
+      const ex = m.match(/(\d{2,3})\s*KG/);
+      if (ex) kgRaw = parseInt(ex[1]);
+    }
     if (kgRaw) {
       specs['Capacity'] = kgRaw + ' kg';
       specs['Cloth Capacity'] = kgRaw + ' kg dry laundry per cycle';
@@ -2748,14 +2783,17 @@ export async function reenrichAllProducts(
   return result;
 }
 
-/** Scans Supabase Storage and writes thumbnail_url / gallery_urls for every product. */
+/** Scans Supabase Storage and writes thumbnail_url / gallery_urls for every product.
+ *  opts.clearUnmatched: when true, also nulls out thumbnail_url/gallery_urls for
+ *  products where no image is found in Storage (removes wrong/stock images). */
 export async function rematchAllImages(
   onProgress: (msg: string) => void,
-  ids?: string[]
-): Promise<{ found: number; missing: number; errors: string[] }> {
-  const result = { found: 0, missing: 0, errors: [] as string[] };
+  ids?: string[],
+  opts: { clearUnmatched?: boolean } = {}
+): Promise<{ found: number; missing: number; cleared: number; errors: string[] }> {
+  const result = { found: 0, missing: 0, cleared: 0, errors: [] as string[] };
   onProgress('Loading products…');
-  let q = supabase.from('products').select('id, brand, model');
+  let q = supabase.from('products').select('id, brand, model, thumbnail_url');
   if (ids?.length) q = q.in('id', ids);
   const { data, error } = await q;
   if (error) { result.errors.push(error.message); onProgress(''); return result; }
@@ -2777,6 +2815,12 @@ export async function rematchAllImages(
           result.found++;
         } else {
           result.missing++;
+          // Clear any existing stock/wrong image if clearUnmatched is set
+          if (opts.clearUnmatched && r.thumbnail_url) {
+            const { error: e } = await supabase.from('products').update({ thumbnail_url: null, gallery_urls: [] }).eq('id', r.id);
+            if (e) throw e;
+            result.cleared++;
+          }
         }
       } catch (e: any) { result.errors.push(`${r.brand} ${r.model}: ${e.message}`); }
     }));

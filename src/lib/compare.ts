@@ -15,7 +15,7 @@ export interface SpecField {
 
 export const SPEC_SCHEMA: Record<string, SpecField[]> = {
   'Air Conditioners': [
-    { key: 'Capacity',           label: 'Capacity (Ton)'                                          },
+    { key: 'Tonnage',            label: 'Capacity (Ton)'                                          },
     { key: 'Cooling Capacity',   label: 'Cooling Capacity',   unit: 'BTU',  highlight: 'max'      },
     { key: 'Power Consumption',  label: 'Power Consumption',  unit: 'W',    highlight: 'min'      },
     { key: 'Inverter',           label: 'Inverter Technology'                                      },
@@ -28,7 +28,7 @@ export const SPEC_SCHEMA: Record<string, SpecField[]> = {
     { key: 'Noise Level',        label: 'Noise Level',        unit: 'dB',   highlight: 'min'      },
     { key: 'Heating',            label: 'Heating Mode'                                            },
     { key: 'Auto Restart',       label: 'Auto Restart'                                            },
-    { key: 'Turbo Mode',         label: 'Turbo / Fast Cool'                                       },
+    { key: 'Turbo Cool',         label: 'Turbo / Fast Cool'                                       },
     { key: 'Sleep Mode',         label: 'Sleep Mode'                                              },
     { key: 'Self Cleaning',      label: 'Self Cleaning'                                           },
     { key: 'Air Purifier',       label: 'Air Purification'                                        },
