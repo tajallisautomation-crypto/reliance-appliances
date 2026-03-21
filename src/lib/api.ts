@@ -1089,11 +1089,43 @@ const _CATEGORY_RULES: _CatRule[] = [
 // and similar brands sometimes populate with a description like "DRY IRON DWDI 1020").
 const _GENERIC_CATS = new Set(['small appliances', 'kitchen appliances', 'gas appliances', 'home appliances']);
 
+// Dawlance small-appliance model prefix → canonical category.
+// Dawlance encodes the product type in the two letters after "DW" (e.g. DWAF = Air Fryer).
+// This table is used when the CSV category is the generic "Small Appliances".
+const _DW_PREFIX_MAP: Record<string, string> = {
+  DWAF: 'air_fryer',       // Air Fryer
+  DWBL: 'blender',         // Blender
+  DWCM: 'kettle',          // Coffee Machine (hot beverages)
+  DWCP: 'chopper',         // Chopper
+  DWCS: 'steamer',         // Clothes/Garment Steamer
+  DWDI: 'iron',            // Dry Iron
+  DWEK: 'kettle',          // Electric Kettle
+  DWFP: 'food_processor',  // Food Processor
+  DWGS: 'steamer',         // Garment Steamer
+  DWHB: 'hand_blender',    // Hand Blender
+  DWHD: 'hair_dryer',      // Hair Dryer
+  DWHJ: 'juicer',          // Hand Juicer
+  DWHP: 'water_heater',    // Water Heating Product (geyser)
+  DWHS: 'hair_straightener',// Hair Straightener
+  DWMX: 'blender',         // Mixer
+  DWRM: 'heater',          // Room heater
+  DWSI: 'iron',            // Steam Iron
+  DWSM: 'sandwich_maker',  // Sandwich Maker
+  DWTB: 'toaster',         // Toaster/Bread Toaster
+  DWVF: 'vacuum',          // Vacuum cleaner
+};
+
 export function resolveCanonicalCategory(brand: string, model: string, category: string): string {
   const cat = category.toLowerCase().trim();
   const m   = model.toUpperCase().trim();
   const ml  = model.toLowerCase().trim();
   const b   = brand.toLowerCase().trim();
+
+  // Dawlance DW** prefix dispatch for generic "Small Appliances" CSV category
+  if (b === 'dawlance' && _GENERIC_CATS.has(cat)) {
+    const prefix = m.match(/\b(DW[A-Z]{2})\b/)?.[1];
+    if (prefix && _DW_PREFIX_MAP[prefix]) return _DW_PREFIX_MAP[prefix];
+  }
 
   for (const rule of _CATEGORY_RULES) {
     if (rule.forbid?.some(f => cat.includes(f))) continue;
