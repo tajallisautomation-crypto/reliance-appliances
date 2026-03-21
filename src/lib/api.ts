@@ -991,7 +991,8 @@ const _CATEGORY_RULES: _CatRule[] = [
   { id: 'air_purifier',      keywords: ['air purif', 'purifier', 'air cleaner'] },
   { id: 'microwave',         keywords: ['microwave'] },
   { id: 'oven',              keywords: ['baking oven', 'electric oven', 'convection oven', 'toaster oven', 'rotisserie oven'], forbid: ['microwave'] },
-  { id: 'kettle',            keywords: ['kettle'] },
+  { id: 'kettle',            keywords: ['kettle'],
+    modelRx: /^(?:DWEK|WF-\d{4}K)[\s-]?\d/i },
   { id: 'toaster',           keywords: ['bread toast', 'pop-up toast', 'slice toaster'] },
   { id: 'sandwich_maker',    keywords: ['sandwich maker', 'sandwich grill', 'waffle maker', 'panini press', 'grill maker'], forbid: ['washing', 'dispenser'] },
   { id: 'hand_blender',      keywords: ['hand blend', 'immersion blend', 'stick blend', 'hand blender'] },
@@ -1001,16 +1002,20 @@ const _CATEGORY_RULES: _CatRule[] = [
   { id: 'chopper',           keywords: ['chopper', 'mini chopper', 'vegetable chopper', 'food chopper'] },
   { id: 'rice_cooker',       keywords: ['rice cook', 'rice cooker'] },
   { id: 'induction',         keywords: ['induction cook', 'induction cooker', 'induction hob'] },
-  { id: 'iron',              keywords: ['steam iron', 'dry iron', 'electric iron', 'garment press', 'travel iron', 'cordless iron'], forbid: ['hair', 'curl', 'straighten', 'crimp', 'cast'] },
-  { id: 'steamer',           keywords: ['garment steamer', 'clothes steamer', 'steam generator', 'handheld steamer'] },
-  { id: 'hair_dryer',        keywords: ['hair dryer', 'hair drier', 'blow dryer', 'hair dry'] },
+  { id: 'iron',              keywords: ['steam iron', 'dry iron', 'electric iron', 'garment press', 'travel iron', 'cordless iron'],
+    modelRx: /^(?:DWDI|DWSI|DWCI|DWII|DWPI)[\s-]?\d/i,
+    forbid: ['hair', 'curl', 'straighten', 'crimp', 'cast'] },
+  { id: 'steamer',           keywords: ['garment steamer', 'clothes steamer', 'steam generator', 'handheld steamer'],
+    modelRx: /^(?:DWGS|DWCS|DWSS)[\s-]?\d/i },
+  { id: 'hair_dryer',        keywords: ['hair dryer', 'hair drier', 'blow dryer', 'hair dry'],
+    modelRx: /^(?:DWHD|DWBD|DWHB)[\s-]?\d/i },
   { id: 'hair_straightener', keywords: ['hair straightener', 'straightener', 'hair straight', 'flat iron', 'hair iron'] },
   { id: 'hair_crimper',      keywords: ['crimper', 'hair crimper'] },
   { id: 'curling_iron',      keywords: ['curling iron', 'curling wand', 'hair curler', 'curl iron'] },
   { id: 'vacuum',            keywords: ['vacuum cleaner', 'vacuum', 'vacum'] },
   { id: 'water_dispenser',   keywords: ['water dispenser', 'water cooler dispenser', 'water cooler and dispenser', 'hot and cold dispenser'] },
   { id: 'water_heater',      keywords: ['water heater', 'geyser', 'instant water'],
-    modelRx: /^(?:DWHP|SGW|IWH|SWH|EWH)\d/i },
+    modelRx: /^(?:DWHP|SGW|IWH|SWH|EWH)[\s-]?\d/i },
   { id: 'heater',            keywords: ['room heater', 'oil heater', 'fan heater', 'electric heater', 'oil filled heater', 'halogen heater', 'convector heater'] },
   { id: 'fan',               keywords: ['pedestal fan', 'wall fan', 'table fan', 'ceiling fan', 'stand fan', 'bracket fan'], forbid: ['heater', 'microwave', 'cooler'] },
   { id: 'chimney',           keywords: ['kitchen chimney', 'exhaust hood', 'kitchen hood', 'range hood'] },
@@ -1079,14 +1084,24 @@ const _CATEGORY_RULES: _CatRule[] = [
     keywords: ['master bed', 'metal bed', 'bunker bed', 'double bed', 'single bed', 'bed frame'] },
 ];
 
+// CSV categories that are too broad to identify a product type on their own.
+// For these, keywords are also matched against the model string (which Dawlance
+// and similar brands sometimes populate with a description like "DRY IRON DWDI 1020").
+const _GENERIC_CATS = new Set(['small appliances', 'kitchen appliances', 'gas appliances', 'home appliances']);
+
 export function resolveCanonicalCategory(brand: string, model: string, category: string): string {
   const cat = category.toLowerCase().trim();
   const m   = model.toUpperCase().trim();
+  const ml  = model.toLowerCase().trim();
   const b   = brand.toLowerCase().trim();
 
   for (const rule of _CATEGORY_RULES) {
     if (rule.forbid?.some(f => cat.includes(f))) continue;
     if (rule.keywords.some(kw => cat.includes(kw))) return rule.id;
+    // For generic CSV categories, also try keyword match against the model/name field
+    if (_GENERIC_CATS.has(cat) && rule.keywords.some(kw => ml.includes(kw))) {
+      if (!rule.forbid?.some(f => ml.includes(f))) return rule.id;
+    }
     // Model-pattern fallback (major appliances only)
     if (rule.modelRx && rule.modelRx.test(m)) {
       // AC model patterns only fire if brand is known AC manufacturer
