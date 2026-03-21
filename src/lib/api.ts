@@ -2,6 +2,7 @@
 // Supabase-native. No GAS, no Sheets.
 
 import { supabase } from './supabase';
+import { getActivePlanRatios as _getActivePlanRatios } from './plans';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -42,19 +43,16 @@ export interface InstallmentPlan {
   advancePct: number; monthlyPayments: number;
 }
 
-const PLAN_CONFIG: Record<string, { markup: number; advancePct: number; months: number; installments: number }> = {
-  '2m':  { markup: 0.10, advancePct: 0.50, months: 2,  installments: 1  },
-  '3m':  { markup: 0.15, advancePct: 0.45, months: 3,  installments: 2  },
-  '6m':  { markup: 0.25, advancePct: 0.40, months: 6,  installments: 5  },
-  '12m': { markup: 0.40, advancePct: 0.30, months: 12, installments: 11 },
-};
+// Plan months lookup (structural — does not change with rates)
+const _PLAN_MONTHS: Record<string, number> = { '2m': 2, '3m': 3, '6m': 6, '12m': 12 };
 
 export function calcPlan(basePrice: number, key: string): InstallmentPlan {
-  const c = PLAN_CONFIG[key]; if (!c) throw new Error('Unknown plan: ' + key);
-  const total   = roundTo100(basePrice * (1 + c.markup));
-  const advance = roundTo100(total * c.advancePct);
-  const monthly = roundTo100((total - advance) / c.installments);
-  return { months: c.months, total, advance, monthly, advancePct: c.advancePct, monthlyPayments: c.installments };
+  const ratios = _getActivePlanRatios();            // live rates from settingsStore / Supabase
+  const c = ratios[key as keyof typeof ratios]; if (!c) throw new Error('Unknown plan: ' + key);
+  const total   = roundTo100(basePrice * c.markup); // markup is a multiplier e.g. 1.15
+  const advance = roundTo100(total * c.advRatio);
+  const monthly = roundTo100((total - advance) / (c.installments || 1));
+  return { months: _PLAN_MONTHS[key] ?? 0, total, advance, monthly, advancePct: c.advRatio, monthlyPayments: c.installments };
 }
 
 export function calcAllPlans(basePrice: number, canonicalCategory?: string): Record<string, InstallmentPlan> {

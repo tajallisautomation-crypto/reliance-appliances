@@ -113,8 +113,8 @@ const SPEC_HIGHLIGHTS = {
   'Refrigerators':    ['Capacity', 'Defrost', 'Cooling System', 'Inverter', 'defrost_type'],
   'Freezer':          ['Capacity', 'Defrost', 'Inverter'],
   'Washing Machines': ['Capacity', 'Type', 'Inverter', 'Spin Speed'],
-  'Air Conditioners': ['Capacity', 'Inverter', 'Energy Rating', 'BTU'],
-  'Commercial AC':    ['Capacity', 'Inverter', 'BTU'],
+  'Air Conditioners': ['Tonnage', 'Capacity', 'Inverter', 'Energy Rating', 'BTU'],
+  'Commercial AC':    ['Tonnage', 'Capacity', 'Inverter', 'BTU'],
   'Televisions':      ['Screen Size', 'Resolution', 'Smart TV', 'Panel Type'],
   'Water Dispensers': ['Type', 'Cooling', 'Heating'],
   'default':          ['Power', 'Capacity', 'Type', 'Wattage', 'Power Supply'],
@@ -225,7 +225,7 @@ export default async function handler(req, res) {
 
   const { data: products, error } = await supabase
     .from('products')
-    .select('id, brand, model, simplified_name, category, description, retail_price, cash_floor, thumbnail_url, gallery_urls, specs, tags, adv_2m, monthly_2m, adv_3m, monthly_3m, adv_6m, monthly_6m, adv_12m, monthly_12m')
+    .select('id, slug, brand, model, simplified_name, category, description, retail_price, cash_floor, thumbnail_url, gallery_urls, specs, tags, adv_2m, monthly_2m, adv_3m, monthly_3m, adv_6m, monthly_6m, adv_12m, monthly_12m')
     .gt('retail_price', 0)           // exclude zero-price / unpublished products
     .order('category',       { ascending: true })
     .order('brand',          { ascending: true })
@@ -273,7 +273,7 @@ export default async function handler(req, res) {
       'in stock',
       'new',
       price,
-      `${SITE_URL}/products/${p.id}`,
+      `${SITE_URL}/products/${p.slug || p.id}`,
       p.thumbnail_url,
       extraImgs,
       p.brand || '',

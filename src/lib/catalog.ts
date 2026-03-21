@@ -259,7 +259,7 @@ export function buildCatalogItem(p: Product): CatalogItem {
     additional_image_link:    extraImages,
     brand:                    p.brand,
     google_product_category:  getGoogleCategory(p.category),
-    custom_label_0:           getWACategory(p),
+    custom_label_0:           p.category || '',   // plain DB category — matches meta-catalog.js and meta-sets-sync.js filters
     custom_label_1:           p.brand,
     custom_label_2:           installmentTier(p),
     custom_label_3:           warrantyTier(p.warranty),

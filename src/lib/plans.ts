@@ -20,6 +20,7 @@ let _activeRatios: PlanRatioMap = { ..._DEFAULT_PLANS };
 /** Called by settingsStore.load() to apply live plan rates from Supabase. */
 export function setActivePlanRatios(r: PlanRatioMap) { _activeRatios = r; }
 
+export function getActivePlanRatios(): PlanRatioMap  { return _activeRatios; }
 export function getDefaultPlanRatios(): PlanRatioMap { return _DEFAULT_PLANS; }
 
 /** Round to nearest 100 PKR */
