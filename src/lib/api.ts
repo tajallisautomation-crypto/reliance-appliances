@@ -1019,7 +1019,8 @@ const _CATEGORY_RULES: _CatRule[] = [
   { id: 'air_conditioner',
     keywords: ['air conditioner', 'air conditioning', 'split ac', 'inverter ac', 'window ac', 'portable ac', 'cassette ac', 'dc inverter',
                'floor standing', 'floor stand', 'cassette unit', 'duct ac', 'ducted ac', 'concealed ac',
-               'charmo', 'pular', 'lomo', 'fairy', 'clivia', 'u-crown', 'u crown', 'bora'],
+               'charmo', 'pular', 'lomo', 'fairy', 'clivia', 'u-crown', 'u crown', 'bora',
+               'splits'],   // Dawlance CSV uses "Splits" as the category name
     modelRx: /^(?:HSU|HPU|GS-?|GF-?|GEA|PAC-?|OSA|OWS|WSA|KWA?|KE-|ON-|DC-|RAS|SAC)\d{2}/i },
   // Deep freezer — checked BEFORE refrigerator so 'chest freezer' / 'deep freezer' don't fall to refrigerator
   { id: 'deep_freezer',
@@ -3008,7 +3009,7 @@ function _computeProductCategory(p: { brand?: string | null; model?: string | nu
   const specs = p.specs || {};
 
   const MISCAT_AC = ['duke', 'ario t3', 'emperor', 'nova t3', 'prince t3',
-                     'floor standing', 'commercial ac', 'cool only'];
+                     'floor standing', 'commercial ac', 'cool only', 'splits'];
   const isMiscatAC = MISCAT_AC.includes(cat) || (cat === 'televisions' && brand === 'gree');
   const isUSBWasher = cat === 'usb' && brand === 'ecostar';
 
