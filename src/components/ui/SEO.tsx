@@ -18,8 +18,8 @@ const ORG_SCHEMA = {
   name: COMPANY,
   alternateName: 'Reliance',
   url: SITE_URL,
-  logo: `${SITE_URL}/logo.png`,
-  image: `${SITE_URL}/og-image.jpg`,
+  logo: `${SITE_URL}/favicon.svg`,
+  image: `${SITE_URL}/og-image.svg`,
   telephone: '+923702578788',
   priceRange: '₨₨',
   currenciesAccepted: 'PKR',
@@ -63,7 +63,7 @@ export default function SEO({ title, description, keywords, path = '/', ogImage,
   const fullTitle  = title ? `${title} | ${COMPANY}` : `${COMPANY} — Premium Home Appliances ${CITY}`;
   const desc       = description || `Pakistan's trusted home appliance store. Premium ACs, Refrigerators, Solar & more on easy installments. Serving 14,000+ households in ${CITY} since 2015.`;
   const canonical  = `${SITE_URL}${path}`;
-  const image      = ogImage || `${SITE_URL}/og-image.jpg`;
+  const image      = ogImage || `${SITE_URL}/og-image.svg`;
 
   return (
     <Helmet>
