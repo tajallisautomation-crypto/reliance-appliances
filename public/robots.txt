@@ -1,7 +1,9 @@
 User-agent: *
 Allow: /
 Disallow: /portal
+Disallow: /admin
 Disallow: /checkout
 Disallow: /cart
 
-Sitemap: https://relianceappliances.pk/sitemap.xml
+# Sitemap
+Sitemap: https://reliance.tajallis.com.pk/api/sitemap.xml

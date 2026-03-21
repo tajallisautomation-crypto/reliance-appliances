@@ -90,7 +90,10 @@ export default function ProductDetail() {
     `Hi, I'm interested in the ${p.brand} ${p.simplified_name || p.model} and would like to book a free consultation.`
   );
 
-  // Product structured data
+  const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://reliance.tajallis.com.pk';
+  const catSlug  = p.category.toLowerCase().replace(/\s+/g, '-');
+
+  // Product structured data — includes MPN, SKU, and spec-based additionalProperty
   const productSchema = {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -98,7 +101,13 @@ export default function ProductDetail() {
     description: p.description,
     brand: { '@type': 'Brand', name: p.brand },
     model: p.model,
+    sku: p.model,
+    mpn: p.model,
     image: allImages.filter(Boolean),
+    url: `${SITE_URL}/products/${p.slug}`,
+    additionalProperty: Object.entries(p.specs || {}).map(([name, value]) => ({
+      '@type': 'PropertyValue', name, value,
+    })),
     offers: {
       '@type': 'Offer',
       price: p.price.cash_floor,
@@ -106,8 +115,28 @@ export default function ProductDetail() {
       availability: p.stock_status === 'In Stock'
         ? 'https://schema.org/InStock'
         : 'https://schema.org/OutOfStock',
-      seller: { '@type': 'Organization', name: 'Reliance Appliances' },
+      url: `${SITE_URL}/products/${p.slug}`,
+      seller: { '@type': 'Organization', name: 'Reliance Appliances', url: SITE_URL },
+      priceValidUntil: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+      hasMerchantReturnPolicy: {
+        '@type': 'MerchantReturnPolicy',
+        returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+        merchantReturnDays: 7,
+        returnMethod: 'https://schema.org/ReturnInStore',
+      },
     },
+  };
+
+  // BreadcrumbList schema
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home',     item: SITE_URL },
+      { '@type': 'ListItem', position: 2, name: 'Products', item: `${SITE_URL}/products` },
+      { '@type': 'ListItem', position: 3, name: p.category, item: `${SITE_URL}/products/category/${catSlug}` },
+      { '@type': 'ListItem', position: 4, name: p.simplified_name || p.model },
+    ],
   };
 
   const TABS: { key: TabKey; label: string }[] = [
@@ -125,6 +154,7 @@ export default function ProductDetail() {
 
       <Helmet>
         <script type="application/ld+json">{JSON.stringify(productSchema)}</script>
+        <script type="application/ld+json">{JSON.stringify(breadcrumbSchema)}</script>
       </Helmet>
 
       {/* Breadcrumb */}

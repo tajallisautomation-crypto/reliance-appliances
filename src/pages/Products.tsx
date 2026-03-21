@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSearchParams, useParams, useNavigate } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import { Grid3X3, List, SlidersHorizontal, X } from 'lucide-react'
 import { getProducts, DEFAULT_CATEGORIES, type Product } from '../lib/api'
 import ProductCard from '../components/products/ProductCard'
@@ -90,13 +91,46 @@ export default function Products() {
     ? `Search: "${search}" — Reliance Appliances`
     : 'All Products — Home Appliances Karachi'
 
+  const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://reliance.tajallis.com.pk';
+  const pageUrl  = categorySlug ? `/products/category/${categorySlug}` : '/products';
+
+  // ItemList schema — lets Google show individual products in search results
+  const itemListSchema = products.length > 0 ? {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: seoTitle,
+    url: `${SITE_URL}${pageUrl}`,
+    numberOfItems: products.length,
+    itemListElement: products.slice(0, 20).map((p, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      url: `${SITE_URL}/products/${p.slug}`,
+      name: p.simplified_name || `${p.brand} ${p.model}`,
+    })),
+  } : null;
+
+  // BreadcrumbList for category pages
+  const breadcrumbSchema = activeCat ? {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home',     item: SITE_URL },
+      { '@type': 'ListItem', position: 2, name: 'Products', item: `${SITE_URL}/products` },
+      { '@type': 'ListItem', position: 3, name: activeCat.name },
+    ],
+  } : null;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <SEO
         title={seoTitle}
         description={`Shop ${activeCat?.name || 'home appliances'} in Karachi. Genuine products with easy installments, home delivery & after-sale support. ${total} products available.`}
-        path={categorySlug ? `/products/category/${categorySlug}` : '/products'}
+        path={pageUrl}
       />
+      <Helmet>
+        {itemListSchema && <script type="application/ld+json">{JSON.stringify(itemListSchema)}</script>}
+        {breadcrumbSchema && <script type="application/ld+json">{JSON.stringify(breadcrumbSchema)}</script>}
+      </Helmet>
 
       {/* Sticky filter bar */}
       <div className="bg-white border-b sticky top-16 z-30">
