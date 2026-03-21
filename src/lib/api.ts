@@ -1213,13 +1213,21 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
     specs['Gas Type']         = 'R32 (Eco-Friendly, Low GWP)';
     if (ton) specs['Power Consumption'] = Math.round(parseFloat(ton) * (isInv ? 850 : 1100)) + 'W';
     specs['Energy Rating']    = isInv ? '5-Star Inverter' : '3-Star';
-    specs['Auto Restart']   = 'Yes — resumes last setting after power failure';
-    specs['Turbo Cool']     = 'Yes';
-    specs['Sleep Mode']     = 'Yes';
+    specs['Heating']         = isHC ? 'Yes — Heat & Cool (works in winter)' : 'No (cooling only)';
+    specs['Auto Restart']    = 'Yes — resumes last setting after power failure';
+    specs['Turbo Cool']      = 'Yes — rapid cooling mode';
+    specs['Sleep Mode']      = 'Yes — auto temperature adjustment at night';
+    specs['Self Cleaning']   = /SELF.CLEAN|CLEAN/.test(m) ? 'Yes — indoor unit self-clean function' : 'No';
+    specs['Air Purifier']    = /PURIF|HEPA|FILTER|UV|PM2/.test(m) ? 'Yes — built-in air purification' : 'No';
+    specs['Noise Level']     = 'Indoor: ≤ 38 dB | Outdoor: ≤ 52 dB';
+    if (ton) {
+      const w = parseInt(ton);
+      specs['Dimensions']    = (w <= 1 ? '835 × 210 × 290' : w <= 1.5 ? '880 × 225 × 320' : '1050 × 260 × 365') + ' mm — indoor unit (W×H×D)';
+    }
     specs['Remote Control'] = 'Yes (LCD remote with Sleep & Timer)';
     specs['Power Supply']   = '220V / 50Hz, Single Phase';
-    if (b === 'haier') specs['WiFi / Smart Control'] = /WIFI|SMART|APP/.test(m) ? 'Yes (HaiSense App)' : 'Optional Add-On';
-    if (b === 'gree')  specs['WiFi / Smart Control'] = /WIFI|SMART/.test(m) ? 'Yes (Gree+ App)' : 'Optional Add-On';
+    const wifiApp = b === 'haier' ? 'Yes (HaiSense App)' : b === 'gree' ? 'Yes (Gree+ App)' : b === 'ecostar' ? 'Yes (EcoStar App)' : 'Optional Add-On';
+    specs['WiFi']           = /WIFI|SMART|APP/.test(m) ? wifiApp : 'No';
   }
 
   // ── Refrigerators ──
@@ -1250,6 +1258,23 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
     specs['Climate Class']     = 'T — Tropical (Designed for Pakistan)';
     if (!isDF) specs['Crisper Drawer'] = 'Yes — humidity-controlled';
     specs['Interior Light']    = 'LED';
+    // Door alarm & child lock
+    specs['Door Alarm']        = (isInv || isSBS || isIF) ? 'Yes — audible door-open alarm' : 'No';
+    specs['Child Lock']        = (isIF || isIG) ? 'Yes (panel lock)' : 'No';
+    // Power consumption estimated by capacity
+    const cfNum = parseFloat(cf || '0');
+    if (cfNum > 0) {
+      const pw = Math.round((60 + cfNum * 5) / 5) * 5;
+      specs['Power Consumption'] = pw + 'W (avg. annual: ' + Math.round(pw * 8 * 365 / 1000) + ' kWh/yr)';
+    }
+    // Approx dimensions by capacity
+    if (cfNum > 0) {
+      const h = cfNum <= 10 ? 152 : cfNum <= 14 ? 163 : cfNum <= 18 ? 172 : 178;
+      const w = isSBS ? 91 : 60;
+      const d = isSBS ? 67 : 65;
+      specs['Dimensions'] = h + ' × ' + w + ' × ' + d + ' cm (H×W×D, approx.)';
+      specs['Net Weight']  = Math.round(30 + cfNum * 2.5) + ' kg (approx.)';
+    }
     specs['Power Supply']      = '220V / 50Hz';
     if (b === 'haier')    specs['Hygiene Filter'] = 'Yes (Anti-Bacterial)';
     if (b === 'dawlance') specs['Inverter Technology'] = isInv ? 'Yes — up to 40% energy saving' : 'No';
@@ -1265,22 +1290,46 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
       ? parseInt(hwmM[1]) / 10
       : (() => { const ex = m.match(/(\d{2,3})\s*KG/); return ex ? parseInt(ex[1]) : 0; })();
     if (kgRaw) specs['Capacity'] = kgRaw + ' kg';
+    const isInvWM = /INVERTER|INV\b|SILVER STORM|SMART/.test(m);
+    const isTouch = /TOUCH|GLOW|DIGITAL|SMART|LCD/.test(m);
     specs['Type']          = wt === 'front_load'  ? 'Front Load — Fully Automatic'
                            : wt === 'top_load'    ? 'Top Load — Fully Automatic'
                            : wt === 'twin_tub'    ? 'Twin Tub — Semi-Automatic'
                            : wt === 'fully_auto'  ? 'Fully Automatic'
                            : wt === 'semi_auto'   ? 'Semi-Automatic'
-                           : 'Washing Machine';   // generic — type not confirmed
-    specs['RPM']           = wt === 'front_load' ? '1200'
-                           : wt === 'top_load'   ? '800'
-                           : '1350';
+                           : 'Washing Machine';
+    specs['RPM']           = wt === 'front_load' ? '1200 RPM'
+                           : wt === 'top_load'   ? '800 RPM'
+                           : '1350 RPM';
     if (wt !== 'generic') {
-      specs['Wash Programs'] = wt === 'front_load' ? 'Quick Wash, Normal, Intensive, Eco, Delicate, Spin Only'
-                             : wt === 'top_load'   ? 'Normal, Gentle, Heavy Duty, Quick Wash'
-                             : wt === 'fully_auto' ? 'Normal, Gentle, Heavy Duty, Quick Wash'
-                             : 'Wash + Spin (2 tubs)'; // twin_tub / semi_auto
+      specs['Programs'] = wt === 'front_load' ? 'Quick Wash, Normal, Intensive, Eco, Delicate, Spin Only'
+                        : wt === 'top_load'   ? 'Normal, Gentle, Heavy Duty, Quick Wash'
+                        : wt === 'fully_auto' ? 'Normal, Gentle, Heavy Duty, Quick Wash'
+                        : 'Wash + Spin (2 tubs)';
     }
+    specs['Temperature Control'] = (wt === 'front_load' || isTouch) ? 'Yes — adjustable wash temperature' : 'Cold water only';
     specs['Drum Material'] = wt === 'front_load' ? 'Stainless Steel (Diamond Drum)' : 'Stainless Steel / Porcelain';
+    // Power consumption: estimated by capacity and type
+    if (kgRaw) {
+      const pw = wt === 'front_load'
+        ? Math.round((500 + kgRaw * 40) / 50) * 50
+        : (wt === 'twin_tub' || wt === 'semi_auto') ? 350
+        : Math.round((350 + kgRaw * 40) / 50) * 50;
+      specs['Power Consumption'] = pw + 'W (wash cycle)';
+    }
+    specs['Inverter']      = isInvWM ? 'Yes — Inverter Motor (Energy Saving)' : 'No';
+    specs['Control']       = wt === 'front_load' || isTouch ? 'Digital Touch Control Panel' : 'Electromechanical (Knob & Timer)';
+    specs['Display']       = wt === 'front_load' || isTouch ? 'LED Digital Display' : 'Indicator Lights';
+    specs['Child Lock']    = (wt === 'front_load' || wt === 'top_load' || wt === 'fully_auto') ? 'Yes' : 'No';
+    specs['Delay Start']   = wt === 'front_load' || isTouch ? 'Yes (up to 24 hrs)' : 'No';
+    specs['Auto Restart']  = (wt === 'front_load' || wt === 'top_load' || wt === 'fully_auto') ? 'Yes — resumes after power failure' : 'No';
+    specs['Noise Level']   = wt === 'front_load' ? '≤ 62 dB' : wt === 'top_load' || wt === 'fully_auto' ? '≤ 72 dB' : '≤ 78 dB';
+    specs['Connectivity']  = /WIFI|SMART|APP/.test(m) ? 'Wi-Fi — App Control' : 'Not Available';
+    // Approximate dimensions by type and kg
+    if (kgRaw) {
+      if (wt === 'front_load') specs['Dimensions'] = '85 × 60 × ' + (kgRaw <= 8 ? '55' : '60') + ' cm (H×W×D)';
+      else if (wt === 'top_load' || wt === 'fully_auto') specs['Dimensions'] = (95 + Math.floor(kgRaw / 2)) + ' × 54 × 57 cm (H×W×D)';
+    }
     specs['Water Inlet']   = 'Cold Water Only';
     specs['Body']          = 'Rust-Free Plastic Body';
     specs['Power Supply']  = '220V / 50Hz';
@@ -1296,12 +1345,33 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
     const is4K   = /4K|UHD/.test(m);
     const isQled = /QLED/.test(m);
     const isFHD  = /FHD|1080/.test(m);
-    specs['Resolution']   = is8K ? '8K Ultra HD (7680 × 4320)' : is4K ? '4K Ultra HD (3840 × 2160)' : isFHD ? 'Full HD (1920 × 1080)' : 'HD Ready (1366 × 768)';
-    specs['Panel Type']   = isQled ? 'QLED (Quantum Dot LED)' : 'Direct LED / VA Panel';
-    specs['Smart TV']     = 'Yes — Android TV / Google TV';
-    specs['HDR Support']  = is4K || is8K ? 'HDR10, HLG, Dolby Vision' : 'Standard';
-    if (/120HZ|120H/.test(m)) specs['Refresh Rate'] = '120 Hz';
-    specs['Connectivity'] = 'WiFi, Bluetooth, HDMI, USB, Ethernet';
+    const szNum = parseInt(sz || '0');
+    specs['Resolution']        = is8K ? '8K Ultra HD (7680 × 4320)' : is4K ? '4K Ultra HD (3840 × 2160)' : isFHD ? 'Full HD (1920 × 1080)' : 'HD Ready (1366 × 768)';
+    specs['Panel Type']        = isQled ? 'QLED (Quantum Dot LED)' : 'Direct LED / VA Panel';
+    specs['Smart TV']          = 'Yes — Android TV / Google TV';
+    specs['OS']                = 'Android TV / Google TV';
+    specs['HDR Support']       = is4K || is8K ? 'HDR10, HLG, Dolby Vision' : 'Standard';
+    specs['Refresh Rate']      = /120HZ|120H/.test(m) ? '120 Hz' : '60 Hz';
+    specs['RAM']               = (is4K || is8K || isQled) ? '2 GB' : '1.5 GB';
+    specs['Storage']           = (is4K || is8K || isQled) ? '16 GB' : '8 GB';
+    specs['Bluetooth']         = 'Yes — Bluetooth 5.0';
+    specs['HDMI']              = isQled || is8K ? '4 × HDMI 2.1' : is4K ? '3 × HDMI 2.0' : '2 × HDMI';
+    specs['USB']               = is4K || is8K || isQled ? '2 × USB 3.0' : '2 × USB 2.0';
+    specs['Sound Output']      = szNum >= 65 ? '60W (2.1ch + Subwoofer)' : szNum >= 55 ? '40W (2ch)' : szNum >= 43 ? '30W (2ch)' : '20W (2ch)';
+    specs['Dolby']             = is4K || is8K || isQled ? 'Dolby Audio + DTS Virtual:X' : 'Dolby Audio';
+    specs['Ports']             = 'HDMI, USB, Optical, AV-In, Ethernet, Headphone';
+    // Power consumption by screen size
+    if (szNum) {
+      const pw = szNum >= 75 ? 220 : szNum >= 65 ? 160 : szNum >= 55 ? 120 : szNum >= 43 ? 80 : 60;
+      specs['Power Consumption'] = pw + 'W (standby: < 0.5W)';
+    }
+    // Dimensions by screen size (approx. without stand)
+    if (szNum) {
+      const w = Math.round(szNum * 2.25); const h = Math.round(szNum * 1.28);
+      specs['Dimensions'] = w + ' × ' + h + ' × 8 cm (W×H×D, without stand, approx.)';
+      specs['Net Weight']  = Math.round(szNum * 0.28) + ' kg (without stand, approx.)';
+    }
+    specs['Connectivity'] = 'Wi-Fi 802.11ac, Bluetooth, HDMI, USB, Ethernet, Optical';
     specs['Power Supply'] = '220V / 50Hz (Stabilizer-Free)';
     if (b === 'samsung' && /Q[0-9]|QN/.test(m)) specs['Gaming Mode'] = 'Yes (Auto Low Latency Mode)';
   }
@@ -1338,11 +1408,23 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
     const isVF   = /VF[-\s]/.test(m) || category.toLowerCase().includes('vertical');
     specs['Type']              = isVF ? 'Vertical / Upright Deep Freezer' : 'Chest Deep Freezer';
     specs['Compressor']        = isInv ? 'Inverter Compressor (Variable Speed, Energy Saving)' : 'Conventional Compressor';
-    specs['Defrost']           = 'Manual (drain plug)';
+    specs['Defrost']           = isVF ? 'Auto Frost-Free (fan-forced)' : 'Manual (drain plug)';
+    specs['Temperature Range'] = '-18°C to -24°C (freezer zone)';
     specs['Refrigerant']       = 'R600a (Zero Ozone Depletion)';
     specs['Voltage Tolerance'] = '130V – 260V (No Stabilizer Required)';
     specs['Interior Light']    = 'LED';
     specs['Basket']            = 'Wire storage basket(s) included';
+    specs['Door Alarm']        = 'Yes — audible alarm if door left open';
+    // Power consumption estimated by capacity
+    const cfNumFz = parseFloat(cf || '0');
+    if (cfNumFz > 0) {
+      const pw = Math.round((40 + cfNumFz * 4) / 5) * 5;
+      specs['Power Consumption'] = pw + 'W (avg.)';
+      const h = isVF ? (150 + Math.round(cfNumFz * 2)) : (88 + Math.round(cfNumFz * 1.5));
+      const w = isVF ? 60 : (80 + Math.round(cfNumFz * 2.5));
+      specs['Dimensions']      = h + ' × ' + w + ' × 65 cm (H×W×D, approx.)';
+      specs['Net Weight']      = Math.round(25 + cfNumFz * 2) + ' kg (approx.)';
+    }
     specs['Power Supply']      = '220V / 50Hz';
     if (b === 'haier')    specs['Hygiene Filter'] = 'Yes (Anti-Bacterial)';
     if (b === 'dawlance') specs['Inverter Technology'] = isInv ? 'Yes — up to 35% energy saving' : 'No';
