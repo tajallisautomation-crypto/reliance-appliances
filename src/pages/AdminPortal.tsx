@@ -81,6 +81,31 @@ function bucketPath(brand: string, model: string, isGallery = false) {
   return `${folder}/${modelSafe}_${suffix}.<ext>`;
 }
 
+// ── Auto-refresh hook ─────────────────────────────────────────────────────────
+// Combines three mechanisms so every admin tab stays live:
+//  1. Supabase Realtime — instant push when DB rows change
+//  2. Polling interval  — safety net in case Realtime misses something
+//  3. Page Visibility   — re-fetch the moment the admin tab regains focus
+function useAutoRefresh(load: () => void, table: string, pollMs = 60_000) {
+  const loadRef = useRef(load);
+  useEffect(() => { loadRef.current = load; }, [load]);
+  useEffect(() => {
+    loadRef.current();
+    const channel = supabase
+      .channel(`admin-rt-${table}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table }, () => loadRef.current())
+      .subscribe();
+    const timer = setInterval(() => loadRef.current(), pollMs);
+    const onVisible = () => { if (!document.hidden) loadRef.current(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [table, pollMs]);
+}
+
 // ── Image Drop Zone ───────────────────────────────────────────────────────────
 
 function ImageDropZone({
@@ -3125,7 +3150,7 @@ function ReviewsTab() {
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  useAutoRefresh(load, 'reviews', 60_000);
 
   async function handleDelete(id: string) {
     setDeleting(id);
@@ -3347,7 +3372,7 @@ function PartnerLeadsTab() {
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  useAutoRefresh(load, 'partner_leads', 30_000);
 
   async function updateStatus(id: string, status: string) {
     setUpdatingId(id);
@@ -3606,7 +3631,7 @@ function OrdersTab() {
     setOrders((data ?? []) as Order[]);
     setLoading(false);
   }
-  useEffect(() => { load(); }, []);
+  useAutoRefresh(load, 'orders', 30_000);
 
   async function updateStatus(id: string, status: string) {
     setUpdatingId(id);
@@ -3828,7 +3853,7 @@ function EnquiriesTab() {
     setItems((data ?? []) as Enquiry[]);
     setLoading(false);
   }
-  useEffect(() => { load(); }, []);
+  useAutoRefresh(load, 'analytics', 30_000);
 
   const types = [...new Set(items.map(i => i.event))].filter(Boolean);
   const filtered = typeFilter === 'all' ? items : items.filter(i => i.event === typeFilter);
@@ -3973,7 +3998,7 @@ function SettingsTab() {
     setLocal(Object.fromEntries(r.map(s => [s.key, s.value])));
     setLoading(false);
   }
-  useEffect(() => { load(); }, []);
+  useAutoRefresh(load, 'site_settings', 120_000);
 
   function setField(key: string, value: string) {
     setLocal(prev => ({ ...prev, [key]: value }));
