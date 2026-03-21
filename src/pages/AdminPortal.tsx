@@ -4276,7 +4276,7 @@ export default function AdminPortal() {
 
   async function loadProducts() {
     setFetching(true);
-    const { products: p } = await getProducts(catFilter ? { category: catFilter } : undefined);
+    const { products: p } = await getProducts({ admin: 'true', ...(catFilter ? { category: catFilter } : {}) });
     setProducts(p); setFetching(false);
   }
 

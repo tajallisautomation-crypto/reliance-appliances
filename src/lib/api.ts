@@ -184,9 +184,13 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
 
   try {
     let q = supabase.from('products').select('*')
-      .not('thumbnail_url', 'is', null)
-      .neq('thumbnail_url', '')
       .order('featured', { ascending: false }).order('updated_at', { ascending: false });
+    // Customer-facing pages only show products that have an image.
+    // Admin mode (params.admin === 'true') skips this filter so newly-imported
+    // products without images are still visible and can be managed.
+    if (params?.admin !== 'true') {
+      q = q.not('thumbnail_url', 'is', null).neq('thumbnail_url', '');
+    }
     if (params?.brand) q = q.ilike('brand', params.brand);
     if (params?.stock_status) q = q.eq('stock_status', params.stock_status);
     if (params?.category) {
