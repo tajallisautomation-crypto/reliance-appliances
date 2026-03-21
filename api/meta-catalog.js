@@ -141,13 +141,20 @@ function csvRow(...fields) {
 
 /**
  * Build a WhatsApp-optimised title (max 100 chars).
- * Format: "{SimplifiedName} — {KeySpec}" or just SimplifiedName.
+ * Format: "{SimplifiedName} ({Model}) — {KeySpec}"
+ * Model is always shown so buyers can identify the exact product.
  */
 function buildTitle(p) {
-  const base = (p.simplified_name || `${p.brand} ${p.model}`).trim();
-  const specs = p.specs || {};
+  const simplified = (p.simplified_name || `${p.brand} ${p.model}`).trim();
+  const model      = (p.model || '').trim();
+  const specs      = p.specs || {};
 
-  // Append one key differentiating spec to make titles more scannable
+  // Include model number if not already in the simplified name
+  const base = (model && !simplified.toUpperCase().includes(model.toUpperCase()))
+    ? `${simplified} (${model})`
+    : simplified;
+
+  // Append one key differentiating spec
   let suffix = '';
   if (p.category === 'Refrigerators' || p.category === 'Freezer') {
     const cap = specs['Capacity'] || specs['capacity'];
@@ -171,34 +178,41 @@ function buildTitle(p) {
   return full.substring(0, 100);
 }
 
+/** Format a PKR amount compactly, e.g. 15000 → "Rs.15,000" */
+function pkr(n) {
+  if (!n) return null;
+  return 'Rs.' + Number(n).toLocaleString('en-PK');
+}
+
 /**
  * Build a WhatsApp-optimised description (max 500 chars).
- * Leads with top specs, ends with a soft CTA.
+ * Leads with top specs, then installment plans, ends with CTA.
  */
 function buildDescription(p) {
   const specs    = p.specs || {};
   const catKeys  = SPEC_HIGHLIGHTS[p.category] || SPEC_HIGHLIGHTS['default'];
 
-  // Collect key spec lines
+  // Collect key spec lines (up to 4 to leave room for installments)
   const specLines = [];
   for (const key of catKeys) {
+    if (specLines.length >= 4) break;
     const val = specs[key];
     if (val && String(val).trim()) {
-      // Skip the defrost_type meta key (use Defrost field label instead)
       if (key === 'defrost_type') continue;
       specLines.push(`${key}: ${val}`);
     }
   }
 
-  // Pull generic description text (stripped of HTML)
-  const rawDesc = stripHtml(p.description || '');
-  // Use only the first sentence as an intro if it adds real info
-  const firstSentence = rawDesc.split(/[.!?]/)[0].trim();
-  const intro = firstSentence.length > 20 && firstSentence.length < 160 ? firstSentence : '';
+  // Build installment summary line
+  const instParts = [];
+  if (p.monthly_3m && p.adv_3m)   instParts.push(`3m: ${pkr(p.adv_3m)} adv + ${pkr(p.monthly_3m)}/mo`);
+  if (p.monthly_6m && p.adv_6m)   instParts.push(`6m: ${pkr(p.adv_6m)} adv + ${pkr(p.monthly_6m)}/mo`);
+  if (p.monthly_12m && p.adv_12m) instParts.push(`12m: ${pkr(p.adv_12m)} adv + ${pkr(p.monthly_12m)}/mo`);
+  const instLine = instParts.length > 0 ? 'Installments — ' + instParts.join(' | ') : '';
 
-  const cta = 'Available on installments — WhatsApp +' + WA_NUMBER + ' for latest price.';
+  const cta = 'WhatsApp +' + WA_NUMBER + ' to order.';
 
-  const parts = [intro, specLines.join(' | '), cta].filter(Boolean);
+  const parts = [specLines.join(' | '), instLine, cta].filter(Boolean);
   return parts.join('\n').substring(0, 500);
 }
 
@@ -211,7 +225,7 @@ export default async function handler(req, res) {
 
   const { data: products, error } = await supabase
     .from('products')
-    .select('id, brand, model, simplified_name, category, description, retail_price, cash_floor, thumbnail_url, gallery_urls, specs, tags')
+    .select('id, brand, model, simplified_name, category, description, retail_price, cash_floor, thumbnail_url, gallery_urls, specs, tags, adv_2m, monthly_2m, adv_3m, monthly_3m, adv_6m, monthly_6m, adv_12m, monthly_12m')
     .gt('retail_price', 0)           // exclude zero-price / unpublished products
     .order('category',       { ascending: true })
     .order('brand',          { ascending: true })
