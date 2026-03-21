@@ -999,8 +999,10 @@ const _CATEGORY_RULES: _CatRule[] = [
   // ── Major appliances AFTER small appliances ──
   // "air conditioner" requires multi-word keyword to avoid matching "air fryer" etc.
   { id: 'air_conditioner',
-    keywords: ['air conditioner', 'air conditioning', 'split ac', 'inverter ac', 'window ac', 'portable ac', 'cassette ac', 'dc inverter'],
-    modelRx: /^(?:HSU|HPU|GS-?|GEA|PAC-?|OSA|OWS|WSA|KWA?|KE-|ON-|DC-|RAS|SAC)\d{2}/i },
+    keywords: ['air conditioner', 'air conditioning', 'split ac', 'inverter ac', 'window ac', 'portable ac', 'cassette ac', 'dc inverter',
+               'floor standing', 'floor stand', 'cassette unit', 'duct ac', 'ducted ac', 'concealed ac',
+               'charmo', 'pular', 'lomo', 'fairy', 'clivia', 'u-crown', 'u crown', 'bora'],
+    modelRx: /^(?:HSU|HPU|GS-?|GF-?|GEA|PAC-?|OSA|OWS|WSA|KWA?|KE-|ON-|DC-|RAS|SAC)\d{2}/i },
   // Deep freezer — checked BEFORE refrigerator so 'chest freezer' / 'deep freezer' don't fall to refrigerator
   { id: 'deep_freezer',
     keywords: ['deep freezer', 'chest freezer', 'vertical freezer', 'full freezer', 'double door freezer'],
