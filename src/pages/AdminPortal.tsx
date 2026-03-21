@@ -8,6 +8,7 @@ import {
   calcAllPlans, roundUp500, fmtPKR, CATEGORY_MAP,
   processCSVImport, reenrichAllProducts, rematchAllImages, getDataAudit, scanBucket, fixAllCategories,
   rebalanceCategories, getCategoryCounts, CAT_MIN, CAT_MAX,
+  mergeDuplicates, type MergeResult,
   composeImages, decomposeImages, logAdminAction, getAuditLog, clearAuditLog,
   type ImportSummary, type CsvImportRow, type Product, type AuditProduct, type BucketScanResult,
   type ProductGalleryImage, type AuditLogEntry,
@@ -2535,6 +2536,8 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
   const [rebalResult,    setRebalResult]    = useState<{ updated: number; unchanged: number; byCategory: Record<string, number>; errors: string[] } | null>(null);
   const [catCounts,      setCatCounts]      = useState<Record<string, number> | null>(null);
   const [catCountsLoading, setCatCountsLoading] = useState(false);
+  const [mergeProgress,  setMergeProgress]  = useState('');
+  const [mergeResult,    setMergeResult]    = useState<MergeResult | null>(null);
 
   const unenrichedIds = products.filter(p => !p.simplified_name?.trim()).map(p => p.id);
 
@@ -2550,7 +2553,13 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
     return `${selectedIds.size} selected product${selectedIds.size !== 1 ? 's' : ''}`;
   }
 
-  function isBusy() { return !!enrichProgress || !!imageProgress || !!catProgress || !!rebalProgress; }
+  function isBusy() { return !!enrichProgress || !!imageProgress || !!catProgress || !!rebalProgress || !!mergeProgress; }
+
+  async function handleMergeDuplicates() {
+    setMergeResult(null); setAllResult(null);
+    const r = await mergeDuplicates(setMergeProgress);
+    setMergeResult(r); onRefresh();
+  }
 
   async function loadAudit() {
     setAuditLoading(true);
@@ -2728,6 +2737,28 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
             {rebalResult && (
               <p className={`text-xs font-medium ${rebalResult.errors.length ? 'text-amber-600' : 'text-green-600'}`}>
                 {rebalResult.updated} moved · {rebalResult.unchanged} ok{rebalResult.errors.length ? ` · ${rebalResult.errors.length} errors` : ' ✓'}
+              </p>
+            )}
+          </div>
+
+          {/* Merge Duplicates */}
+          <div className="border border-gray-100 rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 bg-red-50 rounded-lg flex items-center justify-center">
+                <Trash2 className="w-3.5 h-3.5 text-red-500" />
+              </div>
+              <span className="font-semibold text-gray-800 text-sm">Merge Duplicates</span>
+            </div>
+            <p className="text-xs text-gray-400">Finds products with the same brand+model slug, keeps the most complete entry, and deletes the rest.</p>
+            <button
+              onClick={() => setConfirmBulk({ title: 'Merge Duplicates?', message: 'Scan all products for duplicates (same slug). The entry with the most complete data (image, specs) is kept; others are permanently deleted.', action: handleMergeDuplicates })}
+              disabled={isBusy()}
+              className="w-full flex items-center justify-center gap-1.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white py-2 rounded-lg text-xs font-bold">
+              {mergeProgress ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /><span className="truncate max-w-[140px]">{mergeProgress}</span></> : <><Trash2 className="w-3.5 h-3.5" />Merge Duplicates</>}
+            </button>
+            {mergeResult && (
+              <p className={`text-xs font-medium ${mergeResult.errors.length ? 'text-amber-600' : 'text-green-600'}`}>
+                {mergeResult.groups} groups · {mergeResult.deleted} deleted · {mergeResult.kept} kept{mergeResult.errors.length ? ` · ${mergeResult.errors.length} errors` : ' ✓'}
               </p>
             )}
           </div>

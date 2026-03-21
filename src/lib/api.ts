@@ -3218,6 +3218,72 @@ export function getAuditLog(): AuditLogEntry[] {
 
 export function clearAuditLog(): void { localStorage.removeItem(_AUDIT_KEY); }
 
+// ── Duplicate product detection & merge ──────────────────────────────────────
+
+export type MergeResult = {
+  groups:  number;   // duplicate groups found
+  deleted: number;   // rows deleted (weaker duplicates)
+  kept:    number;   // rows kept
+  errors:  string[];
+};
+
+/**
+ * Finds products with the same brand+model slug, keeps the one with the most
+ * complete data (has thumbnail > has more specs > newer updated_at), and deletes
+ * the rest.
+ */
+export async function mergeDuplicates(
+  onProgress: (msg: string) => void,
+): Promise<MergeResult> {
+  const result: MergeResult = { groups: 0, deleted: 0, kept: 0, errors: [] };
+
+  onProgress('Loading all products…');
+  const { data, error } = await supabase
+    .from('products')
+    .select('id, brand, model, slug, thumbnail_url, specs, updated_at');
+  if (error) { result.errors.push(error.message); return result; }
+
+  // Group by normalised slug (brand-model)
+  const groups = new Map<string, typeof data>();
+  for (const row of data ?? []) {
+    const key = (row.slug || '').toLowerCase().trim();
+    if (!key) continue;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(row);
+  }
+
+  const dupeGroups = [...groups.values()].filter(g => g.length > 1);
+  result.groups = dupeGroups.length;
+
+  if (dupeGroups.length === 0) { onProgress('No duplicates found.'); return result; }
+
+  onProgress(`Found ${dupeGroups.length} duplicate groups — merging…`);
+
+  for (const group of dupeGroups) {
+    // Score each row: thumbnail=10, each spec key=1, newer updated_at as tiebreak
+    const scored = group.map(r => ({
+      r,
+      score: (r.thumbnail_url ? 10 : 0) +
+             Object.keys(r.specs ?? {}).length +
+             (new Date(r.updated_at ?? 0).getTime() / 1e12),
+    }));
+    scored.sort((a, b) => b.score - a.score);
+
+    const toDelete = scored.slice(1).map(s => s.r.id);
+    const { error: delErr } = await supabase.from('products').delete().in('id', toDelete);
+    if (delErr) {
+      result.errors.push(`Delete failed for group "${scored[0].r.slug}": ${delErr.message}`);
+    } else {
+      result.deleted += toDelete.length;
+      result.kept    += 1;
+    }
+  }
+
+  clearCache();
+  onProgress('');
+  return result;
+}
+
 // ── Fallback products (shown if Supabase unreachable) ────────────────────────
 
 export const FALLBACK_PRODUCTS: Product[] = [
