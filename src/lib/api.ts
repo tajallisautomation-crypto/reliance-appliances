@@ -2628,11 +2628,13 @@ export async function processCSVImport(
       const model    = (row.Model || '').trim();
       const category = (row.Category || '').trim();
       const price    = Number(row.Retail_Price || row['Retail Price'] || row['Price'] || 0);
-      if (!brand || !model || !category || !price || price <= 0) {
-        const missing = [!brand && 'Brand', !model && 'Model', !category && 'Category', (!price || price <= 0) && 'Price > 0'].filter(Boolean).join(', ');
-        summary.errors.push(`Skipped: Brand="${brand}" Model="${model}" Cat="${category}" Price=${price} — missing: ${missing}`);
+      if (!brand || !model || !category) {
+        const missing = [!brand && 'Brand', !model && 'Model', !category && 'Category'].filter(Boolean).join(', ');
+        summary.errors.push(`Skipped: Brand="${brand}" Model="${model}" Cat="${category}" — missing: ${missing}`);
         return;
       }
+      // Price=0 is allowed — product is imported as a draft (excluded from WA feed and catalog)
+      if (!price) summary.errors.push(`Draft (no price): Brand="${brand}" Model="${model}" — set price later in admin`);
 
       const bKey     = `${brand.toLowerCase()}::${model.toLowerCase()}`;
       const id       = existingIdMap.get(bKey) || slugify(`${brand}-${model}`);

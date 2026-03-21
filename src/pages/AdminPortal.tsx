@@ -1144,11 +1144,14 @@ function ImagesTab({ products, onRefresh }: { products: Product[]; onRefresh: ()
 // ── CSV Import Tab ────────────────────────────────────────────────────────────
 
 const HEADER_MAP: Record<string, string> = {
-  brand: 'Brand', 'brand name': 'Brand',
-  model: 'Model', 'model number': 'Model', 'model no': 'Model',
-  category: 'Category', 'product category': 'Category',
+  brand: 'Brand', 'brand name': 'Brand', 'make': 'Brand',
+  model: 'Model', 'model number': 'Model', 'model no': 'Model', 'model #': 'Model', 'part no': 'Model', 'part number': 'Model',
+  category: 'Category', 'product category': 'Category', 'type': 'Category', 'product type': 'Category',
   retail_price: 'Retail_Price', 'retail price': 'Retail_Price',
   price: 'Retail_Price', 'mrp': 'Retail_Price', 'cash price': 'Retail_Price',
+  'list price': 'Retail_Price', 'selling price': 'Retail_Price', 'dealer price': 'Retail_Price',
+  'net price': 'Retail_Price', 'unit price': 'Retail_Price', 'pkr': 'Retail_Price',
+  'cash floor': 'Retail_Price', 'min price': 'Retail_Price', 'floor price': 'Retail_Price',
 };
 
 function normalizeHeader(h: string): string {
