@@ -1210,6 +1210,7 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
     specs['Type']             = isHC ? 'Split AC (Heat & Cool)' : 'Split Air Conditioner';
     specs['Inverter']         = isInv ? 'Yes' : 'No';
     specs['Compressor']       = isInv ? 'DC Inverter (Variable Speed)' : 'Conventional Rotary';
+    specs['T3 Rating']        = 'Yes — T3 Tropical Rated (operates up to 52°C ambient)';
     specs['Gas Type']         = 'R32 (Eco-Friendly, Low GWP)';
     if (ton) specs['Power Consumption'] = Math.round(parseFloat(ton) * (isInv ? 850 : 1100)) + 'W';
     specs['Energy Rating']    = isInv ? '5-Star Inverter' : '3-Star';
@@ -1249,6 +1250,7 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
     specs['Inverter']          = isInv ? 'Yes' : 'No';
     specs['Compressor']        = isInv ? 'Inverter Compressor (Variable Speed, Energy Saving)' : 'Conventional Compressor';
     specs['Cooling System']    = isInv || isSBS ? 'No Frost (Fan-Forced Cooling)' : 'Direct Cool (Manual Defrost)';
+    specs['Cooling Type']      = isInv || isSBS ? 'No Frost' : 'Direct Cool';
     if (isIF)  specs['Control Display'] = 'Digital LED Temperature Display';
     if (isIP)  specs['Control Display'] = 'Mechanical Thermostat (No Digital Display)';
     if (isIG)  specs['Control Display'] = 'Electronic Controls — Glass Door Model';
@@ -1257,12 +1259,23 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
     specs['Voltage Tolerance'] = '130V – 260V (No Stabilizer Required)';
     specs['Climate Class']     = 'T — Tropical (Designed for Pakistan)';
     if (!isDF) specs['Crisper Drawer'] = 'Yes — humidity-controlled';
+    const cfNum = parseFloat(cf || '0');
+    // Shelves and door shelves estimated by capacity
+    if (!isDF && cfNum > 0) {
+      const shelves     = cfNum <= 10 ? 2 : cfNum <= 14 ? 3 : cfNum <= 18 ? 3 : 4;
+      const doorShelves = cfNum <= 10 ? 2 : cfNum <= 14 ? 3 : cfNum <= 18 ? 3 : 4;
+      specs['Glass Shelves']     = shelves + ' adjustable glass shelves';
+      specs['Door Shelves']      = doorShelves + ' door pockets / bottle rack';
+    }
+    if (isSBS) {
+      specs['Glass Shelves'] = '4 adjustable glass shelves (fridge) + 4 freezer drawers';
+      specs['Door Shelves']  = '5 door pockets each side';
+    }
     specs['Interior Light']    = 'LED';
     // Door alarm & child lock
     specs['Door Alarm']        = (isInv || isSBS || isIF) ? 'Yes — audible door-open alarm' : 'No';
     specs['Child Lock']        = (isIF || isIG) ? 'Yes (panel lock)' : 'No';
     // Power consumption estimated by capacity
-    const cfNum = parseFloat(cf || '0');
     if (cfNum > 0) {
       const pw = Math.round((60 + cfNum * 5) / 5) * 5;
       specs['Power Consumption'] = pw + 'W (avg. annual: ' + Math.round(pw * 8 * 365 / 1000) + ' kWh/yr)';
@@ -1289,7 +1302,10 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
     const kgRaw = hwmM
       ? parseInt(hwmM[1]) / 10
       : (() => { const ex = m.match(/(\d{2,3})\s*KG/); return ex ? parseInt(ex[1]) : 0; })();
-    if (kgRaw) specs['Capacity'] = kgRaw + ' kg';
+    if (kgRaw) {
+      specs['Capacity'] = kgRaw + ' kg';
+      specs['Cloth Capacity'] = kgRaw + ' kg dry laundry per cycle';
+    }
     const isInvWM = /INVERTER|INV\b|SILVER STORM|SMART/.test(m);
     const isTouch = /TOUCH|GLOW|DIGITAL|SMART|LCD/.test(m);
     specs['Type']          = wt === 'front_load'  ? 'Front Load — Fully Automatic'
@@ -1347,18 +1363,27 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
     const isFHD  = /FHD|1080/.test(m);
     const szNum = parseInt(sz || '0');
     specs['Resolution']        = is8K ? '8K Ultra HD (7680 × 4320)' : is4K ? '4K Ultra HD (3840 × 2160)' : isFHD ? 'Full HD (1920 × 1080)' : 'HD Ready (1366 × 768)';
-    specs['Panel Type']        = isQled ? 'QLED (Quantum Dot LED)' : 'Direct LED / VA Panel';
+    const isOled = /OLED/.test(m);
+    const isMini = /MINI.?LED|MINILEDQLED/.test(m);
+    specs['Display Type']      = isOled ? 'OLED' : isMini ? 'Mini LED QLED' : isQled ? 'QLED (Quantum Dot)' : 'Direct LED';
+    specs['Panel Type']        = isOled ? 'OLED (Self-Emissive, Infinite Contrast)' : isQled ? 'QLED (Quantum Dot LED)' : 'Direct LED / VA Panel';
+    specs['Display Colors']    = is8K || isQled || isOled ? '1.07 Billion Colors (10-bit)' : is4K ? '1.07 Billion Colors (8-bit + FRC)' : '16.7 Million Colors (8-bit)';
+    specs['LED Capabilities']  = isOled ? 'Self-emissive pixels, infinite contrast, instant response'
+                               : isMini ? 'Mini LED local dimming zones, high peak brightness'
+                               : isQled ? 'Quantum dot colour enhancement, wide colour gamut (DCI-P3 > 90%)'
+                               : 'Edge LED / Direct LED backlight';
     specs['Smart TV']          = 'Yes — Android TV / Google TV';
     specs['OS']                = 'Android TV / Google TV';
+    specs['Voice Control']     = 'Google Assistant built-in' + (/ALEXA/.test(m) ? ' + Amazon Alexa' : '');
     specs['HDR Support']       = is4K || is8K ? 'HDR10, HLG, Dolby Vision' : 'Standard';
     specs['Refresh Rate']      = /120HZ|120H/.test(m) ? '120 Hz' : '60 Hz';
-    specs['RAM']               = (is4K || is8K || isQled) ? '2 GB' : '1.5 GB';
-    specs['Storage']           = (is4K || is8K || isQled) ? '16 GB' : '8 GB';
+    specs['RAM']               = (is4K || is8K || isQled || isOled) ? '2 GB' : '1.5 GB';
+    specs['Storage']           = (is4K || is8K || isQled || isOled) ? '16 GB' : '8 GB';
     specs['Bluetooth']         = 'Yes — Bluetooth 5.0';
-    specs['HDMI']              = isQled || is8K ? '4 × HDMI 2.1' : is4K ? '3 × HDMI 2.0' : '2 × HDMI';
-    specs['USB']               = is4K || is8K || isQled ? '2 × USB 3.0' : '2 × USB 2.0';
+    specs['HDMI']              = isQled || is8K || isOled ? '4 × HDMI 2.1' : is4K ? '3 × HDMI 2.0' : '2 × HDMI';
+    specs['USB']               = is4K || is8K || isQled || isOled ? '2 × USB 3.0' : '2 × USB 2.0';
     specs['Sound Output']      = szNum >= 65 ? '60W (2.1ch + Subwoofer)' : szNum >= 55 ? '40W (2ch)' : szNum >= 43 ? '30W (2ch)' : '20W (2ch)';
-    specs['Dolby']             = is4K || is8K || isQled ? 'Dolby Audio + DTS Virtual:X' : 'Dolby Audio';
+    specs['Dolby']             = is4K || is8K || isQled || isOled ? 'Dolby Audio + DTS Virtual:X' : 'Dolby Audio';
     specs['Ports']             = 'HDMI, USB, Optical, AV-In, Ethernet, Headphone';
     // Power consumption by screen size
     if (szNum) {
