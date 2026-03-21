@@ -1000,7 +1000,7 @@ function ImagesTab({ products, onRefresh }: { products: Product[]; onRefresh: ()
   const [quickImg, setQuickImg]           = useState<Product | null>(null);
   const [rematching, setRematching]       = useState(false);
   const [rematchResult, setRematchResult] = useState<{ found: number; missing: number; cleared: number } | null>(null);
-  const [clearUnmatched, setClearUnmatched] = useState(false);
+  const [clearUnmatched, setClearUnmatched] = useState(true);
   const [fixQueueOpen, setFixQueueOpen]   = useState(false);
   const [confirmRematch, setConfirmRematch] = useState(false);
 
@@ -2562,7 +2562,7 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
 
   async function handleImages() {
     setImageResult(null); setAllResult(null);
-    const r = await rematchAllImages(setImageProgress, getScopeIds());
+    const r = await rematchAllImages(setImageProgress, getScopeIds(), { clearUnmatched: true });
     setImageResult(r); onRefresh(); loadAudit();
   }
 
@@ -2579,10 +2579,10 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
     setEnrichResult(er);
     const cr = await fixAllCategories(setCatProgress, ids);
     setCatResult(cr); setCatProgress('');
-    const ir = await rematchAllImages(setImageProgress, ids);
+    const ir = await rematchAllImages(setImageProgress, ids, { clearUnmatched: true });
     setImageResult(ir);
     const total = er.done;
-    setAllResult(`Done: ${total} enriched · ${cr.fixed} categories fixed · ${ir.found} images matched`);
+    setAllResult(`Done: ${total} enriched · ${cr.fixed} categories fixed · ${ir.found} images matched${ir.cleared > 0 ? ` · ${ir.cleared} stock images cleared` : ''}`);
     onRefresh(); loadAudit();
   }
 
