@@ -14,10 +14,10 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL      = 'https://fdfjavyopbrfvwtjaerw.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkZmphdnlvcGJyZnZ3dGphZXJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDE3MDAsImV4cCI6MjA4ODIxNzcwMH0.fXwGFR_e3xZ4trEbkcH8UQ6_oWcIn92UUUvkGuFajto';
-const SITE_URL          = 'https://reliance.tajallis.com.pk';
-const WA_NUMBER         = '923702578788';
+const SUPABASE_URL      = process.env.VITE_SUPABASE_URL      || 'https://fdfjavyopbrfvwtjaerw.supabase.co';
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || '';
+const SITE_URL          = process.env.VITE_SITE_URL          || 'https://reliance.tajallis.com.pk';
+const WA_NUMBER         = process.env.VITE_WA_SALES          || '923702578788';
 
 // ── Category → WhatsApp product_type section name ────────────────────────────
 // product_type is what creates the visible "category tabs" inside the WA catalog.
@@ -225,8 +225,9 @@ export default async function handler(req, res) {
 
   const { data: products, error } = await supabase
     .from('products')
-    .select('id, slug, brand, model, simplified_name, category, description, retail_price, cash_floor, thumbnail_url, gallery_urls, specs, tags, adv_2m, monthly_2m, adv_3m, monthly_3m, adv_6m, monthly_6m, adv_12m, monthly_12m')
-    .gt('retail_price', 0)           // exclude zero-price / unpublished products
+    .select('id, slug, brand, model, simplified_name, category, stock_status, description, retail_price, cash_floor, thumbnail_url, gallery_urls, specs, tags, adv_2m, monthly_2m, adv_3m, monthly_3m, adv_6m, monthly_6m, adv_12m, monthly_12m')
+    .gt('retail_price', 0)                       // exclude zero-price / unpublished products
+    .neq('stock_status', 'Discontinued')
     .order('category',       { ascending: true })
     .order('brand',          { ascending: true })
     .order('simplified_name',{ ascending: true });
@@ -259,7 +260,7 @@ export default async function handler(req, res) {
     // Skip products with no image — WhatsApp won't show them anyway
     if (!p.thumbnail_url) continue;
 
-    const price = `${p.retail_price || p.cash_floor || 0} PKR`;
+    const price = `${p.cash_floor || p.retail_price || 0} PKR`;  // cash_floor = actual selling price
 
     // Up to 9 extra images (Meta max = 10 total including primary)
     const extraImgs = Array.isArray(p.gallery_urls)
@@ -270,7 +271,7 @@ export default async function handler(req, res) {
       p.id,
       buildTitle(p),
       buildDescription(p),
-      'in stock',
+      p.stock_status === 'Out of Stock' ? 'out of stock' : p.stock_status === 'Coming Soon' ? 'preorder' : 'in stock',
       'new',
       price,
       `${SITE_URL}/products/${p.slug || p.id}`,
