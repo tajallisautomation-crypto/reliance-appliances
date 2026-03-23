@@ -3679,6 +3679,77 @@ export async function mergeDuplicates(
   return result;
 }
 
+// ── Normalize DB category strings ────────────────────────────────────────────
+/**
+ * Finds products with non-canonical category strings (singular forms, legacy
+ * names with ampersands, etc.) and updates them to the canonical plural form
+ * that the rest of the site expects.  Returns a summary string.
+ */
+export async function normalizeCategoryNames(): Promise<string> {
+  // Map: any raw DB category value (lowercased) → canonical display name
+  const CANON: Record<string, string> = {
+    // Singular → plural
+    'refrigerator':                    'Refrigerators',
+    'freezer':                         'Freezers',
+    'air conditioner':                 'Air Conditioners',
+    'washing machine':                 'Washing Machines',
+    'television':                      'Televisions',
+    'water dispenser':                 'Water Dispensers',
+    'vacuum cleaner':                  'Vacuum Cleaners',
+    'solar solution':                  'Solar Solutions',
+    'kitchen appliance':               'Kitchen Appliances',
+    'small appliance':                 'Small Appliances',
+    // Legacy names with ampersand / variant spellings
+    'televisions & leds':              'Televisions',
+    'televisions and leds':            'Televisions',
+    'led tv':                          'Televisions',
+    'smart led':                       'Televisions',
+    'smart tv':                        'Televisions',
+    'qled':                            'Televisions',
+    // Misc legacy
+    'deep freezer':                    'Freezers',
+    'deep freezers':                   'Freezers',
+    'automatic washing machines':      'Washing Machines',
+    'semi-automatic washing machines': 'Washing Machines',
+    'fridge':                          'Refrigerators',
+  };
+
+  // Fetch all distinct category values currently in DB
+  const { data, error } = await supabase
+    .from('products')
+    .select('id, category');
+  if (error || !data) return `Error: ${error?.message ?? 'no data'}`;
+
+  // Group products by canonical target
+  const updates: Record<string, string[]> = {}; // canonical → [id,…]
+  for (const row of data) {
+    const raw = (row.category ?? '').toLowerCase().trim();
+    const canonical = CANON[raw];
+    if (canonical) {
+      if (!updates[canonical]) updates[canonical] = [];
+      updates[canonical].push(row.id);
+    }
+  }
+
+  if (Object.keys(updates).length === 0) return 'All category names already canonical — nothing to change.';
+
+  let total = 0;
+  const lines: string[] = [];
+  for (const [canonical, ids] of Object.entries(updates)) {
+    // Update in batches of 200
+    const BATCH = 200;
+    for (let i = 0; i < ids.length; i += BATCH) {
+      const batch = ids.slice(i, i + BATCH);
+      await supabase.from('products').update({ category: canonical }).in('id', batch);
+    }
+    total += ids.length;
+    lines.push(`${ids.length} → "${canonical}"`);
+  }
+
+  clearCache();
+  return `Normalized ${total} products: ${lines.join(', ')}`;
+}
+
 // ── Fallback products (shown if Supabase unreachable) ────────────────────────
 
 export const FALLBACK_PRODUCTS: Product[] = [

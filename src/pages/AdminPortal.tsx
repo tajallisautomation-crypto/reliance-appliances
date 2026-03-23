@@ -8,7 +8,7 @@ import {
   calcAllPlans, roundUp500, fmtPKR, CATEGORY_MAP,
   processCSVImport, reenrichAllProducts, rematchAllImages, getDataAudit, scanBucket, fixAllCategories,
   rebalanceCategories, getCategoryCounts, CAT_MIN, CAT_MAX,
-  mergeDuplicates, type MergeResult,
+  mergeDuplicates, normalizeCategoryNames, type MergeResult,
   composeImages, decomposeImages, logAdminAction, getAuditLog, clearAuditLog,
   type ImportSummary, type CsvImportRow, type Product, type AuditProduct, type BucketScanResult,
   type ProductGalleryImage, type AuditLogEntry,
@@ -2543,6 +2543,8 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
   const [catCountsLoading, setCatCountsLoading] = useState(false);
   const [mergeProgress,  setMergeProgress]  = useState('');
   const [mergeResult,    setMergeResult]    = useState<MergeResult | null>(null);
+  const [normLoading,    setNormLoading]    = useState(false);
+  const [normResult,     setNormResult]     = useState('');
 
   const unenrichedIds = products.filter(p => !p.simplified_name?.trim()).map(p => p.id);
 
@@ -2564,6 +2566,13 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
     setMergeResult(null); setAllResult(null);
     const r = await mergeDuplicates(setMergeProgress);
     setMergeResult(r); onRefresh();
+  }
+
+  async function handleNormalizeCategories() {
+    setNormLoading(true); setNormResult('');
+    const msg = await normalizeCategoryNames();
+    setNormResult(msg); setNormLoading(false);
+    onRefresh();
   }
 
   async function loadAudit() {
@@ -2744,6 +2753,24 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
                 {rebalResult.updated} moved · {rebalResult.unchanged} ok{rebalResult.errors.length ? ` · ${rebalResult.errors.length} errors` : ' ✓'}
               </p>
             )}
+          </div>
+
+          {/* Normalize Category Names */}
+          <div className="border border-gray-100 rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 bg-blue-50 rounded-lg flex items-center justify-center">
+                <RefreshCw className="w-3.5 h-3.5 text-blue-500" />
+              </div>
+              <span className="font-semibold text-gray-800 text-sm">Normalize Categories</span>
+            </div>
+            <p className="text-xs text-gray-400">Fixes singular/plural mismatches ("Refrigerator" → "Refrigerators") and collapses legacy names ("Televisions &amp; LEDs" → "Televisions") directly in the DB.</p>
+            <button
+              onClick={handleNormalizeCategories}
+              disabled={normLoading || isBusy()}
+              className="w-full flex items-center justify-center gap-1.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white py-2 rounded-lg text-xs font-bold">
+              {normLoading ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Normalizing…</> : <><RefreshCw className="w-3.5 h-3.5" />Normalize Categories</>}
+            </button>
+            {normResult && <p className="text-xs font-medium text-green-600">{normResult}</p>}
           </div>
 
           {/* Merge Duplicates */}
