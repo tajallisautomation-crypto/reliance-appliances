@@ -202,7 +202,9 @@ export default function ProductDetail() {
         <div>
           <p className="text-brand-500 font-bold text-xs uppercase tracking-widest mb-1">{p.brand}</p>
           <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight leading-tight mb-1">
-            {p.simplified_name || `${p.brand} ${p.model}`}
+            {p.simplified_name
+              ? p.simplified_name.replace(new RegExp(`^${p.brand}\\s+`, 'i'), '')
+              : `${p.brand} ${p.model}`}
           </h1>
           {p.simplified_name && (
             <p className="text-gray-400 text-sm mb-1 font-mono">Model: {p.model}</p>
