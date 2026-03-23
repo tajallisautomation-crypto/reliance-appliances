@@ -582,7 +582,7 @@ function lookupWarranty(brand: string, model: string, category: string, cc: stri
     if (cc === 'microwave')        return '1 year complete';
     if (cc === 'spinner')          return '10 years motor, 1 year parts';
     if (cc === 'washing_machine') {
-      const wt = _wmType(model, category);
+      const wt = _wmType(model, category, brand);
       // semi_auto is the only type with the shorter warranty; generic (undetected) defaults
       // to automatic because the vast majority of Haier HWM sales in Pakistan are fully-auto.
       return (wt === 'semi_auto' || wt === 'twin_tub')
@@ -600,7 +600,7 @@ function lookupWarranty(brand: string, model: string, category: string, cc: stri
     if (cc === 'microwave')        return '1 year complete';
     if (cc === 'spinner')          return '10 years motor, 1 year complete';
     if (cc === 'washing_machine') {
-      const wt = _wmType(model, category);
+      const wt = _wmType(model, category, brand);
       return (wt === 'front_load' || wt === 'top_load' || wt === 'fully_auto')
         ? '10 years motor, 4 years electrical parts'
         : '10 years motor, 1 year complete';
@@ -1200,6 +1200,8 @@ export function resolveCanonicalCategory(brand: string, model: string, category:
     if (rule.modelRx && rule.modelRx.test(m)) {
       // AC model patterns only fire if brand is known AC manufacturer
       if (rule.id === 'air_conditioner' && !_AC_BRANDS.has(b)) continue;
+      // Westpoint WF- prefix is used for ALL product types — never infer washing_machine from it
+      if (rule.id === 'washing_machine' && b === 'westpoint') continue;
       // Reject if category explicitly names something else
       if (['fryer','fridge','wash','telev','solar'].some(f => cat.includes(f))) continue;
       return rule.id;
@@ -1281,35 +1283,53 @@ function _wmTypeLabel(category: string): string {
   return ''; // category does not specify type — do NOT infer
 }
 
-function _wmType(model: string, category: string): _WMType {
+function _wmType(model: string, category: string, brand?: string): _WMType {
+  const bl = (brand || '').toLowerCase();
   // Step 1: category string — only authoritative source for type
   const label = _wmTypeLabel(category);
   if (label === 'Front Load')      return 'front_load';
   if (label === 'Top Load')        return 'top_load';
   if (label === 'Twin Tub')        return 'twin_tub';
-  if (label === 'Fully Automatic') return 'fully_auto';
+  if (label === 'Fully Automatic') {
+    const m2 = (model || '').toUpperCase();
+    if (_isFrontLoadModel(m2, bl)) return 'front_load';
+    return 'top_load'; // default for fully automatic
+  }
   if (label === 'Semi-Automatic')  return 'semi_auto';
 
   // Step 2: model codes — only use for unambiguous structural indicators
   const m = (model || '').toUpperCase();
-  if (/\bDWF\b|\bWDF\b|\bHWD\b/.test(m)) return 'front_load';
+  if (_isFrontLoadModel(m, bl))           return 'front_load';
   if (/\bDWT\b|\bWDT\b/.test(m))          return 'top_load';
   if (/\bTWIN\b/.test(m))                  return 'twin_tub';
-  // Dawlance DW (semi-auto twin-tub) and DS (spinner), Haier HD (front-load)
   if (/\bDW[- ]?\d{4}/.test(m))           return 'twin_tub';
   if (/\bDS[- ]?\d/.test(m))              return 'semi_auto';
-  if (/\bHD[- ]?\d{2}/.test(m))          return 'front_load';
 
-  // Type cannot be determined — return generic so we publish nothing false
   return 'generic';
 }
 
+/** True when model code unambiguously indicates a front-load machine. */
+function _isFrontLoadModel(m: string, brand = ''): boolean {
+  if (/\bDWF\b|\bWDF\b|\bHWD\b/.test(m))   return true; // Dawlance DWF, Haier HWD
+  if (/\bHD[- ]?\d{2,4}\b/.test(m))         return true; // Haier HD series (HD-60, HD-80, HD-7200)
+  if (/\bFL\b|FRONT[-\s]?LOAD/.test(m))     return true; // generic FL / FRONT-LOAD markers
+  if (/\bESW[-\s]?F\d/.test(m))             return true; // EcoStar ESW-Fxxx
+  if (/\bWMF[-\s]?\d/.test(m))              return true; // generic WMF prefix
+  // Dawlance front-load models sometimes stored without DWF prefix (e.g. "7200 X INV")
+  if (brand === 'dawlance' && /\b7[12]\d{2}\b|\b8[12]\d{2}\b/.test(m)) return true;
+  return false;
+}
+
 // ── Shared washing-machine sub-label used by both name & sub-category ─────────
-function _wmSubLabel(model: string, category: string): string {
+function _wmSubLabel(model: string, category: string, brand?: string): string {
+  const bl = (brand || '').toLowerCase();
   const label = _wmTypeLabel(category);
   if (label === 'Front Load')      return 'Front-Load Fully Automatic';
   if (label === 'Top Load')        return 'Top-Load Fully Automatic';
-  if (label === 'Fully Automatic') return 'Top-Load Fully Automatic';
+  if (label === 'Fully Automatic') {
+    if (_isFrontLoadModel(model.toUpperCase(), bl)) return 'Front-Load Fully Automatic';
+    return 'Top-Load Fully Automatic';
+  }
   if (label === 'Twin Tub')        return 'Semi-Automatic';
   if (label === 'Semi-Automatic')  return 'Semi-Automatic';
   const m = model.toUpperCase();
@@ -1448,7 +1468,7 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
 
   // ── Washing Machines ──
   else if (cc === 'washing_machine') {
-    const wt = _wmType(model, category);
+    const wt = _wmType(model, category, brand);
     // ── Capacity extraction ──────────────────────────────────────────────────
     // Haier HWM: HWM-120-xxx → 120/10 = 12 kg; HWM-75-AS → 7.5 kg
     const hwmM = m.match(/\bHWM[\s-]?(\d{2,3})[-\s]/);
@@ -1770,7 +1790,7 @@ const _WP_NAMES: Record<string, [string, string]> = {
   '2564': ['Westpoint Professional Pop-Up Toaster 4-Slice WF-2564', 'Bread Toaster'],
   '2532': ['Westpoint Deluxe Pop-Up Toaster 2-Slice WF-2532',      'Bread Toaster'],
   '2538': ['Westpoint Deluxe Pop-Up Toaster 2-Slice WF-2538',      'Bread Toaster'],
-  '209':  ['Westpoint Baby Bottle Warmer WF-209',                   'Baby Appliance'],
+  '209':  ['Westpoint Hand Blender WF-209',                         'Hand Blender'],
   '7115': ['Westpoint Electric Insect Killer WF-7115',              'Insect Killer'],
   '4360': ['Westpoint Digital Kitchen Scale WF-4360',               'Kitchen Scale'],
   '251':  ['Westpoint Professional Single Hot Plate WF-251',        'Hot Plate'],
@@ -1833,9 +1853,9 @@ const _WP_NAMES: Record<string, [string, string]> = {
   '6175': ['Westpoint Electric Iron WF-6175',                       'Electric Iron'],
   '6178': ['Westpoint Electric Iron WF-6178',                       'Electric Iron'],
   '6171': ['Westpoint Electric Iron WF-6171',                       'Electric Iron'],
-  '1153': ['Westpoint Ultrasonic Room Humidifier WF-1153',          'Humidifier'],
+  '1153': ['Westpoint Garment Steamer WF-1153',                     'Garment Steamer'],
   '1156': ['Westpoint Room Humidifier WF-1156',                     'Humidifier'],
-  '1097': ['Westpoint Room Humidifier WF-1097',                     'Humidifier'],
+  '1097': ['Westpoint Chopper WF-1097',                             'Chopper'],
   '1098': ['Westpoint Room Humidifier WF-1098',                     'Humidifier'],
   '1090': ['Westpoint Room Humidifier WF-1090',                     'Humidifier'],
   '1102': ['Westpoint Room Humidifier WF-1102',                     'Humidifier'],
@@ -1936,7 +1956,7 @@ const _WP_NAMES: Record<string, [string, string]> = {
   '329':  ['Westpoint Baby Bottle Sterilizer WF-329',               'Baby Appliance'],
   '3870': ['Westpoint Foot Massager WF-3870',                       'Massager'],
   '4616': ['Westpoint Deluxe Hand Mixer WF-4616',                   'Hand Mixer'],
-  '4626': ['Westpoint Deluxe Hand Mixer WF-4626',                   'Hand Mixer'],
+  '4626': ['Westpoint Deluxe Food Mixer WF-4626',                   'Food Mixer'],
   '502':  ['Westpoint Kitchen Robot WF-502',                        'Food Processor'],
   '505':  ['Westpoint Kitchen Robot WF-505',                        'Food Processor'],
   '636':  ['Westpoint Deluxe Sandwich Toaster WF-636',              'Sandwich Toaster'],
@@ -2083,7 +2103,7 @@ export function buildSimplifiedName(brand: string, model: string, category: stri
           })();
       // Fallback to specs if model string doesn't encode kg (e.g. EcoStar ESW-DE)
       const kgStr = kgNum ? kgNum + 'kg' : (specs?.['Capacity'] || '');
-      const typeLabel = _wmSubLabel(model, category);
+      const typeLabel = _wmSubLabel(model, category, brand);
       return [b, kgStr, typeLabel, 'Washing Machine'].filter(Boolean).join(' ');
     }
     case 'television': {
@@ -2303,7 +2323,7 @@ export function deriveSubCategory(brand: string, model: string, category: string
     case 'spinner':
       return 'Spinner';
     case 'washing_machine': {
-      return _wmSubLabel(model, category) || 'Washer';
+      return _wmSubLabel(model, category, brand) || 'Washer';
     }
     case 'television': {
       if (/8K/.test(m))     return '8K Smart TV';
@@ -2475,7 +2495,7 @@ function _generateDescription(brand: string, model: string, simplifiedName: stri
       return `The ${name} ${isDF ? 'provides reliable long-term frozen storage' : 'keeps your food fresh longer'} with ${specs['Capacity'] ? specs['Capacity'] + ' of' : 'generous'} ${isDF ? 'freezer' : 'organised'} storage. ${isInv ? 'The inverter compressor runs at variable speeds — using up to 40% less electricity, producing less noise, and lasting longer than conventional compressors.' : 'The conventional compressor is engineered for Pakistani voltage conditions.'} ${specs['Voltage Tolerance'] ? `Built-in voltage tolerance (${specs['Voltage Tolerance']}) means no stabiliser is needed.` : ''} Uses ${specs['Refrigerant'] || 'R600a (zero ozone depletion)'} refrigerant. ${!isDF ? 'Humidity-controlled crisper drawer keeps fruits and vegetables fresh. ' : ''}Interior LED lighting. Warranty: ${warranty}. Easy installments — contact Reliance Appliances, Karachi.`;
     }
     case 'washing_machine': {
-      const wt = _wmType(model, category);
+      const wt = _wmType(model, category, brand);
       if (wt === 'front_load') {
         return `The ${name} is a fully automatic front-load washing machine built for efficient daily laundry. ${specs['Capacity'] ? specs['Capacity'] + ' drum capacity.' : ''} Programs include ${specs['Wash Programs'] ? specs['Wash Programs'].split(',').slice(0, 3).join(', ') : 'Quick Wash, Normal, Eco'}. Uses up to 40% less water than top-load washers. ${specs['Spin Speed'] ? 'Spin speed: ' + specs['Spin Speed'] + '.' : ''} Stainless steel diamond drum. Rust-free body. Warranty: ${warranty}. Easy installments at Reliance Appliances, Karachi.`;
       }
@@ -3450,7 +3470,7 @@ export async function mergeDuplicates(
   if (error) { result.errors.push(error.message); return result; }
 
   // Group by normalised slug
-  const groups = new Map<string, typeof data>();
+  const groups = new Map<string, any[]>();
   for (const row of data ?? []) {
     const key = (row.slug || '').toLowerCase().trim();
     if (!key) continue;

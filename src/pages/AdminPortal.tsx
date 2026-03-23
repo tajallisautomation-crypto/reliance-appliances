@@ -1971,11 +1971,12 @@ function QCQuickFix({
   }
 
   async function saveImage() {
-    const url = urlInput.trim();
-    if (!url.startsWith('http')) { setErr('Enter a valid URL'); return; }
+    const urls = urlInput.split(/[\n,]+/).map(u => u.trim()).filter(u => u.startsWith('http'));
+    if (!urls.length) { setErr('Enter a valid URL starting with http'); return; }
     setSaving(true); setErr('');
     try {
-      await fetchAndUploadOrSaveUrl(url, product.id, product.brand, product.model);
+      await Promise.allSettled(urls.map(url => fetchAndUploadOrSaveUrl(url, product.id, product.brand, product.model)));
+      setSaving(false);
       onSaved();
     } catch (e: any) { setErr(e.message); setSaving(false); }
   }
@@ -2028,14 +2029,15 @@ function QCQuickFix({
 
           {hasMissingImage && (
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-gray-700 block">Add / Replace Image URL</label>
-              <input type="text" value={urlInput} onChange={e => setUrlInput(e.target.value)}
-                placeholder="https://example.com/image.jpg"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+              <label className="text-xs font-semibold text-gray-700 block">Add / Replace Image URL(s)</label>
+              <textarea value={urlInput} onChange={e => setUrlInput(e.target.value)} rows={2}
+                placeholder={"https://…/image1.jpg\nhttps://…/image2.jpg"}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none" />
+              <p className="text-[10px] text-gray-400 -mt-1">Enter one URL per line — first becomes thumbnail, others go to gallery.</p>
               <div className="flex gap-2 flex-wrap">
                 <button onClick={saveImage} disabled={saving || !urlInput.trim()}
                   className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white text-xs font-bold px-4 py-2 rounded-lg">
-                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} Save Image
+                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} Save Image(s)
                 </button>
                 <button onClick={searchBucket} disabled={bucketLoading}
                   className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:border-orange-300 text-xs font-semibold px-3 py-2 rounded-lg">
@@ -2048,8 +2050,11 @@ function QCQuickFix({
                   <p className="text-[10px] text-gray-400 mb-1.5">Click an image to use it:</p>
                   <div className="grid grid-cols-4 gap-1.5 max-h-40 overflow-y-auto">
                     {bucketImgs.map(url => (
-                      <button key={url} onClick={() => setUrlInput(url)}
-                        className={`rounded-lg overflow-hidden border-2 transition-all ${urlInput === url ? 'border-orange-500' : 'border-gray-100 hover:border-orange-300'}`}>
+                      <button key={url} onClick={() => setUrlInput(prev => {
+                        const lines = prev.split('\n').map(l => l.trim()).filter(Boolean);
+                        return lines.includes(url) ? lines.filter(l => l !== url).join('\n') : [...lines, url].join('\n');
+                      })}
+                        className={`rounded-lg overflow-hidden border-2 transition-all ${urlInput.includes(url) ? 'border-orange-500' : 'border-gray-100 hover:border-orange-300'}`}>
                         <img src={url} alt="" className="w-full aspect-square object-cover"
                           onError={e => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none'; }} />
                       </button>
