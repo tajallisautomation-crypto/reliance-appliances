@@ -1617,12 +1617,14 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
   else if (cc === 'deep_freezer') {
     const cf = _cfFromFridge(m);
     if (cf !== '') specs['Capacity'] = cf + ' Cu.Ft (' + Math.round(cf * 28.3) + ' Litres approx.)';
-    // Haier HDF: IG suffix = Inverter + Grey, I suffix = Inverter (white), SD = conventional
+    // Haier HDF: IG = Inverter + Grey, I (not IG) = Inverter white, SD = Single Door
     const isHdfIG = b === 'haier' && /HDF[-\s]?\d{3}IG/.test(m);
     const isHdfI  = b === 'haier' && /HDF[-\s]?\d{3}I(?!G)/.test(m);
+    const isSD    = /\bSD\b/.test(m);
     const isInv   = isHdfIG || isHdfI || /INV|INVERTER/.test(m);
     const isVF    = /VF[-\s]/.test(m) || category.toLowerCase().includes('vertical');
     specs['Type']              = isVF ? 'Vertical / Upright Deep Freezer' : 'Chest Deep Freezer';
+    if (isSD) specs['Configuration'] = 'Single Door';
     specs['Inverter']          = isInv ? 'Yes' : 'No';
     specs['Compressor']        = isInv ? 'Inverter Compressor (Variable Speed, Energy Saving)' : 'Conventional Compressor';
     specs['Defrost']           = isVF ? 'Auto Frost-Free (fan-forced)' : 'Manual (drain plug)';
