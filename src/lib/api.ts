@@ -452,7 +452,10 @@ export async function fetchAndUploadOrSaveUrl(
 ): Promise<{ savedUrl: string; storedInBucket: boolean }> {
   // Step 1: try fetching the image and re-uploading to Supabase Storage
   try {
-    const resp = await fetch(imageUrl, { mode: 'cors' });
+    const controller = new AbortController();
+    const timeoutId  = setTimeout(() => controller.abort(), 8000);
+    const resp = await fetch(imageUrl, { mode: 'cors', signal: controller.signal });
+    clearTimeout(timeoutId);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const blob = await resp.blob();
     const rawExt = blob.type.split('/')[1] || 'jpg';
@@ -1360,9 +1363,18 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
   if (cc === 'air_conditioner') {
     const ton = _tonFromAC(m, b);
     if (ton) {
+      const tonNum = parseFloat(ton);
       specs['Tonnage'] = ton + ' Ton';
-      specs['Cooling Capacity'] = Math.round(parseFloat(ton) * 12000).toLocaleString() + ' BTU/hr';
-      specs['Coverage Area'] = 'Up to ' + Math.round(parseFloat(ton) * 120) + ' sq.ft';
+      specs['Cooling Capacity'] = Math.round(tonNum * 12000).toLocaleString() + ' BTU/hr';
+      specs['Coverage Area'] = 'Up to ' + Math.round(tonNum * 120) + ' sq.ft';
+      // Room size recommendations for Pakistani conditions (higher cooling load than temperate climates)
+      if (tonNum <= 1.1) {
+        specs['Recommended Room'] = '100–130 sq.ft | e.g. 10×10 to 11×12 ft room | Volume ~900–1,200 cu.ft (9 ft ceiling)';
+      } else if (tonNum <= 1.6) {
+        specs['Recommended Room'] = '130–200 sq.ft | e.g. 11×12 to 13×15 ft room | Volume ~1,200–2,200 cu.ft (9 ft ceiling)';
+      } else {
+        specs['Recommended Room'] = '200–350 sq.ft | e.g. 14×14 to 18×20 ft room | Volume ~1,800–3,200 cu.ft (9 ft ceiling)';
+      }
     }
     const isInv = /HNF|PITH|CITH|FAIRY|LOMO|UFLY|ULTRA|INVERTER|\bINV\b|\bDC\b|LF\b|LFW|HFT|HFP|HPM|RFP/.test(m);
     const isHC  = /HFC|HFAB|HFTEX|HPU|PRIMA|GALLANT|HEAT|H&C/.test(m);
@@ -1393,7 +1405,18 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
   // ── Refrigerators ──
   else if (cc === 'refrigerator') {
     const cf = _cfFromFridge(m);
-    if (cf !== '') specs['Capacity'] = cf + ' Cu.Ft (' + Math.round(cf * 28.3) + ' Litres approx.)';
+    if (cf !== '') {
+      specs['Capacity'] = cf + ' Cu.Ft (' + Math.round(cf * 28.3) + ' Litres approx.)';
+      const cfN = parseFloat(String(cf));
+      if (cfN > 0) {
+        specs['Ideal For'] = cfN <= 10 ? '1–2 persons'
+                           : cfN <= 14 ? '2–3 persons'
+                           : cfN <= 18 ? '3–4 persons'
+                           : cfN <= 22 ? '4–5 persons'
+                           : cfN <= 27 ? '5–6 persons'
+                           : '6–8 persons';
+      }
+    }
 
     // ── Technology detection ──────────────────────────────────────────────────
     // Haier sub-series suffixes
@@ -1507,6 +1530,13 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
     if (kgRaw) {
       specs['Capacity'] = kgRaw + ' kg';
       specs['Cloth Capacity'] = kgRaw + ' kg dry laundry per cycle';
+      specs['Recommended For'] = kgRaw <= 5 ? '1–2 persons'
+                                : kgRaw <= 6 ? '2–3 persons'
+                                : kgRaw <= 7 ? '3–4 persons'
+                                : kgRaw <= 8 ? '4–5 persons'
+                                : kgRaw <= 9 ? '5–6 persons'
+                                : kgRaw <= 11 ? '6–7 persons'
+                                : '7+ persons';
     }
     const isInvWM = /INVERTER|INV\b|SILVER STORM|SMART/.test(m);
     const isTouch = /TOUCH|GLOW|DIGITAL|SMART|LCD/.test(m);
@@ -3465,15 +3495,17 @@ export async function mergeDuplicates(
   // Fetch only lightweight fields — no specs JSON to avoid large payload
   const { data, error } = await supabase
     .from('products')
-    .select('id, slug, thumbnail_url, updated_at')
+    .select('id, brand, model, slug, thumbnail_url, updated_at')
     .order('updated_at', { ascending: false });
   if (error) { result.errors.push(error.message); return result; }
 
-  // Group by normalised slug
+  // Group by normalised brand+model key — catches duplicates even if slugs differ
   const groups = new Map<string, any[]>();
   for (const row of data ?? []) {
-    const key = (row.slug || '').toLowerCase().trim();
-    if (!key) continue;
+    const brandKey = (row.brand || '').toLowerCase().trim();
+    const modelKey = (row.model || '').toLowerCase().trim().replace(/\s+/g, ' ');
+    if (!brandKey || !modelKey) continue;
+    const key = `${brandKey}::${modelKey}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(row);
   }

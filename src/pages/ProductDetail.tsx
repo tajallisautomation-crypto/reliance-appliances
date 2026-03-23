@@ -336,7 +336,23 @@ export default function ProductDetail() {
             </div>
           )}
 
-          <CompareButton product={p} variant="full" className="w-full justify-center mb-5" />
+          {/* Share + Compare row */}
+          <div className="flex gap-2 mb-5">
+            <button
+              onClick={() => {
+                const url = window.location.href;
+                const title = p.simplified_name || `${p.brand} ${p.model}`;
+                if (navigator.share) {
+                  navigator.share({ title, url }).catch(() => {});
+                } else {
+                  navigator.clipboard.writeText(url).then(() => toast.success('Link copied!')).catch(() => {});
+                }
+              }}
+              className="flex items-center justify-center gap-2 flex-1 py-3 rounded-2xl text-sm font-bold text-gray-700 bg-white border-2 border-gray-200 hover:border-gray-400 transition-all">
+              <Share2 className="h-4 w-4" /> Share
+            </button>
+            <CompareButton product={p} variant="full" className="flex-1 justify-center" />
+          </div>
 
           {/* Trust strip */}
           <div className="grid grid-cols-3 gap-2">
