@@ -748,14 +748,21 @@ const _SIZE_DISPLAY_MAP: Record<string, string> = {
   'dawlance:9178':  '14 Cu.Ft',
   'dawlance:9191':  '18 Cu.Ft',
   'dawlance:91999': '20 Cu.Ft',
-  // Haier deep freezers
-  'haier:hdf245':   '8 Cubic Feet',
-  'haier:hdf285':   '10 Cubic Feet',
-  'haier:hdf385h':  '15 Cubic Feet',
+  // Haier deep freezers — handled via HAIER_HDF_CF_MAP below (not this map)
   // Haier refrigerators
   'haier:hrf398':   '16 Cubic Feet',
   'haier:hrf438':   '18 Cubic Feet',
   'haier:hrf538':   '20 Cubic Feet',
+};
+
+// Haier HDF deep freezer: model number encodes capacity in litres.
+// Map litre value → marketed Cu.Ft (rounded marketing figures, not exact conversions).
+const HAIER_HDF_CF_MAP: Record<number, number> = {
+  245: 8,
+  285: 10,
+  325: 13,
+  345: 13,
+  385: 15,
 };
 
 /** Returns the verified display size string (e.g. "18 Cubic Feet") for a given
@@ -2037,9 +2044,13 @@ export function buildSimplifiedName(brand: string, model: string, category: stri
     case 'deep_freezer': {
       let size = '';
       if (bl === 'haier') {
-        // Haier HDF model numbers encode litres (e.g. HDF-245 = 245L)
+        // Haier HDF model numbers encode litres; convert to marketed Cu.Ft via lookup
         const litM = m.match(/\bHDF[-\s]?(\d{3})/);
-        if (litM) size = litM[1] + 'L';
+        if (litM) {
+          const litres = parseInt(litM[1]);
+          const cf = HAIER_HDF_CF_MAP[litres];
+          if (cf) size = cf + ' Cu.Ft';
+        }
       } else {
         size = _getSizeDisplay(b, mo);
         if (!size) { const cf = _cfFromFridge(mo); if (cf !== '') size = cf + ' Cu.Ft'; }
