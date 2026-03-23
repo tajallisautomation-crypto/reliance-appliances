@@ -1385,23 +1385,19 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
     const isGlass = isIG || /IFGA|IPGA|GLASS|\bGD\b|\bID\b|\bIA\b/.test(m);
     const isDF    = /\bHDF\b/.test(m);
 
-    // Dawlance 9160-series: inverter (via AVANTE+/LF) but NOT full no-frost — auto defrost only.
-    // Also no door alarm on this smaller model.
-    const isDl9160 = b === 'dawlance' && /\b9160\b/.test(m);
-
     // Dawlance "+" suffix on a series name = inverter (Avante+ / Chrome+ / Graze+ / Acce+)
     // No "+" = conventional even if same series name (Avante ≠ Avante+)
     const hasDlPlus = b === 'dawlance' && /(?:AVANTE|CHROME|GRAZE|NOVA|ACCE)\+/.test(m);
 
-    // WB = Wide Body (form factor only, NOT a technology indicator — can be inverter or conventional)
+    // WB = Wide Body (form factor only, NOT a technology indicator)
     // isInv: EXPLICIT technology markers + Dawlance "+" series names.
-    // Plain Chrome / Avante / Graze without "+" are SERIES NAMES only — not inverter.
+    // LF suffix = inverter compressor only — does NOT mean no-frost.
     const isInv = isIG || isIF || isIP || hasDlPlus || /\bINV\b|INVERTER|LF\b/.test(m);
 
-    // isNoFrost: fan-forced / frost-free cooling (no manual defrosting needed).
-    // Dawlance LF series = no-frost, EXCEPT 9160 which is inverter-only (auto defrost, not fan-forced).
-    // Haier IF / IG = always no-frost. SBS = always no-frost.
-    const isNoFrost = !isDl9160 && (isSBS || (isInv && (/LF\b|NO.?FROST|FROST.FREE/.test(m) || isIF || isIG)));
+    // isNoFrost: fan-forced frost-free cooling — only when EXPLICITLY stated.
+    // Dawlance LF = inverter with auto defrost, NOT fan-forced no-frost.
+    // Only SBS, Haier IF/IG, or explicit NO-FROST/FROST-FREE text qualifies.
+    const isNoFrost = isSBS || (isInv && (/NO.?FROST|FROST.FREE/.test(m) || isIF || isIG));
 
     // ── Spec output ───────────────────────────────────────────────────────────
     const isWB = b === 'dawlance' && /\bWB\b/.test(m);
@@ -2030,12 +2026,9 @@ export function buildSimplifiedName(brand: string, model: string, category: stri
       // Glass door: IFGA/IPGA = glass-door digital/mechanical variants; also GD, ID, IA, IB, IBS, IFP
       // IF and IP alone are control-display types (digital/mechanical thermostat), NOT glass door
       const isGD  = /IFGA|IPGA|GLASS|\bGD\b|\bID\b|\bIA\b|\bIB\b|\bIBS\b|\bIFP\b/.test(m);
-      // Dawlance 9160-series: inverter (via AVANTE+/LF) but NOT full no-frost — auto defrost only.
-      const isDl9160 = bl === 'dawlance' && /\b9160\b/.test(m);
       // "+" on Dawlance series name = inverter (Avante+ / Chrome+ / Graze+ / Acce+)
       const hasDlPlus = bl === 'dawlance' && /(?:AVANTE|CHROME|GRAZE|NOVA|ACCE)\+/.test(m);
-      // WB = Wide Body (form factor only, NOT a technology indicator)
-      // Series names alone (Chrome/Avante/Graze without +) are NOT inverter indicators
+      // WB = Wide Body (form factor only). LF = inverter compressor only (not no-frost).
       const isInv = isIF || isIP || hasDlPlus || /\bINV\b|INVERTER|LF\b/.test(m);
       // Series label
       const series = /GRAZE\+|GRAZE PLUS/.test(m) ? 'Graze+' : /GRAZE/.test(m) ? 'Graze'
