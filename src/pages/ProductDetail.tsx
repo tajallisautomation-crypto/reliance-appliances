@@ -505,7 +505,7 @@ export default function ProductDetail() {
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-sm font-semibold text-gray-900">
-                        Price trend since {oldest.date?.toLocaleDateString('en-PK', { month: 'short', year: 'numeric' }) ?? new Date(oldest.imported_at).toLocaleDateString('en-PK', { month: 'short', year: 'numeric' })}
+                        Price trend since {new Date(oldest.imported_at).toLocaleDateString('en-PK', { month: 'short', year: 'numeric' })}
                       </p>
                       <p className="text-xs text-gray-400 mt-0.5">Cash price is always lower — contact us for best deal.</p>
                     </div>
