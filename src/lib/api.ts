@@ -283,6 +283,9 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
         'led-tv':                      ['led', 'television', 'smart led', 'qled'],
         'smart-led':                   ['led', 'television', 'smart led'],
         'smart-tv':                    ['television', 'smart led', 'smart tv', 'qled'],
+        // legacy / external slugs with special characters
+        'televisions-&-leds':          ['television', 'led', 'smart led', 'qled'],
+        'televisions-and-leds':        ['television', 'led', 'smart led', 'qled'],
       };
       const terms = CAT_TERMS[params.category.toLowerCase()];
       if (terms) {
@@ -796,6 +799,20 @@ function _cfFromFridge(model: string): number | '' {
   // e.g. "9173WB", "9178LF", "9191WB" — \b after the digit would fail when followed by a letter
   const dlM = m.match(/\b(9\d{3,4})(?!\d)/);
   if (dlM && DAWLANCE_CF_MAP[dlM[1]] !== undefined) return DAWLANCE_CF_MAP[dlM[1]];
+
+  // Haier HRF refrigerators — known model → Cu.Ft mapping
+  const hrfM = m.match(/\bHRF-?(\d{3})/);
+  if (hrfM) {
+    const n = parseInt(hrfM[1]);
+    if (n <= 260) return 9;
+    if (n <= 310) return 11;
+    if (n <= 360) return 13;
+    if (n <= 410) return 16;
+    if (n <= 460) return 18;
+    if (n <= 530) return 20;
+    if (n <= 600) return 22;
+    return Math.round(n / 28.3);
+  }
 
   // Dawlance MDW (mono-door/mini) series — e.g. MDW-9 TDB, MDW-11 FB
   const mdwM = m.match(/\bMDW-?(\d+)\b/);
@@ -1586,7 +1603,9 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
 
   // ── Televisions ──
   else if (cc === 'television') {
-    const szM = m.match(/(\d{2,3})["']?\s*(?:INCH|IN\b)/);
+    const szM = m.match(/(\d{2,3})["']?\s*(?:INCH|IN\b)/)
+              || m.match(/^(?:UA|QA|UN|UE|LE)(\d{2})/i)
+              || m.match(/^[A-Z]{1,2}(\d{2})[A-Z]/);
     const sz  = szM ? szM[1] : m.match(/^(\d{2,3})/)?.[1] || '';
     if (sz) specs['Screen Size'] = sz + '" (diagonal)';
     const is8K   = /8K/.test(m);
@@ -1806,7 +1825,7 @@ const _WP_NAMES: Record<string, [string, string]> = {
   '9301': ['Westpoint Deluxe Hand Mixer WF-9301',                   'Hand Mixer'],
   '9802': ['Westpoint Deluxe Hand Mixer WF-9802',                   'Hand Mixer'],
   '9804': ['Westpoint Deluxe Hand Mixer WF-9804',                   'Hand Mixer'],
-  '4636': ['Westpoint Deluxe Hand Mixer WF-4636',                   'Hand Mixer'],
+  '4636': ['Westpoint Deluxe Stand Mixer WF-4636',                 'Stand Mixer'],
   '1860': ['Westpoint Professional Kitchen Chef WF-1860',           'Kitchen Chef'],
   '501':  ['Westpoint Kitchen Robot WF-501',                        'Food Processor'],
   '504':  ['Westpoint Kitchen Robot WF-504',                        'Food Processor'],
@@ -1836,7 +1855,7 @@ const _WP_NAMES: Record<string, [string, string]> = {
   '960':  ['Westpoint Deluxe Vacuum Cleaner WF-960',                'Vacuum Cleaner'],
   '1401': ['Westpoint Deluxe Water Dispenser WF-1401',              'Water Dispenser'],
   // Additional models from DB data
-  '441':  ['Westpoint Deluxe Deep Fryer WF-441',                    'Deep Fryer'],
+  '441':  ['Westpoint Juicer Blender WF-441',                       'Juicer Blender'],
   '843':  ['Westpoint Deep Fryer WF-843',                           'Deep Fryer'],
   '851':  ['Westpoint Deluxe Deep Fryer WF-851',                    'Deep Fryer'],
   '841':  ['Westpoint Deep Fryer WF-841',                           'Deep Fryer'],
@@ -1854,7 +1873,7 @@ const _WP_NAMES: Record<string, [string, string]> = {
   '498':  ['Westpoint Electric Kettle WF-498',                      'Electric Kettle'],
   '550':  ['Westpoint Electric Kettle WF-550',                      'Electric Kettle'],
   '578':  ['Westpoint Electric Kettle WF-578',                      'Electric Kettle'],
-  '545':  ['Westpoint Electric Kettle WF-545',                      'Electric Kettle'],
+  '545':  ['Westpoint Citrus Juicer WF-545',                        'Citrus Juicer'],
   '5258': ['Westpoint Deluxe Electric Oven WF-5258',                'Electric Oven'],
   '5254': ['Westpoint Deluxe Electric Oven WF-5254',                'Electric Oven'],
   '5255': ['Westpoint Electric Oven WF-5255',                       'Electric Oven'],
@@ -1871,7 +1890,7 @@ const _WP_NAMES: Record<string, [string, string]> = {
   '9814': ['Westpoint Deluxe Hand Mixer WF-9814',                   'Hand Mixer'],
   '9815': ['Westpoint Deluxe Hand Mixer WF-9815',                   'Hand Mixer'],
   '9216': ['Westpoint Professional Grinder WF-9216',                'Grinder'],
-  '1844': ['Westpoint Electric Pressure Cooker WF-1844',            'Pressure Cooker'],
+  '1844': ['Westpoint Food Factory WF-1844',                       'Food Factory'],
   '2310': ['Westpoint Electric Pressure Cooker WF-2310',            'Pressure Cooker'],
   '2405': ['Westpoint Electric Pressure Cooker WF-2405',            'Pressure Cooker'],
   '2800r':['Westpoint Electric Pressure Cooker WF-2800R',           'Pressure Cooker'],
@@ -1887,12 +1906,12 @@ const _WP_NAMES: Record<string, [string, string]> = {
   '1156': ['Westpoint Room Humidifier WF-1156',                     'Humidifier'],
   '1097': ['Westpoint Chopper WF-1097',                             'Chopper'],
   '1098': ['Westpoint Room Humidifier WF-1098',                     'Humidifier'],
-  '1090': ['Westpoint Room Humidifier WF-1090',                     'Humidifier'],
+  '1090': ['Westpoint Professional Chopper WF-1090',               'Chopper'],
   '1102': ['Westpoint Room Humidifier WF-1102',                     'Humidifier'],
-  '1186': ['Westpoint Air Purifier WF-1186',                        'Air Purifier'],
+  '1186': ['Westpoint Hard Juicer WF-1186',                         'Juicer'],
   '5807': ['Westpoint Deluxe Room Heater WF-5807',                  'Room Heater'],
   '5307': ['Westpoint Room Heater WF-5307',                         'Room Heater'],
-  '772':  ['Westpoint Room Heater WF-772',                          'Room Heater'],
+  '772':  ['Westpoint Electric Iron WF-772',                        'Electric Iron'],
   '1353': ['Westpoint Room Heater WF-1353',                         'Room Heater'],
   '2386': ['Westpoint Room Heater WF-2386',                         'Room Heater'],
   '90b':  ['Westpoint Deluxe Immersion Rod WF-90B',                 'Immersion Rod'],
@@ -1909,7 +1928,7 @@ const _WP_NAMES: Record<string, [string, string]> = {
   '143':  ['Westpoint Meat Mincer WF-143',                          'Meat Mincer'],
   '142':  ['Westpoint Meat Mincer WF-142',                          'Meat Mincer'],
   '152':  ['Westpoint Meat Mincer WF-152',                          'Meat Mincer'],
-  '6307': ['Westpoint Automatic Clothes Iron WF-6307',              'Electric Iron'],
+  '6307': ['Westpoint Fan Heater WF-6307',                          'Fan Heater'],
   'f10':  ['Westpoint Quick Chopper WF-F10',                        'Food Chopper'],
   'f04':  ['Westpoint Vegetable Slicer WF-F04',                     'Food Slicer'],
   'f07':  ['Westpoint Manual Kitchen Slicer WF-F07',                'Food Slicer'],
@@ -2137,14 +2156,16 @@ export function buildSimplifiedName(brand: string, model: string, category: stri
       return [b, kgStr, typeLabel, 'Washing Machine'].filter(Boolean).join(' ');
     }
     case 'television': {
-      const szM = m.match(/(\d{2,3})["']?\s*(?:INCH|IN\b)/);
-      const sz  = szM ? szM[1] : m.match(/^(\d{2,3})/)?.[1] || '';
+      // Try multiple patterns: explicit INCH, Samsung UA/QA prefix, H-prefix models, leading digits
+      const szM = m.match(/(\d{2,3})["']?\s*(?:INCH|IN\b)/)
+                || m.match(/^(?:UA|QA|UN|UE|LE)(\d{2})/i)    // Samsung UA55, QA65, UE43
+                || m.match(/^[A-Z]{1,2}(\d{2})[A-Z]/);        // H55E, L40H, T55R, etc.
+      const sz  = szM ? szM[1] : m.match(/^(\d{2,3})/)?.[1] || (specs?.['Screen Size']?.match(/^(\d+)/)?.[1] || '');
       const isQled   = /QLED/.test(m);
       const is4K     = /4K|UHD/.test(m);
       const is8K     = /8K/.test(m);
       const isGoogle = /GOOGLE|ANDROID/.test(m);
       const resPart  = is8K ? '8K' : is4K ? '4K Ultra HD' : isQled ? 'QLED' : /FHD|1080/.test(m) ? 'FHD' : 'Smart';
-      // Pattern: Brand + Size + Resolution + "Google TV"? or "TV"
       return [b, sz ? sz + '"' : '', resPart, isGoogle ? 'Google TV' : 'TV'].filter(Boolean).join(' ');
     }
     case 'solar': {

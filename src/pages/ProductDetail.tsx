@@ -93,7 +93,13 @@ export default function ProductDetail() {
   );
 
   const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://reliance.tajallis.com.pk';
-  const catSlug  = p.category.toLowerCase().replace(/\s+/g, '-');
+  // Find the best matching DEFAULT_CATEGORIES entry for this product's DB category
+  // (DB may store "Televisions & LEDs" which differs from slug 'televisions')
+  const _rawCat = p.category.toLowerCase();
+  const _catEntry = DEFAULT_CATEGORIES.find(c => c.slug === _rawCat.replace(/\s+/g, '-'))
+                 || DEFAULT_CATEGORIES.find(c => _rawCat.includes(c.name.toLowerCase()))
+                 || DEFAULT_CATEGORIES.find(c => _rawCat.includes(c.id));
+  const catSlug  = _catEntry?.slug ?? _rawCat.replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
 
   // Product structured data — includes MPN, SKU, and spec-based additionalProperty
   const productSchema = {
@@ -164,7 +170,7 @@ export default function ProductDetail() {
         <Link to="/" className="hover:text-brand-600">Home</Link><span>/</span>
         <Link to="/products" className="hover:text-brand-600">Products</Link><span>/</span>
         <Link
-          to={`/products/category/${DEFAULT_CATEGORIES.find(c => c.slug === p.category.toLowerCase().replace(/\s+/g, '-'))?.slug ?? p.category.toLowerCase().replace(/\s+/g, '-')}`}
+          to={`/products/category/${catSlug}`}
           className="hover:text-brand-600">{p.category}</Link><span>/</span>
         <span className="text-gray-900 font-medium truncate max-w-xs">{p.model}</span>
       </nav>
@@ -460,7 +466,7 @@ export default function ProductDetail() {
           </div>
         )}
 
-        {/* Price History tab */}
+        {/* Price History tab — SVG trend chart (exact prices hidden) */}
         {activeTab === 'price-history' && (
           <div className="animate-fade-in max-w-2xl">
             {priceHistory.length === 0 ? (
@@ -470,53 +476,114 @@ export default function ProductDetail() {
                 <p className="text-xs text-gray-300 mt-1">Prices are logged each time the catalog is updated.</p>
               </div>
             ) : (() => {
-              const maxPrice = Math.max(...priceHistory.map(e => e.retail_price));
-              const minPrice = Math.min(...priceHistory.map(e => e.retail_price));
+              // Reverse so oldest is left → newest is right
+              const ordered = [...priceHistory].reverse();
+              const prices  = ordered.map(e => e.retail_price);
+              const maxP    = Math.max(...prices);
+              const minP    = Math.min(...prices);
+              const range   = maxP - minP || 1;
+              const W = 560, H = 160, PAD = { t: 16, r: 16, b: 32, l: 16 };
+              const iW = W - PAD.l - PAD.r;
+              const iH = H - PAD.t - PAD.b;
+              const pts = ordered.map((e, i) => ({
+                x: PAD.l + (ordered.length === 1 ? iW / 2 : i / (ordered.length - 1) * iW),
+                y: PAD.t + iH - ((e.retail_price - minP) / range) * iH,
+                date: new Date(e.imported_at),
+                price: e.retail_price,
+              }));
+              const polyline = pts.map(p => `${p.x},${p.y}`).join(' ');
+              const areaPath = `M${pts[0].x},${PAD.t + iH} ` +
+                               pts.map(p => `L${p.x},${p.y}`).join(' ') +
+                               ` L${pts[pts.length-1].x},${PAD.t + iH} Z`;
+              const current  = ordered[ordered.length - 1];
+              const oldest   = ordered[0];
+              const pctChange = Math.round(((current.retail_price - oldest.retail_price) / oldest.retail_price) * 100);
+              const trending  = current.retail_price < maxP;
               return (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="space-y-4">
+                  {/* Header */}
+                  <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">Retail price tracked since {new Date(priceHistory[priceHistory.length - 1].imported_at).toLocaleDateString('en-PK', { month: 'short', year: 'numeric' })}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">Cash price is always lower — contact us for best offer.</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Price trend since {oldest.date?.toLocaleDateString('en-PK', { month: 'short', year: 'numeric' }) ?? new Date(oldest.imported_at).toLocaleDateString('en-PK', { month: 'short', year: 'numeric' })}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">Cash price is always lower — contact us for best deal.</p>
                     </div>
-                    {minPrice < maxPrice && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        <TrendingDown className="w-3 h-3" /> Down {Math.round((1 - minPrice / maxPrice) * 100)}% from peak
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {pctChange < 0 && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <TrendingDown className="w-3 h-3" /> {Math.abs(pctChange)}% down
+                        </span>
+                      )}
+                      {pctChange > 0 && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
+                          <TrendingUp className="w-3 h-3" /> {pctChange}% up
+                        </span>
+                      )}
+                      {trending && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-orange-50 text-orange-700 border border-orange-200">
+                          <TrendingDown className="w-3 h-3" /> {Math.round((1 - current.retail_price / maxP) * 100)}% off peak
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  {priceHistory.map((entry, i) => {
-                    const prev = priceHistory[i + 1];
-                    const delta = prev ? entry.retail_price - prev.retail_price : 0;
-                    const barPct = Math.round((entry.retail_price / maxPrice) * 100);
-                    const isCurrent = i === 0;
-                    return (
-                      <div key={entry.imported_at}
-                        className={`rounded-2xl border p-4 transition-all ${isCurrent ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-100 hover:border-gray-200'}`}>
-                        <div className="flex items-center justify-between mb-2">
-                          <div>
-                            <span className={`text-xs font-semibold ${isCurrent ? 'text-gray-400' : 'text-gray-400'}`}>
-                              {isCurrent ? 'Current' : new Date(entry.imported_at).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
-                            </span>
-                            <p className={`text-xl font-black mt-0.5 ${isCurrent ? 'text-white' : 'text-gray-900'}`}>
-                              PKR {formatPrice(entry.retail_price)}
-                            </p>
-                          </div>
-                          {delta !== 0 && (
-                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${delta < 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
-                              {delta < 0
-                                ? <><TrendingDown className="w-3 h-3" /> {formatPrice(Math.abs(delta))}</>
-                                : <><TrendingUp className="w-3 h-3" /> +{formatPrice(delta)}</>}
-                            </span>
-                          )}
-                        </div>
-                        <div className={`h-1.5 rounded-full overflow-hidden ${isCurrent ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                          <div className={`h-full rounded-full transition-all ${isCurrent ? 'bg-orange-500' : delta < 0 ? 'bg-emerald-400' : delta > 0 ? 'bg-red-400' : 'bg-gray-300'}`}
-                            style={{ width: `${barPct}%` }} />
-                        </div>
-                      </div>
-                    );
-                  })}
+
+                  {/* SVG chart */}
+                  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 160 }}>
+                      <defs>
+                        <linearGradient id="ph-grad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#f97316" stopOpacity="0.18" />
+                          <stop offset="100%" stopColor="#f97316" stopOpacity="0" />
+                        </linearGradient>
+                      </defs>
+                      {/* Filled area */}
+                      <path d={areaPath} fill="url(#ph-grad)" />
+                      {/* Line */}
+                      <polyline points={polyline} fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+                      {/* Dots */}
+                      {pts.map((pt, i) => (
+                        <circle key={i} cx={pt.x} cy={pt.y} r={i === pts.length - 1 ? 5 : 3.5}
+                          fill={i === pts.length - 1 ? '#f97316' : '#fff'}
+                          stroke="#f97316" strokeWidth="2" />
+                      ))}
+                      {/* X-axis date labels — show first and last only */}
+                      <text x={pts[0].x} y={H - 6} textAnchor="middle" fontSize="10" fill="#9ca3af">
+                        {new Date(oldest.imported_at).toLocaleDateString('en-PK', { month: 'short', year: '2-digit' })}
+                      </text>
+                      {pts.length > 1 && (
+                        <text x={pts[pts.length-1].x} y={H - 6} textAnchor="middle" fontSize="10" fill="#9ca3af">
+                          Now
+                        </text>
+                      )}
+                    </svg>
+                  </div>
+
+                  {/* Direction pills row — one per recorded entry */}
+                  <div className="flex gap-1.5 flex-wrap">
+                    {ordered.map((entry, i) => {
+                      const prev  = ordered[i - 1];
+                      const delta = prev ? entry.retail_price - prev.retail_price : 0;
+                      const isNow = i === ordered.length - 1;
+                      return (
+                        <span key={entry.imported_at}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold border
+                            ${isNow ? 'bg-gray-900 text-white border-gray-800'
+                              : delta < 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : delta > 0 ? 'bg-red-50 text-red-700 border-red-200'
+                              : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
+                          {isNow ? '● Now' : delta < 0 ? <><TrendingDown className="w-2.5 h-2.5" /> Drop</>
+                            : delta > 0 ? <><TrendingUp className="w-2.5 h-2.5" /> Rise</> : '—'}
+                          <span className="text-[10px] opacity-70 ml-0.5">
+                            {new Date(entry.imported_at).toLocaleDateString('en-PK', { month: 'short', year: '2-digit' })}
+                          </span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[11px] text-gray-400">
+                    {priceHistory.length} price point{priceHistory.length !== 1 ? 's' : ''} recorded · Graph shows relative trend only.
+                  </p>
                 </div>
               );
             })()}
