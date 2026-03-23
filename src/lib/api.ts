@@ -2035,11 +2035,18 @@ export function buildSimplifiedName(brand: string, model: string, category: stri
       return [b, size, isGD && !isSBS ? 'Glass Door' : '', isInv ? 'Inverter' : '', series, typ].filter(Boolean).join(' ');
     }
     case 'deep_freezer': {
-      let size  = _getSizeDisplay(b, mo);
-      if (!size) { const cf = _cfFromFridge(mo); if (cf !== '') size = cf + ' Cu.Ft'; }
-      if (!size && specs?.['Capacity']) {
-        const cfMatch = specs['Capacity'].match(/(\d+(?:\.\d+)?)\s*Cu\.?Ft/i);
-        if (cfMatch) size = cfMatch[1] + ' Cu.Ft';
+      let size = '';
+      if (bl === 'haier') {
+        // Haier HDF model numbers encode litres (e.g. HDF-245 = 245L)
+        const litM = m.match(/\bHDF[-\s]?(\d{3})/);
+        if (litM) size = litM[1] + 'L';
+      } else {
+        size = _getSizeDisplay(b, mo);
+        if (!size) { const cf = _cfFromFridge(mo); if (cf !== '') size = cf + ' Cu.Ft'; }
+        if (!size && specs?.['Capacity']) {
+          const cfMatch = specs['Capacity'].match(/(\d+(?:\.\d+)?)\s*Cu\.?Ft/i);
+          if (cfMatch) size = cfMatch[1] + ' Cu.Ft';
+        }
       }
       const isInv = /INV|INVERTER/.test(m);
       const isVF  = /VF[-\s]/.test(m) || category.toLowerCase().includes('vertical');
