@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Wind, Refrigerator, WashingMachine, ChevronRight, CheckCircle, AlertCircle, Info } from 'lucide-react'
+import { Wind, Refrigerator, Shirt, ChevronRight, CheckCircle, AlertCircle, Info } from 'lucide-react'
 import SEO from '@/components/ui/SEO'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -467,7 +467,7 @@ type WMResult = {
   typeNote: string
 }
 
-function WashingMachineCalculator() {
+function ShirtCalculator() {
   const [members,   setMembers]   = useState('4')
   const [frequency, setFrequency] = useState('2-3days')
   const [heavy,     setHeavy]     = useState('sometimes')
@@ -524,7 +524,7 @@ function WashingMachineCalculator() {
 
   return (
     <CalcShell
-      icon={<WashingMachine className="w-5 h-5" />}
+      icon={<Shirt className="w-5 h-5" />}
       title="Washing Machine Capacity Guide"
       tagline="Match drum size to your laundry load"
       accentColor="bg-gradient-to-r from-violet-500 to-purple-600"
@@ -591,7 +591,7 @@ function WashingMachineCalculator() {
                 color="purple"
               />
               <ResultCard
-                icon={<WashingMachine className="w-4 h-4" />}
+                icon={<Shirt className="w-4 h-4" />}
                 label="Best Type For You"
                 value={result.type.split(' ')[0] + '-Load'}
                 sub={result.type}
@@ -666,7 +666,7 @@ export default function BuyingGuide() {
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
         <ACCalculator />
         <RefrigeratorCalculator />
-        <WashingMachineCalculator />
+        <ShirtCalculator />
 
         {/* Bottom CTA */}
         <div className="bg-gradient-to-r from-orange-500 to-rose-500 rounded-3xl p-6 text-center text-white">
