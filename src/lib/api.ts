@@ -1385,30 +1385,28 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
     const isGlass = isIG || /IFGA|IPGA|GLASS|\bGD\b|\bID\b|\bIA\b/.test(m);
     const isDF    = /\bHDF\b/.test(m);
 
-    // Dawlance 9160-series: conventional/direct-cool regardless of AVANTE+ branding or LF suffix.
+    // Dawlance 9160-series: inverter (via AVANTE+/LF) but NOT full no-frost — auto defrost only.
+    // Also no door alarm on this smaller model.
     const isDl9160 = b === 'dawlance' && /\b9160\b/.test(m);
 
     // Dawlance "+" suffix on a series name = inverter (Avante+ / Chrome+ / Graze+ / Acce+)
     // No "+" = conventional even if same series name (Avante ≠ Avante+)
     const hasDlPlus = b === 'dawlance' && /(?:AVANTE|CHROME|GRAZE|NOVA|ACCE)\+/.test(m);
 
-    // Dawlance WB (White Body) = ALWAYS conventional. WB = direct-cool compressor.
-    // Only explicit INV/INVERTER or LF markers can override (not a series name like AVANTE+).
-    const isDlWB = b === 'dawlance' && /\bWB\b/.test(m) && !/\bINV\b|INVERTER|LF\b/.test(m);
-
+    // WB = Wide Body (form factor only, NOT a technology indicator — can be inverter or conventional)
     // isInv: EXPLICIT technology markers + Dawlance "+" series names.
     // Plain Chrome / Avante / Graze without "+" are SERIES NAMES only — not inverter.
-    const isInv = !isDlWB && !isDl9160 && (isIG || isIF || isIP || hasDlPlus || /\bINV\b|INVERTER|LF\b/.test(m));
+    const isInv = isIG || isIF || isIP || hasDlPlus || /\bINV\b|INVERTER|LF\b/.test(m);
 
     // isNoFrost: fan-forced / frost-free cooling (no manual defrosting needed).
-    // Dawlance LF series = always no-frost.
-    // Haier IF / IG = always no-frost.
-    // SBS = always no-frost.
-    // Generic inverter (IP, bare INV) = auto-defrost only — not always fan-forced.
-    const isNoFrost = isSBS || (isInv && (/LF\b|NO.?FROST|FROST.FREE/.test(m) || isIF || isIG));
+    // Dawlance LF series = no-frost, EXCEPT 9160 which is inverter-only (auto defrost, not fan-forced).
+    // Haier IF / IG = always no-frost. SBS = always no-frost.
+    const isNoFrost = !isDl9160 && (isSBS || (isInv && (/LF\b|NO.?FROST|FROST.FREE/.test(m) || isIF || isIG)));
 
     // ── Spec output ───────────────────────────────────────────────────────────
+    const isWB = b === 'dawlance' && /\bWB\b/.test(m);
     specs['Type']       = isSBS ? 'Side-by-Side (No-Frost)' : isGlass ? 'Glass Door' : isDF ? 'Deep Freezer' : 'Double Door';
+    if (isWB) specs['Body Style'] = 'Wide Body';
     specs['Defrost']    = isNoFrost ? 'Auto / No-Frost (Fan-Forced)' : isInv ? 'Auto Defrost' : 'Manual (Freezer Compartment)';
     specs['Cooling System'] = isNoFrost ? 'No Frost (Fan-Forced Cooling)' : isInv ? 'Auto Defrost' : 'Direct Cool';
     specs['Inverter']   = isInv ? 'Yes' : 'No';
@@ -2032,14 +2030,13 @@ export function buildSimplifiedName(brand: string, model: string, category: stri
       // Glass door: IFGA/IPGA = glass-door digital/mechanical variants; also GD, ID, IA, IB, IBS, IFP
       // IF and IP alone are control-display types (digital/mechanical thermostat), NOT glass door
       const isGD  = /IFGA|IPGA|GLASS|\bGD\b|\bID\b|\bIA\b|\bIB\b|\bIBS\b|\bIFP\b/.test(m);
-      // Dawlance 9160-series: conventional/direct-cool regardless of branding or LF suffix
+      // Dawlance 9160-series: inverter (via AVANTE+/LF) but NOT full no-frost — auto defrost only.
       const isDl9160 = bl === 'dawlance' && /\b9160\b/.test(m);
       // "+" on Dawlance series name = inverter (Avante+ / Chrome+ / Graze+ / Acce+)
       const hasDlPlus = bl === 'dawlance' && /(?:AVANTE|CHROME|GRAZE|NOVA|ACCE)\+/.test(m);
-      // WB (White Body) = ALWAYS conventional. Only INV/LF markers can override, not series names.
-      const isDlWB = bl === 'dawlance' && /\bWB\b/.test(m) && !/\bINV\b|INVERTER|LF\b/.test(m);
+      // WB = Wide Body (form factor only, NOT a technology indicator)
       // Series names alone (Chrome/Avante/Graze without +) are NOT inverter indicators
-      const isInv = !isDlWB && !isDl9160 && (isIF || isIP || hasDlPlus || /\bINV\b|INVERTER|LF\b/.test(m));
+      const isInv = isIF || isIP || hasDlPlus || /\bINV\b|INVERTER|LF\b/.test(m);
       // Series label
       const series = /GRAZE\+|GRAZE PLUS/.test(m) ? 'Graze+' : /GRAZE/.test(m) ? 'Graze'
                    : /AVANTE\+/.test(m) ? 'Avante+' : /AVANTE/.test(m) ? 'Avante'
