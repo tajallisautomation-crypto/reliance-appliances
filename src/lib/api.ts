@@ -1954,14 +1954,15 @@ function _wpLookup(model: string): [string, string] | null {
 // ── Enrichment: simplified name ───────────────────────────────────────────────
 
 export function buildSimplifiedName(brand: string, model: string, category: string, _cc?: string, specs?: Record<string, string>): string {
-  const b  = brand.trim();
+  const b  = brand.trim();           // display (preserves original casing)
+  const bl = b.toLowerCase();        // for brand comparisons
   const mo = model.trim();
   if (!b && !mo) return '';
   // Do NOT early-return when brand is empty — still generate a type-based name.
   // filter(Boolean) below will omit the empty brand string naturally.
 
   // Westpoint model lookup — use curated names before any logic runs
-  if (b.toLowerCase().includes('westpoint')) {
+  if (bl.includes('westpoint')) {
     const wp = _wpLookup(mo);
     if (wp) return wp[0];
   }
@@ -1981,18 +1982,19 @@ export function buildSimplifiedName(brand: string, model: string, category: stri
       const isInv = /HNF|PITH|CITH|FAIRY|LOMO|UFLY|ULTRA|INVERTER|\bINV\b|\bDC\b|LF\b|LFW|HFT|HFP|HPM|RFP/.test(m)
                  || /INVERTER|INV\b/.test(category.toUpperCase());
       const isHC  = /HFC|HFAB|HFTEX|PRIMA|GALLANT|H&C|HEAT/.test(m);
-      // Series name — only confident matches; keep brand names out (Haier T3 = "Thunder")
-      const series = /THUNDER|T3\b/.test(m) ? 'Thunder'
-                   : /PEARL|PITH\b/.test(m) ? 'Pearl'
-                   : /CHROME\+|CHROME PLUS/.test(m) ? 'Chrome+'
-                   : /CHROME/.test(m) ? 'Chrome'
-                   : /ELEGANCE\+/.test(m) ? 'Elegance+'
-                   : /ELEGANCE/.test(m) ? 'Elegance'
-                   : /EXCEL/.test(m) ? 'Excel'
-                   : /PULAR/.test(m) ? 'Pular'
-                   : /XTREME/.test(m) ? 'Xtreme'
-                   : /UV\b/.test(m) ? 'UV'
-                   : /BREEZELESS/.test(m) ? 'Breezeless'
+      // Series names — guarded by brand to avoid cross-contamination
+      const series = (bl === 'haier'    && /THUNDER|T3\b/.test(m))        ? 'Thunder'
+                   : (bl === 'haier'    && /PEARL|PITH\b/.test(m))        ? 'Pearl'
+                   : (bl === 'haier'    && /BREEZELESS/.test(m))           ? 'Breezeless'
+                   : (bl === 'gree'     && /PULAR/.test(m))                ? 'Pular'
+                   : (bl === 'gree'     && /\bUV\b/.test(m))               ? 'UV'
+                   : (bl === 'gree'     && /FAIRY/.test(m))                ? 'Fairy'
+                   : (bl === 'gree'     && /XTREME/.test(m))               ? 'Xtreme'
+                   : (bl === 'dawlance' && /CHROME\+|CHROME PLUS/.test(m)) ? 'Chrome+'
+                   : (bl === 'dawlance' && /CHROME/.test(m))               ? 'Chrome'
+                   : (bl === 'dawlance' && /ELEGANCE\+/.test(m))           ? 'Elegance+'
+                   : (bl === 'dawlance' && /ELEGANCE/.test(m))             ? 'Elegance'
+                   : (bl === 'dawlance' && /EXCEL/.test(m))                ? 'Excel'
                    : '';
       // Pattern: Brand + Tonnage + Series + "Inverter"? + "Heat & Cool"? + "Air Conditioner"
       return [b, ton ? ton + ' Ton' : '', series, isHC ? 'Heat & Cool' : '', isInv ? 'Inverter' : '', 'Air Conditioner'].filter(Boolean).join(' ');
@@ -2017,11 +2019,11 @@ export function buildSimplifiedName(brand: string, model: string, category: stri
       // IF and IP alone are control-display types (digital/mechanical thermostat), NOT glass door
       const isGD  = /IFGA|IPGA|GLASS|\bGD\b|\bID\b|\bIA\b|\bIB\b|\bIBS\b|\bIFP\b/.test(m);
       // Dawlance 9160-series: conventional/direct-cool regardless of branding or LF suffix
-      const isDl9160 = b === 'dawlance' && /\b9160\b/.test(m);
+      const isDl9160 = bl === 'dawlance' && /\b9160\b/.test(m);
       // "+" on Dawlance series name = inverter (Avante+ / Chrome+ / Graze+ / Acce+)
-      const hasDlPlus = b === 'dawlance' && /(?:AVANTE|CHROME|GRAZE|NOVA|ACCE)\+/.test(m);
+      const hasDlPlus = bl === 'dawlance' && /(?:AVANTE|CHROME|GRAZE|NOVA|ACCE)\+/.test(m);
       // WB (White Body) = ALWAYS conventional. Only INV/LF markers can override, not series names.
-      const isDlWB = b === 'dawlance' && /\bWB\b/.test(m) && !/\bINV\b|INVERTER|LF\b/.test(m);
+      const isDlWB = bl === 'dawlance' && /\bWB\b/.test(m) && !/\bINV\b|INVERTER|LF\b/.test(m);
       // Series names alone (Chrome/Avante/Graze without +) are NOT inverter indicators
       const isInv = !isDlWB && !isDl9160 && (isIF || isIP || hasDlPlus || /\bINV\b|INVERTER|LF\b/.test(m));
       // Series label
