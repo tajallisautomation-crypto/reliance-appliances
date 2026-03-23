@@ -715,11 +715,28 @@ const FRIDGE_CF_MAP: Record<string, number> = {
 
 // Dawlance 9xxx series Cu.Ft values per Dawlance Pakistan product pages.
 const DAWLANCE_CF_MAP: Record<string, number> = {
-  '9106': 4, '9140': 9, '9148': 9, '9149': 9, '9160': 10,
-  '9161': 10, '9163': 11, '9166': 12, '9169': 12, '9173': 13,
-  '9178': 14, '9188': 16, '9191': 18, '9193': 18, '91999': 20,
-  // Newer MDW/ERF/FF series mapped by Cu.Ft
-  'MDW': 12,
+  // ── Mini / compact ─────────────────────────────────────────────────────────
+  '9106': 4,
+  // ── 9 Cu.Ft ────────────────────────────────────────────────────────────────
+  '9140': 9, '9148': 9, '9149': 9, '9155': 9, '9157': 9,
+  // ── 10 Cu.Ft ───────────────────────────────────────────────────────────────
+  '9160': 10, '9161': 10, '9162': 10,
+  // ── 11 Cu.Ft ───────────────────────────────────────────────────────────────
+  '9163': 11, '9164': 11, '9165': 11,
+  // ── 12 Cu.Ft ───────────────────────────────────────────────────────────────
+  '9166': 12, '9168': 12, '9169': 12, '9170': 12, '9171': 12,
+  // ── 13 Cu.Ft ───────────────────────────────────────────────────────────────
+  '9172': 13, '9173': 13, '9174': 13,
+  // ── 14 Cu.Ft ───────────────────────────────────────────────────────────────
+  '9175': 14, '9176': 14, '9177': 14, '9178': 14,
+  // ── 15 Cu.Ft ───────────────────────────────────────────────────────────────
+  '9180': 15, '9181': 15, '9182': 15, '9183': 15, '9185': 15, '9186': 15,
+  // ── 16 Cu.Ft ───────────────────────────────────────────────────────────────
+  '9187': 16, '9188': 16, '9189': 16, '9190': 16,
+  // ── 18 Cu.Ft ───────────────────────────────────────────────────────────────
+  '9191': 18, '9192': 18, '9193': 18,
+  // ── 20 Cu.Ft ───────────────────────────────────────────────────────────────
+  '9194': 20, '9195': 20, '9196': 20, '91999': 20,
 };
 
 // Deterministic display-size map: brand:modelNorm → human display string.
@@ -727,10 +744,10 @@ const DAWLANCE_CF_MAP: Record<string, number> = {
 // Only add entries verified against official brand pages or authorised retailers.
 // DO NOT add entries derived from model-number formulas.
 const _SIZE_DISPLAY_MAP: Record<string, string> = {
-  // Dawlance refrigerators
-  'dawlance:9178':  '14 Cubic Feet',
-  'dawlance:9191':  '16 Cubic Feet',
-  'dawlance:91999': '20 Cubic Feet',
+  // Dawlance refrigerators — gross Cu.Ft per Dawlance Pakistan marketing
+  'dawlance:9178':  '14 Cu.Ft',
+  'dawlance:9191':  '18 Cu.Ft',
+  'dawlance:91999': '20 Cu.Ft',
   // Haier deep freezers
   'haier:hdf245':   '8 Cubic Feet',
   'haier:hdf285':   '10 Cubic Feet',
@@ -765,9 +782,19 @@ function _cfFromFridge(model: string): number | '' {
     if (liters >= 100 && liters <= 700) return Math.round(liters / 28.316);
   }
 
-  // Dawlance 9xxx series
-  const dlM = m.match(/\b(9\d{3,4})\b/);
+  // Dawlance 9xxx series — note: no trailing \b because colour codes run directly into the number
+  // e.g. "9173WB", "9178LF", "9191WB" — \b after the digit would fail when followed by a letter
+  const dlM = m.match(/\b(9\d{3,4})(?!\d)/);
   if (dlM && DAWLANCE_CF_MAP[dlM[1]] !== undefined) return DAWLANCE_CF_MAP[dlM[1]];
+
+  // Dawlance MDW (mono-door/mini) series — e.g. MDW-9 TDB, MDW-11 FB
+  const mdwM = m.match(/\bMDW-?(\d+)\b/);
+  if (mdwM) { const n = parseInt(mdwM[1]); if (n >= 4 && n <= 20) return n; }
+
+  // Kenwood KRF / Homage HR / Homage Tech-series: first 3 digits of 5-digit suffix = litres
+  // e.g. KRF-24557 → 245L ≈ 9 Cu.Ft; HR-47562 → 475L ≈ 17 Cu.Ft
+  const krfM = m.match(/\b(?:KRF|HR)-?(\d{3})\d{2}\b/);
+  if (krfM) { const liters = parseInt(krfM[1]); if (liters >= 100 && liters <= 800) return Math.round(liters / 28.316); }
 
   // EcoStar / Orient / PEL ER-D / PR-xxx series: 3-digit suffix = litres
   // e.g. ER-D250 = 250L ≈ 9 Cu.Ft, ORF-380 = 380L ≈ 13 Cu.Ft
@@ -1146,6 +1173,9 @@ export function resolveCanonicalCategory(brand: string, model: string, category:
   const ml  = model.toLowerCase().trim();
   const b   = brand.toLowerCase().trim();
 
+  // Built-in ovens are sometimes filed under "Hood & Hobs" in the CSV — detect via model
+  if (/BUILT[-\s]*IN[-\s]*OVEN|BAKING\s*OVEN/i.test(m)) return 'oven';
+
   // Dawlance DW** prefix dispatch for generic "Small Appliances" CSV category
   if (b === 'dawlance' && _GENERIC_CATS.has(cat)) {
     const prefix = m.match(/\b(DW[A-Z]{2})\b/)?.[1];
@@ -1337,62 +1367,79 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
   else if (cc === 'refrigerator') {
     const cf = _cfFromFridge(m);
     if (cf !== '') specs['Capacity'] = cf + ' Cu.Ft (' + Math.round(cf * 28.3) + ' Litres approx.)';
-    // Haier inverter sub-series:
-    //   IP = Inverter Plus — no digital display, mechanical thermostat
-    //   IF = Inverter with digital LED display panel
-    //   IG (on HDF) = Inverter + glass door
-    const isIG   = /\bHDF\b/.test(m) && /\bIG\b/.test(m);
-    const isIF   = /\bIF\b|IFRA|IFGA/.test(m);
-    const isIP   = /\bIP\b|IPRA|IPGA/.test(m);
-    const isInv  = isIG || isIF || isIP || /INV|INVERTER|GRAZE|CHROME|AVANTE|\bLF\b/.test(m);
-    const isSBS  = /SBS|DSS-|DTM-|IFF/.test(m);
-    const isGlass= isIG || /IFGA|GLASS/.test(m);
-    const isDF   = /HDF/.test(m);
-    specs['Type']              = isSBS ? 'Side-by-Side (No-Frost)' : isGlass ? 'Glass Door' : isDF ? 'Deep Freezer' : 'Double Door';
-    specs['Inverter']          = isInv ? 'Yes' : 'No';
-    specs['Compressor']        = isInv ? 'Inverter Compressor (Variable Speed, Energy Saving)' : 'Conventional Compressor';
-    specs['Cooling System']    = isInv || isSBS ? 'No Frost (Fan-Forced Cooling)' : 'Direct Cool (Manual Defrost)';
-    specs['Cooling Type']      = isInv || isSBS ? 'No Frost' : 'Direct Cool';
+
+    // ── Technology detection ──────────────────────────────────────────────────
+    // Haier sub-series suffixes
+    const isIG = /\bHDF\b/.test(m) && /\bIG\b/.test(m);
+    const isIF = /\bIF\b|IFRA|IFGA/.test(m);
+    const isIP = /\bIP\b|IPRA|IPGA/.test(m);
+
+    const isSBS   = /SBS|\bDSS\b|\bDTM\b|IFF/.test(m);
+    const isGlass = isIG || /IFGA|GLASS|\bGD\b|\bID\b|\bIA\b/.test(m);
+    const isDF    = /\bHDF\b/.test(m);
+
+    // Dawlance "+" suffix on a series name = inverter (Avante+ / Chrome+ / Graze+ / Acce+)
+    // No "+" = conventional even if same series name (Avante ≠ Avante+)
+    const hasDlPlus = b === 'dawlance' && /(?:AVANTE|CHROME|GRAZE|NOVA|ACCE)\+/.test(m);
+
+    // Dawlance WB (White Body) = conventional, non-inverter.
+    // Exception: "GD INV", explicit "INV", "LF", or "+" series override this.
+    const isDlWB = b === 'dawlance' && /\bWB\b/.test(m) && !/\bINV\b|INVERTER|LF\b/.test(m) && !hasDlPlus;
+
+    // isInv: EXPLICIT technology markers + Dawlance "+" series names.
+    // Plain Chrome / Avante / Graze without "+" are SERIES NAMES only — not inverter.
+    const isInv = !isDlWB && (isIG || isIF || isIP || hasDlPlus || /\bINV\b|INVERTER|LF\b/.test(m));
+
+    // isNoFrost: fan-forced / frost-free cooling (no manual defrosting needed).
+    // Dawlance LF series = always no-frost.
+    // Haier IF / IG = always no-frost.
+    // SBS = always no-frost.
+    // Generic inverter (IP, bare INV) = auto-defrost only — not always fan-forced.
+    const isNoFrost = isSBS || (isInv && (/LF\b|NO.?FROST|FROST.FREE/.test(m) || isIF || isIG));
+
+    // ── Spec output ───────────────────────────────────────────────────────────
+    specs['Type']       = isSBS ? 'Side-by-Side (No-Frost)' : isGlass ? 'Glass Door' : isDF ? 'Deep Freezer' : 'Double Door';
+    specs['Defrost']    = isNoFrost ? 'Auto / No-Frost (Fan-Forced)' : isInv ? 'Auto Defrost' : 'Manual (Freezer Compartment)';
+    specs['Cooling System'] = isNoFrost ? 'No Frost (Fan-Forced Cooling)' : isInv ? 'Auto Defrost' : 'Direct Cool';
+    specs['Inverter']   = isInv ? 'Yes' : 'No';
+    specs['Compressor'] = isInv ? 'Inverter Compressor (Variable Speed, Energy Saving)' : 'Conventional Compressor';
+
     if (isIF)  specs['Control Display'] = 'Digital LED Temperature Display';
     if (isIP)  specs['Control Display'] = 'Mechanical Thermostat (No Digital Display)';
     if (isIG)  specs['Control Display'] = 'Electronic Controls — Glass Door Model';
-    specs['Defrost']           = isInv || isSBS ? 'Auto / No-Frost' : 'Manual (Freezer)';
-    specs['Refrigerant']       = 'R600a (Zero Ozone Depletion)';
-    specs['Voltage Tolerance'] = '130V – 260V (No Stabilizer Required)';
-    specs['Climate Class']     = 'T — Tropical (Designed for Pakistan)';
+
+    specs['Refrigerant']   = 'R600a (Zero Ozone Depletion)';
+    specs['Climate Class'] = 'T — Tropical (Designed for Pakistan)';
+    // Stabilizer-free voltage range is a feature of inverter models only
+    if (isInv) specs['Voltage Tolerance'] = '130V – 260V (No Stabilizer Required)';
+
+    // Door alarm: only on confirmed premium/inverter models with digital controls
+    specs['Door Alarm']  = (isNoFrost || isIF || isIG || isSBS) ? 'Yes — audible door-open alarm' : 'No';
+    specs['Child Lock']  = (isIF || isIG || isSBS) ? 'Yes (panel lock)' : 'No';
+
     if (!isDF) specs['Crisper Drawer'] = 'Yes — humidity-controlled';
+    specs['Interior Light'] = 'LED';
+
     const cfNum = parseFloat(String(cf || 0));
-    // Shelves and door shelves estimated by capacity
     if (!isDF && cfNum > 0) {
-      const shelves     = cfNum <= 10 ? 2 : cfNum <= 14 ? 3 : cfNum <= 18 ? 3 : 4;
-      const doorShelves = cfNum <= 10 ? 2 : cfNum <= 14 ? 3 : cfNum <= 18 ? 3 : 4;
-      specs['Glass Shelves']     = shelves + ' adjustable glass shelves';
-      specs['Door Shelves']      = doorShelves + ' door pockets / bottle rack';
+      const shelves = cfNum <= 10 ? 2 : cfNum <= 14 ? 3 : 4;
+      specs['Glass Shelves'] = shelves + ' adjustable glass shelves';
+      specs['Door Shelves']  = shelves + ' door pockets / bottle rack';
     }
     if (isSBS) {
       specs['Glass Shelves'] = '4 adjustable glass shelves (fridge) + 4 freezer drawers';
       specs['Door Shelves']  = '5 door pockets each side';
     }
-    specs['Interior Light']    = 'LED';
-    // Door alarm & child lock
-    specs['Door Alarm']        = (isInv || isSBS || isIF) ? 'Yes — audible door-open alarm' : 'No';
-    specs['Child Lock']        = (isIF || isIG) ? 'Yes (panel lock)' : 'No';
-    // Power consumption estimated by capacity
     if (cfNum > 0) {
-      const pw = Math.round((60 + cfNum * 5) / 5) * 5;
+      const pw = Math.round((60 + cfNum * (isInv ? 4 : 6)) / 5) * 5;
       specs['Power Consumption'] = pw + 'W (avg. annual: ' + Math.round(pw * 8 * 365 / 1000) + ' kWh/yr)';
-    }
-    // Approx dimensions by capacity
-    if (cfNum > 0) {
       const h = cfNum <= 10 ? 152 : cfNum <= 14 ? 163 : cfNum <= 18 ? 172 : 178;
-      const w = isSBS ? 91 : 60;
-      const d = isSBS ? 67 : 65;
-      specs['Dimensions'] = h + ' × ' + w + ' × ' + d + ' cm (H×W×D, approx.)';
+      specs['Dimensions'] = h + ' × ' + (isSBS ? 91 : 60) + ' × ' + (isSBS ? 67 : 65) + ' cm (H×W×D, approx.)';
       specs['Net Weight']  = Math.round(30 + cfNum * 2.5) + ' kg (approx.)';
     }
-    specs['Power Supply']      = '220V / 50Hz';
-    if (b === 'haier')    specs['Hygiene Filter'] = 'Yes (Anti-Bacterial)';
-    if (b === 'dawlance') specs['Inverter Technology'] = isInv ? 'Yes — up to 40% energy saving' : 'No';
+    specs['Power Supply'] = '220V / 50Hz';
+    if (b === 'haier')    specs['Hygiene Filter']       = 'Yes (Anti-Bacterial)';
+    if (b === 'dawlance') specs['Inverter Technology']  = isInv ? 'Yes — up to 40% energy saving' : 'No';
   }
 
   // ── Washing Machines ──
@@ -1960,18 +2007,22 @@ export function buildSimplifiedName(brand: string, model: string, category: stri
       if (/\bTSG\b|\bTBG\b|T-DOOR|TDOOR|FRENCH/i.test(m) || /french/i.test(category)) {
         return [b, size, 'No Frost French T-Door Inverter Refrigerator'].filter(Boolean).join(' ');
       }
-      const isIF   = /\bIF\b|IFRA|IFGA/.test(m);
-      const isIP   = /\bIP\b|IPRA|IPGA/.test(m);
-      const isInv  = isIF || isIP || /INV|INVERTER|GRAZE|CHROME|AVANTE|\bLF\b/.test(m);
-      const isGD   = isIF || isIP || /IFGA|GLASS|\bGD\b|\bID\b|\bIA\b|\bIB\b|\bIBS\b|\bIFP\b/.test(m);
-      const isSBS  = /SBS|DSS-|DTM-|IFF/.test(m);
-      // Series label for display
+      const isIF = /\bIF\b|IFRA|IFGA/.test(m);
+      const isIP = /\bIP\b|IPRA|IPGA/.test(m);
+      const isSBS = /SBS|\bDSS\b|\bDTM\b|IFF/.test(m);
+      const isGD  = isIF || isIP || /IFGA|GLASS|\bGD\b|\bID\b|\bIA\b|\bIB\b|\bIBS\b|\bIFP\b/.test(m);
+      // "+" on Dawlance series name = inverter (Avante+ / Chrome+ / Graze+ / Acce+)
+      const hasDlPlus = b === 'dawlance' && /(?:AVANTE|CHROME|GRAZE|NOVA|ACCE)\+/.test(m);
+      // WB (White Body) = conventional, UNLESS overridden by INV/LF/+
+      const isDlWB = b === 'dawlance' && /\bWB\b/.test(m) && !/\bINV\b|INVERTER|LF\b/.test(m) && !hasDlPlus;
+      // Series names alone (Chrome/Avante/Graze without +) are NOT inverter indicators
+      const isInv = !isDlWB && (isIF || isIP || hasDlPlus || /\bINV\b|INVERTER|LF\b/.test(m));
+      // Series label
       const series = /GRAZE\+|GRAZE PLUS/.test(m) ? 'Graze+' : /GRAZE/.test(m) ? 'Graze'
                    : /AVANTE\+/.test(m) ? 'Avante+' : /AVANTE/.test(m) ? 'Avante'
                    : /CHROME\+|CHROME PLUS/.test(m) ? 'Chrome+' : /CHROME/.test(m) ? 'Chrome'
                    : '';
-      const typ    = isSBS ? 'Side-by-Side Refrigerator' : 'Refrigerator';
-      // Pattern: Brand + Capacity + "Glass Door"? + "Inverter"? + Series? + type
+      const typ = isSBS ? 'Side-by-Side Refrigerator' : 'Refrigerator';
       return [b, size, isGD && !isSBS ? 'Glass Door' : '', isInv ? 'Inverter' : '', series, typ].filter(Boolean).join(' ');
     }
     case 'deep_freezer': {
@@ -2171,7 +2222,7 @@ export function buildSimplifiedName(brand: string, model: string, category: stri
       const displayType = cc !== 'unknown' ? (CANONICAL_DISPLAY[cc] ?? '') : '';
       if (displayType) {
         const specCap = specs?.['Capacity'] || specs?.['Water Tank'] || '';
-        const size = p.litres ?? (p.slices ? p.slices + '-Slice' : p.kg ?? '') || specCap;
+        const size = (p.litres ?? (p.slices ? p.slices + '-Slice' : (p.kg ?? ''))) || specCap;
         return [b, displayType, size || mo].filter(Boolean).join(' ');
       }
       // For Westpoint (or other brands) where the DB category encodes the specific product type
@@ -2217,7 +2268,7 @@ export function deriveSubCategory(brand: string, model: string, category: string
       const isIG = /\bHDF\b/.test(m) && /\bIG\b/.test(m);
       if (isIG || /GLASS|IFGA/.test(m)) return 'Glass Door Inverter';
       if (/HDF/.test(m)) return 'Deep Freezer';
-      if (/\bIF\b|IFRA|INV|INVERTER|IPRA|IPGA|GRAZE|CHROME|AVANTE|\bLF\b/.test(m)) return 'Inverter Double Door';
+      if (/\bIF\b|IFRA|INV|INVERTER|IPRA|IPGA|GRAZE|CHROME|AVANTE|LF\b/.test(m)) return 'Inverter Double Door';
       if (/\bIP\b/.test(m)) return 'Inverter Double Door';
       return 'Double Door';
     }
@@ -2794,7 +2845,7 @@ export async function processCSVImport(
   await Promise.all(uniqueBrands.map(b => resolveBrandImages(b, brandImageCache)));
 
   // Step 2 — Build CSV state sets
-  const csvCategories = new Set(rows.map(r => r.Category).filter(Boolean));
+  const _csvCategories = new Set(rows.map(r => r.Category).filter(Boolean)); void _csvCategories;
   const csvKeys = new Set(rows.map(r => `${(r.Brand || '').toLowerCase()}::${(r.Model || '').toLowerCase()}`));
 
   // Step 3 — Fetch existing DB products by brand (not category) so we find products

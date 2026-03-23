@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, startTransition } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import {
@@ -54,10 +54,12 @@ export default function ProductDetail() {
     if (!slug) { navigate('/products'); return; }
     getProductBySlug(slug).then(p => {
       if (!p) { navigate('/products', { replace: true }); return; }
-      setProduct(p);
-      setLoading(false);
-      getRelatedProducts(p.id, p.category, 4).then(setRelated);
-      getPriceHistory(p.id).then(setPriceHistory);
+      startTransition(() => {
+        setProduct(p);
+        setLoading(false);
+      });
+      getRelatedProducts(p.id, p.category, 4).then(r => startTransition(() => setRelated(r)));
+      getPriceHistory(p.id).then(ph => startTransition(() => setPriceHistory(ph)));
     });
   }, [slug, navigate]);
 
@@ -87,7 +89,7 @@ export default function ProductDetail() {
     : waInstallment(p.brand, p.model, PLAN_LABELS[plan]);
 
   const waConsultUrl = waSales(
-    `Hi, I'm interested in the ${p.brand} ${p.simplified_name || p.model} and would like to book a free consultation.`
+    `Hi, I'm interested in the ${p.simplified_name || `${p.brand} ${p.model}`} and would like to book a free consultation.`
   );
 
   const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://reliance.tajallis.com.pk';
@@ -200,7 +202,7 @@ export default function ProductDetail() {
         <div>
           <p className="text-brand-500 font-bold text-xs uppercase tracking-widest mb-1">{p.brand}</p>
           <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight leading-tight mb-1">
-            {p.brand} {p.simplified_name || p.model}
+            {p.simplified_name || `${p.brand} ${p.model}`}
           </h1>
           {p.simplified_name && (
             <p className="text-gray-400 text-sm mb-1 font-mono">Model: {p.model}</p>
@@ -430,7 +432,7 @@ export default function ProductDetail() {
               <p className="text-sm text-gray-600 mb-4">
                 Professional installation available same-day in Karachi. PKR 2,000 flat fee — includes all labour and basic fittings.
               </p>
-              <a href={waSales(`Hi, I'd like to book installation for ${p.brand} ${p.simplified_name || p.model}.`)}
+              <a href={waSales(`Hi, I'd like to book installation for ${p.simplified_name || `${p.brand} ${p.model}`}.`)}
                 target="_blank" rel="noreferrer"
                 className="inline-flex items-center gap-2 font-bold text-white px-6 py-3 rounded-xl transition-all hover:opacity-90"
                 style={{ background: '#25d366' }}>
@@ -514,7 +516,7 @@ export default function ProductDetail() {
       {/* Related products */}
       {related.length > 0 && (
         <div className="mt-14">
-          <h2 className="text-lg font-extrabold text-gray-900 mb-5">More {p.category}</h2>
+          <h2 className="text-lg font-extrabold text-gray-900 mb-5">More {p.category.replace(/s$/, '')}s</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {related.map(r => <ProductCard key={r.id} product={r} />)}
           </div>
