@@ -3420,13 +3420,15 @@ export async function mergeDuplicates(
 ): Promise<MergeResult> {
   const result: MergeResult = { groups: 0, deleted: 0, kept: 0, errors: [] };
 
-  onProgress('Loading all products…');
+  onProgress('Loading products…');
+  // Fetch only lightweight fields — no specs JSON to avoid large payload
   const { data, error } = await supabase
     .from('products')
-    .select('id, brand, model, slug, thumbnail_url, specs, updated_at');
+    .select('id, slug, thumbnail_url, updated_at')
+    .order('updated_at', { ascending: false });
   if (error) { result.errors.push(error.message); return result; }
 
-  // Group by normalised slug (brand-model)
+  // Group by normalised slug
   const groups = new Map<string, typeof data>();
   for (const row of data ?? []) {
     const key = (row.slug || '').toLowerCase().trim();
@@ -3442,23 +3444,30 @@ export async function mergeDuplicates(
 
   onProgress(`Found ${dupeGroups.length} duplicate groups — merging…`);
 
+  // Score each row: thumbnail=10, newer updated_at wins tiebreak.
+  // Collect ALL ids to delete, then do a single bulk delete.
+  const allDeleteIds: string[] = [];
   for (const group of dupeGroups) {
-    // Score each row: thumbnail=10, each spec key=1, newer updated_at as tiebreak
     const scored = group.map(r => ({
-      r,
-      score: (r.thumbnail_url ? 10 : 0) +
-             Object.keys(r.specs ?? {}).length +
-             (new Date(r.updated_at ?? 0).getTime() / 1e12),
+      id: r.id,
+      slug: r.slug,
+      score: (r.thumbnail_url ? 10 : 0) + (new Date(r.updated_at ?? 0).getTime() / 1e12),
     }));
     scored.sort((a, b) => b.score - a.score);
+    allDeleteIds.push(...scored.slice(1).map(s => s.id));
+    result.kept += 1;
+  }
 
-    const toDelete = scored.slice(1).map(s => s.r.id);
-    const { error: delErr } = await supabase.from('products').delete().in('id', toDelete);
+  // Delete in batches of 200 to stay within URL length limits
+  const BATCH = 200;
+  for (let i = 0; i < allDeleteIds.length; i += BATCH) {
+    const batch = allDeleteIds.slice(i, i + BATCH);
+    onProgress(`Deleting ${i + batch.length} / ${allDeleteIds.length}…`);
+    const { error: delErr } = await supabase.from('products').delete().in('id', batch);
     if (delErr) {
-      result.errors.push(`Delete failed for group "${scored[0].r.slug}": ${delErr.message}`);
+      result.errors.push(delErr.message);
     } else {
-      result.deleted += toDelete.length;
-      result.kept    += 1;
+      result.deleted += batch.length;
     }
   }
 
