@@ -1617,21 +1617,26 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
   else if (cc === 'deep_freezer') {
     const cf = _cfFromFridge(m);
     if (cf !== '') specs['Capacity'] = cf + ' Cu.Ft (' + Math.round(cf * 28.3) + ' Litres approx.)';
-    const isInv  = /INV|INVERTER/.test(m);
-    const isVF   = /VF[-\s]/.test(m) || category.toLowerCase().includes('vertical');
+    // Haier HDF: IG suffix = Inverter + Grey, I suffix = Inverter (white), SD = conventional
+    const isHdfIG = b === 'haier' && /HDF[-\s]?\d{3}IG/.test(m);
+    const isHdfI  = b === 'haier' && /HDF[-\s]?\d{3}I(?!G)/.test(m);
+    const isInv   = isHdfIG || isHdfI || /INV|INVERTER/.test(m);
+    const isVF    = /VF[-\s]/.test(m) || category.toLowerCase().includes('vertical');
     specs['Type']              = isVF ? 'Vertical / Upright Deep Freezer' : 'Chest Deep Freezer';
+    specs['Inverter']          = isInv ? 'Yes' : 'No';
     specs['Compressor']        = isInv ? 'Inverter Compressor (Variable Speed, Energy Saving)' : 'Conventional Compressor';
     specs['Defrost']           = isVF ? 'Auto Frost-Free (fan-forced)' : 'Manual (drain plug)';
     specs['Temperature Range'] = '-18°C to -24°C (freezer zone)';
     specs['Refrigerant']       = 'R600a (Zero Ozone Depletion)';
-    specs['Voltage Tolerance'] = '130V – 260V (No Stabilizer Required)';
+    if (isInv) specs['Voltage Tolerance'] = '130V – 260V (No Stabilizer Required)';
     specs['Interior Light']    = 'LED';
     specs['Basket']            = 'Wire storage basket(s) included';
     specs['Door Alarm']        = 'Yes — audible alarm if door left open';
+    if (isHdfIG) specs['Color'] = 'Grey';
     // Power consumption estimated by capacity
     const cfNumFz = parseFloat(String(cf || 0));
     if (cfNumFz > 0) {
-      const pw = Math.round((40 + cfNumFz * 4) / 5) * 5;
+      const pw = Math.round((40 + cfNumFz * (isInv ? 3 : 4)) / 5) * 5;
       specs['Power Consumption'] = pw + 'W (avg.)';
       const h = isVF ? (150 + Math.round(cfNumFz * 2)) : (88 + Math.round(cfNumFz * 1.5));
       const w = isVF ? 60 : (80 + Math.round(cfNumFz * 2.5));
@@ -2059,10 +2064,14 @@ export function buildSimplifiedName(brand: string, model: string, category: stri
           if (cfMatch) size = cfMatch[1] + ' Cu.Ft';
         }
       }
-      const isInv = /INV|INVERTER/.test(m);
-      const isVF  = /VF[-\s]/.test(m) || category.toLowerCase().includes('vertical');
-      const typ   = isVF ? 'Vertical Freezer' : 'Deep Freezer';
-      return [b, size, isInv ? 'Inverter' : '', typ].filter(Boolean).join(' ');
+      // Haier HDF: IG = Inverter Grey, I (not IG) = Inverter white, SD = conventional
+      const isHdfIG = bl === 'haier' && /HDF[-\s]?\d{3}IG/.test(m);
+      const isHdfI  = bl === 'haier' && /HDF[-\s]?\d{3}I(?!G)/.test(m);
+      const isInv   = isHdfIG || isHdfI || /INV|INVERTER/.test(m);
+      const isVF    = /VF[-\s]/.test(m) || category.toLowerCase().includes('vertical');
+      const typ     = isVF ? 'Vertical Freezer' : 'Deep Freezer';
+      const color   = isHdfIG ? 'Grey' : '';
+      return [b, size, isInv ? 'Inverter' : '', color, typ].filter(Boolean).join(' ');
     }
     case 'spinner': {
       const kgM = m.match(/^(\d{2,3})[-\s]/);
