@@ -1337,7 +1337,7 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
       specs['Cooling Capacity'] = Math.round(parseFloat(ton) * 12000).toLocaleString() + ' BTU/hr';
       specs['Coverage Area'] = 'Up to ' + Math.round(parseFloat(ton) * 120) + ' sq.ft';
     }
-    const isInv = /HNF|PITH|CITH|FAIRY|LOMO|UFLY|ULTRA|INVERTER|\bINV\b|\bDC\b|LF\b|LFW/.test(m);
+    const isInv = /HNF|PITH|CITH|FAIRY|LOMO|UFLY|ULTRA|INVERTER|\bINV\b|\bDC\b|LF\b|LFW|HFT|HFP|HPM|RFP/.test(m);
     const isHC  = /HFC|HFAB|HFTEX|HPU|PRIMA|GALLANT|HEAT|H&C/.test(m);
     specs['Type']             = isHC ? 'Split AC (Heat & Cool)' : 'Split Air Conditioner';
     specs['Inverter']         = isInv ? 'Yes' : 'No';
@@ -1375,7 +1375,7 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
     const isIP = /\bIP\b|IPRA|IPGA/.test(m);
 
     const isSBS   = /SBS|\bDSS\b|\bDTM\b|IFF/.test(m);
-    const isGlass = isIG || /IFGA|GLASS|\bGD\b|\bID\b|\bIA\b/.test(m);
+    const isGlass = isIG || /IFGA|IPGA|GLASS|\bGD\b|\bID\b|\bIA\b/.test(m);
     const isDF    = /\bHDF\b/.test(m);
 
     // Dawlance 9160-series: conventional/direct-cool regardless of AVANTE+ branding or LF suffix.
@@ -1385,9 +1385,9 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
     // No "+" = conventional even if same series name (Avante ≠ Avante+)
     const hasDlPlus = b === 'dawlance' && /(?:AVANTE|CHROME|GRAZE|NOVA|ACCE)\+/.test(m);
 
-    // Dawlance WB (White Body) = conventional, non-inverter.
-    // Exception: "GD INV", explicit "INV", "LF", or "+" series override this.
-    const isDlWB = b === 'dawlance' && /\bWB\b/.test(m) && !/\bINV\b|INVERTER|LF\b/.test(m) && !hasDlPlus;
+    // Dawlance WB (White Body) = ALWAYS conventional. WB = direct-cool compressor.
+    // Only explicit INV/INVERTER or LF markers can override (not a series name like AVANTE+).
+    const isDlWB = b === 'dawlance' && /\bWB\b/.test(m) && !/\bINV\b|INVERTER|LF\b/.test(m);
 
     // isInv: EXPLICIT technology markers + Dawlance "+" series names.
     // Plain Chrome / Avante / Graze without "+" are SERIES NAMES only — not inverter.
@@ -2013,13 +2013,15 @@ export function buildSimplifiedName(brand: string, model: string, category: stri
       const isIF = /\bIF\b|IFRA|IFGA/.test(m);
       const isIP = /\bIP\b|IPRA|IPGA/.test(m);
       const isSBS = /SBS|\bDSS\b|\bDTM\b|IFF/.test(m);
-      const isGD  = isIF || isIP || /IFGA|GLASS|\bGD\b|\bID\b|\bIA\b|\bIB\b|\bIBS\b|\bIFP\b/.test(m);
+      // Glass door: IFGA/IPGA = glass-door digital/mechanical variants; also GD, ID, IA, IB, IBS, IFP
+      // IF and IP alone are control-display types (digital/mechanical thermostat), NOT glass door
+      const isGD  = /IFGA|IPGA|GLASS|\bGD\b|\bID\b|\bIA\b|\bIB\b|\bIBS\b|\bIFP\b/.test(m);
       // Dawlance 9160-series: conventional/direct-cool regardless of branding or LF suffix
       const isDl9160 = b === 'dawlance' && /\b9160\b/.test(m);
       // "+" on Dawlance series name = inverter (Avante+ / Chrome+ / Graze+ / Acce+)
       const hasDlPlus = b === 'dawlance' && /(?:AVANTE|CHROME|GRAZE|NOVA|ACCE)\+/.test(m);
-      // WB (White Body) = conventional, UNLESS overridden by INV/LF/+
-      const isDlWB = b === 'dawlance' && /\bWB\b/.test(m) && !/\bINV\b|INVERTER|LF\b/.test(m) && !hasDlPlus;
+      // WB (White Body) = ALWAYS conventional. Only INV/LF markers can override, not series names.
+      const isDlWB = b === 'dawlance' && /\bWB\b/.test(m) && !/\bINV\b|INVERTER|LF\b/.test(m);
       // Series names alone (Chrome/Avante/Graze without +) are NOT inverter indicators
       const isInv = !isDlWB && !isDl9160 && (isIF || isIP || hasDlPlus || /\bINV\b|INVERTER|LF\b/.test(m));
       // Series label
