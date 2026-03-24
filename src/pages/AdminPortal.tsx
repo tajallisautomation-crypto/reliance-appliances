@@ -8,7 +8,7 @@ import {
   calcAllPlans, roundUp500, fmtPKR, CATEGORY_MAP,
   processCSVImport, reenrichAllProducts, rematchAllImages, getDataAudit, scanBucket, fixAllCategories,
   rebalanceCategories, getCategoryCounts, CAT_MIN, CAT_MAX,
-  mergeDuplicates, normalizeCategoryNames, type MergeResult,
+  mergeDuplicates, findNearDuplicates, normalizeCategoryNames, type MergeResult, type NearDupeGroup,
   composeImages, decomposeImages, logAdminAction, getAuditLog, clearAuditLog,
   getSolarLeads, updateSolarLeadStatus, saveSolarProposal, type SolarLead,
   type ImportSummary, type CsvImportRow, type Product, type AuditProduct, type BucketScanResult,
@@ -2594,6 +2594,9 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
   const [mergeResult,    setMergeResult]    = useState<MergeResult | null>(null);
   const [normLoading,    setNormLoading]    = useState(false);
   const [normResult,     setNormResult]     = useState('');
+  const [nearDupes,      setNearDupes]      = useState<NearDupeGroup[] | null>(null);
+  const [nearDupesLoading, setNearDupesLoading] = useState(false);
+  const [deletingNearId, setDeletingNearId] = useState<string | null>(null);
 
   const unenrichedIds = products.filter(p => !p.simplified_name?.trim()).map(p => p.id);
 
@@ -2615,6 +2618,22 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
     setMergeResult(null); setAllResult(null);
     const r = await mergeDuplicates(setMergeProgress);
     setMergeResult(r); onRefresh();
+  }
+
+  async function handleScanNearDupes() {
+    setNearDupesLoading(true); setNearDupes(null);
+    const groups = await findNearDuplicates();
+    setNearDupes(groups); setNearDupesLoading(false);
+  }
+
+  async function handleDeleteNearDupe(id: string, groupKey: string) {
+    setDeletingNearId(id);
+    await supabase.from('products').delete().eq('id', id);
+    setNearDupes(prev => prev?.map(g =>
+      g.key === groupKey ? { ...g, products: g.products.filter(p => p.id !== id) } : g
+    ).filter(g => g.products.length > 1) ?? null);
+    setDeletingNearId(null);
+    onRefresh();
   }
 
   async function handleNormalizeCategories() {
@@ -2830,9 +2849,9 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
               </div>
               <span className="font-semibold text-gray-800 text-sm">Merge Duplicates</span>
             </div>
-            <p className="text-xs text-gray-400">Finds products with the same brand+model slug, keeps the most complete entry, and deletes the rest.</p>
+            <p className="text-xs text-gray-400">Normalises model strings (strips REF prefix, WB/LF, color suffixes) then merges identical entries. Keeps the entry with image + highest price.</p>
             <button
-              onClick={() => setConfirmBulk({ title: 'Merge Duplicates?', message: 'Scan all products for duplicates (same slug). The entry with the most complete data (image, specs) is kept; others are permanently deleted.', action: handleMergeDuplicates })}
+              onClick={() => setConfirmBulk({ title: 'Merge Duplicates?', message: 'Scans all products. Strips REF prefix, WB/LF, and color words (Coral Red, NOIR, Metallic Gold, etc.) before comparing — so near-identical listings are caught. The entry with an image + highest price is kept; others are permanently deleted.', action: handleMergeDuplicates })}
               disabled={isBusy()}
               className="w-full flex items-center justify-center gap-1.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white py-2 rounded-lg text-xs font-bold">
               {mergeProgress ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /><span className="truncate max-w-[140px]">{mergeProgress}</span></> : <><Trash2 className="w-3.5 h-3.5" />Merge Duplicates</>}
@@ -2842,6 +2861,23 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
                 {mergeResult.groups} groups · {mergeResult.deleted} deleted · {mergeResult.kept} kept{mergeResult.errors.length ? ` · ${mergeResult.errors.length} errors` : ' ✓'}
               </p>
             )}
+          </div>
+
+          {/* Near-Duplicate Scanner */}
+          <div className="border border-gray-100 rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 bg-amber-50 rounded-lg flex items-center justify-center">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+              </div>
+              <span className="font-semibold text-gray-800 text-sm">Near-Duplicate Scanner</span>
+            </div>
+            <p className="text-xs text-gray-400">Shows same-series variants (e.g. 9173 Graze+ vs 9173 LF Graze+) that survived the auto-merge. Review and manually delete the weaker entry.</p>
+            <button
+              onClick={handleScanNearDupes}
+              disabled={nearDupesLoading}
+              className="w-full flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white py-2 rounded-lg text-xs font-bold">
+              {nearDupesLoading ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Scanning…</> : <><AlertTriangle className="w-3.5 h-3.5" />Scan Near-Duplicates</>}
+            </button>
           </div>
 
           {/* Match Images */}
@@ -2943,6 +2979,52 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
           </div>
         )}
       </div>
+
+      {/* Near-Duplicate results panel */}
+      {nearDupes !== null && (
+        <div className="bg-white rounded-2xl border border-amber-100 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                Near-Duplicate Groups
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {nearDupes.length === 0 ? 'No near-duplicates found ✓' : `${nearDupes.length} group${nearDupes.length !== 1 ? 's' : ''} — click 🗑 to delete the weaker variant`}
+              </p>
+            </div>
+            <button onClick={() => setNearDupes(null)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+          </div>
+          {nearDupes.map(group => (
+            <div key={group.key} className="border border-amber-100 rounded-xl overflow-hidden">
+              <div className="bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">{group.key}</div>
+              <div className="divide-y divide-gray-50">
+                {group.products.map(p => (
+                  <div key={p.id} className="flex items-center gap-3 px-3 py-2.5">
+                    {p.thumbnail_url
+                      ? <img src={p.thumbnail_url} alt="" className="w-8 h-8 object-contain rounded flex-shrink-0" />
+                      : <div className="w-8 h-8 bg-gray-100 rounded flex-shrink-0 flex items-center justify-center text-gray-400 text-xs">—</div>
+                    }
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium text-gray-900 truncate">{p.model}</div>
+                      <div className="text-xs text-gray-400 truncate">{p.simplified_name || '—'}</div>
+                    </div>
+                    <div className="text-xs font-medium text-gray-700 tabular-nums flex-shrink-0">
+                      {p.price > 0 ? `PKR ${p.price.toLocaleString()}` : '—'}
+                    </div>
+                    <button
+                      onClick={() => handleDeleteNearDupe(p.id, group.key)}
+                      disabled={deletingNearId === p.id}
+                      className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-500 disabled:opacity-40 transition-colors">
+                      {deletingNearId === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Data completeness audit */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
