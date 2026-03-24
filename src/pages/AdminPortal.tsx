@@ -4,7 +4,7 @@ import { useAuthStore } from '@/store/authStore';
 import { supabase } from '@/lib/supabase';
 import {
   getProducts, upsertProduct, deleteProduct,
-  uploadBrandImage, updateProductImages, fetchAndUploadOrSaveUrl,
+  uploadBrandImage, updateProductImages, fetchAndUploadOrSaveUrl, saveProductImages,
   calcAllPlans, roundUp500, fmtPKR, CATEGORY_MAP,
   processCSVImport, reenrichAllProducts, rematchAllImages, getDataAudit, scanBucket, fixAllCategories,
   rebalanceCategories, getCategoryCounts, CAT_MIN, CAT_MAX,
@@ -737,114 +737,149 @@ function Field({ label, value, onChange, type = 'text', placeholder = '', multil
 function QuickImageUpload({
   product, onDone, onCancel,
 }: { product: Product; onDone: () => void; onCancel: () => void }) {
-  const [mode, setMode]         = useState<'file' | 'url'>('url');
   const [uploading, setUploading] = useState(false);
-  const [err, setErr]           = useState('');
-  const [done, setDone]         = useState(false);
-  const [dragging, setDragging] = useState(false);
-  const [urlInput, setUrlInput] = useState('');
-  const [notice, setNotice]     = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [err, setErr]             = useState('');
+  const [done, setDone]           = useState(false);
+  const [notice, setNotice]       = useState('');
+  // Separate fields: one thumbnail URL + multiple gallery URLs
+  const [thumbUrl,  setThumbUrl]  = useState(product.thumbnail || '');
+  const [galleryUrls, setGalleryUrls] = useState<string[]>(product.gallery || []);
+  const thumbRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
 
-  const path = bucketPath(product.brand, product.model, false);
-
-  async function uploadFile(file: File) {
-    setUploading(true); setErr('');
+  // Upload a local file to storage and place it in the right slot
+  async function uploadFile(file: File, slot: 'thumb' | 'gallery') {
+    setErr('');
     try {
       const url = await uploadBrandImage(file, product.brand, product.model, false);
-      await updateProductImages(product.id, url);
-      setNotice('Saved to Supabase Storage ✓');
-      setDone(true);
-      setTimeout(onDone, 900);
-    } catch (e: any) { setErr(e.message); setUploading(false); }
+      if (slot === 'thumb') setThumbUrl(url);
+      else setGalleryUrls(prev => [...prev.filter(u => u !== url), url]);
+    } catch (e: any) { setErr(e.message); }
   }
 
-  async function handleUrl() {
-    const urls = urlInput.split('\n').map(u => u.trim()).filter(u => u.startsWith('http'));
-    if (!urls.length) { setErr('Enter a valid image URL starting with http'); return; }
-    setUploading(true); setErr('');
-    const results = await Promise.allSettled(
-      urls.map(url => fetchAndUploadOrSaveUrl(url, product.id, product.brand, product.model))
-    );
-    const saved  = results.filter(r => r.status === 'fulfilled').length;
-    const errors = results
-      .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
-      .map(r => r.reason?.message || String(r.reason));
-    if (saved === 0) {
-      // All failed — stay open and show the error
-      setErr(errors[0] || 'Save failed — check the URL and try again');
-      setUploading(false);
-      return;
-    }
-    setNotice(`${saved} image${saved !== 1 ? 's' : ''} saved${errors.length ? ` · ${errors.length} failed` : ''} ✓`);
-    setDone(true);
-    setTimeout(onDone, 1200);
+  function addGallerySlot() {
+    setGalleryUrls(prev => [...prev, '']);
   }
+
+  function setGalleryUrl(idx: number, val: string) {
+    setGalleryUrls(prev => prev.map((u, i) => i === idx ? val : u));
+  }
+
+  function removeGallerySlot(idx: number) {
+    setGalleryUrls(prev => prev.filter((_, i) => i !== idx));
+  }
+
+  async function handleSave() {
+    const thumb = thumbUrl.trim();
+    if (!thumb) { setErr('Enter a display image URL or upload a file'); return; }
+    const gallery = galleryUrls.map(u => u.trim()).filter(u => u.startsWith('http') && u !== thumb);
+
+    setUploading(true); setErr('');
+    try {
+      const result = await saveProductImages(
+        product.id, product.brand, product.model,
+        thumb, gallery,
+        [], // don't keep old gallery — user has full control here
+      );
+      const total = 1 + result.gallery.length;
+      setNotice(`${total} image${total !== 1 ? 's' : ''} saved ✓`);
+      setDone(true);
+      setTimeout(onDone, 1000);
+    } catch (e: any) {
+      setErr(e.message || 'Save failed — check your URLs and try again');
+      setUploading(false);
+    }
+  }
+
+  const canSave = !!thumbUrl.trim() && !uploading;
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onCancel}>
-      <div className="bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-3">
+      <div className="bg-white rounded-2xl shadow-2xl p-5 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+
+        <div className="flex items-center justify-between mb-4">
           <div>
             <p className="font-bold text-gray-900 text-sm">{product.brand} · {product.model}</p>
-            <p className="text-[10px] text-gray-400 font-mono mt-0.5">{path}</p>
+            <p className="text-[10px] text-gray-400 mt-0.5">Add or replace product images</p>
           </div>
-          <button onClick={onCancel} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4" /></button>
+          <button onClick={onCancel} className="p-1.5 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4" /></button>
         </div>
 
         {done ? (
-          <div className="flex flex-col items-center py-6 gap-2 text-green-600">
-            <Check className="w-8 h-8" />
-            <span className="text-sm font-medium">{notice || 'Image updated!'}</span>
+          <div className="flex flex-col items-center py-8 gap-2 text-green-600">
+            <Check className="w-9 h-9" />
+            <span className="text-sm font-semibold">{notice}</span>
           </div>
         ) : (
-          <>
-            {/* Mode tabs */}
-            <div className="flex rounded-lg border border-gray-200 p-0.5 mb-3 text-xs font-semibold">
-              <button onClick={() => setMode('url')}
-                className={`flex-1 py-1.5 rounded-md transition-colors ${mode === 'url' ? 'bg-orange-500 text-white' : 'text-gray-500 hover:text-gray-700'}`}>
-                Paste URL
-              </button>
-              <button onClick={() => setMode('file')}
-                className={`flex-1 py-1.5 rounded-md transition-colors ${mode === 'file' ? 'bg-orange-500 text-white' : 'text-gray-500 hover:text-gray-700'}`}>
-                Upload File
+          <div className="space-y-4">
+
+            {/* ── Thumbnail slot ── */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-orange-500 text-white flex items-center justify-center text-[10px] font-black">1</span>
+                Display Image (thumbnail)
+              </label>
+              {thumbUrl && thumbUrl.startsWith('http') && (
+                <img src={thumbUrl} alt="" className="w-full h-32 object-contain rounded-xl border border-gray-100 bg-gray-50" />
+              )}
+              <div className="flex gap-2">
+                <input
+                  ref={thumbRef}
+                  value={thumbUrl}
+                  onChange={e => setThumbUrl(e.target.value)}
+                  placeholder="https://example.com/image.jpg"
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                />
+                <label className="shrink-0 cursor-pointer flex items-center gap-1 border border-gray-200 hover:border-orange-300 text-gray-500 px-2.5 rounded-lg text-xs font-semibold">
+                  <Camera className="w-3.5 h-3.5" />
+                  File
+                  <input type="file" accept="image/*" className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f, 'thumb'); }} />
+                </label>
+              </div>
+            </div>
+
+            {/* ── Gallery slots ── */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-700">Additional Images (gallery)</label>
+              {galleryUrls.map((url, idx) => (
+                <div key={idx} className="space-y-1">
+                  {url && url.startsWith('http') && (
+                    <img src={url} alt="" className="w-full h-20 object-contain rounded-lg border border-gray-100 bg-gray-50" />
+                  )}
+                  <div className="flex gap-2">
+                    <input
+                      value={url}
+                      onChange={e => setGalleryUrl(idx, e.target.value)}
+                      placeholder={`https://example.com/image-${idx + 2}.jpg`}
+                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                    />
+                    <label className="shrink-0 cursor-pointer flex items-center gap-1 border border-gray-200 hover:border-orange-300 text-gray-500 px-2.5 rounded-lg text-xs font-semibold">
+                      <Camera className="w-3.5 h-3.5" />
+                      File
+                      <input type="file" accept="image/*" className="hidden"
+                        onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f, 'gallery'); }} />
+                    </label>
+                    <button onClick={() => removeGallerySlot(idx)}
+                      className="shrink-0 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button onClick={addGallerySlot}
+                className="w-full border border-dashed border-gray-200 hover:border-orange-300 text-gray-400 hover:text-orange-500 py-2 rounded-lg text-xs font-semibold transition-colors">
+                + Add another image
               </button>
             </div>
 
-            {mode === 'url' ? (
-              <div className="space-y-2">
-                <textarea
-                  value={urlInput} onChange={e => setUrlInput(e.target.value)}
-                  placeholder={"https://example.com/img1.jpg\nhttps://example.com/img2.jpg\n(one URL per line)"}
-                  rows={3}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                  autoFocus
-                />
-                <p className="text-[10px] text-gray-400">Paste one or more image URLs (one per line). Each will be saved — fetched to storage or stored as URL.</p>
-                <button onClick={handleUrl} disabled={!urlInput.trim() || uploading}
-                  className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white py-2 rounded-lg text-sm font-bold">
-                  {uploading ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : 'Save Image(s)'}
-                </button>
-              </div>
-            ) : (
-              <div
-                className={`border-2 border-dashed rounded-xl cursor-pointer transition-colors flex flex-col items-center justify-center py-8 gap-2
-                  ${dragging ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-orange-300'}`}
-                onDragOver={e => { e.preventDefault(); setDragging(true); }}
-                onDragLeave={() => setDragging(false)}
-                onDrop={e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) uploadFile(f); }}
-                onClick={() => inputRef.current?.click()}
-              >
-                <input ref={inputRef} type="file" accept="image/*" className="hidden"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f); }} />
-                {uploading
-                  ? <><Loader2 className="w-6 h-6 animate-spin text-orange-500" /><span className="text-xs text-gray-500">Uploading…</span></>
-                  : <><Camera className="w-6 h-6 text-gray-300" /><span className="text-xs text-gray-500">Drop image or click to browse</span></>}
-              </div>
-            )}
+            {err && <p className="text-xs text-red-500 font-medium">{err}</p>}
 
-            {err && <p className="mt-2 text-xs text-red-500">{err}</p>}
-          </>
+            <button onClick={handleSave} disabled={!canSave}
+              className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-bold">
+              {uploading ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : 'Save Images'}
+            </button>
+          </div>
         )}
       </div>
     </div>

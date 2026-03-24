@@ -446,33 +446,81 @@ export async function updateProductImages(
 }
 
 /**
- * Fetches an image from a URL and uploads it to Supabase Storage with the correct
- * brand/model naming convention. If storage upload fails (e.g. RLS not yet configured),
- * falls back to saving the external URL directly in thumbnail_url.
- * Returns the final URL that was saved.
+ * Resolves a single image URL to its final saved form WITHOUT touching the DB.
+ * Tries to CORS-fetch the image and upload to Supabase Storage; if that fails
+ * (CORS blocked, non-image response, storage error) falls back to the original
+ * URL as-is.  The caller is responsible for persisting via updateProductImages.
+ */
+export async function resolveImageUrl(
+  imageUrl: string, brand: string, model: string
+): Promise<{ savedUrl: string; storedInBucket: boolean }> {
+  try {
+    const controller = new AbortController();
+    const timeoutId  = setTimeout(() => controller.abort(), 8000);
+    let resp: Response;
+    try {
+      resp = await fetch(imageUrl, { mode: 'cors', signal: controller.signal });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+    if (!resp!.ok) throw new Error(`HTTP ${resp!.status}`);
+    const blob = await resp!.blob();
+    if (!blob.type.startsWith('image/')) throw new Error('Response is not an image');
+    const rawExt = blob.type.split('/')[1] || 'jpg';
+    const ext    = rawExt === 'jpeg' ? 'jpg' : rawExt;
+    const file   = new File([blob], `image.${ext}`, { type: blob.type });
+    const storageUrl = await uploadBrandImage(file, brand, model, false);
+    return { savedUrl: storageUrl, storedInBucket: true };
+  } catch {
+    // CORS blocked, timeout, non-image, or storage error — keep external URL
+    return { savedUrl: imageUrl, storedInBucket: false };
+  }
+}
+
+/**
+ * @deprecated Use resolveImageUrl + updateProductImages separately so that
+ * thumbnail vs gallery assignment is controlled by the caller.
+ * Left here for any remaining call sites — routes all URLs through thumbnail only.
  */
 export async function fetchAndUploadOrSaveUrl(
   imageUrl: string, productId: string, brand: string, model: string
 ): Promise<{ savedUrl: string; storedInBucket: boolean }> {
-  // Step 1: try fetching the image and re-uploading to Supabase Storage
-  try {
-    const controller = new AbortController();
-    const timeoutId  = setTimeout(() => controller.abort(), 8000);
-    const resp = await fetch(imageUrl, { mode: 'cors', signal: controller.signal });
-    clearTimeout(timeoutId);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const blob = await resp.blob();
-    const rawExt = blob.type.split('/')[1] || 'jpg';
-    const ext = rawExt === 'jpeg' ? 'jpg' : rawExt;
-    const file = new File([blob], `image.${ext}`, { type: blob.type });
-    const storageUrl = await uploadBrandImage(file, brand, model, false);
-    await updateProductImages(productId, storageUrl);
-    return { savedUrl: storageUrl, storedInBucket: true };
-  } catch {
-    // Step 2: storage blocked or CORS failed — save the URL as-is
-    await updateProductImages(productId, imageUrl);
-    return { savedUrl: imageUrl, storedInBucket: false };
-  }
+  const result = await resolveImageUrl(imageUrl, brand, model);
+  await updateProductImages(productId, result.savedUrl);
+  return result;
+}
+
+/**
+ * Saves one thumbnail + any number of gallery images for a product in one DB call.
+ * Each URL is resolved first (CORS fetch → storage, fallback to external URL).
+ * Existing gallery images are PRESERVED unless explicitly replaced.
+ */
+export async function saveProductImages(
+  productId: string, brand: string, model: string,
+  thumbnailUrl: string,
+  galleryUrls: string[],
+  keepExistingGallery: string[] = [],
+): Promise<{ thumbnail: string; gallery: string[] }> {
+  // Resolve thumbnail
+  const { savedUrl: thumb } = await resolveImageUrl(thumbnailUrl, brand, model);
+
+  // Resolve each new gallery URL in parallel
+  const resolved = await Promise.allSettled(
+    galleryUrls.map(u => resolveImageUrl(u, brand, model))
+  );
+  const newGallery = resolved
+    .filter((r): r is PromiseFulfilledResult<{ savedUrl: string; storedInBucket: boolean }> => r.status === 'fulfilled')
+    .map(r => r.value.savedUrl)
+    .filter(u => u && u !== thumb);
+
+  // Merge: new gallery images first, then existing ones that don't duplicate
+  const combined = [
+    ...newGallery,
+    ...keepExistingGallery.filter(u => u && u !== thumb && !newGallery.includes(u)),
+  ];
+
+  await updateProductImages(productId, thumb, combined);
+  return { thumbnail: thumb, gallery: combined };
 }
 
 export async function submitOrder(body: any) {
