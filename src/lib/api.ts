@@ -3695,9 +3695,9 @@ function normalizeModelForDedupe(model: string): string {
  * Higher score = keep this one.  Thumbnail presence dominates; then retail price
  * (higher price = more likely the current/complete listing); then recency.
  */
-function scoreRow(r: { thumbnail_url: string | null; price_retail: number | null; updated_at: string | null }): number {
+function scoreRow(r: { thumbnail_url: string | null; retail_price: number | null; updated_at: string | null }): number {
   return (r.thumbnail_url ? 1000 : 0)
-    + (r.price_retail ?? 0) / 1_000_000   // max ~200k PKR → ≤0.2
+    + (r.retail_price ?? 0) / 1_000_000   // max ~200k PKR → ≤0.2
     + (new Date(r.updated_at ?? 0).getTime() / 1e15);
 }
 
@@ -3713,7 +3713,7 @@ export async function mergeDuplicates(
   onProgress('Loading products…');
   const { data, error } = await supabase
     .from('products')
-    .select('id, brand, model, slug, thumbnail_url, price_retail, updated_at')
+    .select('id, brand, model, slug, thumbnail_url, retail_price, updated_at')
     .order('updated_at', { ascending: false });
   if (error) { result.errors.push(error.message); return result; }
 
@@ -3765,7 +3765,7 @@ export async function mergeDuplicates(
 export async function findNearDuplicates(): Promise<NearDupeGroup[]> {
   const { data, error } = await supabase
     .from('products')
-    .select('id, brand, model, simplified_name, thumbnail_url, price_retail')
+    .select('id, brand, model, simplified_name, thumbnail_url, retail_price')
     .order('brand')
     .order('model');
   if (error || !data) return [];
@@ -3806,7 +3806,7 @@ export async function findNearDuplicates(): Promise<NearDupeGroup[]> {
           model: r.model,
           simplified_name: r.simplified_name ?? '',
           thumbnail_url: r.thumbnail_url,
-          price: r.price_retail ?? 0,
+          price: r.retail_price ?? 0,
         })),
       });
     }
