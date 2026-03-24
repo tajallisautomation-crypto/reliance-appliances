@@ -442,6 +442,7 @@ export async function updateProductImages(
   if (gallery_urls !== undefined) update.gallery_urls = gallery_urls;
   const { error } = await supabase.from('products').update(update).eq('id', id);
   if (error) throw error;
+  clearCache();
 }
 
 /**

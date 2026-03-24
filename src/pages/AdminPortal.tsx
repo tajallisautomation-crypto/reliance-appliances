@@ -761,19 +761,24 @@ function QuickImageUpload({
 
   async function handleUrl() {
     const urls = urlInput.split('\n').map(u => u.trim()).filter(u => u.startsWith('http'));
-    if (!urls.length) return;
+    if (!urls.length) { setErr('Enter a valid image URL starting with http'); return; }
     setUploading(true); setErr('');
-    try {
-      // Save first URL as primary, rest appended to gallery
-      const results = await Promise.allSettled(
-        urls.map(url => fetchAndUploadOrSaveUrl(url, product.id, product.brand, product.model))
-      );
-      const saved = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
-      setNotice(`${saved} image${saved !== 1 ? 's' : ''} saved${failed ? ` · ${failed} failed` : ''} ✓`);
-      setDone(true);
-      setTimeout(onDone, 1200);
-    } catch (e: any) { setErr(e.message); setUploading(false); }
+    const results = await Promise.allSettled(
+      urls.map(url => fetchAndUploadOrSaveUrl(url, product.id, product.brand, product.model))
+    );
+    const saved  = results.filter(r => r.status === 'fulfilled').length;
+    const errors = results
+      .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+      .map(r => r.reason?.message || String(r.reason));
+    if (saved === 0) {
+      // All failed — stay open and show the error
+      setErr(errors[0] || 'Save failed — check the URL and try again');
+      setUploading(false);
+      return;
+    }
+    setNotice(`${saved} image${saved !== 1 ? 's' : ''} saved${errors.length ? ` · ${errors.length} failed` : ''} ✓`);
+    setDone(true);
+    setTimeout(onDone, 1200);
   }
 
   return (
@@ -1974,11 +1979,19 @@ function QCQuickFix({
     const urls = urlInput.split(/[\n,]+/).map(u => u.trim()).filter(u => u.startsWith('http'));
     if (!urls.length) { setErr('Enter a valid URL starting with http'); return; }
     setSaving(true); setErr('');
-    try {
-      await Promise.allSettled(urls.map(url => fetchAndUploadOrSaveUrl(url, product.id, product.brand, product.model)));
-      setSaving(false);
-      onSaved();
-    } catch (e: any) { setErr(e.message); setSaving(false); }
+    const results = await Promise.allSettled(
+      urls.map(url => fetchAndUploadOrSaveUrl(url, product.id, product.brand, product.model))
+    );
+    const saved  = results.filter(r => r.status === 'fulfilled').length;
+    const errors = results
+      .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+      .map(r => r.reason?.message || String(r.reason));
+    setSaving(false);
+    if (saved === 0) {
+      setErr(errors[0] || 'Save failed — check the URL and try again');
+      return;
+    }
+    onSaved();
   }
 
   async function saveName() {
