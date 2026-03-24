@@ -27,7 +27,8 @@ export default function Checkout() {
     </div>
   )
 
-  const canSubmit = !loading && form.name && form.phone && form.address && form.city
+  const phoneValid = /^(\+92|0)3\d{9}$/.test(form.phone.trim())
+  const canSubmit = !loading && form.name.trim() && phoneValid && form.address.trim() && form.city.trim()
 
   const handleSubmit = async () => {
     if (!canSubmit) return
@@ -84,7 +85,14 @@ export default function Checkout() {
               <label className="text-sm font-medium text-gray-700 block mb-1">{f.label}</label>
               <input type={f.type} placeholder={f.placeholder} value={(form as any)[f.key]}
                 onChange={e => setForm(p => ({...p, [f.key]: e.target.value}))}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-orange-400 text-sm" />
+                className={`w-full border rounded-xl px-4 py-3 focus:outline-none text-sm ${
+                  f.key === 'phone' && form.phone && !phoneValid
+                    ? 'border-red-300 focus:border-red-400'
+                    : 'border-gray-200 focus:border-orange-400'
+                }`} />
+              {f.key === 'phone' && form.phone && !phoneValid && (
+                <p className="text-xs text-red-500 mt-1">Enter a valid Pakistani number (03XX XXXXXXX)</p>
+              )}
             </div>
           ))}
           <div>

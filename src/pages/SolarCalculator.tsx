@@ -99,18 +99,23 @@ export default function SolarCalculator() {
   }
 
   const submit = async () => {
-    if (!contact.name||!contact.phone) return
+    if (!contact.name || !contact.phone) return
     setSubmitErr('')
-    try {
-      if (SHEET_URL) {
-        const res = await fetch(SHEET_URL, { method:'POST', body: JSON.stringify({ action:'submitRetailForm', ...contact, interests:'Solar', notes:'Load:'+totalW+'W' }) })
-        if (!res.ok) throw new Error('Server error')
-      }
-      setSubmitted(true)
-    } catch (e: any) {
-      console.error('[SolarCalculator submit]', e)
-      setSubmitErr('Quote request failed. Please use the WhatsApp button below to send your quote directly.')
+    // Always capture via WhatsApp so no lead is ever silently lost
+    const msg = encodeURIComponent(
+      `*Solar Quote Request* ☀️\n\nName: ${contact.name}\nPhone: ${contact.phone}${contact.email ? '\nEmail: ' + contact.email : ''}\n\n` +
+      `System: ${quote.systemKW}kW ${sysType}\nLoad: ${totalW}W\nPanels: ${quote.panels}\n` +
+      `Est. Cost: ${fmtPKR(quote.costs.total)}\nMonthly Saving: ${fmtPKR(quote.savings.monthlySaving)}\n\nPlease send me a detailed proposal. JazakAllah.`
+    )
+    window.open(`https://wa.me/923702578788?text=${msg}`, '_blank')
+    // Fire-and-forget to Google Sheets if configured — failure is non-blocking
+    if (SHEET_URL) {
+      fetch(SHEET_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'submitRetailForm', ...contact, interests: 'Solar', notes: 'Load:' + totalW + 'W' }),
+      }).catch(() => { /* non-critical */ })
     }
+    setSubmitted(true)
   }
   const wa = () => {
     const msg = encodeURIComponent('Hi Reliance! Solar quote request\nSystem: '+quote.systemKW+'kW '+sysType+'\nLoad: '+totalW+'W\nCost: '+fmtPKR(quote.costs.total)+'\nMonthly saving: '+fmtPKR(quote.savings.monthlySaving))

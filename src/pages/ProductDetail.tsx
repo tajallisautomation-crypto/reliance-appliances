@@ -4,7 +4,7 @@ import { Helmet } from 'react-helmet-async';
 import {
   ArrowLeft, ShoppingCart, MessageCircle, Shield, Truck, Award,
   Check, Wrench, Share2, Star, Phone, CalendarDays,
-  TrendingDown, TrendingUp, History,
+  TrendingDown, TrendingUp, History, Info,
 } from 'lucide-react';
 import { getProductBySlug, getRelatedProducts, getPriceHistory, formatPrice, DEFAULT_CATEGORIES } from '@/lib/api';
 import type { Product } from '@/lib/types';
@@ -19,7 +19,7 @@ import { waProduct, waInstallment, waSales } from '@/lib/whatsapp';
 import toast from 'react-hot-toast';
 
 const PLAN_LABELS: Record<string, string> = {
-  cash: 'Cash Price', '2m': '2 Payments', '3m': '3 Payments', '6m': '6 Payments', '12m': '12 Payments',
+  cash: 'Pay in Full', '2m': '2 Payments', '3m': '3 Payments', '6m': '6 Payments', '12m': '12 Payments',
 };
 
 /** Price threshold above which consultation flow replaces add-to-cart — overridable via admin Settings */
@@ -46,6 +46,7 @@ export default function ProductDetail() {
   const [activeImg,  setActiveImg]  = useState(0);
   const [activeTab,  setActiveTab]  = useState<TabKey>('specs');
   const [priceHistory, setPriceHistory] = useState<{ retail_price: number; imported_at: string }[]>([]);
+  const [priceHistoryLoading, setPriceHistoryLoading] = useState(true);
 
   const addItem = useCartStore(s => s.addItem);
   const consultationThreshold = useSettingsStore(s => s.consultationThreshold) ?? CONSULTATION_THRESHOLD_DEFAULT;
@@ -59,7 +60,7 @@ export default function ProductDetail() {
         setLoading(false);
       });
       getRelatedProducts(p.id, p.category, 4).then(r => startTransition(() => setRelated(r)));
-      getPriceHistory(p.id).then(ph => startTransition(() => setPriceHistory(ph)));
+      getPriceHistory(p.id).then(ph => startTransition(() => { setPriceHistory(ph); setPriceHistoryLoading(false); }));
     });
   }, [slug, navigate]);
 
@@ -234,56 +235,77 @@ export default function ProductDetail() {
 
           {/* Payment plan selector */}
           <div className="bg-gray-50 rounded-2xl p-5 mb-5 border border-gray-100">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Payment Plan</p>
             {(() => {
               const available = (['cash', '2m', '3m', '6m', '12m'] as const).filter(pl => pl === 'cash' || !!p.installments[pl]);
+              const currentIdx = available.indexOf(plan);
               return (
-                <div className="flex gap-1.5 flex-wrap mb-4">
-                  {available.map(pl => (
-                    <button key={pl} onClick={() => setPlan(pl)}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
-                        plan === pl
-                          ? 'bg-gray-900 text-white border-gray-900'
-                          : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400'
-                      }`}>
-                      {pl === 'cash' ? 'Cash' : pl}
-                    </button>
-                  ))}
-                </div>
+                <>
+                  {/* Slider header */}
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Payment Plan</p>
+                    <span className="text-sm font-bold text-gray-900">{PLAN_LABELS[plan]}</span>
+                  </div>
+
+                  {/* Range slider */}
+                  <div className="mb-4">
+                    <input
+                      type="range"
+                      min={0}
+                      max={available.length - 1}
+                      step={1}
+                      value={currentIdx}
+                      onChange={e => setPlan(available[Number(e.target.value)])}
+                      className="w-full h-2 rounded-full appearance-none cursor-pointer accent-gray-900 bg-gray-200"
+                    />
+                    <div className="flex justify-between mt-1">
+                      {available.map((pl, i) => (
+                        <button key={pl} onClick={() => setPlan(pl)}
+                          className={`text-[10px] font-semibold transition-colors ${currentIdx === i ? 'text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}>
+                          {PLAN_LABELS[pl]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Plan details card */}
+                  <div className="bg-white rounded-xl p-4 border border-gray-100">
+                    {plan === 'cash' ? (
+                      <>
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-3xl font-black text-gray-900">PKR {formatPrice(p.price.cash_floor)}</span>
+                          {p.price.retail > p.price.cash_floor && (
+                            <span className="text-sm text-gray-400 line-through">PKR {formatPrice(p.price.retail)}</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-emerald-600 font-medium mt-1">Best price — pay in full at delivery</p>
+                      </>
+                    ) : planData ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-brand-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-0.5">Advance (at document submission)</p>
+                            <p className="text-xl font-black text-brand-600">PKR {formatPrice(planData.advance)}</p>
+                          </div>
+                          {planData.monthly > 0 && (
+                            <div className="bg-gray-50 rounded-lg p-3">
+                              <p className="text-xs text-gray-500 mb-0.5">Monthly × {planData.monthlyPayments}</p>
+                              <p className="text-xl font-black text-gray-900">PKR {formatPrice(planData.monthly)}</p>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-2">
+                          Total: PKR {formatPrice(planData.total)} · {PLAN_LABELS[plan]} plan
+                        </p>
+                        <Link to="/installments#requirements"
+                          className="mt-2 inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium">
+                          <Info className="h-3 w-3" /> Document requirements & process →
+                        </Link>
+                      </>
+                    ) : null}
+                  </div>
+                </>
               );
             })()}
-
-            <div className="bg-white rounded-xl p-4 border border-gray-100">
-              {plan === 'cash' ? (
-                <>
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-3xl font-black text-gray-900">PKR {formatPrice(p.price.cash_floor)}</span>
-                    {p.price.retail > p.price.cash_floor && (
-                      <span className="text-sm text-gray-400 line-through">PKR {formatPrice(p.price.retail)}</span>
-                    )}
-                  </div>
-                  <p className="text-xs text-emerald-600 font-medium mt-1">Best price — pay in full at delivery</p>
-                </>
-              ) : planData ? (
-                <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-brand-50 rounded-lg p-3">
-                      <p className="text-xs text-gray-500 mb-0.5">At Delivery</p>
-                      <p className="text-xl font-black text-brand-600">PKR {formatPrice(planData.advance)}</p>
-                    </div>
-                    {planData.monthly > 0 && (
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-xs text-gray-500 mb-0.5">Monthly × {planData.months - 1}</p>
-                        <p className="text-xl font-black text-gray-900">PKR {formatPrice(planData.monthly)}</p>
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-400 mt-2">
-                    Total: PKR {formatPrice(planData.total)} · {PLAN_LABELS[plan]} plan
-                  </p>
-                </>
-              ) : null}
-            </div>
 
             {/* Installation add-on */}
             <button onClick={() => setWithInstall(!withInstall)}
@@ -332,7 +354,7 @@ export default function ProductDetail() {
                 className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-base font-bold text-white hover:opacity-90 transition-all"
                 style={{ background: '#25d366' }}>
                 <MessageCircle className="h-5 w-5" />
-                {plan === 'cash' ? 'WhatsApp — Enquire Now' : `WhatsApp — Get ${PLAN_LABELS[plan]} Quote`}
+                {plan === 'cash' ? 'WhatsApp — Enquire Now' : `WhatsApp — ${PLAN_LABELS[plan]} Quote`}
               </a>
               {/* Add to Cart — SECONDARY */}
               <button onClick={handleAdd} disabled={p.stock_status !== 'In Stock'}
@@ -469,7 +491,11 @@ export default function ProductDetail() {
         {/* Price History tab — SVG trend chart (exact prices hidden) */}
         {activeTab === 'price-history' && (
           <div className="animate-fade-in max-w-2xl">
-            {priceHistory.length === 0 ? (
+            {priceHistoryLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="w-6 h-6 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : priceHistory.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <History className="w-10 h-10 text-gray-200 mb-3" />
                 <p className="text-sm text-gray-400 font-medium">No price history recorded yet.</p>

@@ -8,7 +8,7 @@ import {
   calcAllPlans, roundUp500, fmtPKR, CATEGORY_MAP,
   processCSVImport, reenrichAllProducts, rematchAllImages, getDataAudit, scanBucket, fixAllCategories,
   rebalanceCategories, getCategoryCounts, CAT_MIN, CAT_MAX,
-  mergeDuplicates, findNearDuplicates, normalizeCategoryNames, type MergeResult, type NearDupeGroup,
+  mergeDuplicates, findNearDuplicates, normalizeCategoryNames, type MergeResult, type MergePreviewGroup, type NearDupeGroup,
   composeImages, decomposeImages, logAdminAction, getAuditLog, clearAuditLog,
   getSolarLeads, updateSolarLeadStatus, saveSolarProposal, type SolarLead,
   type ImportSummary, type CsvImportRow, type Product, type AuditProduct, type BucketScanResult,
@@ -2592,6 +2592,8 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
   const [catCountsLoading, setCatCountsLoading] = useState(false);
   const [mergeProgress,  setMergeProgress]  = useState('');
   const [mergeResult,    setMergeResult]    = useState<MergeResult | null>(null);
+  const [mergePreview,   setMergePreview]   = useState<MergePreviewGroup[] | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [normLoading,    setNormLoading]    = useState(false);
   const [normResult,     setNormResult]     = useState('');
   const [nearDupes,      setNearDupes]      = useState<NearDupeGroup[] | null>(null);
@@ -2614,8 +2616,14 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
 
   function isBusy() { return !!enrichProgress || !!imageProgress || !!catProgress || !!rebalProgress || !!mergeProgress; }
 
+  async function handlePreviewMerge() {
+    setMergePreview(null); setMergeResult(null); setPreviewLoading(true);
+    const r = await mergeDuplicates(setMergeProgress, true);
+    setMergePreview(r.preview ?? []); setPreviewLoading(false);
+  }
+
   async function handleMergeDuplicates() {
-    setMergeResult(null); setAllResult(null);
+    setMergeResult(null); setMergePreview(null); setAllResult(null);
     const r = await mergeDuplicates(setMergeProgress);
     setMergeResult(r); onRefresh();
   }
@@ -2849,17 +2857,47 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
               </div>
               <span className="font-semibold text-gray-800 text-sm">Merge Duplicates</span>
             </div>
-            <p className="text-xs text-gray-400">Normalises model strings (strips REF prefix, WB/LF, color suffixes) then merges identical entries. Keeps the entry with image + highest price.</p>
-            <button
-              onClick={() => setConfirmBulk({ title: 'Merge Duplicates?', message: 'Scans all products. Strips REF prefix, WB/LF, and color words (Coral Red, NOIR, Metallic Gold, etc.) before comparing — so near-identical listings are caught. The entry with an image + highest price is kept; others are permanently deleted.', action: handleMergeDuplicates })}
-              disabled={isBusy()}
-              className="w-full flex items-center justify-center gap-1.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white py-2 rounded-lg text-xs font-bold">
-              {mergeProgress ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /><span className="truncate max-w-[140px]">{mergeProgress}</span></> : <><Trash2 className="w-3.5 h-3.5" />Merge Duplicates</>}
-            </button>
+            <p className="text-xs text-gray-400">Strips color suffixes, REF/WB/LF codes, and slash-variants so same-series listings merge. Keeps the entry with image + highest price.</p>
+            <div className="flex gap-2">
+              <button
+                onClick={handlePreviewMerge}
+                disabled={isBusy() || previewLoading}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-700 py-2 rounded-lg text-xs font-bold">
+                {previewLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '🔍'} Preview
+              </button>
+              <button
+                onClick={() => setConfirmBulk({ title: 'Merge Duplicates?', message: 'Scans all products. Strips REF prefix, WB/LF, and color words (Gem Black, Cloud White, Coral Red, NOIR, Metallic Gold, etc.) before comparing. The entry with an image + highest price is kept; others are permanently deleted.', action: handleMergeDuplicates })}
+                disabled={isBusy()}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white py-2 rounded-lg text-xs font-bold">
+                {mergeProgress ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /><span className="truncate max-w-[100px]">{mergeProgress}</span></> : <><Trash2 className="w-3.5 h-3.5" />Merge</>}
+              </button>
+            </div>
             {mergeResult && (
               <p className={`text-xs font-medium ${mergeResult.errors.length ? 'text-amber-600' : 'text-green-600'}`}>
                 {mergeResult.groups} groups · {mergeResult.deleted} deleted · {mergeResult.kept} kept{mergeResult.errors.length ? ` · ${mergeResult.errors.length} errors` : ' ✓'}
               </p>
+            )}
+            {/* Preview results panel */}
+            {mergePreview !== null && (
+              <div className="border border-gray-100 rounded-lg overflow-hidden text-xs">
+                <div className="bg-gray-50 px-3 py-2 font-semibold text-gray-700 flex items-center justify-between">
+                  <span>{mergePreview.length === 0 ? 'No duplicate groups found' : `${mergePreview.length} group${mergePreview.length !== 1 ? 's' : ''} would be merged`}</span>
+                  <button onClick={() => setMergePreview(null)} className="text-gray-400 hover:text-gray-600 text-base leading-none">×</button>
+                </div>
+                {mergePreview.length > 0 && (
+                  <div className="divide-y divide-gray-50 max-h-64 overflow-y-auto">
+                    {mergePreview.map(g => (
+                      <div key={g.normalizedKey} className="px-3 py-2 space-y-0.5">
+                        <p className="text-gray-400 font-mono text-[10px] truncate">{g.normalizedKey}</p>
+                        <p className="text-green-700 font-medium truncate">✓ Keep: {g.keep.model}</p>
+                        {g.drop.map(d => (
+                          <p key={d.id} className="text-red-500 truncate">✗ Drop: {d.model}</p>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 

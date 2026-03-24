@@ -4,7 +4,7 @@ import {
   ArrowRight, Sun, Calculator, ShieldCheck, Truck, CreditCard, Headphones,
   ChevronRight, Zap, Leaf, MessageCircle,
 } from 'lucide-react'
-import { getProducts, DEFAULT_CATEGORIES, type Product, formatPrice } from '../lib/api'
+import { getProducts, getProductCount, DEFAULT_CATEGORIES, type Product, formatPrice } from '../lib/api'
 import { calcPlan } from '../lib/plans'
 import ProductCard from '../components/products/ProductCard'
 import AnimatedCounter from '../components/ui/AnimatedCounter'
@@ -53,7 +53,7 @@ export default function Home() {
       setFeatured(d.products.slice(0, 8))
       setLoading(false)
     })
-    getProducts().then(d => setTotalProducts(d.total))
+    getProductCount().then(setTotalProducts)
   }, [])
 
   const calc = calcPlan(samplePrice, activePlan)
@@ -130,7 +130,7 @@ export default function Home() {
           {[
             { target: 15,    suffix: ' Years', label: 'In Business' },
             { target: 14000, suffix: '+',      label: 'Homes Served' },
-            { target: 23000, suffix: '+',      label: 'Invoices Processed' },
+            { target: 80,    suffix: '%',       label: 'Return Customers' },
             { target: 23000, suffix: '+',      label: 'Moments Created' },
           ].map(item => (
             <div key={item.label}>
@@ -338,6 +338,24 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── WHY RELIANCE ─────────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-4 py-14">
+        <div className="text-center mb-10">
+          <h2 className="text-2xl md:text-3xl font-black text-gray-900">Why Choose Reliance?</h2>
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {WHY_RELIANCE.map(item => (
+            <div key={item.title} className="text-center p-6">
+              <div className={`w-14 h-14 bg-${item.color}-100 rounded-2xl flex items-center justify-center mx-auto mb-4`}>
+                <item.icon className={`w-7 h-7 text-${item.color}-600`} />
+              </div>
+              <h3 className="font-bold text-gray-800 mb-2">{item.title}</h3>
+              <p className="text-sm text-gray-500">{item.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* ── FEATURED PRODUCTS ────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 py-14">
         <div className="flex items-center justify-between mb-8">
@@ -371,24 +389,6 @@ export default function Home() {
             className="inline-flex items-center gap-2 border-2 border-brand-500 text-brand-600 font-bold px-8 py-3 rounded-2xl hover:bg-brand-500 hover:text-white transition-all">
             Browse All {totalProducts > 0 ? `${totalProducts} ` : ''}Products <ArrowRight className="w-4 h-4" />
           </Link>
-        </div>
-      </section>
-
-      {/* ── WHY RELIANCE ─────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 py-14">
-        <div className="text-center mb-10">
-          <h2 className="text-2xl md:text-3xl font-black text-gray-900">Why Choose Reliance?</h2>
-        </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {WHY_RELIANCE.map(item => (
-            <div key={item.title} className="text-center p-6">
-              <div className={`w-14 h-14 bg-${item.color}-100 rounded-2xl flex items-center justify-center mx-auto mb-4`}>
-                <item.icon className={`w-7 h-7 text-${item.color}-600`} />
-              </div>
-              <h3 className="font-bold text-gray-800 mb-2">{item.title}</h3>
-              <p className="text-sm text-gray-500">{item.desc}</p>
-            </div>
-          ))}
         </div>
       </section>
 

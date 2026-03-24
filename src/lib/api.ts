@@ -51,8 +51,21 @@ export function calcPlan(basePrice: number, key: string): InstallmentPlan {
   const c = ratios[key as keyof typeof ratios]; if (!c) throw new Error('Unknown plan: ' + key);
   const total   = roundTo100(basePrice * c.markup); // markup is a multiplier e.g. 1.15
   const advance = roundTo100(total * c.advRatio);
-  const monthly = roundTo100((total - advance) / (c.installments || 1));
-  return { months: _PLAN_MONTHS[key] ?? 0, total, advance, monthly, advancePct: c.advRatio, monthlyPayments: c.installments };
+  const n       = c.installments || 1;
+  // Round UP so advance + monthly×n always covers total (never short-collects)
+  const monthly = Math.ceil((total - advance) / n / 100) * 100;
+  return { months: _PLAN_MONTHS[key] ?? 0, total, advance, monthly, advancePct: c.advRatio, monthlyPayments: n };
+}
+
+/** Returns the total count of in-stock products without loading the full data set. */
+export async function getProductCount(): Promise<number> {
+  try {
+    const { count } = await supabase
+      .from('products')
+      .select('*', { count: 'exact', head: true })
+      .neq('stock_status', 'Discontinued');
+    return count ?? 0;
+  } catch { return 0; }
 }
 
 export function calcAllPlans(basePrice: number, canonicalCategory?: string): Record<string, InstallmentPlan> {
@@ -3102,8 +3115,11 @@ export async function processCSVImport(
   await Promise.all(uniqueBrands.map(b => resolveBrandImages(b, brandImageCache)));
 
   // Step 2 — Build CSV state sets
+  // Keys are normalized so "HRF-368 IFGA/IFRA/IFPA" matches DB row "HRF-368 IFGA"
   const _csvCategories = new Set(rows.map(r => r.Category).filter(Boolean)); void _csvCategories;
-  const csvKeys = new Set(rows.map(r => `${(r.Brand || '').toLowerCase()}::${(r.Model || '').toLowerCase()}`));
+  const csvKeys = new Set(
+    rows.map(r => `${(r.Brand || '').toLowerCase()}::${normalizeModelForDedupe(r.Model || '')}`)
+  );
 
   // Step 3 — Fetch existing DB products by brand (not category) so we find products
   // that were previously imported and then rebalanced to a different category.
@@ -3115,10 +3131,11 @@ export async function processCSVImport(
     .in('brand', uniqueBrands);
   if (fetchErr) { summary.errors.push('DB fetch failed: ' + fetchErr.message); return summary; }
 
-  // brand::model → existing DB row id (handles timestamp IDs from manual product creation)
+  // brand::normalizedModel → existing DB row id
+  // Normalized key means "HRF-368 IFGA/IFRA/IFPA" from CSV matches "HRF-368 IFGA" in DB
   const existingIdMap = new Map<string, string>();
   for (const r of existingRows ?? []) {
-    const k = `${(r.brand || '').toLowerCase()}::${(r.model || '').toLowerCase()}`;
+    const k = `${(r.brand || '').toLowerCase()}::${normalizeModelForDedupe(r.model || '')}`;
     existingIdMap.set(k, r.id);
   }
 
@@ -3144,7 +3161,7 @@ export async function processCSVImport(
       // Price=0 is allowed — product is imported as a draft (excluded from WA feed and catalog)
       if (!price) summary.errors.push(`Draft (no price): Brand="${brand}" Model="${model}" — set price later in admin`);
 
-      const bKey     = `${brand.toLowerCase()}::${model.toLowerCase()}`;
+      const bKey     = `${brand.toLowerCase()}::${normalizeModelForDedupe(model)}`;
       const id       = existingIdMap.get(bKey) || slugify(`${brand}-${model}`);
       const isUpdate = existingIdMap.has(bKey);
 
@@ -3221,7 +3238,7 @@ export async function processCSVImport(
   const toIncrement:   string[] = [];
 
   for (const dbRow of existingRows ?? []) {
-    const dbKey = `${(dbRow.brand || '').toLowerCase()}::${(dbRow.model || '').toLowerCase()}`;
+    const dbKey = `${(dbRow.brand || '').toLowerCase()}::${normalizeModelForDedupe(dbRow.model || '')}`;
     if (csvKeys.has(dbKey)) continue; // present in CSV → reset already done above
 
     const newCount = (dbRow.missing_count ?? 0) + 1;
@@ -3446,7 +3463,7 @@ function _acCategory(s: string, m: string, specs: Record<string, any>): string {
   return '1.5 Ton Air Conditioners';
 }
 
-function _fridgeCategory(s: string, m: string, specs: Record<string, any>): string {
+function _fridgeCategory(s: string, _m: string, specs: Record<string, any>): string {
   const cf = s.match(/\b(\d+(?:\.\d+)?)\s*cu\.?\s*ft\b|\b(\d+)\s*cubic\b/i);
   if (cf) {
     const n = parseFloat(cf[1] || cf[2]);
@@ -3653,11 +3670,18 @@ export function clearAuditLog(): void { localStorage.removeItem(_AUDIT_KEY); }
 
 // ── Duplicate product detection & merge ──────────────────────────────────────
 
+export type MergePreviewGroup = {
+  normalizedKey: string;         // the deduped key (brand::normalizedModel)
+  keep: { id: string; model: string };
+  drop: { id: string; model: string }[];
+};
+
 export type MergeResult = {
-  groups:  number;   // duplicate groups found
-  deleted: number;   // rows deleted (weaker duplicates)
-  kept:    number;   // rows kept
-  errors:  string[];
+  groups:   number;   // duplicate groups found
+  deleted:  number;   // rows deleted (weaker duplicates)
+  kept:     number;   // rows kept
+  errors:   string[];
+  preview?: MergePreviewGroup[];  // populated in dryRun mode
 };
 
 export type NearDupeGroup = {
@@ -3667,24 +3691,42 @@ export type NearDupeGroup = {
 
 /**
  * Normalises a model string for duplicate detection.
- * Strips: REF prefix, WB/LF chassis tokens, E-Chrome→Chrome, FH LVS sub-line,
- * and pure color-variant words (Coral Red, NOIR, Metallic Gold/Grey, etc.)
- * Keeps: Gem Black, Cloud White, Avante, GD, INV, Acce, Graze+, Chrome, Pro
- * (these are series-level distinguishers, not colors).
+ *
+ * Rule: same brand + same model number + same series name = duplicate, regardless of colour.
+ *
+ * Strips (cosmetic / chassis noise — never part of the series identity):
+ *   REF prefix · WB / LF chassis codes · FH LVS sub-line
+ *   ALL colour words: Gem Black, Cloud White, Coral Red, Crimson Red,
+ *   Meadow Green, NOIR, Metallic Gold/Grey/Silver, Titanium Grey,
+ *   Ebony Black, Lavender Frost, Inox, standalone Black/White/Silver/
+ *   Gold/Red/Grey at end-of-string when preceded by a series keyword.
+ *
+ * Keeps (series-level identifiers that distinguish genuinely different products):
+ *   Avante · Avante+ · Chrome · e-Chrome · Acce · Acce Pro
+ *   Graze · Graze+ · GD · INV · Pro · Inspire · Plus · Twin Cool
+ *
+ * NOTE: e-Chrome and Chrome are kept DISTINCT (different product lines).
  */
 function normalizeModelForDedupe(model: string): string {
   return model
     .trim()
-    .replace(/^REF\s*/i, '')                                   // strip leading REF
-    .replace(/(\d)(WB|LF)\b/gi, '$1 ')                        // "9173WB" → "9173 "
-    .replace(/\b(WB|LF)\b/gi, '')                              // standalone WB / LF
-    .replace(/\bE-?Chrome\b/gi, 'Chrome')                      // E-Chrome → Chrome
-    .replace(/\bFH\s+LVS\b/gi, '')                            // sub-line code
-    .replace(/\bFH\b/gi, '')                                   // sub-line code
+    // ── Chassis / sub-line noise ────────────────────────────────────────────
+    .replace(/^REF\s*/i, '')                                   // leading REF
+    .replace(/(\d)(WB|LF)\b/gi, '$1')                         // "9173WB" → "9173"
+    .replace(/\b(WB|LF)\b/gi, '')                             // standalone WB / LF
+    .replace(/\bFH\s+LVS\b/gi, '')                            // FH LVS sub-line
+    .replace(/\bFH\b(?!\s*\d)/gi, '')                         // bare FH (not "FH 18000")
+    // Slash-separated variant codes — keep only the first: "IFGA/IFRA/IFPA" → "IFGA"
+    .replace(/\b([A-Z]{2,6}\d{0,3})(\/[A-Z]{2,6}\d{0,3})+\b/g, '$1')
+    // ── Colour words — ALL stripped (they're never the series name) ─────────
     .replace(
-      /\b(Coral\s+Red|Crimson\s+Red(\s*[\/,]\s*Meadow\s+Green)?|Meadow\s+Green|NOIR|Metallic\s+Gold|Metallic\s+Gr[ae]y|Metallic\s+Silver|Titanium\s+Gr[ae]y|Ebony\s+Black|Lavender\s+Frost)\b/gi,
+      /\b(Gem\s+Black|Cloud\s+White|Coral\s+Red|Crimson\s+Red(\s*[\/,&]\s*Meadow\s+Green)?|Meadow\s+Green|Ebony\s+Black|Lavender\s+Frost|Metallic\s+Gold|Metallic\s+Gr[ae]y|Metallic\s+Silver|Titanium\s+Gr[ae]y|Inox|NOIR)\b/gi,
       '',
     )
+    // Trailing standalone colour tokens that appear after a series word
+    // e.g. "Avante Black" → "Avante", "Chrome Silver" → "Chrome"
+    .replace(/\b(Black|White|Silver|Gold|Red|Green|Blue|Grey|Gray|Maroon|Pink)\s*$/i, '')
+    // ── Normalise whitespace ────────────────────────────────────────────────
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
@@ -3704,21 +3746,40 @@ function scoreRow(r: { thumbnail_url: string | null; retail_price: number | null
 /**
  * Finds exact duplicates (same brand + normalised model string).
  * Keeps the highest-scored representative; permanently deletes the rest.
+ *
+ * @param dryRun  When true: find groups but do NOT delete. Populates result.preview.
+ *
+ * Paginates in batches of 1000 so the Supabase row-limit never truncates results.
  */
 export async function mergeDuplicates(
   onProgress: (msg: string) => void,
+  dryRun = false,
 ): Promise<MergeResult> {
   const result: MergeResult = { groups: 0, deleted: 0, kept: 0, errors: [] };
 
+  // ── Paginated fetch (Supabase caps un-limited queries at 1 000 rows) ───────
   onProgress('Loading products…');
-  const { data, error } = await supabase
-    .from('products')
-    .select('id, brand, model, slug, thumbnail_url, retail_price, updated_at')
-    .order('updated_at', { ascending: false });
-  if (error) { result.errors.push(error.message); return result; }
+  const allData: any[] = [];
+  let from = 0;
+  const PAGE = 1000;
+  while (true) {
+    const { data: page, error } = await supabase
+      .from('products')
+      .select('id, brand, model, slug, thumbnail_url, retail_price, updated_at')
+      .order('id')                        // stable cursor (updated_at can be null)
+      .range(from, from + PAGE - 1);
+    if (error) { result.errors.push(error.message); return result; }
+    if (!page || page.length === 0) break;
+    allData.push(...page);
+    if (page.length < PAGE) break;
+    from += PAGE;
+  }
 
+  onProgress(`Scanning ${allData.length} products for duplicates…`);
+
+  // ── Group by brand + normalised model ────────────────────────────────────
   const groups = new Map<string, any[]>();
-  for (const row of data ?? []) {
+  for (const row of allData) {
     const brandKey = (row.brand || '').toLowerCase().trim();
     const modelKey = normalizeModelForDedupe(row.model || '');
     if (!brandKey || !modelKey) continue;
@@ -3727,15 +3788,33 @@ export async function mergeDuplicates(
     groups.get(key)!.push(row);
   }
 
-  const dupeGroups = [...groups.values()].filter(g => g.length > 1);
+  const dupeGroups = [...groups.entries()]
+    .filter(([, g]) => g.length > 1)
+    .sort((a, b) => b[1].length - a[1].length);   // largest groups first
+
   result.groups = dupeGroups.length;
 
   if (dupeGroups.length === 0) { onProgress('No duplicates found.'); return result; }
 
+  if (dryRun) {
+    // Build preview without deleting
+    result.preview = dupeGroups.map(([key, group]) => {
+      const scored = group.map(r => ({ ...r, score: scoreRow(r) }));
+      scored.sort((a, b) => b.score - a.score);
+      return {
+        normalizedKey: key,
+        keep: { id: scored[0].id, model: scored[0].model },
+        drop: scored.slice(1).map(r => ({ id: r.id, model: r.model })),
+      };
+    });
+    onProgress('');
+    return result;
+  }
+
   onProgress(`Found ${dupeGroups.length} duplicate groups — merging…`);
 
   const allDeleteIds: string[] = [];
-  for (const group of dupeGroups) {
+  for (const [, group] of dupeGroups) {
     const scored = group.map(r => ({ id: r.id, score: scoreRow(r) }));
     scored.sort((a, b) => b.score - a.score);
     allDeleteIds.push(...scored.slice(1).map(s => s.id));
@@ -3757,62 +3836,69 @@ export async function mergeDuplicates(
 }
 
 /**
- * Returns groups of 2+ products that share the same brand + base model number
- * (e.g. "9173") + series keyword (Acce, Avante, Chrome, Graze, etc.) but have
- * DIFFERENT normalised keys — i.e. they survived the exact-merge pass but are
- * likely near-duplicates that an admin should review manually.
+ * Near-duplicate scanner — a different job from mergeDuplicates.
+ *
+ * mergeDuplicates handles: same brand + same series + different colour → auto-merge.
+ *
+ * findNearDuplicates handles: same brand + same model number + DIFFERENT series
+ * (e.g. Dawlance 91999 Avante AND Dawlance 91999 Avante+) → surface for admin
+ * manual review, because these are genuinely different products that happen to
+ * share a base model number and an admin may want to keep or prune.
+ *
+ * Grouping key: brand + first 3+-digit numeric token in model name.
+ * A group is returned only when it contains 2+ products with distinct
+ * normalised model strings (i.e. different series survived merge).
  */
 export async function findNearDuplicates(): Promise<NearDupeGroup[]> {
-  const { data, error } = await supabase
-    .from('products')
-    .select('id, brand, model, simplified_name, thumbnail_url, retail_price')
-    .order('brand')
-    .order('model');
-  if (error || !data) return [];
-
-  // Extract a "base key" = brand + first numeric token + first series keyword.
-  // Use (?!\w) instead of \b at the end — \b fails after non-word chars like '+'.
-  const SERIES = ['acce pro', 'acce', 'avante\\+ gd inv', 'avante\\+', 'avante gd', 'avante', 'chrome pro', 'chrome', 'graze\\+', 'graze', 'inspire', 'plus', 'twin cool'];
-  const seriesRe = new RegExp(`\\b(${SERIES.join('|')})(?!\\w)`, 'i');
-
-  function baseKey(brand: string, model: string): string | null {
-    const numMatch = model.match(/\d{3,}/);   // 3+ digits covers HSU-18, 9173, etc.
-    if (!numMatch) return null;
-    const num = numMatch[0];
-    const norm = normalizeModelForDedupe(model);
-    const serMatch = norm.match(seriesRe);
-    const ser = serMatch ? serMatch[1].toLowerCase() : '';
-    return `${brand.toLowerCase()}::${num}${ser ? '::' + ser : ''}`;
+  // Paginate to bypass 1 000-row Supabase default
+  const allData: any[] = [];
+  let from = 0;
+  const PAGE = 1000;
+  while (true) {
+    const { data: page, error } = await supabase
+      .from('products')
+      .select('id, brand, model, simplified_name, thumbnail_url, retail_price')
+      .order('id')
+      .range(from, from + PAGE - 1);
+    if (error || !page) break;
+    allData.push(...page);
+    if (page.length < PAGE) break;
+    from += PAGE;
   }
+  const data = allData;
 
+  // Bucket by brand + first numeric token (3+ digits = skips e.g. AC BTU codes like "18")
   const buckets = new Map<string, typeof data>();
   for (const row of data) {
-    const k = baseKey(row.brand, row.model);
-    if (!k) continue;
+    const numMatch = (row.model ?? '').match(/\d{4,}|\d{3}/);  // prefer 4-digit, accept 3
+    if (!numMatch) continue;
+    const k = `${(row.brand ?? '').toLowerCase().trim()}::${numMatch[0]}`;
     if (!buckets.has(k)) buckets.set(k, []);
     buckets.get(k)!.push(row);
   }
 
-  // Only return buckets that have >1 product with DISTINCT normalised keys
-  // (those with a single normalised key were already handled by mergeDuplicates)
   const groups: NearDupeGroup[] = [];
   for (const [key, rows] of buckets) {
-    const distinctNorm = new Set(rows.map(r => normalizeModelForDedupe(r.model)));
-    if (rows.length > 1 && distinctNorm.size > 1) {
-      groups.push({
-        key,
-        products: rows.map(r => ({
-          id: r.id,
-          brand: r.brand,
-          model: r.model,
-          simplified_name: r.simplified_name ?? '',
-          thumbnail_url: r.thumbnail_url,
-          price: r.retail_price ?? 0,
-        })),
-      });
-    }
+    if (rows.length < 2) continue;
+    // Only surface if 2+ DISTINCT normalised strings (different series)
+    // — single-norm groups were already cleaned by mergeDuplicates
+    const normSet = new Set(rows.map(r => normalizeModelForDedupe(r.model ?? '')));
+    if (normSet.size < 2) continue;
+
+    groups.push({
+      key,
+      products: rows.map(r => ({
+        id: r.id,
+        brand: r.brand,
+        model: r.model,
+        simplified_name: r.simplified_name ?? '',
+        thumbnail_url: r.thumbnail_url,
+        price: r.retail_price ?? 0,
+      })),
+    });
   }
 
+  // Largest groups first (most variants = most likely to need review)
   return groups.sort((a, b) => b.products.length - a.products.length);
 }
 

@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Search, SlidersHorizontal, X, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Search, SlidersHorizontal, X, ChevronDown, ChevronUp, Loader2, AlertCircle } from 'lucide-react';
 import { getProducts, formatPrice, type Product } from '@/lib/api';
 import { buildSearchIndex, search, type SearchIndex } from '@/lib/search';
 import ProductCard from '@/components/products/ProductCard';
 import SearchBar from '@/components/SearchBar';
+import SEO from '@/components/ui/SEO';
 
 // ── Price range presets ───────────────────────────────────────────────────────
 
@@ -42,6 +43,7 @@ export default function SearchResults() {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [index,       setIndex]       = useState<SearchIndex | null>(null);
   const [loading,     setLoading]     = useState(true);
+  const [loadError,   setLoadError]   = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
   // Active filters
@@ -53,11 +55,17 @@ export default function SearchResults() {
   // Load all products + build index
   useEffect(() => {
     setLoading(true);
-    getProducts().then(({ products }) => {
-      setAllProducts(products);
-      setIndex(buildSearchIndex(products));
-      setLoading(false);
-    });
+    setLoadError(false);
+    getProducts()
+      .then(({ products }) => {
+        setAllProducts(products);
+        setIndex(buildSearchIndex(products));
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoadError(true);
+        setLoading(false);
+      });
   }, []);
 
   // Reset filters when query changes
@@ -111,6 +119,11 @@ export default function SearchResults() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <SEO
+        title={rawQuery ? `"${rawQuery}" — Search Results | Reliance Appliances` : 'Search Products — Reliance Appliances'}
+        description="Search Reliance Appliances for air conditioners, refrigerators, washing machines, and more. Filter by brand, category, and price."
+        noIndex
+      />
       {/* ── Search header ── */}
       <div className="bg-white border-b border-gray-100 px-4 py-4">
         <div className="max-w-7xl mx-auto">
@@ -275,6 +288,16 @@ export default function SearchResults() {
             {loading ? (
               <div className="flex items-center justify-center py-32">
                 <Loader2 className="w-8 h-8 animate-spin text-orange-400" />
+              </div>
+            ) : loadError ? (
+              <div className="text-center py-32">
+                <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-300" />
+                <h3 className="font-bold text-gray-900 text-lg mb-1">Couldn't load products</h3>
+                <p className="text-gray-500 text-sm mb-4">Check your connection and try again.</p>
+                <button onClick={() => window.location.reload()}
+                  className="px-5 py-2 bg-gray-900 text-white rounded-xl text-sm font-semibold">
+                  Retry
+                </button>
               </div>
             ) : filtered.length === 0 ? (
               <div className="text-center py-32">
