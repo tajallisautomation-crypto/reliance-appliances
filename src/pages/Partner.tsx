@@ -35,7 +35,7 @@ const HOW_IT_WORKS = [
   {
     step: '03',
     title: 'Customer buys',
-    desc: 'We close the sale — cash or 2 to 12-month installments. We verify the customer and manage the full transaction.',
+    desc: 'We close the sale — cash or 2 to 12-payment installments. We verify the customer and manage the full transaction.',
   },
   {
     step: '04',

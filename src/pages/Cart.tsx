@@ -74,7 +74,7 @@ export default function Cart() {
               <div className="flex justify-between font-bold text-lg">
                 <span>Total</span><span className="text-orange-600">{fmtPKR(cartTotal)}</span>
               </div>
-              {plan12 && <div className="text-xs text-gray-500 mt-1">Or {fmtPKR(plan12.monthly)}/mo on 12-month plan</div>}
+              {plan12 && <div className="text-xs text-gray-500 mt-1">Or {fmtPKR(plan12.monthly)}/mo on 12-payment plan</div>}
             </div>
             <div className="space-y-2">
               <Link to="/checkout" className="flex items-center justify-center gap-2 w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-semibold">

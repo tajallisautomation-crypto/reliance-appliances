@@ -19,7 +19,7 @@ import { waProduct, waInstallment, waSales } from '@/lib/whatsapp';
 import toast from 'react-hot-toast';
 
 const PLAN_LABELS: Record<string, string> = {
-  cash: 'Cash Price', '2m': '2 Months', '3m': '3 Months', '6m': '6 Months', '12m': '12 Months',
+  cash: 'Cash Price', '2m': '2 Payments', '3m': '3 Payments', '6m': '6 Payments', '12m': '12 Payments',
 };
 
 /** Price threshold above which consultation flow replaces add-to-cart — overridable via admin Settings */

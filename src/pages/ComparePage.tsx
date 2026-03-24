@@ -162,7 +162,7 @@ export default function ComparePage() {
 
             {/* Installment row */}
             <tr className="border-b border-gray-50">
-              <td className="px-5 py-3 text-xs font-semibold text-gray-500 bg-gray-50">Monthly (12m)</td>
+              <td className="px-5 py-3 text-xs font-semibold text-gray-500 bg-gray-50">Monthly (12 payments)</td>
               {items.map(p => {
                 const plan = p.installments?.['12m'] ?? p.installments?.['6m'];
                 return (

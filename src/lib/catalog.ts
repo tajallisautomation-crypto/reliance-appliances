@@ -204,10 +204,10 @@ function warrantyTier(warranty: string): string {
 
 // ── Installment tier label ────────────────────────────────────────────────────
 function installmentTier(p: Product): string {
-  if (p.installments?.['12m']) return '12 months';
-  if (p.installments?.['6m'])  return '6 months';
-  if (p.installments?.['3m'])  return '3 months';
-  if (p.installments?.['2m'])  return '2 months';
+  if (p.installments?.['12m']) return '12 payments';
+  if (p.installments?.['6m'])  return '6 payments';
+  if (p.installments?.['3m'])  return '3 payments';
+  if (p.installments?.['2m'])  return '2 payments';
   return 'Cash only';
 }
 

@@ -58,7 +58,7 @@ export const TEMPLATES = {
   product_available: (brand: string, model: string, cashPrice: number, monthly12m: number) =>
     `Salam! ✅ *${brand} ${model}* available hai!\n\n` +
     `💵 *Cash Price:* PKR ${cashPrice.toLocaleString()}\n` +
-    `📆 *12M Plan:* PKR ${monthly12m.toLocaleString()}/month\n\n` +
+    `📆 *12 Payments:* PKR ${monthly12m.toLocaleString()}/month\n\n` +
     `🚚 Delivery: 6–48 ghante ${CITY} mein\n` +
     `🛡️ Full manufacturer warranty\n` +
     `⚡ Professional installation available\n\n` +

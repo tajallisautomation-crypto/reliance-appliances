@@ -26,10 +26,10 @@ const WHY_RELIANCE = [
 ]
 
 const PLAN_OPTIONS = [
-  { key: '2m'  as const, label: '2 Months'  },
-  { key: '3m'  as const, label: '3 Months'  },
-  { key: '6m'  as const, label: '6 Months'  },
-  { key: '12m' as const, label: '12 Months' },
+  { key: '2m'  as const, label: '2 Payments'  },
+  { key: '3m'  as const, label: '3 Payments'  },
+  { key: '6m'  as const, label: '6 Payments'  },
+  { key: '12m' as const, label: '12 Payments' },
 ]
 
 const TOOLS = [
@@ -117,8 +117,8 @@ export default function Home() {
               <p className="text-xs text-gray-400 mt-0.5 font-medium">Homes served</p>
             </div>
             <div className="absolute -top-5 -right-5 bg-gray-900 text-white rounded-2xl shadow-apple-xl px-5 py-4 animate-slide-up">
-              <p className="text-2xl font-black leading-none text-brand-400">98%</p>
-              <p className="text-xs opacity-60 mt-0.5 font-medium">Credit recovery</p>
+              <p className="text-2xl font-black leading-none text-brand-400">23K+</p>
+              <p className="text-xs opacity-60 mt-0.5 font-medium">Moments created</p>
             </div>
           </div>
         </div>
@@ -131,7 +131,7 @@ export default function Home() {
             { target: 15,    suffix: ' Years', label: 'In Business' },
             { target: 14000, suffix: '+',      label: 'Homes Served' },
             { target: 23000, suffix: '+',      label: 'Invoices Processed' },
-            { target: 98,    suffix: '%',      label: 'Credit Recovery Rate' },
+            { target: 23000, suffix: '+',      label: 'Moments Created' },
           ].map(item => (
             <div key={item.label}>
               <p className="text-4xl md:text-5xl font-black text-brand-400 mb-1">
@@ -154,42 +154,6 @@ export default function Home() {
               </Link>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* ── FEATURED PRODUCTS ────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 py-14">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <p className="text-brand-500 text-xs font-bold uppercase tracking-widest mb-1">Featured</p>
-            <h2 className="text-2xl md:text-3xl font-black text-gray-900">Top Picks for You</h2>
-          </div>
-          <Link to="/products?featured=true"
-            className="hidden sm:flex items-center gap-1 text-brand-600 font-semibold text-sm hover:text-brand-700">
-            View All <ChevronRight className="w-4 h-4" />
-          </Link>
-        </div>
-        {loading
-          ? <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                  <div className="aspect-square bg-gray-100 animate-pulse" />
-                  <div className="p-4 space-y-2.5">
-                    <div className="h-2.5 w-16 bg-gray-100 rounded-full animate-pulse" />
-                    <div className="h-3.5 w-3/4 bg-gray-100 rounded-full animate-pulse" />
-                    <div className="h-3.5 w-1/2 bg-gray-100 rounded-full animate-pulse" />
-                    <div className="h-3 w-1/3 bg-gray-100 rounded-full animate-pulse" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          : <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">{featured.map(p => <ProductCard key={p.id} product={p} />)}</div>
-        }
-        <div className="text-center mt-8">
-          <Link to="/products"
-            className="inline-flex items-center gap-2 border-2 border-brand-500 text-brand-600 font-bold px-8 py-3 rounded-2xl hover:bg-brand-500 hover:text-white transition-all">
-            Browse All {totalProducts > 0 ? `${totalProducts} ` : ''}Products <ArrowRight className="w-4 h-4" />
-          </Link>
         </div>
       </section>
 
@@ -371,6 +335,42 @@ export default function Home() {
               </Link>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ── FEATURED PRODUCTS ────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-4 py-14">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <p className="text-brand-500 text-xs font-bold uppercase tracking-widest mb-1">Featured</p>
+            <h2 className="text-2xl md:text-3xl font-black text-gray-900">Top Picks for You</h2>
+          </div>
+          <Link to="/products?featured=true"
+            className="hidden sm:flex items-center gap-1 text-brand-600 font-semibold text-sm hover:text-brand-700">
+            View All <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
+        {loading
+          ? <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                  <div className="aspect-square bg-gray-100 animate-pulse" />
+                  <div className="p-4 space-y-2.5">
+                    <div className="h-2.5 w-16 bg-gray-100 rounded-full animate-pulse" />
+                    <div className="h-3.5 w-3/4 bg-gray-100 rounded-full animate-pulse" />
+                    <div className="h-3.5 w-1/2 bg-gray-100 rounded-full animate-pulse" />
+                    <div className="h-3 w-1/3 bg-gray-100 rounded-full animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          : <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">{featured.map(p => <ProductCard key={p.id} product={p} />)}</div>
+        }
+        <div className="text-center mt-8">
+          <Link to="/products"
+            className="inline-flex items-center gap-2 border-2 border-brand-500 text-brand-600 font-bold px-8 py-3 rounded-2xl hover:bg-brand-500 hover:text-white transition-all">
+            Browse All {totalProducts > 0 ? `${totalProducts} ` : ''}Products <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
       </section>
 

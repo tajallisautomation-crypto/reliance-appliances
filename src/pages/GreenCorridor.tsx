@@ -269,7 +269,7 @@ export default function GreenCorridor() {
               ))}
             </div>
             <div className="bg-eco-50 rounded-xl p-4 border border-eco-100">
-              <p className="text-xs text-gray-500 mb-1">Installment option (3-month plan)</p>
+              <p className="text-xs text-gray-500 mb-1">Installment option (3-payment plan)</p>
               <div className="flex items-baseline gap-3">
                 <p className="text-xl font-black text-gray-900">PKR {formatPrice(plan3m.advance)} advance</p>
                 <span className="text-gray-400 text-sm">then PKR {formatPrice(plan3m.monthly)}/mo × 2</span>
@@ -319,7 +319,7 @@ export default function GreenCorridor() {
                 <div className="mb-6">
                   <p className="text-3xl font-black text-gray-900">PKR {formatPrice(pkg.price)}</p>
                   <p className="text-xs text-gray-500 mt-1">
-                    or PKR {formatPrice(calcPlan(pkg.price, '3m').monthly)}/mo (3-month plan)
+                    or PKR {formatPrice(calcPlan(pkg.price, '3m').monthly)}/mo (3-payment plan)
                   </p>
                 </div>
                 <ul className="space-y-2.5 flex-1 mb-6">

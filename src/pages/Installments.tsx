@@ -19,7 +19,7 @@ export default function InstallmentsPage() {
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-16 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-3xl md:text-5xl font-bold mb-3">Buy Now, Pay Easy</h1>
-          <p className="text-blue-100 text-lg max-w-2xl mx-auto">Choose from 2, 3, 6, or 12-month plans. No bank required.</p>
+          <p className="text-blue-100 text-lg max-w-2xl mx-auto">Choose from 2, 3, 6, or 12-payment plans. No bank required.</p>
         </div>
       </div>
       <div className="max-w-5xl mx-auto px-4 py-12 space-y-10">
@@ -30,7 +30,7 @@ export default function InstallmentsPage() {
               <div key={p.key} className={`relative bg-white rounded-2xl border-2 p-5 shadow-sm ${p.key==='3month' ? 'border-green-400 shadow-green-100' : 'border-gray-100'}`}>
                 {p.key==='3month' && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-500 text-white text-xs font-bold px-3 py-0.5 rounded-full">POPULAR</div>}
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-gray-800 mb-1">{p.key.replace('month',' mo')}</div>
+                  <div className="text-3xl font-bold text-gray-800 mb-1">{p.key.replace('month',' Pay')}</div>
                   <div className="space-y-2 text-sm mt-3">
                     <div className="flex justify-between items-center bg-gray-50 rounded-lg px-3 py-1.5"><span className="text-gray-500">Markup</span><span className="font-bold">+{p.markup}</span></div>
                     <div className="flex justify-between items-center bg-blue-50 rounded-lg px-3 py-1.5"><span className="text-gray-500">Advance</span><span className="font-bold text-blue-700">{p.advance}</span></div>
@@ -57,7 +57,7 @@ export default function InstallmentsPage() {
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {Object.entries(result.plans).map(([key, plan]: [string, any]) => (
                   <div key={key} className={`rounded-2xl border-2 p-5 ${key==='3month' ? 'border-green-400 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
-                    <div className="font-bold text-lg text-gray-800 mb-4">{key.replace('month',' Month')} Plan</div>
+                    <div className="font-bold text-lg text-gray-800 mb-4">{key.replace('month',' Payment')} Plan</div>
                     <div className="space-y-3">
                       <div className="bg-white rounded-xl p-3"><div className="text-xs text-gray-500 mb-0.5">Total</div><div className="font-bold">{fmtPKR(plan.total)}</div></div>
                       <div className="bg-orange-50 rounded-xl p-3 border border-orange-200"><div className="text-xs text-orange-600 mb-0.5">Advance ({Math.round(plan.advancePct*100)}%)</div><div className="font-bold text-xl text-orange-700">{fmtPKR(plan.advance)}</div></div>
@@ -68,7 +68,7 @@ export default function InstallmentsPage() {
               </div>
               <div className="flex items-start gap-2 bg-blue-50 rounded-xl p-3 text-sm text-blue-700">
                 <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <span>All amounts rounded to nearest PKR 100. 3-month advance is 45%. Approval subject to verification.</span>
+                <span>All amounts rounded to nearest PKR 100. 3-payment advance is 45%. Approval subject to verification.</span>
               </div>
             </div>
           )}

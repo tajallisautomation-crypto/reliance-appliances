@@ -205,7 +205,7 @@ function OffGridCalculator() {
 }
 
 // ── Lead Capture Form ──────────────────────────────────────────────────────────
-// Saves to partner_leads (anon INSERT allowed) then opens WhatsApp.
+// Saves to solar_leads then opens WhatsApp.
 
 function LeadForm() {
   const [form, setForm] = useState({ name: '', phone: '', city: 'Karachi', bill: '', backup: '8' })
