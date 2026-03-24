@@ -3770,12 +3770,13 @@ export async function findNearDuplicates(): Promise<NearDupeGroup[]> {
     .order('model');
   if (error || !data) return [];
 
-  // Extract a "base key" = brand + first numeric token + first series keyword
+  // Extract a "base key" = brand + first numeric token + first series keyword.
+  // Use (?!\w) instead of \b at the end — \b fails after non-word chars like '+'.
   const SERIES = ['acce pro', 'acce', 'avante\\+ gd inv', 'avante\\+', 'avante gd', 'avante', 'chrome pro', 'chrome', 'graze\\+', 'graze', 'inspire', 'plus', 'twin cool'];
-  const seriesRe = new RegExp(`\\b(${SERIES.join('|')})\\b`, 'i');
+  const seriesRe = new RegExp(`\\b(${SERIES.join('|')})(?!\\w)`, 'i');
 
   function baseKey(brand: string, model: string): string | null {
-    const numMatch = model.match(/\d{4,}/);
+    const numMatch = model.match(/\d{3,}/);   // 3+ digits covers HSU-18, 9173, etc.
     if (!numMatch) return null;
     const num = numMatch[0];
     const norm = normalizeModelForDedupe(model);
