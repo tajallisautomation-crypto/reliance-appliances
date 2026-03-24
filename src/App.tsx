@@ -16,6 +16,7 @@ const Checkout        = lazy(() => import('./pages/Checkout'))
 const Installments    = lazy(() => import('./pages/Installments'))
 const SolarPage       = lazy(() => import('./pages/SolarPage'))
 const SolarCalculator = lazy(() => import('./pages/SolarCalculator'))
+const OffGridSolar    = lazy(() => import('./pages/OffGridSolar'))
 const ToolsPage       = lazy(() => import('./pages/ToolsPage'))
 const Services        = lazy(() => import('./pages/Services'))
 const Corporate       = lazy(() => import('./pages/Corporate'))
@@ -55,6 +56,7 @@ export default function App() {
             <Route path="/installments"                     element={<Installments />} />
             <Route path="/solar"                            element={<SolarPage />} />
             <Route path="/solar-calculator"                 element={<SolarCalculator />} />
+            <Route path="/solar/off-grid"                   element={<OffGridSolar />} />
             <Route path="/tools"                            element={<ToolsPage />} />
             <Route path="/services"                         element={<Services />} />
             <Route path="/green-corridor"                   element={<GreenCorridor />} />

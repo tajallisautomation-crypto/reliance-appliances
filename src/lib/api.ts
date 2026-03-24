@@ -3799,6 +3799,60 @@ export async function normalizeCategoryNames(): Promise<string> {
   return `Normalized ${total} products: ${lines.join(', ')}`;
 }
 
+// ── Off-Grid Solar Leads ──────────────────────────────────────────────────────
+
+export interface SolarLead {
+  id?: string;
+  name: string;
+  phone: string;
+  city: string;
+  monthly_bill: number;
+  backup_hours: number;
+  system_kw: number;
+  battery_kwh: number;
+  est_savings: number;
+  status?: 'new' | 'contacted' | 'quoted' | 'closed';
+  proposal_url?: string | null;
+  created_at?: string;
+}
+
+export async function submitSolarLead(lead: Omit<SolarLead, 'id' | 'created_at'>): Promise<string> {
+  const { data, error } = await supabase
+    .from('solar_leads')
+    .insert([{ ...lead, status: 'new' }])
+    .select('id')
+    .single();
+  if (error) throw new Error(error.message);
+  return data.id;
+}
+
+export async function getSolarLeads(): Promise<SolarLead[]> {
+  const { data, error } = await supabase
+    .from('solar_leads')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return data as SolarLead[];
+}
+
+export async function updateSolarLeadStatus(id: string, status: SolarLead['status']): Promise<void> {
+  const { error } = await supabase.from('solar_leads').update({ status }).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function saveSolarProposal(leadId: string, pdfBlob: Blob): Promise<string> {
+  const fileName = `proposal_${leadId}_${Date.now()}.pdf`;
+  const path = `proposals/${fileName}`;
+  const { error } = await supabase.storage.from('product-images').upload(path, pdfBlob, {
+    contentType: 'application/pdf', upsert: true,
+  });
+  if (error) throw new Error(error.message);
+  const { data } = supabase.storage.from('product-images').getPublicUrl(path);
+  const url = data.publicUrl;
+  await supabase.from('solar_leads').update({ proposal_url: url, status: 'quoted' }).eq('id', leadId);
+  return url;
+}
+
 // ── Fallback products (shown if Supabase unreachable) ────────────────────────
 
 export const FALLBACK_PRODUCTS: Product[] = [

@@ -10,6 +10,7 @@ import {
   rebalanceCategories, getCategoryCounts, CAT_MIN, CAT_MAX,
   mergeDuplicates, normalizeCategoryNames, type MergeResult,
   composeImages, decomposeImages, logAdminAction, getAuditLog, clearAuditLog,
+  getSolarLeads, updateSolarLeadStatus, saveSolarProposal, type SolarLead,
   type ImportSummary, type CsvImportRow, type Product, type AuditProduct, type BucketScanResult,
   type ProductGalleryImage, type AuditLogEntry,
 } from '@/lib/api';
@@ -3542,6 +3543,429 @@ const LEAD_STATUS_COLORS: Record<string, string> = {
   rejected:  'bg-red-100 text-red-600',
 };
 
+// ── Solar Leads Tab ────────────────────────────────────────────────────────────
+
+const SOLAR_STATUS_COLORS: Record<string, string> = {
+  new:       'bg-blue-100 text-blue-700',
+  contacted: 'bg-yellow-100 text-yellow-700',
+  quoted:    'bg-purple-100 text-purple-700',
+  closed:    'bg-green-100 text-green-700',
+};
+
+function generateSolarPdf(lead: SolarLead, opts: {
+  batteryType: 'tubular' | 'lithium';
+  panelPrice: number;
+  inverterPrice: number;
+  batteryPrice: number;
+  installPrice: number;
+}): Blob {
+  // Dynamic import-style usage of jsPDF (bundled as named export)
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { jsPDF } = require('jspdf') as typeof import('jspdf');
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  const W = 210; const margin = 18;
+  let y = 0;
+
+  // ── Header ──
+  doc.setFillColor(15, 15, 15);
+  doc.rect(0, 0, W, 48, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(22);
+  doc.text('RELIANCE TAJALLI', margin, 20);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(160, 160, 160);
+  doc.text('reliance.tajallis.com.pk  |  +92 335 426 6238  |  Karachi', margin, 28);
+
+  doc.setTextColor(251, 146, 60); // orange-400
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.text('Solar Independence Proposal', margin, 40);
+
+  y = 60;
+
+  // ── Customer block ──
+  doc.setFillColor(245, 245, 245);
+  doc.roundedRect(margin, y, W - margin * 2, 28, 3, 3, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(80, 80, 80);
+  doc.text('PREPARED FOR', margin + 5, y + 7);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(12);
+  doc.setTextColor(20, 20, 20);
+  doc.text(lead.name, margin + 5, y + 15);
+  doc.setFontSize(9);
+  doc.setTextColor(100, 100, 100);
+  doc.text(`${lead.phone}   |   ${lead.city}`, margin + 5, y + 22);
+
+  const dateStr = new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' });
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(80, 80, 80);
+  doc.text('DATE', W - margin - 30, y + 7);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(20, 20, 20);
+  doc.text(dateStr, W - margin - 30, y + 15);
+  doc.text('Valid 7 days', W - margin - 30, y + 22, { align: 'right' });
+
+  y += 40;
+
+  // ── System Summary ──
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(20, 20, 20);
+  doc.text('System Configuration', margin, y);
+  y += 6;
+  doc.setDrawColor(251, 146, 60);
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, W - margin, y);
+  y += 8;
+
+  const specs = [
+    ['System Type',   'Off-Grid (Battery Storage)'],
+    ['System Size',   `${lead.system_kw} kW`],
+    ['Solar Panels',  `${Math.ceil((lead.system_kw * 1000) / 545)} × 545W Mono PERC (Tier-1)`],
+    ['Inverter',      `${lead.system_kw}kW Off-Grid Inverter (Growatt / Deye)`],
+    ['Battery Bank',  `${lead.battery_kwh} kWh — ${opts.batteryType === 'lithium' ? 'Lithium LiFePO₄' : 'Tubular Lead-Acid'}`],
+    ['Night Backup',  `${lead.backup_hours} Hours`],
+    ['Installation',  'Included — Karachi only'],
+  ];
+
+  doc.setFontSize(9);
+  specs.forEach(([k, v]) => {
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(100, 100, 100);
+    doc.text(k, margin, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(20, 20, 20);
+    doc.text(v, margin + 55, y);
+    y += 7;
+  });
+
+  y += 6;
+
+  // ── Pricing Table ──
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(20, 20, 20);
+  doc.text('Price Breakdown', margin, y);
+  y += 6;
+  doc.setDrawColor(251, 146, 60);
+  doc.line(margin, y, W - margin, y);
+  y += 8;
+
+  // Table header
+  doc.setFillColor(15, 15, 15);
+  doc.rect(margin, y - 4, W - margin * 2, 8, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.text('LINE ITEM', margin + 3, y + 1);
+  doc.text('QTY', margin + 100, y + 1);
+  doc.text('UNIT PRICE', margin + 115, y + 1);
+  doc.text('TOTAL (PKR)', W - margin - 3, y + 1, { align: 'right' });
+  y += 9;
+
+  const panelQty = Math.ceil((lead.system_kw * 1000) / 545);
+  const battAhNeeded = Math.ceil((lead.battery_kwh * 1000) / (opts.batteryType === 'lithium' ? 12 : 2));
+
+  const lineItems = [
+    { desc: '545W Mono PERC Solar Panel (Tier-1)', qty: panelQty, unit: opts.panelPrice },
+    { desc: `Off-Grid Inverter ${lead.system_kw}kW`, qty: 1, unit: opts.inverterPrice },
+    { desc: opts.batteryType === 'lithium'
+        ? `Lithium LiFePO₄ Battery (${lead.battery_kwh}kWh)`
+        : `Tubular Battery Bank (${lead.battery_kwh}kWh)`,
+      qty: 1, unit: opts.batteryPrice },
+    { desc: 'Installation & Commissioning', qty: 1, unit: opts.installPrice },
+  ];
+
+  let subtotal = 0;
+  lineItems.forEach((item, i) => {
+    const total = item.qty * item.unit;
+    subtotal += total;
+    if (i % 2 === 0) {
+      doc.setFillColor(248, 248, 248);
+      doc.rect(margin, y - 4, W - margin * 2, 8, 'F');
+    }
+    doc.setTextColor(20, 20, 20);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.text(item.desc, margin + 3, y + 1);
+    doc.text(String(item.qty), margin + 103, y + 1);
+    doc.text(`PKR ${item.unit.toLocaleString()}`, margin + 118, y + 1);
+    doc.text(`PKR ${total.toLocaleString()}`, W - margin - 3, y + 1, { align: 'right' });
+    y += 9;
+  });
+
+  // Total row
+  doc.setFillColor(15, 15, 15);
+  doc.rect(margin, y - 4, W - margin * 2, 10, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text('TOTAL', margin + 3, y + 2);
+  doc.setTextColor(251, 146, 60);
+  doc.text(`PKR ${subtotal.toLocaleString()}`, W - margin - 3, y + 2, { align: 'right' });
+  y += 16;
+
+  // ── ROI ──
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(20, 20, 20);
+  doc.text('Estimated ROI', margin, y);
+  y += 5;
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(80, 80, 80);
+  const breakEven = (subtotal / lead.est_savings).toFixed(1);
+  doc.text(`Monthly Savings: PKR ${lead.est_savings.toLocaleString()}   |   Break-even: ~${breakEven} months   |   25-Year Panel Warranty`, margin, y);
+  y += 12;
+
+  // ── Footer ──
+  doc.setFillColor(15, 15, 15);
+  doc.rect(0, 275, W, 22, 'F');
+  doc.setTextColor(120, 120, 120);
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.text('This proposal is valid for 7 days. Prices are subject to market variation. Reliance Tajalli — Karachi.', margin, 284);
+  doc.setTextColor(251, 146, 60);
+  doc.text('reliance.tajallis.com.pk', W / 2, 291, { align: 'center' });
+
+  return doc.output('blob') as Blob;
+}
+
+function SolarQuoteModal({ lead, onClose }: { lead: SolarLead; onClose: () => void }) {
+  const [battType,     setBattType]     = useState<'tubular' | 'lithium'>('tubular');
+  const [panelPrice,   setPanelPrice]   = useState(String(lead.system_kw <= 3 ? 38000 : 36000));
+  const [invPrice,     setInvPrice]     = useState(String(Math.round(lead.system_kw * 55000)));
+  const [battPrice,    setBattPrice]    = useState(String(Math.round(lead.battery_kwh * (battType === 'lithium' ? 42000 : 18000))));
+  const [installPrice, setInstallPrice] = useState('25000');
+  const [saving,       setSaving]       = useState(false);
+  const [err,          setErr]          = useState('');
+  const [waUrl,        setWaUrl]        = useState('');
+
+  const subtotal = (parseInt(panelPrice) * Math.ceil((lead.system_kw * 1000) / 545)) +
+    parseInt(invPrice) + parseInt(battPrice) + parseInt(installPrice);
+
+  const handleGenerate = async () => {
+    setSaving(true); setErr('');
+    try {
+      const blob = generateSolarPdf(lead, {
+        batteryType:  battType,
+        panelPrice:   parseInt(panelPrice)   || 0,
+        inverterPrice: parseInt(invPrice)    || 0,
+        batteryPrice:  parseInt(battPrice)   || 0,
+        installPrice:  parseInt(installPrice) || 0,
+      });
+      const url = await saveSolarProposal(lead.id!, blob);
+      const phone = lead.phone.replace(/\D/g, '');
+      const e164  = phone.startsWith('0') ? '92' + phone.slice(1) : phone.startsWith('92') ? phone : '92' + phone;
+      const msg   = encodeURIComponent(
+        `Assalam-o-Alaikum ${lead.name},\n\n` +
+        `Here is your customised Off-Grid Solar Proposal from Reliance Tajalli.\n\n` +
+        `View Proposal: ${url}\n\n` +
+        `This setup provides ${lead.backup_hours} hours of night backup independence.\n\n` +
+        `JazakAllah Khayran.`
+      );
+      setWaUrl(`https://wa.me/${e164}?text=${msg}`);
+    } catch (e: any) {
+      setErr(e.message || 'Failed to generate proposal');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 space-y-5" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-black text-gray-900 text-lg">Generate Proposal</div>
+            <div className="text-sm text-gray-500">{lead.name} — {lead.system_kw}kW Off-Grid System</div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1"><X className="w-5 h-5" /></button>
+        </div>
+
+        {/* Battery type */}
+        <div>
+          <label className="text-xs font-medium text-gray-500 uppercase tracking-wider block mb-2">Battery Type</label>
+          <div className="grid grid-cols-2 gap-2">
+            {(['tubular', 'lithium'] as const).map(t => (
+              <button key={t} onClick={() => setBattType(t)}
+                className={`py-2.5 px-4 rounded-2xl border text-sm font-medium transition-all ${
+                  battType === t ? 'bg-orange-500 border-orange-500 text-white' : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                }`}>
+                {t === 'tubular' ? '🔋 Tubular Lead-Acid' : '⚡ Lithium LiFePO₄'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Price inputs */}
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { label: 'Panel Unit Price (PKR)', val: panelPrice, set: setPanelPrice },
+            { label: 'Inverter Price (PKR)', val: invPrice, set: setInvPrice },
+            { label: 'Battery Bank Price (PKR)', val: battPrice, set: setBattPrice },
+            { label: 'Installation (PKR)', val: installPrice, set: setInstallPrice },
+          ].map(f => (
+            <div key={f.label}>
+              <label className="text-xs text-gray-500 block mb-1">{f.label}</label>
+              <input
+                type="number" value={f.val} onChange={e => f.set(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-400"
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-gray-50 rounded-2xl px-4 py-3 flex items-center justify-between">
+          <span className="text-sm text-gray-500">Estimated Total</span>
+          <span className="font-black text-gray-900">PKR {subtotal.toLocaleString()}</span>
+        </div>
+
+        {err && <p className="text-red-500 text-xs">{err}</p>}
+
+        {waUrl ? (
+          <a href={waUrl} target="_blank" rel="noopener noreferrer"
+            className="w-full flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#20bc5a] text-white font-bold py-3.5 rounded-2xl transition-all text-sm">
+            <MessageCircle className="w-4 h-4" />
+            Send Proposal on WhatsApp
+          </a>
+        ) : (
+          <button onClick={handleGenerate} disabled={saving}
+            className="w-full bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-white font-bold py-3.5 rounded-2xl transition-all text-sm flex items-center justify-center gap-2">
+            {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating PDF…</> : '📄 Generate & Send via WhatsApp'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SolarLeadsTab() {
+  const [leads,   setLeads]   = useState<SolarLead[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err,     setErr]     = useState('');
+  const [quoting, setQuoting] = useState<SolarLead | null>(null);
+
+  const load = async () => {
+    setLoading(true); setErr('');
+    try { setLeads(await getSolarLeads()); }
+    catch (e: any) { setErr(e.message); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const updateStatus = async (lead: SolarLead, status: SolarLead['status']) => {
+    await updateSolarLeadStatus(lead.id!, status);
+    setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, status } : l));
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">Off-Grid Solar Leads</h2>
+          <p className="text-sm text-gray-500">Leads captured from /solar/off-grid calculator</p>
+        </div>
+        <button onClick={load} className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+          <RefreshCw className="w-4 h-4" /> Refresh
+        </button>
+      </div>
+
+      {err && <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl">{err}</div>}
+
+      {loading ? (
+        <div className="text-center py-12 text-gray-400"><Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" /></div>
+      ) : leads.length === 0 ? (
+        <div className="text-center py-16 text-gray-400">
+          <div className="text-4xl mb-3">☀️</div>
+          <p className="font-medium">No solar leads yet</p>
+          <p className="text-sm mt-1">Leads appear here when someone submits the off-grid calculator form.</p>
+        </div>
+      ) : (
+        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Customer</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">System</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Battery</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Bill / Savings</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {leads.map(lead => (
+                <tr key={lead.id} className="hover:bg-gray-50/50 transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-gray-900">{lead.name}</div>
+                    <div className="text-gray-500 text-xs">{lead.phone}</div>
+                    <div className="text-gray-400 text-xs">{lead.city}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-gray-900">{lead.system_kw} kW</div>
+                    <div className="text-gray-500 text-xs">{lead.backup_hours}h backup</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-gray-900">{lead.battery_kwh} kWh</div>
+                    <div className="text-gray-400 text-xs">{Math.ceil((lead.battery_kwh * 1000) / 48)}Ah @ 48V</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-gray-900">PKR {lead.monthly_bill.toLocaleString()}</div>
+                    <div className="text-green-600 text-xs">Saves ~PKR {lead.est_savings.toLocaleString()}/mo</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <select
+                      value={lead.status || 'new'}
+                      onChange={e => updateStatus(lead, e.target.value as SolarLead['status'])}
+                      className={`text-xs font-medium px-2.5 py-1 rounded-full border-0 cursor-pointer focus:outline-none ${SOLAR_STATUS_COLORS[lead.status || 'new']}`}
+                    >
+                      {(['new','contacted','quoted','closed'] as const).map(s => (
+                        <option key={s} value={s} className="bg-white text-gray-900">{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setQuoting(lead)}
+                        className="text-xs bg-orange-500 hover:bg-orange-400 text-white px-3 py-1.5 rounded-xl font-medium transition-all"
+                      >
+                        Generate Quote
+                      </button>
+                      {lead.proposal_url && (
+                        <a href={lead.proposal_url} target="_blank" rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:text-blue-700 underline">
+                          View PDF
+                        </a>
+                      )}
+                    </div>
+                    <div className="text-gray-400 text-xs mt-1">
+                      {lead.created_at ? new Date(lead.created_at).toLocaleDateString('en-PK', { day:'2-digit', month:'short', year:'numeric' }) : '—'}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {quoting && (
+        <SolarQuoteModal lead={quoting} onClose={() => { setQuoting(null); load(); }} />
+      )}
+    </div>
+  );
+}
+
 function PartnerLeadsTab() {
   const [leads,        setLeads]        = useState<PartnerLead[]>([]);
   const [loading,      setLoading]      = useState(true);
@@ -4419,8 +4843,8 @@ export default function AdminPortal() {
   const [deleteId, setDeleteId]   = useState<string | null>(null);
   const [deleting, setDeleting]   = useState(false);
   const [quickImg, setQuickImg]   = useState<Product | null>(null);
-  type AdminTab = 'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'settings' | 'schema' | 'audit' | 'catalog';
-  const VALID_TABS: AdminTab[] = ['products','images','import','tools','qc','reviews','leads','orders','enquiries','settings','schema','audit','catalog'];
+  type AdminTab = 'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'settings' | 'schema' | 'audit' | 'catalog' | 'solar';
+  const VALID_TABS: AdminTab[] = ['products','images','import','tools','qc','reviews','leads','orders','enquiries','settings','schema','audit','catalog','solar'];
   const tabFromHash = (): AdminTab => {
     const h = window.location.hash.slice(1) as AdminTab;
     return VALID_TABS.includes(h) ? h : 'products';
@@ -4689,6 +5113,7 @@ export default function AdminPortal() {
             { id: 'orders',    label: 'Orders',      group: 'crm' },
             { id: 'enquiries', label: 'Enquiries',   group: 'crm' },
             { id: 'reviews',   label: 'Reviews',     group: 'crm' },
+            { id: 'solar',     label: '☀️ Solar Leads', group: 'crm' },
             { id: 'leads',     label: 'Partners',    group: 'crm' },
             { id: 'settings',  label: 'Settings',    group: 'config' },
             { id: 'schema',    label: 'Spec Schema', group: 'config' },
@@ -4724,6 +5149,8 @@ export default function AdminPortal() {
           <EnquiriesTab />
         ) : tab === 'reviews' ? (
           <ReviewsTab />
+        ) : tab === 'solar' ? (
+          <SolarLeadsTab />
         ) : tab === 'leads' ? (
           <PartnerLeadsTab />
         ) : tab === 'settings' ? (
