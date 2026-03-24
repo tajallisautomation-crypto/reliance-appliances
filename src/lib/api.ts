@@ -3800,6 +3800,8 @@ export async function normalizeCategoryNames(): Promise<string> {
 }
 
 // ── Off-Grid Solar Leads ──────────────────────────────────────────────────────
+// Stored in partner_leads using category = 'solar-off-grid'.
+// Spec fields are serialised into the message column as JSON.
 
 export interface SolarLead {
   id?: string;
@@ -3816,10 +3818,52 @@ export interface SolarLead {
   created_at?: string;
 }
 
+// Serialise a SolarLead to a partner_leads row
+function _solarToRow(lead: Omit<SolarLead, 'id' | 'created_at'>) {
+  return {
+    company_name:   lead.name,
+    contact_person: lead.name,
+    phone:          lead.phone,
+    email:          '',
+    category:       'solar-off-grid',
+    monthly_volume: lead.monthly_bill,
+    website:        lead.proposal_url ?? null,
+    status:         lead.status ?? 'new',
+    notes:          '',
+    message: JSON.stringify({
+      city:         lead.city,
+      backup_hours: lead.backup_hours,
+      system_kw:    lead.system_kw,
+      battery_kwh:  lead.battery_kwh,
+      est_savings:  lead.est_savings,
+    }),
+  };
+}
+
+// Deserialise a partner_leads row back to SolarLead
+function _rowToSolar(row: Record<string, any>): SolarLead {
+  let specs: Record<string, any> = {};
+  try { specs = JSON.parse(row.message || '{}'); } catch { /* ignore */ }
+  return {
+    id:           row.id,
+    name:         row.company_name ?? '',
+    phone:        row.phone ?? '',
+    city:         specs.city ?? 'Karachi',
+    monthly_bill: row.monthly_volume ?? 0,
+    backup_hours: specs.backup_hours ?? 8,
+    system_kw:    specs.system_kw ?? 0,
+    battery_kwh:  specs.battery_kwh ?? 0,
+    est_savings:  specs.est_savings ?? 0,
+    status:       row.status ?? 'new',
+    proposal_url: row.website ?? null,
+    created_at:   row.created_at,
+  };
+}
+
 export async function submitSolarLead(lead: Omit<SolarLead, 'id' | 'created_at'>): Promise<string> {
   const { data, error } = await supabase
-    .from('solar_leads')
-    .insert([{ ...lead, status: 'new' }])
+    .from('partner_leads')
+    .insert([_solarToRow(lead)])
     .select('id')
     .single();
   if (error) throw new Error(error.message);
@@ -3828,15 +3872,16 @@ export async function submitSolarLead(lead: Omit<SolarLead, 'id' | 'created_at'>
 
 export async function getSolarLeads(): Promise<SolarLead[]> {
   const { data, error } = await supabase
-    .from('solar_leads')
+    .from('partner_leads')
     .select('*')
+    .eq('category', 'solar-off-grid')
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
-  return data as SolarLead[];
+  return (data as Record<string, any>[]).map(_rowToSolar);
 }
 
 export async function updateSolarLeadStatus(id: string, status: SolarLead['status']): Promise<void> {
-  const { error } = await supabase.from('solar_leads').update({ status }).eq('id', id);
+  const { error } = await supabase.from('partner_leads').update({ status }).eq('id', id);
   if (error) throw new Error(error.message);
 }
 
@@ -3849,7 +3894,8 @@ export async function saveSolarProposal(leadId: string, pdfBlob: Blob): Promise<
   if (error) throw new Error(error.message);
   const { data } = supabase.storage.from('product-images').getPublicUrl(path);
   const url = data.publicUrl;
-  await supabase.from('solar_leads').update({ proposal_url: url, status: 'quoted' }).eq('id', leadId);
+  // store proposal URL in the website column; mark as quoted
+  await supabase.from('partner_leads').update({ website: url, status: 'quoted' }).eq('id', leadId);
   return url;
 }
 

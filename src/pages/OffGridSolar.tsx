@@ -4,7 +4,7 @@ import {
   Sun, Battery, Zap, MessageCircle, ChevronRight,
   CheckCircle, Shield, ArrowRight, Phone, User, MapPin,
 } from 'lucide-react'
-import { submitSolarLead } from '../lib/api'
+
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const UNIT_PRICE   = 62    // PKR/unit — 2026 Karachi average tariff
@@ -203,54 +203,39 @@ function OffGridCalculator() {
   )
 }
 
-// ── Lead Capture Form ──────────────────────────────────────────────────────────
+// ── Lead Capture Form (WhatsApp delivery) ────────────────────────────────────
 
 function LeadForm() {
-  const [form, setForm] = useState({ name: '', phone: '', city: 'Karachi', bill: '', backup: '8' })
-  const [loading, setLoading] = useState(false)
-  const [done, setDone]       = useState(false)
-  const [err, setErr]         = useState('')
+  const [form, setForm] = useState({ name: '', phone: '', bill: '', backup: '8' })
+  const [err, setErr]   = useState('')
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
 
-  const submit = async (e: React.FormEvent) => {
+  const submit = (e: React.FormEvent) => {
     e.preventDefault()
     const bill = parseInt(form.bill.replace(/,/g, ''))
     if (!form.name.trim() || !form.phone.trim() || !bill) {
       setErr('Please fill all fields'); return
     }
-    setLoading(true); setErr('')
-    try {
-      const backup = parseInt(form.backup)
-      const result = calcSystem(bill, backup)
-      await submitSolarLead({
-        name: form.name.trim(),
-        phone: form.phone.trim(),
-        city: form.city,
-        monthly_bill: bill,
-        backup_hours: backup,
-        system_kw: result.systemKw,
-        battery_kwh: result.batteryKwh,
-        est_savings: result.estSavings,
-      })
-      setDone(true)
-    } catch (e: any) {
-      setErr(e.message || 'Submission failed. Please try WhatsApp instead.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  if (done) {
-    return (
-      <div className="text-center py-10 space-y-3">
-        <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto">
-          <CheckCircle className="w-8 h-8 text-green-400" />
-        </div>
-        <div className="text-white font-bold text-lg">Request Received</div>
-        <div className="text-gray-400 text-sm">Our solar expert will contact you within 2 hours.</div>
-      </div>
-    )
+    setErr('')
+    const backup  = parseInt(form.backup)
+    const result  = calcSystem(bill, backup)
+    const lines   = [
+      `*Off-Grid Solar Consultation Request* ☀️`,
+      ``,
+      `*Name:* ${form.name.trim()}`,
+      `*Phone:* ${form.phone.trim()}`,
+      `*Monthly Bill:* PKR ${bill.toLocaleString()}`,
+      `*Night Backup Needed:* ${backup} Hours`,
+      ``,
+      `*Calculated System:*`,
+      `• ${result.systemKw}kW — ${result.panels} × 545W panels`,
+      `• Battery: ${result.batteryKwh}kWh (${result.batteryAh48}Ah @ 48V)`,
+      `• Est. Monthly Savings: PKR ${result.estSavings.toLocaleString()}`,
+      ``,
+      `Please call me for a free consultation. JazakAllah.`,
+    ]
+    window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(lines.join('\n'))}`, '_blank')
   }
 
   return (
@@ -305,12 +290,13 @@ function LeadForm() {
       {err && <p className="text-red-400 text-xs">{err}</p>}
 
       <button
-        type="submit" disabled={loading}
-        className="w-full bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-white font-bold py-4 rounded-2xl transition-all text-sm tracking-wide"
+        type="submit"
+        className="w-full bg-[#25D366] hover:bg-[#20bc5a] text-white font-bold py-4 rounded-2xl transition-all text-sm tracking-wide flex items-center justify-center gap-2"
       >
-        {loading ? 'Sending…' : 'Request Free Consultation'}
+        <MessageCircle className="w-4 h-4" />
+        Request Consultation via WhatsApp
       </button>
-      <p className="text-center text-xs text-gray-600">No spam. Our team calls you directly.</p>
+      <p className="text-center text-xs text-gray-600">Opens WhatsApp — no signup required.</p>
     </form>
   )
 }
