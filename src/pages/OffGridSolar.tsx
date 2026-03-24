@@ -4,6 +4,7 @@ import {
   Sun, Battery, Zap, MessageCircle, ChevronRight,
   CheckCircle, Shield, ArrowRight, Phone, User, MapPin,
 } from 'lucide-react'
+import { submitSolarLead } from '../lib/api'
 
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -203,39 +204,78 @@ function OffGridCalculator() {
   )
 }
 
-// ── Lead Capture Form (WhatsApp delivery) ────────────────────────────────────
+// ── Lead Capture Form ──────────────────────────────────────────────────────────
+// Saves to partner_leads (anon INSERT allowed) then opens WhatsApp.
 
 function LeadForm() {
-  const [form, setForm] = useState({ name: '', phone: '', bill: '', backup: '8' })
-  const [err, setErr]   = useState('')
+  const [form, setForm] = useState({ name: '', phone: '', city: 'Karachi', bill: '', backup: '8' })
+  const [loading, setLoading] = useState(false)
+  const [done, setDone]       = useState(false)
+  const [err, setErr]         = useState('')
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     const bill = parseInt(form.bill.replace(/,/g, ''))
     if (!form.name.trim() || !form.phone.trim() || !bill) {
       setErr('Please fill all fields'); return
     }
-    setErr('')
-    const backup  = parseInt(form.backup)
-    const result  = calcSystem(bill, backup)
-    const lines   = [
-      `*Off-Grid Solar Consultation Request* ☀️`,
-      ``,
-      `*Name:* ${form.name.trim()}`,
-      `*Phone:* ${form.phone.trim()}`,
-      `*Monthly Bill:* PKR ${bill.toLocaleString()}`,
-      `*Night Backup Needed:* ${backup} Hours`,
-      ``,
-      `*Calculated System:*`,
-      `• ${result.systemKw}kW — ${result.panels} × 545W panels`,
-      `• Battery: ${result.batteryKwh}kWh (${result.batteryAh48}Ah @ 48V)`,
-      `• Est. Monthly Savings: PKR ${result.estSavings.toLocaleString()}`,
-      ``,
-      `Please call me for a free consultation. JazakAllah.`,
-    ]
-    window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(lines.join('\n'))}`, '_blank')
+    setLoading(true); setErr('')
+    try {
+      const backup = parseInt(form.backup)
+      const result = calcSystem(bill, backup)
+      // Save to DB (anon INSERT — no select needed)
+      await submitSolarLead({
+        name: form.name.trim(), phone: form.phone.trim(),
+        city: form.city, monthly_bill: bill,
+        backup_hours: backup, system_kw: result.systemKw,
+        battery_kwh: result.batteryKwh, est_savings: result.estSavings,
+      })
+      // Also open WhatsApp with the pre-filled inquiry
+      const lines = [
+        `*Off-Grid Solar Consultation Request* ☀️`, ``,
+        `*Name:* ${form.name.trim()}`,
+        `*Phone:* ${form.phone.trim()}`,
+        `*Monthly Bill:* PKR ${bill.toLocaleString()}`,
+        `*Night Backup Needed:* ${backup} Hours`, ``,
+        `*Calculated System:*`,
+        `• ${result.systemKw}kW — ${result.panels} × 545W panels`,
+        `• Battery: ${result.batteryKwh}kWh (${result.batteryAh48}Ah @ 48V)`,
+        `• Est. Monthly Savings: PKR ${result.estSavings.toLocaleString()}`, ``,
+        `Please call me for a free consultation. JazakAllah.`,
+      ]
+      window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(lines.join('\n'))}`, '_blank')
+      setDone(true)
+    } catch (e: any) {
+      // DB error — still open WhatsApp so the lead isn't lost
+      const backup = parseInt(form.backup)
+      const result = calcSystem(bill, backup)
+      const lines = [
+        `*Off-Grid Solar Consultation Request* ☀️`, ``,
+        `*Name:* ${form.name.trim()}`, `*Phone:* ${form.phone.trim()}`,
+        `*Monthly Bill:* PKR ${bill.toLocaleString()}`,
+        `*Night Backup Needed:* ${backup} Hours`, ``,
+        `*System:* ${result.systemKw}kW — Battery: ${result.batteryKwh}kWh`,
+        `Please call me. JazakAllah.`,
+      ]
+      window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(lines.join('\n'))}`, '_blank')
+      setDone(true)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (done) {
+    return (
+      <div className="text-center py-10 space-y-3">
+        <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto">
+          <CheckCircle className="w-8 h-8 text-green-400" />
+        </div>
+        <div className="text-white font-bold text-lg">Request Sent</div>
+        <div className="text-gray-400 text-sm">WhatsApp opened with your details. Our solar expert will reply within 2 hours.</div>
+      </div>
+    )
   }
 
   return (
@@ -245,58 +285,45 @@ function LeadForm() {
           <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider">Full Name</label>
           <div className="relative">
             <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-            <input
-              value={form.name} onChange={e => set('name', e.target.value)} required
+            <input value={form.name} onChange={e => set('name', e.target.value)} required
               placeholder="Muhammad Ali"
-              className="w-full bg-white/8 border border-white/12 rounded-2xl pl-10 pr-4 py-3 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-orange-500/50 transition-all"
-            />
+              className="w-full bg-white/8 border border-white/12 rounded-2xl pl-10 pr-4 py-3 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-orange-500/50 transition-all" />
           </div>
         </div>
         <div>
           <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider">Phone (WhatsApp)</label>
           <div className="relative">
             <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-            <input
-              value={form.phone} onChange={e => set('phone', e.target.value)} required
+            <input value={form.phone} onChange={e => set('phone', e.target.value)} required
               placeholder="03xx-xxxxxxx"
-              className="w-full bg-white/8 border border-white/12 rounded-2xl pl-10 pr-4 py-3 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-orange-500/50 transition-all"
-            />
+              className="w-full bg-white/8 border border-white/12 rounded-2xl pl-10 pr-4 py-3 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-orange-500/50 transition-all" />
           </div>
         </div>
       </div>
-
       <div className="grid sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider">Monthly Bill (PKR)</label>
-          <input
-            type="number" value={form.bill} onChange={e => set('bill', e.target.value)} required
+          <input type="number" value={form.bill} onChange={e => set('bill', e.target.value)} required
             placeholder="e.g. 35000"
-            className="w-full bg-white/8 border border-white/12 rounded-2xl px-4 py-3 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-orange-500/50 transition-all"
-          />
+            className="w-full bg-white/8 border border-white/12 rounded-2xl px-4 py-3 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-orange-500/50 transition-all" />
         </div>
         <div>
           <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider">Night Backup Needed</label>
-          <select
-            value={form.backup} onChange={e => set('backup', e.target.value)}
-            className="w-full bg-white/8 border border-white/12 rounded-2xl px-4 py-3 text-white text-sm focus:outline-none focus:border-orange-500/50 transition-all"
-          >
+          <select value={form.backup} onChange={e => set('backup', e.target.value)}
+            className="w-full bg-white/8 border border-white/12 rounded-2xl px-4 py-3 text-white text-sm focus:outline-none focus:border-orange-500/50 transition-all">
             <option value="4" className="bg-gray-900">4 Hours (Lights &amp; Fans)</option>
             <option value="8" className="bg-gray-900">8 Hours (Full Night)</option>
             <option value="12" className="bg-gray-900">12 Hours (Heavy Usage)</option>
           </select>
         </div>
       </div>
-
       {err && <p className="text-red-400 text-xs">{err}</p>}
-
-      <button
-        type="submit"
-        className="w-full bg-[#25D366] hover:bg-[#20bc5a] text-white font-bold py-4 rounded-2xl transition-all text-sm tracking-wide flex items-center justify-center gap-2"
-      >
+      <button type="submit" disabled={loading}
+        className="w-full bg-[#25D366] hover:bg-[#20bc5a] disabled:opacity-50 text-white font-bold py-4 rounded-2xl transition-all text-sm flex items-center justify-center gap-2">
         <MessageCircle className="w-4 h-4" />
-        Request Consultation via WhatsApp
+        {loading ? 'Sending…' : 'Request Consultation via WhatsApp'}
       </button>
-      <p className="text-center text-xs text-gray-600">Opens WhatsApp — no signup required.</p>
+      <p className="text-center text-xs text-gray-600">Opens WhatsApp — your request is also saved to our system.</p>
     </form>
   )
 }

@@ -3819,17 +3819,17 @@ export interface SolarLead {
 }
 
 // Serialise a SolarLead to a partner_leads row
+// monthly_volume is TEXT in the schema — cast to string
 function _solarToRow(lead: Omit<SolarLead, 'id' | 'created_at'>) {
   return {
     company_name:   lead.name,
     contact_person: lead.name,
     phone:          lead.phone,
-    email:          '',
+    email:          null,
     category:       'solar-off-grid',
-    monthly_volume: lead.monthly_bill,
+    monthly_volume: String(lead.monthly_bill),
     website:        lead.proposal_url ?? null,
     status:         lead.status ?? 'new',
-    notes:          '',
     message: JSON.stringify({
       city:         lead.city,
       backup_hours: lead.backup_hours,
@@ -3849,7 +3849,7 @@ function _rowToSolar(row: Record<string, any>): SolarLead {
     name:         row.company_name ?? '',
     phone:        row.phone ?? '',
     city:         specs.city ?? 'Karachi',
-    monthly_bill: row.monthly_volume ?? 0,
+    monthly_bill: parseInt(row.monthly_volume ?? '0') || 0,
     backup_hours: specs.backup_hours ?? 8,
     system_kw:    specs.system_kw ?? 0,
     battery_kwh:  specs.battery_kwh ?? 0,
@@ -3860,14 +3860,13 @@ function _rowToSolar(row: Record<string, any>): SolarLead {
   };
 }
 
-export async function submitSolarLead(lead: Omit<SolarLead, 'id' | 'created_at'>): Promise<string> {
-  const { data, error } = await supabase
+// Anon role can INSERT but not SELECT — omit .select() to avoid RLS clash.
+// Returns void; admin reads leads via getSolarLeads() (authenticated role).
+export async function submitSolarLead(lead: Omit<SolarLead, 'id' | 'created_at'>): Promise<void> {
+  const { error } = await supabase
     .from('partner_leads')
-    .insert([_solarToRow(lead)])
-    .select('id')
-    .single();
+    .insert([_solarToRow(lead)]);
   if (error) throw new Error(error.message);
-  return data.id;
 }
 
 export async function getSolarLeads(): Promise<SolarLead[]> {

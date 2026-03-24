@@ -10,7 +10,7 @@ import {
   rebalanceCategories, getCategoryCounts, CAT_MIN, CAT_MAX,
   mergeDuplicates, normalizeCategoryNames, type MergeResult,
   composeImages, decomposeImages, logAdminAction, getAuditLog, clearAuditLog,
-  saveSolarProposal, type SolarLead,
+  getSolarLeads, updateSolarLeadStatus, saveSolarProposal, type SolarLead,
   type ImportSummary, type CsvImportRow, type Product, type AuditProduct, type BucketScanResult,
   type ProductGalleryImage, type AuditLogEntry,
 } from '@/lib/api';
@@ -3856,97 +3856,188 @@ function SolarQuoteModal({ lead, onClose }: { lead: SolarLead; onClose: () => vo
   );
 }
 
-// SolarLeadsTab — admin enters customer details from WhatsApp conversations
-// and generates a branded PDF proposal, then sends back via WhatsApp.
+const SOLAR_STATUS_COLORS: Record<string, string> = {
+  new:       'bg-blue-100 text-blue-700',
+  contacted: 'bg-yellow-100 text-yellow-700',
+  quoted:    'bg-purple-100 text-purple-700',
+  closed:    'bg-green-100 text-green-700',
+};
+
 function SolarLeadsTab() {
   const UNIT_PRICE   = 62;
   const PEAK_SUN_HRS = 4.5;
 
-  const [form, setForm] = useState({
-    name: '', phone: '', city: 'Karachi',
-    bill: '', backup: '8',
-  });
-  const [quoting, setQuoting] = useState<SolarLead | null>(null);
+  const [leads,   setLeads]   = useState<SolarLead[]>([]);
+  const [loading, setLoading] = useState(true);
   const [err,     setErr]     = useState('');
+  const [quoting, setQuoting] = useState<SolarLead | null>(null);
+  const [showNew, setShowNew] = useState(false);
+  // New-lead form state
+  const [nf, setNf] = useState({ name:'', phone:'', city:'Karachi', bill:'', backup:'8' });
+  const [nfErr, setNfErr] = useState('');
+  const setN = (k: string, v: string) => setNf(f => ({ ...f, [k]: v }));
 
-  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+  const load = async () => {
+    setLoading(true); setErr('');
+    try { setLeads(await getSolarLeads()); }
+    catch (e: any) { setErr(e.message); }
+    finally { setLoading(false); }
+  };
 
-  const handleGenerate = () => {
-    const bill = parseInt(form.bill.replace(/,/g, ''));
-    if (!form.name.trim() || !form.phone.trim() || !bill) {
-      setErr('Fill all fields first'); return;
-    }
-    setErr('');
-    const backup    = parseInt(form.backup);
-    const dailyU    = (bill / UNIT_PRICE) / 30;
-    const systemKw  = Math.max(1, Math.ceil(dailyU / PEAK_SUN_HRS));
-    const battKwh   = parseFloat((dailyU * (backup / 24) * 1.2).toFixed(1));
-    const savings   = Math.round(bill * 0.9);
+  useEffect(() => { load(); }, []);
+
+  const updateStatus = async (lead: SolarLead, status: SolarLead['status']) => {
+    await updateSolarLeadStatus(lead.id!, status);
+    setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, status } : l));
+  };
+
+  const handleNewLead = () => {
+    const bill = parseInt(nf.bill.replace(/,/g, ''));
+    if (!nf.name.trim() || !nf.phone.trim() || !bill) { setNfErr('Fill all fields'); return; }
+    setNfErr('');
+    const backup   = parseInt(nf.backup);
+    const dailyU   = (bill / UNIT_PRICE) / 30;
+    const systemKw = Math.max(1, Math.ceil(dailyU / PEAK_SUN_HRS));
+    const battKwh  = parseFloat((dailyU * (backup / 24) * 1.2).toFixed(1));
     setQuoting({
-      name: form.name.trim(),
-      phone: form.phone.trim(),
-      city: form.city,
-      monthly_bill: bill,
-      backup_hours: backup,
-      system_kw: systemKw,
-      battery_kwh: battKwh,
-      est_savings: savings,
-      status: 'new',
+      name: nf.name.trim(), phone: nf.phone.trim(), city: nf.city,
+      monthly_bill: bill, backup_hours: backup,
+      system_kw: systemKw, battery_kwh: battKwh,
+      est_savings: Math.round(bill * 0.9), status: 'new',
     });
+    setShowNew(false);
   };
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <div>
-        <h2 className="text-lg font-bold text-gray-900">☀️ Solar Quote Generator</h2>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Enter customer details from your WhatsApp conversation, generate a branded PDF, and send it back.
-        </p>
-      </div>
-
-      <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4">
-        <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Customer Details</div>
-        <div className="grid sm:grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-gray-500 block mb-1">Customer Name</label>
-            <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Muhammad Ali"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400" />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 block mb-1">Phone (WhatsApp)</label>
-            <input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="03001234567"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400" />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 block mb-1">Monthly Bill (PKR)</label>
-            <input type="number" value={form.bill} onChange={e => set('bill', e.target.value)} placeholder="e.g. 35000"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400" />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 block mb-1">Night Backup Required</label>
-            <select value={form.backup} onChange={e => set('backup', e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400">
-              <option value="4">4 Hours</option>
-              <option value="8">8 Hours</option>
-              <option value="12">12 Hours</option>
-            </select>
-          </div>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">☀️ Off-Grid Solar Leads</h2>
+          <p className="text-sm text-gray-500">Leads from /solar/off-grid · Authenticated admin view</p>
         </div>
-
-        {err && <p className="text-red-500 text-xs">{err}</p>}
-
-        <button onClick={handleGenerate}
-          className="w-full bg-orange-500 hover:bg-orange-400 text-white font-bold py-3 rounded-xl text-sm transition-all">
-          Generate Proposal PDF
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowNew(v => !v)}
+            className="text-sm bg-orange-500 hover:bg-orange-400 text-white px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-1">
+            <Plus className="w-4 h-4" /> New Quote
+          </button>
+          <button onClick={load} className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+            <RefreshCw className="w-4 h-4" /> Refresh
+          </button>
+        </div>
       </div>
 
-      <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-sm text-amber-700">
-        <strong>How it works:</strong> Customer sends a WhatsApp inquiry → you open this tab, enter their bill &amp; backup hours → click Generate → customise pricing → click "Send via WhatsApp" to deliver the PDF proposal back to them.
-      </div>
+      {/* Manual new-lead entry */}
+      {showNew && (
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            New Quote — Enter Customer Details
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {[
+              { label:'Customer Name', key:'name', ph:'Muhammad Ali', type:'text' },
+              { label:'Phone (WhatsApp)', key:'phone', ph:'03001234567', type:'text' },
+              { label:'Monthly Bill (PKR)', key:'bill', ph:'35000', type:'number' },
+            ].map(f => (
+              <div key={f.key}>
+                <label className="text-xs text-gray-500 block mb-1">{f.label}</label>
+                <input type={f.type} value={(nf as any)[f.key]} placeholder={f.ph}
+                  onChange={e => setN(f.key, e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400" />
+              </div>
+            ))}
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">Night Backup Required</label>
+              <select value={nf.backup} onChange={e => setN('backup', e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400">
+                <option value="4">4 Hours</option>
+                <option value="8">8 Hours</option>
+                <option value="12">12 Hours</option>
+              </select>
+            </div>
+          </div>
+          {nfErr && <p className="text-red-500 text-xs">{nfErr}</p>}
+          <button onClick={handleNewLead}
+            className="bg-orange-500 hover:bg-orange-400 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-all">
+            Generate Proposal PDF
+          </button>
+        </div>
+      )}
+
+      {err && <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-xl">{err}</div>}
+
+      {loading ? (
+        <div className="text-center py-12 text-gray-400"><Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" /></div>
+      ) : leads.length === 0 ? (
+        <div className="text-center py-16 text-gray-400">
+          <div className="text-4xl mb-3">☀️</div>
+          <p className="font-medium">No solar leads yet</p>
+          <p className="text-sm mt-1">Leads appear here when customers submit the consultation form at /solar/off-grid.</p>
+        </div>
+      ) : (
+        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                {['Customer','System','Battery','Bill / Savings','Status','Actions'].map(h => (
+                  <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {leads.map(lead => (
+                <tr key={lead.id} className="hover:bg-gray-50/50 transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-gray-900">{lead.name}</div>
+                    <div className="text-gray-500 text-xs">{lead.phone}</div>
+                    <div className="text-gray-400 text-xs">{lead.city}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-gray-900">{lead.system_kw} kW</div>
+                    <div className="text-gray-500 text-xs">{lead.backup_hours}h backup</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-gray-900">{lead.battery_kwh} kWh</div>
+                    <div className="text-gray-400 text-xs">{Math.ceil((lead.battery_kwh * 1000) / 48)}Ah @ 48V</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-gray-900">PKR {lead.monthly_bill.toLocaleString()}</div>
+                    <div className="text-green-600 text-xs">Saves ~PKR {lead.est_savings.toLocaleString()}/mo</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <select value={lead.status || 'new'}
+                      onChange={e => updateStatus(lead, e.target.value as SolarLead['status'])}
+                      className={`text-xs font-medium px-2.5 py-1 rounded-full border-0 cursor-pointer focus:outline-none ${SOLAR_STATUS_COLORS[lead.status || 'new']}`}>
+                      {(['new','contacted','quoted','closed'] as const).map(s => (
+                        <option key={s} value={s} className="bg-white text-gray-900">
+                          {s.charAt(0).toUpperCase() + s.slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setQuoting(lead)}
+                        className="text-xs bg-orange-500 hover:bg-orange-400 text-white px-3 py-1.5 rounded-xl font-medium transition-all">
+                        Generate Quote
+                      </button>
+                      {lead.proposal_url && (
+                        <a href={lead.proposal_url} target="_blank" rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:text-blue-700 underline">PDF</a>
+                      )}
+                    </div>
+                    <div className="text-gray-400 text-xs mt-1">
+                      {lead.created_at ? new Date(lead.created_at).toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'}) : '—'}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {quoting && (
-        <SolarQuoteModal lead={quoting} onClose={() => setQuoting(null)} />
+        <SolarQuoteModal lead={quoting} onClose={() => { setQuoting(null); load(); }} />
       )}
     </div>
   );
