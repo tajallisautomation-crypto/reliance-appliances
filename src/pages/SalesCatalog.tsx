@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Copy, MessageCircle, Printer, Check, RefreshCw, Share2, Download, LayoutGrid, Table2, ImageIcon } from 'lucide-react'
+import { Copy, MessageCircle, Printer, Check, RefreshCw, Share2, Download, Table2, ImageIcon } from 'lucide-react'
 import SEO from '@/components/ui/SEO'
 import Spinner from '@/components/ui/Spinner'
 import { getProducts, formatPrice } from '@/lib/api'
@@ -7,6 +7,7 @@ import type { Product } from '@/lib/api'
 import {
   CATALOG_CATEGORIES,
   groupBySpec,
+  getKeySpecs,
   buildCategoryWAMessage,
   buildMegaWAMessage,
   buildPrintHTML,
@@ -19,9 +20,7 @@ import { WA_SALES } from '@/lib/config'
 
 const MAX_WA_CHARS = 1800
 
-async function copyText(text: string) {
-  await navigator.clipboard.writeText(text)
-}
+async function copyText(text: string) { await navigator.clipboard.writeText(text) }
 
 function openPrint(cat: CatalogCategory, grouped: Map<string, Product[]>) {
   const html = buildPrintHTML(cat, grouped)
@@ -33,32 +32,21 @@ function openPrint(cat: CatalogCategory, grouped: Map<string, Product[]>) {
   setTimeout(() => w.print(), 400)
 }
 
-async function downloadElementAsImage(el: HTMLElement, filename: string) {
+async function downloadEl(el: HTMLElement, filename: string) {
   const html2canvas = (await import('html2canvas')).default
-  const canvas = await html2canvas(el, {
-    useCORS: true,
-    allowTaint: true,
-    scale: 2,
-    backgroundColor: '#ffffff',
-    logging: false,
-  })
-  const link = document.createElement('a')
-  link.download = `${filename}.png`
-  link.href = canvas.toDataURL('image/png')
-  link.click()
+  const canvas = await html2canvas(el, { useCORS: true, allowTaint: true, scale: 2, backgroundColor: '#ffffff', logging: false })
+  const a = document.createElement('a')
+  a.download = `${filename}.png`
+  a.href = canvas.toDataURL('image/png')
+  a.click()
 }
 
-// ── Copy button ────────────────────────────────────────────────────────────────
+// ── Shared UI ──────────────────────────────────────────────────────────────────
 
-function CopyBtn({ text, label = 'Copy Text' }: { text: string; label?: string }) {
+function CopyBtn({ text, label = 'Copy' }: { text: string; label?: string }) {
   const [done, setDone] = useState(false)
-  const handle = async () => {
-    await copyText(text)
-    setDone(true)
-    setTimeout(() => setDone(false), 2200)
-  }
   return (
-    <button onClick={handle}
+    <button onClick={async () => { await copyText(text); setDone(true); setTimeout(() => setDone(false), 2200) }}
       className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border border-gray-200 bg-white hover:bg-gray-50 transition-colors">
       {done ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5 text-gray-500" />}
       {done ? 'Copied!' : label}
@@ -67,161 +55,147 @@ function CopyBtn({ text, label = 'Copy Text' }: { text: string; label?: string }
 }
 
 function WABtn({ text }: { text: string }) {
-  const encoded = encodeURIComponent(text)
-  if (encoded.length <= MAX_WA_CHARS) {
+  if (encodeURIComponent(text).length <= MAX_WA_CHARS)
     return (
       <a href={wa(WA_SALES, text)} target="_blank" rel="noreferrer"
-        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-white transition-opacity hover:opacity-90"
+        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-white hover:opacity-90"
         style={{ background: '#25d366' }}>
         <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
       </a>
     )
-  }
   return <CopyBtn text={text} label="Copy for WhatsApp" />
 }
 
-// ── Visual flyer card ──────────────────────────────────────────────────────────
+// ── Brand fallback colours ─────────────────────────────────────────────────────
 
 const BRAND_COLORS: Record<string, string> = {
-  haier: '#e31837', dawlance: '#003087', gree: '#00843d',
-  ecostar: '#0070c0', crown: '#1a1a2e', westpoint: '#2563eb',
+  haier:'#e31837', dawlance:'#003087', gree:'#00843d',
+  ecostar:'#0070c0', crown:'#1a1a2e', westpoint:'#2563eb',
 }
+function brandColor(b: string) { return BRAND_COLORS[b.toLowerCase()] || '#374151' }
 
-function getBrandColor(brand: string) {
-  return BRAND_COLORS[brand.toLowerCase()] || '#374151'
-}
-
-function ProductImageCell({ p }: { p: Product }) {
-  const [failed, setFailed] = useState(false)
-  if (p.thumbnail && !failed) {
-    return (
-      <img
-        src={p.thumbnail}
-        alt={p.simplified_name}
-        crossOrigin="anonymous"
-        onError={() => setFailed(true)}
-        className="w-full h-full object-contain"
-      />
-    )
-  }
+function ProductThumb({ p }: { p: Product }) {
+  const [err, setErr] = useState(false)
+  if (p.thumbnail && !err)
+    return <img src={p.thumbnail} alt={p.brand} crossOrigin="anonymous" onError={() => setErr(true)} className="w-full h-full object-contain" />
   return (
-    <div className="w-full h-full flex items-center justify-center rounded-lg text-white font-black text-xl"
-      style={{ background: getBrandColor(p.brand) }}>
-      {p.brand.charAt(0)}
-    </div>
+    <div className="w-full h-full flex items-center justify-center text-white font-black text-lg rounded"
+      style={{ background: brandColor(p.brand) }}>{p.brand.charAt(0)}</div>
   )
 }
 
-function FlyerGroupCard({
-  cat, group, products,
-}: {
-  cat: CatalogCategory;
-  group: string;
-  products: Product[];
-}) {
-  const cardRef = useRef<HTMLDivElement>(null)
-  const [downloading, setDownloading] = useState(false)
-  const shown = products.slice(0, 12)
+// ── Flyer card per group ───────────────────────────────────────────────────────
+
+function FlyerGroupCard({ cat, group, products }: { cat: CatalogCategory; group: string; products: Product[] }) {
+  const cardRef    = useRef<HTMLDivElement>(null)
+  const [busy, setBusy] = useState(false)
+  const shown = products.slice(0, 16)
   const extra = products.length - shown.length
 
-  const handleDownload = async () => {
+  const download = async () => {
     if (!cardRef.current) return
-    setDownloading(true)
+    setBusy(true)
     try {
       const slug = `${cat.id}-${group.replace(/[^a-z0-9]/gi, '-').toLowerCase()}`
-      await downloadElementAsImage(cardRef.current, `reliance-${slug}`)
-    } finally {
-      setDownloading(false)
-    }
+      await downloadEl(cardRef.current, `reliance-${slug}`)
+    } finally { setBusy(false) }
   }
 
   return (
     <div className="mb-8">
-      {/* Action bar above card */}
+      {/* Action row */}
       <div className="flex items-center justify-between mb-2 px-1">
-        <span className="text-sm font-bold text-gray-700">{group}
-          <span className="text-gray-400 font-normal ml-1.5">({products.length})</span>
+        <span className="text-sm font-bold text-gray-700">
+          {group} <span className="text-gray-400 font-normal">({products.length})</span>
         </span>
-        <button
-          onClick={handleDownload}
-          disabled={downloading}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-60">
-          {downloading
-            ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-            : <Download className="w-3.5 h-3.5" />}
-          {downloading ? 'Saving…' : 'Download Image'}
+        <button onClick={download} disabled={busy}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60 transition-colors">
+          {busy ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+          {busy ? 'Saving…' : 'Download Image'}
         </button>
       </div>
 
-      {/* The flyer card — this is what gets captured */}
+      {/* Branded flyer card — captured by html2canvas */}
       <div ref={cardRef} className="bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-sm"
         style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
 
-        {/* Flyer header */}
+        {/* Header */}
         <div className="flex items-center justify-between px-5 py-3"
-          style={{ background: 'linear-gradient(135deg, #1e3a5f 0%, #2d5a8e 100%)' }}>
+          style={{ background: 'linear-gradient(135deg,#1e3a5f 0%,#2d5a8e 100%)' }}>
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-black text-sm shrink-0"
               style={{ background: 'linear-gradient(135deg,#f97316,#f5c842)' }}>R</div>
             <div>
               <div className="text-white font-black text-sm leading-tight">Reliance</div>
-              <div className="text-blue-200 text-[10px] font-medium leading-tight">by Tajallis</div>
+              <div className="text-blue-200 text-[10px] font-medium">by Tajallis</div>
             </div>
           </div>
           <div className="text-right">
             <div className="text-white font-bold text-sm">{cat.emoji} {group}</div>
-            <div className="text-blue-200 text-[10px]">{cat.label} · {products.length} products</div>
+            <div className="text-blue-200 text-[10px]">{cat.label} · {products.length} models</div>
           </div>
         </div>
 
         {/* Product grid */}
-        <div className="p-4 grid grid-cols-3 sm:grid-cols-4 gap-3">
+        <div className="p-3 grid grid-cols-4 gap-2">
           {shown.map(p => {
             const price  = p.price.cash_floor || p.price.retail
             const plan3m = p.installments?.['3m']
+            const specs  = getKeySpecs(p, cat.id).slice(0, 2)
             return (
               <div key={p.id} className="flex flex-col bg-gray-50 rounded-xl overflow-hidden border border-gray-100">
                 {/* Image */}
-                <div className="w-full aspect-square bg-white p-1">
-                  <ProductImageCell p={p} />
+                <div className="w-full aspect-square bg-white p-1 relative">
+                  <ProductThumb p={p} />
+                  {/* Brand badge */}
+                  <div className="absolute bottom-0 left-0 right-0 text-center py-0.5 text-[8px] font-bold text-white"
+                    style={{ background: brandColor(p.brand) }}>{p.brand}</div>
                 </div>
                 {/* Info */}
-                <div className="px-2 py-2 flex flex-col gap-0.5">
-                  <div className="text-[10px] font-semibold text-gray-500 leading-tight truncate">{p.brand}</div>
-                  <div className="text-[11px] font-bold text-gray-900 leading-tight line-clamp-2" style={{ minHeight: '2.4em' }}>
-                    {p.simplified_name.replace(p.brand, '').trim()}
+                <div className="px-1.5 py-1.5 flex flex-col gap-0.5 flex-1">
+                  <div className="text-[9px] font-bold text-gray-500 font-mono leading-tight">{p.model}</div>
+                  <div className="text-[10px] font-bold text-gray-900 leading-tight line-clamp-2 flex-1"
+                    style={{ minHeight: '2.6em' }}>
+                    {p.simplified_name.replace(new RegExp(p.brand, 'i'), '').replace(p.model, '').trim()}
                   </div>
-                  <div className="text-[12px] font-black text-orange-600 mt-1">
-                    PKR {formatPrice(price)}
-                  </div>
+                  {specs.length > 0 && (
+                    <div className="flex flex-wrap gap-0.5 mt-0.5">
+                      {specs.map(s => (
+                        <span key={s} className="text-[8px] bg-blue-50 text-blue-700 px-1 py-0.5 rounded font-medium leading-tight">{s}</span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="text-[11px] font-black text-orange-600 mt-1">PKR {formatPrice(price)}</div>
                   {plan3m && (
-                    <div className="text-[9px] text-gray-400">3m: {formatPrice(plan3m.monthly)}/mo</div>
+                    <div className="text-[8px] text-gray-400">3m: {formatPrice(plan3m.monthly)}/mo</div>
+                  )}
+                  {p.warranty && (
+                    <div className="text-[8px] text-green-700 font-medium leading-tight mt-0.5">🛡 {p.warranty}</div>
                   )}
                 </div>
               </div>
             )
           })}
           {extra > 0 && (
-            <div className="flex items-center justify-center bg-gray-100 rounded-xl border border-gray-200 aspect-square">
+            <div className="flex items-center justify-center bg-gray-100 rounded-xl border border-dashed border-gray-300 aspect-square">
               <div className="text-center">
                 <div className="text-xl font-black text-gray-400">+{extra}</div>
-                <div className="text-[10px] text-gray-400">more</div>
+                <div className="text-[10px] text-gray-400 font-medium">more models</div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Flyer footer */}
-        <div className="px-5 py-3 flex items-center justify-between"
+        {/* Footer */}
+        <div className="px-5 py-2.5 flex items-center justify-between"
           style={{ background: '#f8f9fa', borderTop: '2px solid #f97316' }}>
           <div className="text-[10px] text-gray-600">
-            <span className="font-bold">📞 0370-2578788</span>
-            <span className="mx-2 text-gray-300">·</span>
-            0335-4266238
+            <span className="font-bold text-orange-600">📞 0370-2578788</span>
+            <span className="mx-2 text-gray-300">·</span>0335-4266238
           </div>
-          <div className="text-[10px] text-gray-500 text-right">
+          <div className="text-[10px] text-gray-500 text-right leading-tight">
             <div className="font-semibold">tajallis.com.pk</div>
-            <div>Free delivery · Genuine · Installments</div>
+            <div>Free delivery · Genuine · Easy installments</div>
           </div>
         </div>
       </div>
@@ -229,45 +203,57 @@ function FlyerGroupCard({
   )
 }
 
-// ── Table view components ──────────────────────────────────────────────────────
+// ── Table view ─────────────────────────────────────────────────────────────────
 
-function ProductRow({ p }: { p: Product }) {
+function TableRow({ p, catId }: { p: Product; catId: string }) {
   const price  = p.price.cash_floor || p.price.retail
   const plan3m = p.installments?.['3m']
+  const specs  = getKeySpecs(p, catId)
+
   return (
     <tr className="border-b border-gray-100 hover:bg-orange-50/30 transition-colors">
-      <td className="py-2.5 px-3">
-        <div className="text-sm font-medium text-gray-800 leading-tight">{p.simplified_name}</div>
-        <div className="text-xs text-gray-400 mt-0.5">{p.brand} · {p.warranty || 'warranty incl.'}</div>
+      <td className="py-2 px-3 text-xs font-bold text-gray-500 font-mono whitespace-nowrap">{p.model}</td>
+      <td className="py-2 px-3">
+        <div className="text-sm font-semibold text-gray-800 leading-tight">{p.simplified_name}</div>
+        <div className="text-xs text-gray-400 mt-0.5">{p.brand}</div>
       </td>
-      <td className="py-2.5 px-3 text-sm font-bold text-gray-900 whitespace-nowrap">PKR {formatPrice(price)}</td>
-      <td className="py-2.5 px-3 text-sm text-gray-600 whitespace-nowrap">{plan3m ? `PKR ${formatPrice(plan3m.monthly)}/mo` : '—'}</td>
-      <td className="py-2.5 px-3 text-xs text-gray-400 whitespace-nowrap">{plan3m ? `Adv: ${formatPrice(plan3m.advance)}` : '—'}</td>
+      <td className="py-2 px-3">
+        <div className="flex flex-wrap gap-1">
+          {specs.map(s => (
+            <span key={s} className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-medium">{s}</span>
+          ))}
+        </div>
+      </td>
+      <td className="py-2 px-3 text-sm font-bold text-gray-900 whitespace-nowrap">PKR {formatPrice(price)}</td>
+      <td className="py-2 px-3 text-sm text-gray-600 whitespace-nowrap">{plan3m ? `PKR ${formatPrice(plan3m.monthly)}/mo` : '—'}</td>
+      <td className="py-2 px-3 text-xs text-green-700 whitespace-nowrap">{p.warranty || '—'}</td>
     </tr>
   )
 }
 
-function TableGroupSection({ group, products }: { group: string; products: Product[] }) {
-  const [expanded, setExpanded] = useState(true)
+function TableGroup({ group, products, catId }: { group: string; products: Product[]; catId: string }) {
+  const [open, setOpen] = useState(true)
   return (
-    <div className="mb-4">
-      <button onClick={() => setExpanded(e => !e)}
+    <div className="mb-3">
+      <button onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 hover:bg-gray-100 rounded-xl border border-gray-200 transition-colors text-left">
         <span className="text-sm font-bold text-gray-800">{group}</span>
-        <span className="text-xs text-gray-400 font-medium">{products.length} products</span>
+        <span className="text-xs text-gray-400">{products.length} models</span>
       </button>
-      {expanded && (
-        <div className="mt-1 border border-gray-100 rounded-xl overflow-hidden">
-          <table className="w-full">
+      {open && (
+        <div className="mt-1 border border-gray-100 rounded-xl overflow-x-auto">
+          <table className="w-full min-w-[700px]">
             <thead>
               <tr className="bg-gray-800 text-white text-xs">
-                <th className="py-2 px-3 text-left font-semibold">Product</th>
+                <th className="py-2 px-3 text-left font-semibold">Model</th>
+                <th className="py-2 px-3 text-left font-semibold">Description</th>
+                <th className="py-2 px-3 text-left font-semibold">Key Specs</th>
                 <th className="py-2 px-3 text-left font-semibold">Cash Price</th>
                 <th className="py-2 px-3 text-left font-semibold">3m Monthly</th>
-                <th className="py-2 px-3 text-left font-semibold">Advance (3m)</th>
+                <th className="py-2 px-3 text-left font-semibold">Warranty</th>
               </tr>
             </thead>
-            <tbody>{products.map(p => <ProductRow key={p.id} p={p} />)}</tbody>
+            <tbody>{products.map(p => <TableRow key={p.id} p={p} catId={catId} />)}</tbody>
           </table>
         </div>
       )}
@@ -278,47 +264,40 @@ function TableGroupSection({ group, products }: { group: string; products: Produ
 // ── Category panel ─────────────────────────────────────────────────────────────
 
 function CategoryPanel({ cat, products, loading, viewMode }: {
-  cat:      CatalogCategory;
-  products: Product[] | null;
-  loading:  boolean;
-  viewMode: 'table' | 'flyer';
+  cat: CatalogCategory; products: Product[] | null; loading: boolean; viewMode: 'table' | 'flyer';
 }) {
-  if (loading) return <div className="flex items-center justify-center py-20"><Spinner /></div>
+  if (loading) return <div className="flex justify-center py-20"><Spinner /></div>
   if (!products) return null
 
   const grouped = groupBySpec(products, cat)
   const waText  = buildCategoryWAMessage(cat, grouped)
+  const total   = products.length
 
   return (
     <div>
-      {/* Action bar */}
+      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5 pb-4 border-b border-gray-100">
         <div>
           <h2 className="text-lg font-black text-gray-900">{cat.emoji} {cat.label}</h2>
-          <p className="text-sm text-gray-400">{products.length} products · {grouped.size} groups</p>
+          <p className="text-sm text-gray-400">{total} models across {grouped.size} groups</p>
         </div>
-        {viewMode === 'table' && (
-          <div className="flex flex-wrap gap-2">
-            <CopyBtn text={waText} label="Copy List" />
-            <WABtn text={waText} />
-            <button onClick={() => openPrint(cat, grouped)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border border-gray-200 bg-white hover:bg-gray-50 transition-colors">
-              <Printer className="w-3.5 h-3.5 text-gray-500" /> Print Table
-            </button>
-          </div>
-        )}
-        {viewMode === 'flyer' && (
-          <p className="text-xs text-gray-400">Click <strong>Download Image</strong> on any group to save a PNG</p>
-        )}
+        <div className="flex flex-wrap gap-2">
+          <CopyBtn text={waText} label="Copy List" />
+          <WABtn text={waText} />
+          <button onClick={() => openPrint(cat, grouped)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border border-gray-200 bg-white hover:bg-gray-50">
+            <Printer className="w-3.5 h-3.5 text-gray-500" /> Print
+          </button>
+        </div>
       </div>
 
-      {/* Content */}
-      {viewMode === 'table'
-        ? [...grouped.entries()].map(([group, prods]) => (
-            <TableGroupSection key={group} group={group} products={prods} />
+      {/* Groups */}
+      {viewMode === 'flyer'
+        ? [...grouped.entries()].map(([g, ps]) => (
+            <FlyerGroupCard key={g} cat={cat} group={g} products={ps} />
           ))
-        : [...grouped.entries()].map(([group, prods]) => (
-            <FlyerGroupCard key={group} cat={cat} group={group} products={prods} />
+        : [...grouped.entries()].map(([g, ps]) => (
+            <TableGroup key={g} group={g} products={ps} catId={cat.id} />
           ))
       }
     </div>
@@ -329,10 +308,10 @@ function CategoryPanel({ cat, products, loading, viewMode }: {
 
 export default function SalesCatalog() {
   const [activeCatId, setActiveCatId] = useState(CATALOG_CATEGORIES[0].id)
-  const [viewMode, setViewMode]       = useState<'table' | 'flyer'>('flyer')
-  const [cache,  setCache]            = useState<Record<string, Product[]>>({})
-  const [loading, setLoading]         = useState(false)
-  const [megaCopied, setMegaCopied]   = useState(false)
+  const [viewMode,    setViewMode]    = useState<'table' | 'flyer'>('flyer')
+  const [cache,       setCache]       = useState<Record<string, Product[]>>({})
+  const [loading,     setLoading]     = useState(false)
+  const [megaCopied,  setMegaCopied]  = useState(false)
 
   const activeCat = CATALOG_CATEGORIES.find(c => c.id === activeCatId)!
 
@@ -340,11 +319,10 @@ export default function SalesCatalog() {
     if (!force && cache[cat.id] !== undefined) return
     setLoading(true)
     try {
-      const { products } = await getProducts({ category: cat.catParam, sort: 'name_asc' })
+      // admin:true fetches ALL products including those without images
+      const { products } = await getProducts({ category: cat.catParam, sort: 'name_asc', admin: 'true' })
       setCache(prev => ({ ...prev, [cat.id]: products }))
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }, [cache])
 
   useEffect(() => { loadCat(activeCat) }, [activeCatId]) // eslint-disable-line
@@ -359,55 +337,44 @@ export default function SalesCatalog() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <SEO
-        title="Sales Catalogue — Reliance by Tajallis"
-        description="Browse and share product catalogues by category for customer consultation."
-        path="/catalog"
-      />
+      <SEO title="Sales Catalogue — Reliance by Tajallis" description="Internal sales tool." path="/catalog" />
 
-      {/* Header */}
+      {/* Sticky header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-base font-black text-gray-900 leading-tight">Sales Catalogue</h1>
-            <p className="text-xs text-gray-400">Download product flyers or copy price lists for WhatsApp</p>
+            <p className="text-xs text-gray-400">Download flyers · copy price lists · print tables for customer consultations</p>
           </div>
           <div className="flex items-center gap-2">
             {/* View toggle */}
-            <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-1">
+            <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-0.5">
               <button onClick={() => setViewMode('flyer')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                  viewMode === 'flyer' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                }`}>
+                  viewMode === 'flyer' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
                 <ImageIcon className="w-3.5 h-3.5" /> Flyer
               </button>
               <button onClick={() => setViewMode('table')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                  viewMode === 'table' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                }`}>
+                  viewMode === 'table' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
                 <Table2 className="w-3.5 h-3.5" /> Table
               </button>
             </div>
             <button onClick={shareMega}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border border-gray-200 bg-white hover:bg-gray-50 transition-colors shrink-0">
-              {megaCopied
-                ? <><Check className="w-4 h-4 text-green-500" /> Copied!</>
-                : <><Share2 className="w-4 h-4 text-gray-500" /> Full Catalogue</>}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold border border-gray-200 bg-white hover:bg-gray-50 transition-colors">
+              {megaCopied ? <><Check className="w-4 h-4 text-green-500" /> Copied!</> : <><Share2 className="w-4 h-4 text-gray-500" /> Full Catalogue</>}
             </button>
           </div>
         </div>
 
         {/* Category tabs */}
-        <div className="max-w-6xl mx-auto px-4 flex gap-1 overflow-x-auto scrollbar-hide">
+        <div className="max-w-6xl mx-auto px-4 flex gap-0.5 overflow-x-auto scrollbar-hide">
           {CATALOG_CATEGORIES.map(cat => (
             <button key={cat.id} onClick={() => setActiveCatId(cat.id)}
               className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors ${
-                cat.id === activeCatId
-                  ? 'border-orange-500 text-orange-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-800'
-              }`}>
+                cat.id === activeCatId ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-800'}`}>
               {cat.emoji} {cat.label}
-              {cache[cat.id] && (
+              {cache[cat.id] !== undefined && (
                 <span className="text-xs font-normal text-gray-400">({cache[cat.id].length})</span>
               )}
             </button>
@@ -415,68 +382,21 @@ export default function SalesCatalog() {
         </div>
       </div>
 
-      {/* Main */}
+      {/* Main content */}
       <div className="max-w-6xl mx-auto px-4 py-6">
-
-        {/* Flyer mode tip */}
-        {viewMode === 'flyer' && (
-          <div className="flex items-start gap-3 bg-orange-50 border border-orange-200 rounded-2xl px-4 py-3 mb-5 text-sm text-orange-800">
-            <LayoutGrid className="w-4 h-4 mt-0.5 shrink-0" />
-            <div>
-              <strong>Flyer Mode:</strong> Each group below is a branded image card.
-              Click <strong>Download Image</strong> to save as PNG — then share directly on WhatsApp, attach in messages, or use in presentations.
-            </div>
-          </div>
-        )}
-
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
           <div className="flex items-center justify-between mb-4">
             <p className="text-xs text-gray-400">
-              {viewMode === 'table'
-                ? 'Prices shown are cash floor prices. Click group headers to expand/collapse.'
-                : 'Products grouped by size/type. Up to 12 shown per card.'}
+              {viewMode === 'flyer'
+                ? 'Click "Download Image" on any group to save a branded PNG ready to share on WhatsApp.'
+                : 'Model numbers, specs and warranty shown for each product. Use "Copy List" to share via WhatsApp.'}
             </p>
             <button onClick={() => loadCat(activeCat, true)} disabled={loading}
-              className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50">
+              className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50">
               <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </button>
           </div>
-
-          <CategoryPanel
-            cat={activeCat}
-            products={cache[activeCatId] ?? null}
-            loading={loading}
-            viewMode={viewMode}
-          />
-        </div>
-
-        {/* How-to cards */}
-        <div className="mt-6 grid sm:grid-cols-3 gap-4">
-          {[
-            {
-              icon: <Download className="w-5 h-5 text-orange-500" />,
-              title: 'Download Image',
-              desc: 'Flyer mode — click "Download Image" on any group. Saves a branded PNG with product photos, prices, and contact details.',
-            },
-            {
-              icon: <MessageCircle className="w-5 h-5 text-green-500" />,
-              title: 'Share on WhatsApp',
-              desc: 'Switch to Table view → Copy List or WhatsApp button sends a formatted text price list for smaller categories.',
-            },
-            {
-              icon: <Printer className="w-5 h-5 text-blue-500" />,
-              title: 'Print to PDF',
-              desc: 'Table view → Print Table opens a formatted print window. Use Save as PDF in the browser for a full catalogue PDF.',
-            },
-          ].map(tip => (
-            <div key={tip.title} className="bg-white rounded-xl border border-gray-100 p-4 flex gap-3">
-              <div className="w-9 h-9 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">{tip.icon}</div>
-              <div>
-                <div className="text-sm font-bold text-gray-800 mb-0.5">{tip.title}</div>
-                <div className="text-xs text-gray-500 leading-relaxed">{tip.desc}</div>
-              </div>
-            </div>
-          ))}
+          <CategoryPanel cat={activeCat} products={cache[activeCatId] ?? null} loading={loading} viewMode={viewMode} />
         </div>
       </div>
     </div>
