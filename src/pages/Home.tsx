@@ -76,9 +76,13 @@ export default function Home() {
 
           {/* Left: text */}
           <div>
-            <p className="text-brand-500 text-xs font-bold uppercase tracking-[0.2em] mb-5">
-              Karachi · Since 2015 · 11 Years of Trust
-            </p>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-5">
+              <span className="text-brand-500 text-xs font-bold uppercase tracking-[0.2em]">Karachi</span>
+              <span className="text-brand-300 text-xs">·</span>
+              <span className="text-brand-500 text-xs font-bold uppercase tracking-[0.2em]">Since 2015</span>
+              <span className="text-brand-300 text-xs">·</span>
+              <span className="text-brand-500 text-xs font-bold uppercase tracking-[0.2em] whitespace-nowrap">11 Years of Trust</span>
+            </div>
             <h1 className="text-5xl md:text-6xl lg:text-[4.5rem] font-black text-gray-900 leading-[1.04] tracking-tight mb-6">
               Pakistan's Most<br />Trusted Home<br />
               <span className="text-brand-500">Technology Partner.</span>
