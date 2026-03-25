@@ -4,6 +4,7 @@ import Layout from './components/layout/Layout'
 import { useSettingsStore } from './store/settingsStore'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import Spinner from './components/ui/Spinner'
+import { captureRef } from './lib/referral'
 
 // Critical path — loaded immediately (LCP pages)
 import Home from './pages/Home'
@@ -41,7 +42,7 @@ function ScrollToTop() {
 }
 
 export default function App() {
-  useEffect(() => { useSettingsStore.getState().load(); }, []);
+  useEffect(() => { useSettingsStore.getState().load(); captureRef(); }, []);
 
   return (
     <Router>

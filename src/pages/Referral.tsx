@@ -6,7 +6,7 @@ import SEO from '../components/ui/SEO'
 const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://tajallis.com.pk'
 
 function generateCode(name: string, phone: string): string {
-  const namePart = name.replace(/\s+/g, '').toUpperCase().slice(0, 4)
+  const namePart  = name.replace(/\s+/g, '').toUpperCase().slice(0, 4)
   const phonePart = phone.replace(/\D/g, '').slice(-4)
   return `${namePart}${phonePart}`
 }
@@ -33,17 +33,22 @@ export default function ReferralPage() {
     } catch { /* silent */ }
   }
 
-  const waShareText = referralLink
-    ? encodeURIComponent(
-        `🎁 Buy home appliances from Reliance on easy installments — up to 12 payments, no bank required.\n\nUse my referral link: ${referralLink}`
-      )
+  // Share message reads as a genuine personal recommendation — no mention of
+  // commission, referral programme, or incentive. The ?ref= code is tracked
+  // silently on the buyer's end when they click the link.
+  const shareMessage = referralLink
+    ? `Yaar, mujhe Reliance by Tajallis se kafi achi service mili hai — genuine products, easy installments aur free delivery. Ek baar check karo:\n\n${referralLink}`
+    : ''
+
+  const waShareUrl = shareMessage
+    ? `https://wa.me/?text=${encodeURIComponent(shareMessage)}`
     : ''
 
   return (
     <div className="min-h-screen bg-white">
       <SEO
-        title="Referral Program — Reliance by Tajallis"
-        description="Earn 1% commission on every sale you refer to Reliance by Tajallis. Share your link, earn rewards."
+        title="Refer & Earn — Reliance by Tajallis"
+        description="Earn 2% commission on every sale you refer to Reliance by Tajallis. Share your link, earn rewards."
       />
 
       {/* Hero */}
@@ -54,7 +59,7 @@ export default function ReferralPage() {
           </div>
           <h1 className="text-3xl md:text-5xl font-black mb-4">Refer & Earn</h1>
           <p className="text-gray-400 text-lg">
-            Earn <strong className="text-orange-400">1% of every sale</strong> you bring to Reliance. No cap, no expiry.
+            Earn <strong className="text-orange-400">2% of every sale</strong> you bring to Reliance. No cap, no expiry.
           </p>
         </div>
       </div>
@@ -66,9 +71,9 @@ export default function ReferralPage() {
           <h2 className="text-2xl font-black text-gray-900 text-center mb-10">How It Works</h2>
           <div className="grid sm:grid-cols-3 gap-6">
             {[
-              { icon: Users, title: 'Get Your Link', desc: 'Generate your unique referral link below using your name and phone number.', color: 'blue' },
-              { icon: Share2, title: 'Share It', desc: 'Send your link to family, friends, or colleagues who are looking for appliances.', color: 'orange' },
-              { icon: TrendingUp, title: 'Earn 1%', desc: 'When they make a purchase, you receive 1% of the total sale amount — paid to you directly.', color: 'green' },
+              { icon: Users,     title: 'Get Your Link',  color: 'blue',   desc: 'Generate your unique link below using your name and phone number.' },
+              { icon: Share2,    title: 'Share Naturally', color: 'orange', desc: 'Send it to family or friends looking for appliances — just like a personal recommendation.' },
+              { icon: TrendingUp, title: 'Earn 2%',       color: 'green',  desc: 'When they make a purchase, you receive 2% of the total sale amount — paid directly to you.' },
             ].map(item => (
               <div key={item.title} className="text-center p-6 bg-gray-50 rounded-2xl">
                 <div className={`w-12 h-12 bg-${item.color}-100 rounded-2xl flex items-center justify-center mx-auto mb-4`}>
@@ -83,7 +88,10 @@ export default function ReferralPage() {
 
         {/* Generator */}
         <section className="bg-gray-50 rounded-3xl p-8 border border-gray-100">
-          <h2 className="text-xl font-black text-gray-900 mb-6">Generate Your Referral Link</h2>
+          <h2 className="text-xl font-black text-gray-900 mb-2">Generate Your Link</h2>
+          <p className="text-sm text-gray-500 mb-6">
+            Your link tracks purchases automatically — nothing changes for the buyer, they just shop normally.
+          </p>
           <div className="grid sm:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="text-sm font-medium text-gray-700 block mb-1">Your Full Name</label>
@@ -115,33 +123,38 @@ export default function ReferralPage() {
 
           {code && (
             <div className="mt-6 space-y-3">
-              <div className="bg-white border border-gray-200 rounded-xl p-4">
-                <p className="text-xs text-gray-500 mb-1 font-medium">Your referral code</p>
-                <p className="text-2xl font-black text-gray-900 tracking-wider">{code}</p>
-              </div>
+              {/* Link display */}
               <div className="flex gap-2">
                 <div className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600 font-mono truncate">
                   {referralLink}
                 </div>
                 <button
                   onClick={handleCopy}
-                  className={`flex items-center gap-1.5 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                  className={`flex items-center gap-1.5 px-4 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
                     copied ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                   }`}>
                   {copied ? <><CheckCircle className="w-4 h-4" /> Copied!</> : <><Copy className="w-4 h-4" /> Copy</>}
                 </button>
               </div>
+
+              {/* WhatsApp share */}
               <a
-                href={`https://wa.me/?text=${waShareText}`}
+                href={waShareUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-bold text-white transition-opacity hover:opacity-90"
                 style={{ background: '#25d366' }}>
-                <MessageCircle className="w-4 h-4" /> Share on WhatsApp
+                <MessageCircle className="w-4 h-4" /> Share Recommendation on WhatsApp
               </a>
+
+              {/* How tracking works — for referrer only */}
+              <div className="bg-blue-50 border border-blue-100 rounded-2xl px-5 py-4 text-sm text-blue-700">
+                <strong>How tracking works:</strong> When someone clicks your link, their purchases are attributed to you automatically for 30 days — even if they don't buy immediately. You don't need to do anything else.
+              </div>
+
               <p className="text-xs text-gray-400 text-center">
-                Share this link anywhere. Commission is tracked manually — WhatsApp us at{' '}
-                <a href="https://wa.me/923702578788" className="text-orange-500 hover:underline">+92 370 2578788</a> to confirm your referrals.
+                Commission is tracked manually. WhatsApp us at{' '}
+                <a href="https://wa.me/923702578788" className="text-orange-500 hover:underline">+92 370 2578788</a> to confirm and collect your earnings.
               </p>
             </div>
           )}
@@ -152,9 +165,10 @@ export default function ReferralPage() {
           <h3 className="font-bold text-gray-900 mb-4">Programme Terms</h3>
           <ul className="space-y-2.5 text-sm text-gray-600">
             {[
-              '1% commission is calculated on the total invoice value of the referred sale.',
+              '2% commission is calculated on the total invoice value of the referred sale.',
+              'Attribution window is 30 days — purchases within 30 days of clicking your link count.',
               'Commission is paid after the full transaction is completed and payment verified.',
-              'Referrals must be new customers who have not previously purchased from Reliance.',
+              'Referrals must be customers who have not previously purchased from Reliance.',
               'Self-referrals are not eligible.',
               'Commission is transferred via EasyPaisa, JazzCash, or bank transfer — your choice.',
               'Reliance reserves the right to modify programme terms with 30-day notice.',

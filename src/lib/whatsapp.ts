@@ -21,10 +21,11 @@
  */
 
 import { WA_SALES, WA_ADMIN, COMPANY, CITY } from './config';
+import { appendRef } from './referral';
 
 // ── Core helpers ────────────────────────────────────────────────────
 export const wa = (phone: string, msg: string) =>
-  `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+  `https://wa.me/${phone}?text=${encodeURIComponent(appendRef(msg))}`;
 
 export const waSales = (msg?: string) => wa(WA_SALES, msg || TEMPLATES.greeting_en);
 export const waAdmin = (msg?: string) => wa(WA_ADMIN, msg || TEMPLATES.greeting_en);
