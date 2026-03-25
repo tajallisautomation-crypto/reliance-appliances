@@ -10,10 +10,13 @@ import ProductCard from '../components/products/ProductCard'
 import AnimatedCounter from '../components/ui/AnimatedCounter'
 import SEO from '../components/ui/SEO'
 import { waSales } from '../lib/whatsapp'
+import OfferBannerSlider from '../components/OfferBannerSlider'
 
 const BRANDS = [
   { name: 'Haier',     slug: 'haier',     color: '#e31837', desc: "World's #1 home appliance brand" },
   { name: 'Dawlance',  slug: 'dawlance',  color: '#003087', desc: "Pakistan's most trusted brand" },
+  { name: 'Gree',      slug: 'gree',      color: '#00843d', desc: 'Energy-efficient inverter ACs' },
+  { name: 'EcoStar',   slug: 'ecostar',   color: '#0070c0', desc: 'Smart TVs & air conditioners' },
   { name: 'Crown',     slug: 'crown',     color: '#1a1a2e', desc: 'Premium solar solutions' },
   { name: 'Westpoint', slug: 'westpoint', color: '#2563eb', desc: 'Quality kitchen & home appliances' },
 ]
@@ -48,7 +51,7 @@ export default function Home() {
   const [samplePrice,    setSamplePrice]   = useState(150000)
 
   useEffect(() => {
-    getProducts({ featured: 'true', sort: 'price_asc' }).then(d => {
+    getProducts({ featured: 'true' }).then(d => {
       setHeroProduct(d.products[0] ?? null)
       setFeatured(d.products.slice(0, 8))
       setLoading(false)
@@ -74,7 +77,7 @@ export default function Home() {
           {/* Left: text */}
           <div>
             <p className="text-brand-500 text-xs font-bold uppercase tracking-[0.2em] mb-5">
-              Karachi · Since 2015 · 15 Years of Trust
+              Karachi · Since 2015 · 11 Years of Trust
             </p>
             <h1 className="text-5xl md:text-6xl lg:text-[4.5rem] font-black text-gray-900 leading-[1.04] tracking-tight mb-6">
               Pakistan's Most<br />Trusted Home<br />
@@ -128,9 +131,9 @@ export default function Home() {
       <section className="bg-gray-950 py-14">
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {[
-            { target: 15,    suffix: ' Years', label: 'In Business' },
+            { target: 11,    suffix: ' Years', label: 'In Business' },
             { target: 14000, suffix: '+',      label: 'Homes Served' },
-            { target: 80,    suffix: '%',       label: 'Return Customers' },
+            { target: 80,    suffix: '%',       label: 'Customer Retention' },
             { target: 23000, suffix: '+',      label: 'Moments Created' },
           ].map(item => (
             <div key={item.label}>
@@ -143,19 +146,22 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── CATEGORY RAIL ────────────────────────────────────────── */}
-      <section className="border-b bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 py-5 overflow-x-auto">
-          <div className="flex gap-3 min-w-max">
-            {DEFAULT_CATEGORIES.map(cat => (
-              <Link key={cat.id} to={`/products?category=${cat.id}`}
-                className="flex items-center gap-2 bg-white border border-gray-200 hover:border-brand-400 hover:bg-brand-50 text-gray-700 hover:text-brand-700 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all whitespace-nowrap shadow-sm">
-                <span>{cat.icon}</span> {cat.name}
-              </Link>
-            ))}
-          </div>
+      {/* ── CATEGORY GRID ────────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-5">Shop by Category</p>
+        <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-2.5">
+          {DEFAULT_CATEGORIES.map(cat => (
+            <Link key={cat.id} to={`/products/category/${cat.slug}`}
+              className="group flex flex-col items-center gap-1.5 py-3.5 px-1.5 rounded-2xl bg-gray-50 hover:bg-brand-50 border border-transparent hover:border-brand-200 transition-all duration-200 text-center">
+              <span className="text-2xl group-hover:scale-110 transition-transform duration-200 leading-none">{cat.icon}</span>
+              <span className="text-[10px] font-semibold text-gray-600 group-hover:text-brand-700 leading-tight">{cat.name}</span>
+            </Link>
+          ))}
         </div>
       </section>
+
+      {/* ── OFFER BANNERS ────────────────────────────────────────── */}
+      <OfferBannerSlider />
 
       {/* ── INSTALLMENT ENGINE ───────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 pb-4">
@@ -302,7 +308,7 @@ export default function Home() {
       {/* ── BRANDS ───────────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 pb-10 pt-6">
         <h2 className="text-2xl font-black text-gray-900 mb-6 text-center">Brands We Carry</h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           {BRANDS.map(b => (
             <Link key={b.slug} to={`/products?brand=${b.slug}`}
               className="group flex items-center gap-4 bg-white border border-gray-100 hover:border-brand-300 hover:shadow-apple-lg rounded-2xl p-5 transition-all">
@@ -397,7 +403,7 @@ export default function Home() {
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl font-black mb-4">Ready to shop?</h2>
           <p className="text-gray-400 mb-8 text-lg">
-            Browse {totalProducts > 0 ? totalProducts : '400+'} products from Haier, Dawlance, Crown &amp; Westpoint with easy installments.
+            Browse {totalProducts > 0 ? totalProducts : '400+'} products from Haier, Dawlance, Gree, EcoStar, Westpoint &amp; more with easy installments.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/products" className="bg-brand-500 hover:bg-brand-600 text-white font-bold px-8 py-4 rounded-2xl transition-colors">

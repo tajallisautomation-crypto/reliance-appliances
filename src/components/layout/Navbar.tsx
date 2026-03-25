@@ -26,6 +26,7 @@ const MOBILE_LINKS = [
   ['Buying Guide',      '/buying-guide'],
   ['Services',          '/services'],
   ['Partner With Us',   '/partner'],
+  ['Refer & Earn',      '/referral'],
   ['About',             '/about'],
   ['Contact',           '/contact'],
 ];

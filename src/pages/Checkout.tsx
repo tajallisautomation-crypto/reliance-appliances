@@ -3,8 +3,18 @@ import { Link } from 'react-router-dom'
 import { useCartStore } from '../store/cartStore'
 import { fmtPKR, calcAllPlans, submitOrder } from '../lib/api'
 import { waSales } from '../lib/whatsapp'
-import { CheckCircle, AlertCircle } from 'lucide-react'
+import { CheckCircle, AlertCircle, Copy, Banknote, Upload } from 'lucide-react'
 import SEO from '../components/ui/SEO'
+
+const PLAN_LABELS: Record<string, string> = {
+  '2m': '2 Payments', '3m': '3 Payments', '6m': '6 Payments', '12m': '12 Payments',
+}
+
+const BANK_DETAILS = [
+  { bank: 'Meezan Bank', account: '02890106575055', title: 'Reliance Appliances' },
+  { bank: 'JazzCash',    account: '03702578788',    title: 'Reliance Appliances' },
+  { bank: 'EasyPaisa',   account: '03702578788',    title: 'Reliance Appliances' },
+]
 
 export default function Checkout() {
   const { items, total, clearCart } = useCartStore()
@@ -15,6 +25,8 @@ export default function Checkout() {
   const [done, setDone] = useState(false)
   const [orderId, setOrderId] = useState('')
   const [error, setError] = useState('')
+  const [transferFile, setTransferFile] = useState<File | null>(null)
+  const [copiedBank, setCopiedBank] = useState('')
   const plans = calcAllPlans(cartTotal)
   const selectedPlan = plan !== 'cash' ? plans[plan] : null
 
@@ -35,7 +47,7 @@ export default function Checkout() {
     setLoading(true)
     setError('')
     try {
-      await submitOrder({
+      const result = await submitOrder({
         customer_name: form.name, customer_phone: form.phone, customer_email: form.email,
         customer_address: `${form.address}, ${form.city}`,
         products: items.map(i => ({ id:i.id, model:i.model, brand:i.brand, qty:i.qty, price:i.price?.cash_floor || 0 })),
@@ -45,7 +57,8 @@ export default function Checkout() {
         monthly_amount: selectedPlan ? selectedPlan.monthly : 0,
         notes: form.notes,
       })
-      setOrderId('ORD-' + Date.now())
+      if (result.error) throw new Error(result.error)
+      setOrderId(result.id ? `ORD-${result.id.toString().slice(0, 8).toUpperCase()}` : 'ORD-' + Date.now())
       setDone(true)
       clearCart()
     } catch (e: any) {
@@ -56,13 +69,29 @@ export default function Checkout() {
   }
 
   if (done) return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center gap-5 px-4 text-center">
+    <div className="min-h-[60vh] flex flex-col items-center justify-center gap-5 px-4 text-center max-w-sm mx-auto py-16">
       <SEO title="Order Confirmed — Reliance Appliances" noIndex />
       <CheckCircle className="w-16 h-16 text-green-500" />
       <h2 className="text-2xl font-bold text-gray-800">Order Placed!</h2>
       <p className="text-gray-500">Reference: <strong>{orderId}</strong></p>
-      <p className="text-sm text-gray-400 max-w-sm">Our team will call you shortly to confirm. You can also track your order via WhatsApp.</p>
-      <a href={waSales()} className="bg-green-500 text-white px-8 py-3 rounded-xl font-semibold">💬 Track on WhatsApp</a>
+      <p className="text-sm text-gray-400">Our team will call you shortly to confirm.</p>
+      {transferFile && (
+        <div className="w-full bg-amber-50 border border-amber-200 rounded-2xl p-4 text-left">
+          <div className="flex items-center gap-2 mb-2">
+            <Upload className="w-4 h-4 text-amber-600 flex-shrink-0" />
+            <p className="text-sm font-bold text-amber-900">Send your transfer proof</p>
+          </div>
+          <p className="text-xs text-amber-700 mb-3">You selected <strong>{transferFile.name}</strong> — please send it via WhatsApp so we can apply your 1% discount.</p>
+          <a href={waSales(`Order ref: ${orderId} — attaching transfer proof`)} target="_blank" rel="noreferrer"
+            className="inline-flex items-center gap-2 bg-green-500 text-white px-4 py-2.5 rounded-xl text-sm font-semibold w-full justify-center">
+            💬 Send Screenshot on WhatsApp
+          </a>
+        </div>
+      )}
+      <a href={waSales(`Order ref: ${orderId}`)} target="_blank" rel="noreferrer"
+        className="bg-green-500 text-white px-8 py-3 rounded-xl font-semibold w-full">
+        💬 Track on WhatsApp
+      </a>
       <Link to="/products" className="text-orange-500 hover:underline text-sm">Continue Shopping</Link>
     </div>
   )
@@ -110,10 +139,49 @@ export default function Checkout() {
               </button>
               {Object.entries(plans).map(([key, p]) => (
                 <button key={key} onClick={() => setPlan(key)} className={`w-full p-4 rounded-xl border-2 text-left ${plan===key?'border-orange-500 bg-orange-50':'border-gray-200'}`}>
-                  <div className="font-semibold text-gray-800">{key} Installment Plan</div>
+                  <div className="font-semibold text-gray-800">{PLAN_LABELS[key] || key} Installment Plan</div>
                   <div className="text-sm text-gray-500">Advance: {fmtPKR(p.advance)} · Then {fmtPKR(p.monthly)}/mo × {p.monthlyPayments}</div>
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Bank transfer discount */}
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Banknote className="w-5 h-5 text-amber-600" />
+              <p className="font-bold text-amber-900 text-sm">Get 1% off with bank transfer</p>
+            </div>
+            <p className="text-xs text-amber-700 mb-3">Transfer the advance or full amount to any of these accounts and save 1%.</p>
+            <div className="space-y-2">
+              {BANK_DETAILS.map(b => (
+                <div key={b.bank} className="bg-white rounded-xl px-4 py-3 flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-bold text-gray-800">{b.bank}</p>
+                    <p className="text-xs text-gray-500 font-mono">{b.account} · {b.title}</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(b.account)
+                      setCopiedBank(b.bank)
+                      setTimeout(() => setCopiedBank(''), 2000)
+                    }}
+                    className="text-xs text-gray-500 hover:text-gray-800 flex items-center gap-1">
+                    <Copy className="w-3 h-3" />
+                    {copiedBank === b.bank ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4">
+              <label className="text-xs font-medium text-amber-800 block mb-1.5">Attach transfer screenshot (optional)</label>
+              <input
+                type="file" accept="image/*,application/pdf"
+                onChange={e => setTransferFile(e.target.files?.[0] || null)}
+                className="w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-amber-100 file:text-amber-700 file:font-medium hover:file:bg-amber-200 cursor-pointer"
+              />
+              {transferFile && <p className="text-xs text-green-600 mt-1">✓ {transferFile.name}</p>}
+              <p className="text-xs text-amber-600 mt-1.5">You can also send the screenshot via WhatsApp to <strong>+92 370 2578788</strong>.</p>
             </div>
           </div>
         </div>

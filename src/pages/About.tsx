@@ -8,10 +8,10 @@ const TEAM = [
 ]
 
 const STATS = [
-  { value: '10+',    label: 'Years in Business' },
+  { value: '11',      label: 'Years in Business' },
   { value: '14,000+', label: 'Happy Customers' },
-  { value: '400+',   label: 'Products Available' },
-  { value: '4',      label: 'Premium Brands' },
+  { value: '400+',    label: 'Products Available' },
+  { value: '6+',      label: 'Premium Brands' },
 ]
 
 const VALUES = [
@@ -71,7 +71,7 @@ export default function About() {
                 We started small in Karachi, focusing on a few key brands and building deep expertise in what we sell. Over the years, we've grown by word of mouth — customer by customer — because we do what we say.
               </p>
               <p>
-                Today we carry 400+ products from Haier, Dawlance, Crown, and Westpoint. Our installment plans have helped thousands of families afford air conditioners, refrigerators, and solar systems that make their lives better.
+                Today we carry 400+ products from Haier, Dawlance, Gree, EcoStar, Westpoint, and Crown — as an authorised dealer for Pakistan's leading appliance brands. Our installment plans have helped thousands of families afford air conditioners, refrigerators, and solar systems that make their lives better.
               </p>
             </div>
           </div>
@@ -85,7 +85,7 @@ export default function About() {
               <div className="text-orange-100 text-sm">Genuine Products</div>
             </div>
             <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 text-white">
-              <div className="text-4xl font-black mb-1">4</div>
+              <div className="text-4xl font-black mb-1">6+</div>
               <div className="text-green-100 text-sm">Premium Brands</div>
             </div>
             <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl p-6 text-white">
@@ -123,12 +123,14 @@ export default function About() {
           <h2 className="text-3xl font-black text-gray-900">Brands We Carry</h2>
           <p className="text-gray-500 mt-2">Authorised dealer for Pakistan's leading appliance brands</p>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
           {[
             { name: 'Haier',     color: '#e31837', desc: "World's #1 appliance brand",      slug: 'haier' },
-            { name: 'Dawlance', color: '#003087', desc: "Pakistan's most trusted brand",    slug: 'dawlance' },
-            { name: 'Crown',    color: '#1a1a2e', desc: 'Premium solar solutions',           slug: 'crown' },
-            { name: 'Westpoint',color: '#2563eb', desc: 'Quality kitchen & home appliances', slug: 'westpoint' },
+            { name: 'Dawlance',  color: '#003087', desc: "Pakistan's most trusted brand",    slug: 'dawlance' },
+            { name: 'Gree',      color: '#00843d', desc: 'Energy-efficient inverter ACs',    slug: 'gree' },
+            { name: 'EcoStar',   color: '#0070c0', desc: 'Smart TVs & air conditioners',     slug: 'ecostar' },
+            { name: 'Crown',     color: '#1a1a2e', desc: 'Premium solar solutions',          slug: 'crown' },
+            { name: 'Westpoint', color: '#2563eb', desc: 'Quality kitchen & home appliances',slug: 'westpoint' },
           ].map(b => (
             <Link key={b.slug} to={`/products?brand=${b.slug}`}
               className="flex flex-col items-center gap-3 bg-white border border-gray-100 hover:border-orange-300 hover:shadow-md rounded-2xl p-6 transition-all text-center">

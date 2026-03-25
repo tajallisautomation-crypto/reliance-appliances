@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Phone, Mail, MapPin, MessageCircle, Leaf } from 'lucide-react';
+import { Phone, Mail, MapPin, MessageCircle, Leaf, Facebook } from 'lucide-react';
 import { waSales } from '@/lib/whatsapp';
 
 export default function Footer() {
@@ -17,11 +17,18 @@ export default function Footer() {
           <p className="text-sm text-gray-400 leading-relaxed mb-4">
             Karachi's most trusted home appliance partner since 2015. Serving 14,000+ households with premium products and genuine after-sales support.
           </p>
-          <a href={waSales()} target="_blank" rel="noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white"
-            style={{ background: '#25d366' }}>
-            <MessageCircle className="h-4 w-4" /> Chat on WhatsApp
-          </a>
+          <div className="flex gap-2">
+            <a href={waSales()} target="_blank" rel="noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white"
+              style={{ background: '#25d366' }}>
+              <MessageCircle className="h-4 w-4" /> WhatsApp
+            </a>
+            <a href="https://www.facebook.com/tajallishomecollection/" target="_blank" rel="noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white"
+              style={{ background: '#1877f2' }}>
+              <Facebook className="h-4 w-4" /> Facebook
+            </a>
+          </div>
         </div>
 
         {/* Products */}
@@ -47,6 +54,7 @@ export default function Footer() {
               ['Warranty Claims',    '/services'],
               ['Green Corridor',     '/green-corridor'],
               ['Partner With Us',    '/partner'],
+              ['Refer & Earn',       '/referral'],
               ['Customer Portal',    '/portal'],
             ].map(([l, h]) => (
               <li key={l}>
@@ -67,7 +75,7 @@ export default function Footer() {
               { icon: Phone, val: '+92 370 2578788', href: 'tel:+923702578788' },
               { icon: Phone, val: '+92 335 4266238', href: 'tel:+923354266238' },
               { icon: Mail,  val: 'info@relianceappliances.pk', href: 'mailto:info@relianceappliances.pk' },
-              { icon: MapPin, val: 'Karachi, Pakistan', href: '#' },
+              { icon: MapPin, val: 'Karachi, Pakistan', href: 'https://maps.google.com/?q=Karachi,Pakistan' },
             ].map(({ icon: Icon, val, href }) => (
               <li key={val}>
                 <a href={href} className="flex items-start gap-2 text-sm text-gray-400 hover:text-white transition-colors">

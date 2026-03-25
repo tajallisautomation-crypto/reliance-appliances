@@ -2,10 +2,26 @@ import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import { setActivePlanRatios } from '@/lib/plans';
 
+export interface OfferBanner {
+  id:       number;
+  title:    string;
+  subtitle: string;
+  badge:    string;
+  cta:      string;
+  ctaLink:  string;
+  theme:    string;
+  active:   boolean;
+}
+
+export const DEFAULT_BANNERS: OfferBanner[] = Array.from({ length: 5 }, (_, i) => ({
+  id: i + 1, title: '', subtitle: '', badge: '', cta: '', ctaLink: '', theme: 'orange', active: false,
+}));
+
 export interface SiteSettings {
   consultationThreshold: number;
   announcementText:      string;
   announcementEnabled:   boolean;
+  offerBanners:          OfferBanner[];
   plan2mMarkup:   number; plan2mAdvance:  number;
   plan3mMarkup:   number; plan3mAdvance:  number;
   plan6mMarkup:   number; plan6mAdvance:  number;
@@ -16,6 +32,7 @@ export const SETTING_DEFAULTS: SiteSettings = {
   consultationThreshold: 200_000,
   announcementText:      '',
   announcementEnabled:   false,
+  offerBanners:          DEFAULT_BANNERS,
   plan2mMarkup: 1.10,  plan2mAdvance: 0.50,
   plan3mMarkup: 1.15,  plan3mAdvance: 0.45,
   plan6mMarkup: 1.25,  plan6mAdvance: 0.40,
@@ -43,6 +60,7 @@ export const useSettingsStore = create<SettingsStore>(set => ({
       consultationThreshold: n('consultation_threshold', SETTING_DEFAULTS.consultationThreshold),
       announcementText:      m['announcement_text']    ?? SETTING_DEFAULTS.announcementText,
       announcementEnabled:   b('announcement_enabled',   SETTING_DEFAULTS.announcementEnabled),
+      offerBanners:          (() => { try { return JSON.parse(m['offer_banners'] ?? '[]'); } catch { return SETTING_DEFAULTS.offerBanners; } })(),
       plan2mMarkup:   n('plan_2m_markup',   SETTING_DEFAULTS.plan2mMarkup),
       plan2mAdvance:  n('plan_2m_advance',  SETTING_DEFAULTS.plan2mAdvance),
       plan3mMarkup:   n('plan_3m_markup',   SETTING_DEFAULTS.plan3mMarkup),

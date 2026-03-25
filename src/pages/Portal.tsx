@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Phone, Search, CheckCircle, Clock, Package, MessageCircle, ShieldCheck, Wrench, CreditCard } from 'lucide-react'
+import { Phone, Search, CheckCircle, Clock, Package, MessageCircle, ShieldCheck, Wrench, CreditCard, Upload, FileText, X } from 'lucide-react'
 import SEO from '@/components/ui/SEO'
 import { supabase } from '@/lib/supabase'
 import { waSales } from '@/lib/whatsapp'
@@ -41,6 +41,12 @@ export default function Portal() {
   const [searched, setSearched] = useState(false)
   const [searchErr, setSearchErr] = useState('')
 
+  // Document upload state
+  const [docName, setDocName]   = useState('')
+  const [docPhone, setDocPhone] = useState('')
+  const [docFiles, setDocFiles] = useState<File[]>([])
+  const [docSent, setDocSent]   = useState(false)
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!phone.trim() && !orderId.trim()) return
@@ -60,7 +66,7 @@ export default function Portal() {
       setSearched(true)
     } catch (err: any) {
       setSearchErr('Unable to look up orders. Please WhatsApp us for order status.')
-      console.error('[Portal]', err)
+      if (import.meta.env.DEV) console.error('[Portal]', err)
     } finally {
       setSearching(false)
     }
@@ -193,6 +199,87 @@ export default function Portal() {
               </a>
             ))}
           </div>
+        </div>
+
+        {/* Installment document upload */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <h2 className="font-bold text-gray-900 text-lg mb-1 flex items-center gap-2">
+            <Upload className="w-5 h-5 text-orange-500" /> Submit Installment Documents
+          </h2>
+          <p className="text-sm text-gray-500 mb-5">
+            Upload your NIC, utility bill, and guarantor documents here. Our team will make a home visit within 4 working days to complete verification.
+          </p>
+
+          {docSent ? (
+            <div className="text-center py-8">
+              <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
+              <p className="font-bold text-gray-900 mb-1">Documents submitted!</p>
+              <p className="text-sm text-gray-500">We'll contact you within 4 working days to arrange a home visit.</p>
+              <button onClick={() => { setDocSent(false); setDocName(''); setDocPhone(''); setDocFiles([]); }}
+                className="mt-4 text-sm text-orange-500 hover:underline">Submit another</button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Your Full Name *</label>
+                  <input value={docName} onChange={e => setDocName(e.target.value)}
+                    placeholder="e.g. Ali Hassan"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-400" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Phone Number *</label>
+                  <input value={docPhone} onChange={e => setDocPhone(e.target.value)}
+                    placeholder="03XX XXXXXXX" type="tel"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-400" />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-2">Documents to Upload</label>
+                <label className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-200 rounded-2xl p-6 cursor-pointer hover:border-orange-300 hover:bg-orange-50 transition-colors">
+                  <FileText className="w-5 h-5 text-gray-400" />
+                  <span className="text-sm text-gray-500">Tap to select files (images, PDF)</span>
+                  <input type="file" multiple accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={e => setDocFiles(prev => [...prev, ...Array.from(e.target.files || [])])} />
+                </label>
+                {docFiles.length > 0 && (
+                  <ul className="mt-3 space-y-1.5">
+                    {docFiles.map((f, i) => (
+                      <li key={i} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-2 text-sm">
+                        <span className="text-gray-700 truncate">{f.name}</span>
+                        <button onClick={() => setDocFiles(prev => prev.filter((_, j) => j !== i))}
+                          className="ml-3 text-gray-400 hover:text-red-500 flex-shrink-0">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="text-xs text-gray-400 mt-2">Include: NIC (buyer + guarantor), utility bill (buyer + guarantor), passport photos</p>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-700">
+                <p className="font-semibold mb-1">How document submission works</p>
+                <p>Clicking submit will open WhatsApp. Send your selected files along with the pre-filled message. Our team will review and schedule a home visit.</p>
+              </div>
+
+              <button
+                disabled={!docName.trim() || !docPhone.trim() || docFiles.length === 0}
+                onClick={() => {
+                  const fileNames = docFiles.map(f => f.name).join(', ')
+                  const msg = encodeURIComponent(
+                    `Hi Reliance! I'd like to submit documents for an installment application.\n\nName: ${docName}\nPhone: ${docPhone}\nFiles: ${fileNames}\n\nI'll send the files in this chat.`
+                  )
+                  window.open(`https://wa.me/923702578788?text=${msg}`, '_blank')
+                  setDocSent(true)
+                }}
+                className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white py-3.5 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2">
+                <MessageCircle className="w-4 h-4" /> Submit via WhatsApp
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Direct contact */}

@@ -113,16 +113,18 @@ export const CATEGORY_MAP: Record<string, string> = {
 
 /** Alias for backward compat */
 export const DEFAULT_CATEGORIES: Category[] = [
-  { id:'ac',      name:'Air Conditioners',  icon:'❄️', slug:'air-conditioners'   },
-  { id:'fridge',  name:'Refrigerators',     icon:'🧊', slug:'refrigerators'      },
-  { id:'freezer', name:'Freezers',          icon:'🥶', slug:'freezers'            },
-  { id:'washing', name:'Washing Machines',  icon:'🫧', slug:'washing-machines'   },
-  { id:'tv',      name:'Televisions',       icon:'📺', slug:'televisions'        },
-  { id:'solar',   name:'Solar Solutions',   icon:'☀️', slug:'solar-solutions'    },
-  { id:'kitchen', name:'Kitchen Appliances',icon:'🍳', slug:'kitchen-appliances' },
-  { id:'water',   name:'Water Dispensers',  icon:'💧', slug:'water-dispensers'   },
-  { id:'vacuum',  name:'Vacuum Cleaners',   icon:'🌀', slug:'vacuum-cleaners'    },
-  { id:'small',   name:'Small Appliances',  icon:'🔌', slug:'small-appliances'   },
+  { id:'ac',        name:'Air Conditioners',   icon:'❄️',  slug:'air-conditioners'    },
+  { id:'fridge',    name:'Refrigerators',      icon:'🧊',  slug:'refrigerators'       },
+  { id:'freezer',   name:'Freezers',           icon:'🥶',  slug:'freezers'            },
+  { id:'washing',   name:'Washing Machines',   icon:'👕',  slug:'washing-machines'    },
+  { id:'tv',        name:'Televisions',        icon:'📺',  slug:'televisions'         },
+  { id:'kitchen',   name:'Kitchen Appliances', icon:'🍳',  slug:'kitchen-appliances'  },
+  { id:'microwave', name:'Microwave Ovens',    icon:'📡',  slug:'microwave-ovens'     },
+  { id:'solar',     name:'Solar Solutions',    icon:'☀️',  slug:'solar-solutions'     },
+  { id:'small',     name:'Small Appliances',   icon:'🔌',  slug:'small-appliances'    },
+  { id:'water',     name:'Water Dispensers',   icon:'💧',  slug:'water-dispensers'    },
+  { id:'hood',      name:'Hood & Hobs',        icon:'🔥',  slug:'hood-hobs'           },
+  { id:'care',      name:'Personal Care',      icon:'✨',  slug:'personal-care'       },
 ];
 
 /** @deprecated Use DEFAULT_CATEGORIES */
@@ -196,16 +198,25 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
   if (hit) return hit;
 
   try {
-    let q = supabase.from('products').select('*')
-      .order('featured', { ascending: false }).order('updated_at', { ascending: false });
+    // Apply ordering — price/name sorts replace featured default so results are truly ordered
+    let q = supabase.from('products').select('*');
+    if      (params?.sort === 'price_asc')  q = q.order('cash_floor',      { ascending: true  });
+    else if (params?.sort === 'price_desc') q = q.order('cash_floor',      { ascending: false });
+    else if (params?.sort === 'name_asc')   q = q.order('simplified_name', { ascending: true  });
+    else if (params?.sort === 'newest')     q = q.order('import_date',     { ascending: false });
+    else                                    q = q.order('featured', { ascending: false }).order('updated_at', { ascending: false });
+
     // Customer-facing pages only show products that have an image.
     // Admin mode (params.admin === 'true') skips this filter so newly-imported
     // products without images are still visible and can be managed.
     if (params?.admin !== 'true') {
       q = q.not('thumbnail_url', 'is', null).neq('thumbnail_url', '');
     }
-    if (params?.brand) q = q.ilike('brand', params.brand);
+    if (params?.brand)        q = q.ilike('brand', params.brand);
     if (params?.stock_status) q = q.eq('stock_status', params.stock_status);
+    if (params?.featured === 'true') q = q.eq('featured', true);
+    if (params?.min_price)    q = q.gte('cash_floor', Number(params.min_price));
+    if (params?.max_price)    q = q.lte('cash_floor', Number(params.max_price));
     if (params?.category) {
       // Each category ID maps to one or more partial DB search terms.
       // Terms are long enough to be unambiguous but flexible enough to match
@@ -299,6 +310,14 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
         // legacy / external slugs with special characters
         'televisions-&-leds':          ['television', 'led', 'smart led', 'qled'],
         'televisions-and-leds':        ['television', 'led', 'smart led', 'qled'],
+        // ── New category button IDs ───────────────────────────────────
+        'hood':         ['hood', 'hob'],
+        'hood-hobs':    ['hood', 'hob'],
+        'care':         ['personal care'],
+        'air-fryers':   ['air fry'],
+        'dishwasher':   ['dishwasher'],
+        'spinners':     ['spinner', 'spin dryer'],
+        'spin-dryers':  ['spinner', 'spin dryer'],
       };
       const terms = CAT_TERMS[params.category.toLowerCase()];
       if (terms) {
@@ -314,9 +333,6 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
       const s = params.search.replace(/'/g, "''");
       q = q.or(`simplified_name.ilike.*${s}*,category.ilike.*${s}*,brand.ilike.*${s}*,tags.ilike.*${s}*`);
     }
-    if (params?.sort === 'price_asc')  q = q.order('cash_floor',  { ascending: true });
-    if (params?.sort === 'price_desc') q = q.order('cash_floor',  { ascending: false });
-    if (params?.sort === 'name_asc')   q = q.order('simplified_name', { ascending: true });
     const { data, error } = await q;
     if (error) throw error;
     const result = { products: (data || []).map(rowToProduct), total: data?.length || 0 };
@@ -537,9 +553,9 @@ export async function saveProductImages(
 }
 
 export async function submitOrder(body: any) {
-  const { error } = await supabase.from('orders').insert(body);
+  const { data, error } = await supabase.from('orders').insert(body).select('id').single();
   if (error) return { error: error.message };
-  return { success: true };
+  return { success: true, id: data?.id as string | undefined };
 }
 
 export async function submitEnquiry(body: any) {

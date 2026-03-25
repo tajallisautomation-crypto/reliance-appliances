@@ -8,16 +8,16 @@ import { calcAllPlans, fmtPKR, roundTo100 } from '../lib/api'
 import SEO from '../components/ui/SEO'
 
 const PLAN_DETAILS = [
-  { key: '2 Payments',  label: '2 Payments',  markup: '10%', advance: '50%', monthly: '1 payment', note: 'Pay 50% upfront, then 1 remaining payment.' },
-  { key: '3 Payments',  label: '3 Payments',  markup: '15%', advance: '45%', monthly: '2 payments', note: 'Pay 45% upfront, then 2 monthly payments.', popular: true },
-  { key: '6 Payments',  label: '6 Payments',  markup: '25%', advance: '40%', monthly: '5 payments', note: 'Pay 40% upfront, then 5 monthly payments.' },
-  { key: '12 Payments', label: '12 Payments', markup: '40%', advance: '30%', monthly: '11 payments', note: 'Pay 30% upfront, then 11 monthly payments.' },
+  { key: '2 Payments',  label: '2 Payments',  splits: '2',  note: 'Pay a portion upfront, then 1 remaining payment.', popular: false },
+  { key: '3 Payments',  label: '3 Payments',  splits: '3',  note: 'Pay a portion upfront, then 2 monthly payments.', popular: true },
+  { key: '6 Payments',  label: '6 Payments',  splits: '6',  note: 'Pay a portion upfront, then 5 monthly payments.' },
+  { key: '12 Payments', label: '12 Payments', splits: '12', note: 'Pay a portion upfront, then 11 monthly payments.' },
 ]
 
 const PROCESS_STEPS = [
   { num: '01', title: 'Choose Your Product', desc: 'Select your appliance and preferred payment plan. Use the slider on any product page.', icon: ShieldCheck },
-  { num: '02', title: 'Submit Documents', desc: 'Bring your NIC, utility bill, and guarantor\'s documents to our showroom. Advance is collected at this stage.', icon: FileText },
-  { num: '03', title: 'Verification', desc: 'Our team verifies all documents within 4 working days. We\'ll contact you with the decision.', icon: Clock },
+  { num: '02', title: 'Upload Documents', desc: 'Log in to your portal and upload your NIC, utility bill, and guarantor\'s documents. Advance is collected at this stage.', icon: FileText },
+  { num: '03', title: 'Home Verification', desc: 'Our team makes a physical visit to your home within 4 working days to complete verification. You\'ll receive the decision shortly after.', icon: Clock },
   { num: '04', title: 'Delivery & Installation', desc: 'Upon approval, your appliance is delivered and professionally installed at your home.', icon: Home },
 ]
 
@@ -29,8 +29,7 @@ const BUYER_DOCS = [
 
 const GUARANTOR_DOCS = [
   'Original CNIC of guarantor',
-  'Proof of property ownership (if homeowner) OR tenancy agreement',
-  'Copy of utility bill in guarantor\'s name or address',
+  'Copy of utility bill in guarantor\'s name',
   'Passport-sized photograph of guarantor',
 ]
 
@@ -89,22 +88,10 @@ export default function InstallmentsPage() {
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full">MOST POPULAR</div>
                 )}
                 <div className="text-center">
-                  <div className="text-2xl font-black text-gray-900 mb-4">{p.label}</div>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between items-center bg-gray-50 rounded-lg px-3 py-2">
-                      <span className="text-gray-500">Markup</span>
-                      <span className="font-bold">+{p.markup}</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-orange-50 rounded-lg px-3 py-2">
-                      <span className="text-gray-500">Advance</span>
-                      <span className="font-bold text-orange-700">{p.advance}</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-blue-50 rounded-lg px-3 py-2">
-                      <span className="text-gray-500">Then</span>
-                      <span className="font-bold text-blue-700">{p.monthly}</span>
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-3">{p.note}</p>
+                  <div className="text-2xl font-black text-gray-900 mb-2">{p.label}</div>
+                  <div className="text-4xl font-black text-orange-500 mb-4">{p.splits}×</div>
+                  <p className="text-sm text-gray-500 leading-relaxed">{p.note}</p>
+                  <p className="text-xs text-gray-400 mt-3">Use the calculator below to see exact amounts for your product.</p>
                 </div>
               </div>
             ))}
@@ -246,7 +233,7 @@ export default function InstallmentsPage() {
               <div className="text-sm">
                 <p className="font-bold text-amber-900 mb-1">Guarantor must be a homeowner</p>
                 <p className="text-amber-700">
-                  Your guarantor must own their property. If you are a tenant, two guarantors (both homeowners) are required.
+                  Your guarantor must own their home. A utility bill in the guarantor's name is accepted as proof. If you are a tenant, two guarantors (both homeowners) are required.
                   The guarantor takes legal responsibility for the installment payments.
                 </p>
               </div>

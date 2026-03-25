@@ -20,9 +20,9 @@ import {
   ChevronDown, ChevronUp, Package, FileUp, Loader2, Sparkles, Image as ImageIcon,
   RefreshCw, AlertTriangle, Camera, ImageOff, Tag, Wand2, ListChecks, MessageCircle,
   CheckSquare, Square, Filter, History, Edit2, Star, MoveUp, MoveDown,
-  Building2, Phone, Mail, Bell, Settings, ShoppingBag, CalendarDays, CheckCircle,
+  Building2, Phone, Mail, Bell, Settings, ShoppingBag, CalendarDays, CheckCircle, Layers,
 } from 'lucide-react';
-import { useSettingsStore, SETTING_DEFAULTS } from '@/store/settingsStore';
+import { useSettingsStore, SETTING_DEFAULTS, DEFAULT_BANNERS, type OfferBanner } from '@/store/settingsStore';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -4794,6 +4794,16 @@ function EnquiriesTab() {
 
 interface SiteSettingRow { key: string; value: string; label: string | null; }
 
+const BANNER_THEMES = [
+  { value: 'orange', label: 'Orange',  swatch: 'bg-orange-500' },
+  { value: 'dark',   label: 'Dark',    swatch: 'bg-gray-900'   },
+  { value: 'blue',   label: 'Blue',    swatch: 'bg-blue-600'   },
+  { value: 'green',  label: 'Green',   swatch: 'bg-emerald-600'},
+  { value: 'teal',   label: 'Teal',    swatch: 'bg-teal-600'   },
+  { value: 'red',    label: 'Red',     swatch: 'bg-red-600'    },
+  { value: 'purple', label: 'Purple',  swatch: 'bg-purple-600' },
+];
+
 function SettingsTab() {
   const [rows,       setRows]       = useState<SiteSettingRow[]>([]);
   const [loading,    setLoading]    = useState(true);
@@ -4801,6 +4811,9 @@ function SettingsTab() {
   const [local,      setLocal]      = useState<Record<string, string>>({});
   const [saving,     setSaving]     = useState<string | null>(null);
   const [saved,      setSaved]      = useState<Set<string>>(new Set());
+  const [banners,    setBanners]    = useState<OfferBanner[]>(DEFAULT_BANNERS);
+  const [bannerSaving, setBannerSaving] = useState(false);
+  const [bannerSaved,  setBannerSaved]  = useState(false);
 
   async function load() {
     setLoading(true); setLoadError('');
@@ -4809,9 +4822,24 @@ function SettingsTab() {
     const r = (data ?? []) as SiteSettingRow[];
     setRows(r);
     setLocal(Object.fromEntries(r.map(s => [s.key, s.value])));
+    const bannerRow = r.find(s => s.key === 'offer_banners');
+    if (bannerRow) { try { setBanners(JSON.parse(bannerRow.value)); } catch {} }
     setLoading(false);
   }
   useAutoRefresh(load, 'site_settings', 120_000);
+
+  function updateBanner(id: number, field: keyof OfferBanner, value: string | boolean) {
+    setBanners(prev => prev.map(b => b.id === id ? { ...b, [field]: value } : b));
+  }
+
+  async function saveBanners() {
+    setBannerSaving(true);
+    const value = JSON.stringify(banners);
+    await supabase.from('site_settings').upsert({ key: 'offer_banners', value, updated_at: new Date().toISOString() });
+    await useSettingsStore.getState().load();
+    setBannerSaving(false); setBannerSaved(true);
+    setTimeout(() => setBannerSaved(false), 2500);
+  }
 
   function setField(key: string, value: string) {
     setLocal(prev => ({ ...prev, [key]: value }));
@@ -4879,31 +4907,106 @@ function SettingsTab() {
           <span className="text-xs text-gray-400 ml-auto">Shown sitewide above the navbar — dismissable by visitors</span>
         </div>
 
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input type="checkbox"
-              checked={local['announcement_enabled'] === 'true'}
-              onChange={e => setField('announcement_enabled', String(e.target.checked))}
-              className="w-4 h-4 accent-orange-500" />
-            <span className="text-sm font-medium text-gray-700">Enable banner</span>
-          </label>
-          <button onClick={() => saveSetting('announcement_enabled')} disabled={saving === 'announcement_enabled'}
-            className="flex items-center gap-1 text-xs font-bold bg-orange-100 hover:bg-orange-200 disabled:opacity-50 text-orange-700 px-3 py-1.5 rounded-lg">
-            {saving === 'announcement_enabled' ? <Loader2 className="w-3 h-3 animate-spin" /> : saved.has('announcement_enabled') ? <><Check className="w-3 h-3" /> Saved</> : 'Save'}
-          </button>
-        </div>
-
-        <div className="flex gap-3">
+        <div className="flex gap-3 items-center">
           <input
             value={local['announcement_text'] ?? ''}
             onChange={e => setField('announcement_text', e.target.value)}
             placeholder="e.g. Eid Sale — extra 5% off on all ACs this week only!"
             className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
           />
-          <button onClick={() => saveSetting('announcement_text')} disabled={saving === 'announcement_text'}
+          <label className="flex items-center gap-2 cursor-pointer select-none shrink-0">
+            <input type="checkbox"
+              checked={local['announcement_enabled'] === 'true'}
+              onChange={e => setField('announcement_enabled', String(e.target.checked))}
+              className="w-4 h-4 accent-orange-500" />
+            <span className="text-sm font-medium text-gray-700 whitespace-nowrap">Show banner</span>
+          </label>
+          <button
+            onClick={() => saveAll(['announcement_text', 'announcement_enabled'])}
+            disabled={saving === 'announcement_text' || saving === 'announcement_enabled'}
             className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap">
-            {saving === 'announcement_text' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : saved.has('announcement_text') ? '✓ Saved!' : 'Save Text'}
+            {(saving === 'announcement_text' || saving === 'announcement_enabled')
+              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              : (saved.has('announcement_text') || saved.has('announcement_enabled'))
+                ? '✓ Saved!'
+                : 'Save Banner'}
           </button>
+        </div>
+      </div>
+
+      {/* Offer Banner Slider */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Layers className="w-4 h-4 text-orange-500" />
+            <h3 className="font-bold text-gray-900">Offer Banner Slider</h3>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-400">Shown on homepage · up to 5 banners · auto-rotates</span>
+            <button onClick={saveBanners} disabled={bannerSaving}
+              className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap">
+              {bannerSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : bannerSaved ? '✓ Saved!' : 'Save All Banners'}
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {banners.map((banner, i) => (
+            <div key={banner.id} className={`rounded-2xl border-2 p-4 space-y-3 transition-colors ${banner.active ? 'border-orange-200 bg-orange-50/30' : 'border-gray-100 bg-gray-50/50'}`}>
+              {/* Header row */}
+              <div className="flex items-center gap-3">
+                <span className="w-6 h-6 rounded-full bg-gray-200 text-gray-600 text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                <span className="text-sm font-semibold text-gray-700 flex-1">Banner {i + 1}</span>
+                <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                  <input type="checkbox" checked={banner.active}
+                    onChange={e => updateBanner(banner.id, 'active', e.target.checked)}
+                    className="w-3.5 h-3.5 accent-orange-500" />
+                  <span className="text-xs font-medium text-gray-600">Active</span>
+                </label>
+                {/* Theme swatches */}
+                <div className="flex items-center gap-1">
+                  {BANNER_THEMES.map(t => (
+                    <button key={t.value} title={t.label} onClick={() => updateBanner(banner.id, 'theme', t.value)}
+                      className={`w-4 h-4 rounded-full ${t.swatch} transition-all ${banner.theme === t.value ? 'ring-2 ring-offset-1 ring-gray-500 scale-110' : 'opacity-60 hover:opacity-100'}`} />
+                  ))}
+                </div>
+              </div>
+
+              {/* Fields */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Headline *</label>
+                  <input value={banner.title} onChange={e => updateBanner(banner.id, 'title', e.target.value)}
+                    placeholder="e.g. Eid Sale — 10% Off All ACs"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Badge / Label</label>
+                  <input value={banner.badge} onChange={e => updateBanner(banner.id, 'badge', e.target.value)}
+                    placeholder="e.g. Limited Time · This Week Only"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Subtitle</label>
+                  <input value={banner.subtitle} onChange={e => updateBanner(banner.id, 'subtitle', e.target.value)}
+                    placeholder="e.g. All inverter ACs from top brands — deal ends Sunday"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Button Text</label>
+                  <input value={banner.cta} onChange={e => updateBanner(banner.id, 'cta', e.target.value)}
+                    placeholder="e.g. Shop ACs"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Button Link</label>
+                  <input value={banner.ctaLink} onChange={e => updateBanner(banner.id, 'ctaLink', e.target.value)}
+                    placeholder="e.g. /products?category=air-conditioners"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -4937,7 +5040,16 @@ function SettingsTab() {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Live — applies on next page load</span>
-            <button onClick={() => saveAll(['plan_2m_markup','plan_2m_advance','plan_3m_markup','plan_3m_advance','plan_6m_markup','plan_6m_advance','plan_12m_markup','plan_12m_advance'])}
+            <button onClick={() => {
+              const planKeys = ['2m','3m','6m','12m'];
+              for (const p of planKeys) {
+                const mk = parseFloat(local[`plan_${p}_markup`] ?? '1');
+                const av = parseFloat(local[`plan_${p}_advance`] ?? '0');
+                if (isNaN(mk) || mk < 1.0 || mk > 3) { alert(`Markup for ${p} must be between 1.0 and 3.0`); return; }
+                if (isNaN(av) || av < 0.2 || av > 0.7) { alert(`Advance ratio for ${p} must be between 0.20 and 0.70`); return; }
+              }
+              saveAll(['plan_2m_markup','plan_2m_advance','plan_3m_markup','plan_3m_advance','plan_6m_markup','plan_6m_advance','plan_12m_markup','plan_12m_advance']);
+            }}
               className="text-xs font-bold bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg">
               Save All Plans
             </button>
@@ -4968,17 +5080,21 @@ function SettingsTab() {
                         <input type="number" step="0.01" min="1" max="3"
                           value={local[mk] ?? ''}
                           onChange={e => setField(mk, e.target.value)}
-                          className="w-24 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-                        <span className="text-xs text-gray-400">= {isNaN(markup) ? '?' : ((markup - 1) * 100).toFixed(0)}% surcharge</span>
+                          className={`w-24 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 ${!isNaN(markup) && (markup < 1 || markup > 3) ? 'border-red-300 bg-red-50' : 'border-gray-200'}`} />
+                        <span className={`text-xs ${!isNaN(markup) && (markup < 1 || markup > 3) ? 'text-red-500' : 'text-gray-400'}`}>
+                          {isNaN(markup) ? '?' : markup < 1 || markup > 3 ? 'Must be 1.0–3.0' : `${((markup - 1) * 100).toFixed(0)}% surcharge`}
+                        </span>
                       </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <input type="number" step="0.01" min="0" max="1"
+                        <input type="number" step="0.01" min="0.2" max="0.7"
                           value={local[av] ?? ''}
                           onChange={e => setField(av, e.target.value)}
-                          className="w-24 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-                        <span className="text-xs text-gray-400">{isNaN(adv) ? '?' : (adv * 100).toFixed(0)}% advance</span>
+                          className={`w-24 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 ${!isNaN(adv) && (adv < 0.2 || adv > 0.7) ? 'border-red-300 bg-red-50' : 'border-gray-200'}`} />
+                        <span className={`text-xs ${!isNaN(adv) && (adv < 0.2 || adv > 0.7) ? 'text-red-500' : 'text-gray-400'}`}>
+                          {isNaN(adv) ? '?' : adv < 0.2 || adv > 0.7 ? 'Must be 0.20–0.70' : `${(adv * 100).toFixed(0)}% advance`}
+                        </span>
                       </div>
                     </td>
                   </tr>

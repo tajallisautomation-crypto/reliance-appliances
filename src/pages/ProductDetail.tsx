@@ -42,6 +42,7 @@ export default function ProductDetail() {
   const [related,    setRelated]    = useState<Product[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [plan,       setPlan]       = useState<'cash'|'2m'|'3m'|'6m'|'12m'>('cash');
+  const [customAdvance, setCustomAdvance] = useState<number | null>(null);
   const [withInstall, setWithInstall] = useState(false);
   const [activeImg,  setActiveImg]  = useState(0);
   const [activeTab,  setActiveTab]  = useState<TabKey>('specs');
@@ -71,6 +72,14 @@ export default function ProductDetail() {
   const allImages  = [p.thumbnail, ...p.gallery].filter(Boolean);
   const INSTALL    = 2000;
   const planData   = plan !== 'cash' ? p.installments[plan] : null;
+
+  // Custom advance: clamped between planData.advance (floor) and planData.total (max)
+  const effectiveAdvance = planData
+    ? Math.min(planData.total, Math.max(planData.advance, customAdvance ?? planData.advance))
+    : 0;
+  const customMonthly = planData && planData.monthlyPayments > 0
+    ? Math.ceil((planData.total - effectiveAdvance) / planData.monthlyPayments / 100) * 100
+    : 0;
   const isHighTicket = p.price.cash_floor >= consultationThreshold;
 
   const handleAdd = () => { addItem(p); toast.success(`${p.brand} ${p.model} added to cart!`); };
@@ -151,7 +160,9 @@ export default function ProductDetail() {
   const TABS: { key: TabKey; label: string }[] = [
     { key: 'specs',         label: 'Specifications' },
     { key: 'about',         label: 'About'          },
-    { key: 'price-history', label: `Price History${priceHistory.length > 0 ? ` (${priceHistory.length})` : ''}` },
+    ...(!priceHistoryLoading && priceHistory.length > 0
+      ? [{ key: 'price-history' as TabKey, label: `Price History (${priceHistory.length})` }]
+      : []),
     { key: 'installation',  label: 'Installation'   },
     { key: 'reviews',       label: 'Reviews'        },
   ];
@@ -254,12 +265,12 @@ export default function ProductDetail() {
                       max={available.length - 1}
                       step={1}
                       value={currentIdx}
-                      onChange={e => setPlan(available[Number(e.target.value)])}
+                      onChange={e => { setPlan(available[Number(e.target.value)]); setCustomAdvance(null); }}
                       className="w-full h-2 rounded-full appearance-none cursor-pointer accent-gray-900 bg-gray-200"
                     />
                     <div className="flex justify-between mt-1">
                       {available.map((pl, i) => (
-                        <button key={pl} onClick={() => setPlan(pl)}
+                        <button key={pl} onClick={() => { setPlan(pl); setCustomAdvance(null); }}
                           className={`text-[10px] font-semibold transition-colors ${currentIdx === i ? 'text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}>
                           {PLAN_LABELS[pl]}
                         </button>
@@ -281,25 +292,107 @@ export default function ProductDetail() {
                       </>
                     ) : planData ? (
                       <>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 gap-3 mb-3">
                           <div className="bg-brand-50 rounded-lg p-3">
                             <p className="text-xs text-gray-500 mb-0.5">Advance (at document submission)</p>
-                            <p className="text-xl font-black text-brand-600">PKR {formatPrice(planData.advance)}</p>
+                            <p className="text-xl font-black text-brand-600">PKR {formatPrice(effectiveAdvance)}</p>
                           </div>
-                          {planData.monthly > 0 && (
+                          {planData.monthlyPayments > 0 && (
                             <div className="bg-gray-50 rounded-lg p-3">
                               <p className="text-xs text-gray-500 mb-0.5">Monthly × {planData.monthlyPayments}</p>
-                              <p className="text-xl font-black text-gray-900">PKR {formatPrice(planData.monthly)}</p>
+                              <p className="text-xl font-black text-gray-900">PKR {formatPrice(customMonthly)}</p>
                             </div>
                           )}
                         </div>
-                        <p className="text-xs text-gray-400 mt-2">
+
+                        {/* Dual sliders: advance ↔ monthly operate in unison */}
+                        {planData.monthlyPayments > 0 && (
+                          <div className="border-t border-gray-100 pt-3 mb-2 space-y-4">
+                            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Build your own plan</p>
+                            {/* Advance slider */}
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <p className="text-xs text-gray-500 font-medium">Advance</p>
+                                <p className="text-xs font-bold text-brand-600">PKR {formatPrice(effectiveAdvance)}</p>
+                              </div>
+                              <input
+                                type="range"
+                                min={planData.advance}
+                                max={planData.total}
+                                step={100}
+                                value={effectiveAdvance}
+                                onChange={e => setCustomAdvance(Number(e.target.value))}
+                                className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-brand-500 bg-gray-200"
+                              />
+                              <div className="flex justify-between text-[10px] text-gray-400 mt-0.5">
+                                <span>Min ({Math.round(planData.advancePct * 100)}%)</span>
+                                <span>Pay in full</span>
+                              </div>
+                            </div>
+                            {/* Monthly slider — inversely linked to advance */}
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <p className="text-xs text-gray-500 font-medium">Monthly × {planData.monthlyPayments}</p>
+                                <p className="text-xs font-bold text-gray-800">PKR {formatPrice(customMonthly)}</p>
+                              </div>
+                              <input
+                                type="range"
+                                min={0}
+                                max={planData.monthly}
+                                step={100}
+                                value={customMonthly}
+                                onChange={e => {
+                                  const m = Number(e.target.value);
+                                  const a = Math.round((planData.total - m * planData.monthlyPayments) / 100) * 100;
+                                  setCustomAdvance(Math.max(planData.advance, Math.min(planData.total, a)));
+                                }}
+                                className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-gray-700 bg-gray-200"
+                              />
+                              <div className="flex justify-between text-[10px] text-gray-400 mt-0.5">
+                                <span>Zero (pay upfront)</span>
+                                <span>Max monthly</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        <p className="text-xs text-gray-400">
                           Total: PKR {formatPrice(planData.total)} · {PLAN_LABELS[plan]} plan
                         </p>
                         <Link to="/installments#requirements"
                           className="mt-2 inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium">
                           <Info className="h-3 w-3" /> Document requirements & process →
                         </Link>
+
+                        {/* PDC / document notice */}
+                        {(() => {
+                          const isFrontLoad = tags.includes('front-load') || p.sub_category === 'Front Load';
+                          const isSemiAuto  = p.category === 'Semi-Automatic Washing Machines';
+                          const isHighValue = planData.total >= 100_000;
+                          if (!isFrontLoad && !isSemiAuto && !isHighValue) return null;
+                          return (
+                            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-1.5">
+                              {isFrontLoad && (
+                                <p className="text-xs text-amber-800 font-semibold">
+                                  📋 PDCs (Post-Dated Cheques) are mandatory for all front-load washing machines.
+                                </p>
+                              )}
+                              {isSemiAuto && (
+                                <p className="text-xs text-amber-800 font-semibold">
+                                  📄 Required documents: Valid NIC + Recent Utility Bill.
+                                </p>
+                              )}
+                              {isHighValue && !isFrontLoad && (
+                                <p className="text-xs text-amber-800 font-semibold">
+                                  📋 PDCs are required for orders above PKR 1 Lac.
+                                </p>
+                              )}
+                              <p className="text-xs text-amber-700">
+                                PDC requirement is waived if an existing Reliance customer acts as guarantor.
+                              </p>
+                            </div>
+                          );
+                        })()}
                       </>
                     ) : null}
                   </div>

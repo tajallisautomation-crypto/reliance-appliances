@@ -40,7 +40,7 @@ export default function Contact() {
       setSent(true)
     } catch (err: any) {
       setError('Failed to send message. Please WhatsApp us directly.')
-      console.error('[Contact]', err)
+      if (import.meta.env.DEV) console.error('[Contact]', err)
     } finally {
       setLoading(false)
     }
