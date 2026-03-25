@@ -151,8 +151,9 @@ function PackageCard({ pkg }: { pkg: SolarPackage }) {
         <div className="bg-blue-50 rounded-2xl px-4 py-3 mb-4">
           <div className="flex items-center gap-1.5 mb-1.5">
             <Shield className="w-3.5 h-3.5 text-blue-600" />
-            <span className="text-xs font-bold text-blue-700">Replacement Warranties</span>
+            <span className="text-xs font-bold text-blue-700">Warranties</span>
           </div>
+          <p className="text-xs text-blue-600 leading-relaxed font-semibold">✓ 1-Year Installation Warranty</p>
           {pkg.warranties.map(w => (
             <p key={w} className="text-xs text-blue-600 leading-relaxed">✓ {w}</p>
           ))}
