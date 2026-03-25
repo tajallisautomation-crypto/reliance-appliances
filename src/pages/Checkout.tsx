@@ -11,9 +11,9 @@ const PLAN_LABELS: Record<string, string> = {
 }
 
 const BANK_DETAILS = [
-  { bank: 'Meezan Bank', account: '02890106575055', title: 'Reliance Appliances' },
-  { bank: 'JazzCash',    account: '03702578788',    title: 'Reliance Appliances' },
-  { bank: 'EasyPaisa',   account: '03702578788',    title: 'Reliance Appliances' },
+  { bank: 'Meezan Bank', account: '02890106575055', title: 'Reliance by Tajallis' },
+  { bank: 'JazzCash',    account: '03702578788',    title: 'Reliance by Tajallis' },
+  { bank: 'EasyPaisa',   account: '03702578788',    title: 'Reliance by Tajallis' },
 ]
 
 export default function Checkout() {
@@ -32,7 +32,7 @@ export default function Checkout() {
 
   if (items.length === 0 && !done) return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 text-center px-4">
-      <SEO title="Checkout — Reliance Appliances" noIndex />
+      <SEO title="Checkout — Reliance by Tajallis" noIndex />
       <div className="text-5xl">🛒</div>
       <h2 className="text-xl font-bold text-gray-700">Your cart is empty</h2>
       <Link to="/products" className="bg-orange-500 text-white px-6 py-2.5 rounded-xl font-medium">Browse Products</Link>
@@ -70,7 +70,7 @@ export default function Checkout() {
 
   if (done) return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center gap-5 px-4 text-center max-w-sm mx-auto py-16">
-      <SEO title="Order Confirmed — Reliance Appliances" noIndex />
+      <SEO title="Order Confirmed — Reliance by Tajallis" noIndex />
       <CheckCircle className="w-16 h-16 text-green-500" />
       <h2 className="text-2xl font-bold text-gray-800">Order Placed!</h2>
       <p className="text-gray-500">Reference: <strong>{orderId}</strong></p>
@@ -98,7 +98,7 @@ export default function Checkout() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
-      <SEO title="Checkout — Reliance Appliances" noIndex />
+      <SEO title="Checkout — Reliance by Tajallis" noIndex />
       <h1 className="text-2xl font-black text-gray-900 mb-8">Checkout</h1>
       <div className="grid md:grid-cols-2 gap-8">
         <div className="space-y-5">

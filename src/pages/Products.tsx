@@ -25,112 +25,268 @@ const BUDGET_RANGES = [
 // Category-specific spec filters — applied client-side
 type SpecFilter = { key: string; label: string; options: { value: string; label: string; match: (p: Product) => boolean }[] }
 
+// Helper: extract numeric value from simplified_name (e.g. "55 inch" → 55, "4kg" → 4)
+const _inches = (p: Product) => { const m = (p.simplified_name + ' ' + p.tags).match(/(\d{2})\s*(?:"|inch|")/i); return m ? parseInt(m[1]) : 0; }
+const _kg     = (p: Product) => { const m = (p.simplified_name + ' ' + p.tags).match(/(\d{1,2}(?:\.\d)?)\s*kg/i); return m ? parseFloat(m[1]) : 0; }
+const _liters = (p: Product) => { const c = p.specs?.['Capacity'] || ''; const m = c.match(/(\d{2,3})\s*L/i); return m ? parseInt(m[1]) : 0; }
+const _cuft   = (p: Product) => { const c = p.specs?.['Capacity'] || p.simplified_name; const m = c.match(/(\d{1,2}(?:\.\d)?)\s*(?:cu\.?ft|cubic)/i); return m ? parseFloat(m[1]) : 0; }
+
 const SPEC_FILTERS: Record<string, SpecFilter[]> = {
+  // ── Air Conditioners ─────────────────────────────────────────────────────────
   ac: [
     {
       key: 'tonnage', label: 'Tonnage',
       options: [
-        { value: '1t',   label: '1 Ton',   match: p => p.category.includes('1 Ton') && !p.category.includes('1.5') && !p.category.includes('2') },
-        { value: '1.5t', label: '1.5 Ton', match: p => p.category.includes('1.5 Ton') },
-        { value: '2t',   label: '2 Ton',   match: p => p.category.includes('2 Ton') },
+        { value: '1t',   label: '1 Ton',    match: p => /\b1\s*ton/i.test(p.category) && !/1\.5|2\s*ton/i.test(p.category) },
+        { value: '1.5t', label: '1.5 Ton',  match: p => /1\.5\s*ton/i.test(p.category) },
+        { value: '2t',   label: '2 Ton',    match: p => /\b2\s*ton/i.test(p.category) },
       ],
     },
     {
-      key: 'tech', label: 'Technology',
+      key: 'actech', label: 'Technology',
       options: [
-        { value: 'inverter',     label: 'Inverter',     match: p => /inverter/i.test(p.tags + ' ' + p.simplified_name) },
-        { value: 'non-inverter', label: 'Non-Inverter', match: p => !/inverter/i.test(p.tags + ' ' + p.simplified_name) },
+        { value: 'inverter',     label: 'Inverter',      match: p => /inverter/i.test(p.tags + ' ' + p.simplified_name) },
+        { value: 'non-inverter', label: 'Non-Inverter',  match: p => !/inverter/i.test(p.tags + ' ' + p.simplified_name) },
+      ],
+    },
+    {
+      key: 'actype', label: 'Type',
+      options: [
+        { value: 'split',  label: 'Split AC',          match: p => !/floor.?standing|portable|window/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'floor',  label: 'Floor Standing',    match: p => /floor.?standing|floor.?mount/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'portable',label:'Portable / Window', match: p => /portable|window.?ac/i.test(p.simplified_name + ' ' + p.tags) },
+      ],
+    },
+    {
+      key: 'acfeatures', label: 'Features',
+      options: [
+        { value: 'wifi',  label: 'WiFi / Smart Control', match: p => /wifi|wi-fi|smart.?control/i.test(p.tags + ' ' + p.simplified_name) },
+        { value: 'conv',  label: 'Convertible (5-in-1+)',match: p => /convertible|\bin-1\b|5-in-1|4-in-1/i.test(p.tags + ' ' + p.simplified_name) },
+        { value: 'heat',  label: 'Heat & Cool',          match: p => /heat|heating/i.test(p.tags + ' ' + p.simplified_name) },
       ],
     },
   ],
+
+  // ── Refrigerators ────────────────────────────────────────────────────────────
   fridge: [
     {
       key: 'fridgesize', label: 'Size',
       options: [
-        { value: 'small',  label: 'Small (≤10 Cu.Ft)',   match: p => p.category.toLowerCase().includes('small') },
-        { value: 'medium', label: 'Medium (11–16 Cu.Ft)', match: p => p.category.toLowerCase().includes('medium') },
-        { value: 'large',  label: 'Large (17+ Cu.Ft)',   match: p => p.category.toLowerCase().includes('large') },
+        { value: 'small',  label: 'Compact (≤10 Cu.Ft)',   match: p => { const c = _cuft(p); return c > 0 ? c <= 10 : p.category.toLowerCase().includes('small'); } },
+        { value: 'medium', label: 'Medium (11–16 Cu.Ft)',  match: p => { const c = _cuft(p); return c > 0 ? c >= 11 && c <= 16 : p.category.toLowerCase().includes('medium'); } },
+        { value: 'large',  label: 'Large (17+ Cu.Ft)',     match: p => { const c = _cuft(p); return c > 0 ? c >= 17 : p.category.toLowerCase().includes('large'); } },
+      ],
+    },
+    {
+      key: 'fridgetype', label: 'Type',
+      options: [
+        { value: 'glass',  label: 'Glass Door',            match: p => /glass.?door|glass.?top/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'double', label: 'Double Door',           match: p => /double.?door|two.?door|2-door/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'mini',   label: 'Mini / Bar Fridge',     match: p => /mini.?fridge|bar.?fridge|mini.?ref/i.test(p.simplified_name + ' ' + p.tags) },
       ],
     },
     {
       key: 'fridgetech', label: 'Technology',
       options: [
-        { value: 'inverter', label: 'Inverter', match: p => /inverter/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'inverter',  label: 'Inverter Compressor', match: p => /inverter/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'nofrost',   label: 'No-Frost / Frost-Free',match: p => /no.?frost|frost.?free/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'autofrost', label: 'Auto-Defrost',         match: p => /auto.?defrost|auto.?frost/i.test(p.simplified_name + ' ' + p.tags) },
       ],
     },
   ],
+
+  // ── Freezers ─────────────────────────────────────────────────────────────────
+  freezer: [
+    {
+      key: 'freezertype', label: 'Type',
+      options: [
+        { value: 'chest',   label: 'Chest Freezer',   match: p => /chest/i.test(p.simplified_name + ' ' + p.category + ' ' + p.tags) },
+        { value: 'upright', label: 'Upright Freezer',  match: p => /upright|vertical/i.test(p.simplified_name + ' ' + p.category + ' ' + p.tags) },
+        { value: 'deep',    label: 'Deep Freezer',     match: p => /deep.?fre|HDF/i.test(p.simplified_name + ' ' + p.category + ' ' + p.model) },
+      ],
+    },
+    {
+      key: 'freezercap', label: 'Capacity',
+      options: [
+        { value: 'small',  label: 'Small (≤6 Cu.Ft)',   match: p => { const c = _cuft(p); return c > 0 ? c <= 6 : /small/i.test(p.simplified_name) } },
+        { value: 'medium', label: 'Medium (7–12 Cu.Ft)',match: p => { const c = _cuft(p); return c > 0 ? c >= 7 && c <= 12 : false; } },
+        { value: 'large',  label: 'Large (13+ Cu.Ft)',  match: p => { const c = _cuft(p); return c > 0 ? c >= 13 : /large/i.test(p.simplified_name); } },
+      ],
+    },
+    {
+      key: 'freezertech', label: 'Technology',
+      options: [
+        { value: 'inverter', label: 'Inverter',           match: p => /inverter/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'nofrost',  label: 'No-Frost',           match: p => /no.?frost/i.test(p.simplified_name + ' ' + p.tags) },
+      ],
+    },
+  ],
+
+  // ── Washing Machines ─────────────────────────────────────────────────────────
   washing: [
     {
       key: 'washtype', label: 'Type',
       options: [
-        { value: 'auto',    label: 'Fully Automatic', match: p => p.category.toLowerCase().includes('automatic washing') && !p.category.toLowerCase().includes('semi') },
-        { value: 'semi',    label: 'Semi-Automatic',  match: p => p.category.toLowerCase().includes('semi-automatic') },
-        { value: 'spinner', label: 'Spinner / Spin Dryer', match: p => /spinner|spin dryer/i.test(p.category + ' ' + p.tags) },
+        { value: 'front',   label: 'Front Load Auto',  match: p => /front.?load/i.test(p.tags + ' ' + p.simplified_name) },
+        { value: 'top',     label: 'Top Load Auto',    match: p => /top.?load/i.test(p.tags + ' ' + p.simplified_name) && !/semi/i.test(p.category) },
+        { value: 'semi',    label: 'Semi-Automatic',   match: p => p.category.toLowerCase().includes('semi-automatic') },
+        { value: 'spinner', label: 'Spinner',          match: p => /spinner|spin dryer/i.test(p.category + ' ' + p.tags) },
       ],
     },
     {
-      key: 'loadtype', label: 'Load',
+      key: 'washcap', label: 'Capacity',
       options: [
-        { value: 'front', label: 'Front Load', match: p => /front.?load|front-load/i.test(p.tags + ' ' + p.simplified_name) },
-        { value: 'top',   label: 'Top Load',   match: p => /top.?load|top-load/i.test(p.tags + ' ' + p.simplified_name) },
-      ],
-    },
-    {
-      key: 'blanket', label: 'Capacity',
-      options: [
-        { value: 'blanket', label: '≥12kg (Blanket Washable)', match: p => (p.tags || '').includes('blanket-washable') },
+        { value: 'small',   label: 'Up to 7 kg',      match: p => { const k = _kg(p); return k > 0 ? k <= 7 : false } },
+        { value: 'medium',  label: '8 – 10 kg',       match: p => { const k = _kg(p); return k >= 8 && k <= 10 } },
+        { value: 'large',   label: '11 – 14 kg',      match: p => { const k = _kg(p); return k >= 11 && k <= 14 } },
+        { value: 'xl',      label: '15 kg+ (Blanket)',match: p => { const k = _kg(p); return k >= 15 || (p.tags || '').includes('blanket-washable') } },
       ],
     },
     {
       key: 'washinverter', label: 'Technology',
       options: [
         { value: 'inverter', label: 'Inverter Motor', match: p => /inverter/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'direct',   label: 'Direct Drive',   match: p => /direct.?drive/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'digital',  label: 'Digital Display',match: p => /digital|smart|auto/i.test(p.simplified_name + ' ' + p.tags) && !/semi/i.test(p.category) },
       ],
     },
   ],
+
+  // ── Televisions ──────────────────────────────────────────────────────────────
+  tv: [
+    {
+      key: 'tvsize', label: 'Screen Size',
+      options: [
+        { value: '32',  label: '32" & under',   match: p => { const i = _inches(p); return i > 0 ? i <= 32 : /\b32\b/.test(p.simplified_name) } },
+        { value: '43',  label: '40" – 43"',     match: p => { const i = _inches(p); return i >= 40 && i <= 43 } },
+        { value: '50',  label: '50" – 55"',     match: p => { const i = _inches(p); return i >= 50 && i <= 55 } },
+        { value: '65',  label: '65" – 75"',     match: p => { const i = _inches(p); return i >= 65 && i <= 75 } },
+        { value: '85',  label: '85"+ (Ultra Large)', match: p => { const i = _inches(p); return i >= 85 } },
+      ],
+    },
+    {
+      key: 'tvres', label: 'Resolution',
+      options: [
+        { value: '4k',  label: '4K Ultra HD',   match: p => /\b4k|uhd|ultra.?hd/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'fhd', label: 'Full HD (1080p)',match: p => /full.?hd|fhd|1080p/i.test(p.simplified_name + ' ' + p.tags) && !/4k|uhd/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'hd',  label: 'HD Ready (720p)',match: p => /\bhd\b|\b720p\b/i.test(p.simplified_name + ' ' + p.tags) && !/full.?hd|fhd|4k|uhd/i.test(p.simplified_name + ' ' + p.tags) },
+      ],
+    },
+    {
+      key: 'tvsmart', label: 'Smart Features',
+      options: [
+        { value: 'smart',   label: 'Smart TV (Android/Tizen)', match: p => /smart|android|tizen|google.?tv/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'nonsmart',label: 'Non-Smart (Standard LED)', match: p => !/smart|android|tizen|google.?tv/i.test(p.simplified_name + ' ' + p.tags) },
+      ],
+    },
+    {
+      key: 'tvtech', label: 'Panel Technology',
+      options: [
+        { value: 'qled', label: 'QLED / OLED',   match: p => /qled|oled/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'hdr',  label: 'HDR / Dolby',   match: p => /hdr|dolby.?vision/i.test(p.simplified_name + ' ' + p.tags) },
+      ],
+    },
+  ],
+
+  // ── Kitchen Appliances ───────────────────────────────────────────────────────
   kitchen: [
     {
-      key: 'kitchentype', label: 'Sub-Category',
+      key: 'kitchentype', label: 'Category',
       options: [
-        { value: 'cooking',   label: 'Cooking & Ovens',     match: p => p.category.toLowerCase().includes('cooking') },
-        { value: 'blenders',  label: 'Blenders & Juicers',  match: p => p.category.toLowerCase().includes('blender') },
-        { value: 'processors',label: 'Food Processors',     match: p => p.category.toLowerCase().includes('food proc') },
-        { value: 'breakfast', label: 'Breakfast & Beverages',match: p => p.category.toLowerCase().includes('breakfast') },
+        { value: 'cooking',    label: 'Cooking & Ovens',      match: p => p.category.toLowerCase().includes('cooking') || /oven|toaster|grill/i.test(p.simplified_name) },
+        { value: 'blenders',   label: 'Blenders & Juicers',   match: p => p.category.toLowerCase().includes('blender') || /blender|juicer/i.test(p.simplified_name) },
+        { value: 'processors', label: 'Food Processors',      match: p => p.category.toLowerCase().includes('food proc') || /food.?proc|chopper/i.test(p.simplified_name) },
+        { value: 'breakfast',  label: 'Breakfast & Beverages',match: p => p.category.toLowerCase().includes('breakfast') || /coffee|tea|toaster|kettle/i.test(p.simplified_name) },
+        { value: 'airfryer',   label: 'Air Fryers',           match: p => /air.?fry/i.test(p.simplified_name + ' ' + p.category) },
       ],
     },
   ],
+
+  // ── Microwave Ovens ──────────────────────────────────────────────────────────
   microwave: [
     {
       key: 'mwtype', label: 'Type',
       options: [
-        { value: 'grill',  label: 'Grill / Combo', match: p => /grill|combo/i.test(p.simplified_name + ' ' + (p.specs?.['Heating Technology'] || '')) },
-        { value: 'solo',   label: 'Solo',          match: p => /solo/i.test(p.simplified_name) },
-        { value: 'inverter', label: 'Inverter',    match: p => /inverter/i.test(p.simplified_name) },
-        { value: 'airfryer', label: 'Air Fryer Combo', match: p => /\baf\b/i.test(p.model) },
+        { value: 'grill',    label: 'Grill / Combo',       match: p => /grill|combo/i.test(p.simplified_name + ' ' + (p.specs?.['Heating Technology'] || '')) },
+        { value: 'solo',     label: 'Solo',                match: p => /solo/i.test(p.simplified_name) },
+        { value: 'inverter', label: 'Inverter',            match: p => /inverter/i.test(p.simplified_name) },
+        { value: 'airfryer', label: 'Air Fryer Combo',     match: p => /air.?fry/i.test(p.simplified_name) },
+      ],
+    },
+    {
+      key: 'mwcap', label: 'Cavity Size',
+      options: [
+        { value: 'small',  label: 'Compact (≤20L)',  match: p => { const l = _liters(p); return l > 0 ? l <= 20 : false } },
+        { value: 'medium', label: 'Standard (21–30L)',match: p => { const l = _liters(p); return l >= 21 && l <= 30 } },
+        { value: 'large',  label: 'Large (31L+)',     match: p => { const l = _liters(p); return l >= 31 } },
       ],
     },
   ],
+
+  // ── Small Appliances ─────────────────────────────────────────────────────────
   small: [
     {
       key: 'smalltype', label: 'Type',
       options: [
-        { value: 'iron',    label: 'Irons & Steamers', match: p => /iron|steamer/i.test(p.simplified_name) },
-        { value: 'heater',  label: 'Heaters & Fans',   match: p => /heater|fan/i.test(p.simplified_name) },
-        { value: 'vacuum',  label: 'Vacuum Cleaners',  match: p => /vacuum/i.test(p.simplified_name) },
-        { value: 'kettle',  label: 'Kettles',          match: p => /kettle/i.test(p.simplified_name) },
+        { value: 'iron',    label: 'Irons & Steamers',    match: p => /iron|steamer/i.test(p.simplified_name) },
+        { value: 'heater',  label: 'Heaters',             match: p => /heater|room.?heat/i.test(p.simplified_name) },
+        { value: 'fan',     label: 'Fans & Air Coolers',  match: p => /\bfan\b|air.?cool/i.test(p.simplified_name) },
+        { value: 'vacuum',  label: 'Vacuum Cleaners',     match: p => /vacuum/i.test(p.simplified_name) },
+        { value: 'kettle',  label: 'Kettles',             match: p => /kettle/i.test(p.simplified_name) },
+        { value: 'hair',    label: 'Hair Care',           match: p => /hair|dryer|straighten/i.test(p.simplified_name) },
+      ],
+    },
+  ],
+
+  // ── Solar Solutions ──────────────────────────────────────────────────────────
+  solar: [
+    {
+      key: 'solartype', label: 'System Type',
+      options: [
+        { value: 'ongrid',  label: 'On-Grid',    match: p => /on.?grid/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'offgrid', label: 'Off-Grid',   match: p => /off.?grid/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'hybrid',  label: 'Hybrid',     match: p => /hybrid/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'battery', label: 'Battery / Storage', match: p => /battery|storage|lithium/i.test(p.simplified_name + ' ' + p.tags) },
+      ],
+    },
+    {
+      key: 'solarkw', label: 'System Size',
+      options: [
+        { value: '3kw',  label: 'Up to 3 kW',    match: p => { const m = (p.simplified_name + ' ' + p.tags).match(/(\d+(?:\.\d+)?)\s*kw/i); return m ? parseFloat(m[1]) <= 3 : false } },
+        { value: '5kw',  label: '3 – 5 kW',      match: p => { const m = (p.simplified_name + ' ' + p.tags).match(/(\d+(?:\.\d+)?)\s*kw/i); const v = m ? parseFloat(m[1]) : 0; return v > 3 && v <= 5 } },
+        { value: '10kw', label: '6 – 10 kW',     match: p => { const m = (p.simplified_name + ' ' + p.tags).match(/(\d+(?:\.\d+)?)\s*kw/i); const v = m ? parseFloat(m[1]) : 0; return v > 5 && v <= 10 } },
+        { value: 'big',  label: 'Above 10 kW',   match: p => { const m = (p.simplified_name + ' ' + p.tags).match(/(\d+(?:\.\d+)?)\s*kw/i); return m ? parseFloat(m[1]) > 10 : false } },
+      ],
+    },
+  ],
+
+  // ── Water Dispensers ─────────────────────────────────────────────────────────
+  water: [
+    {
+      key: 'watertype', label: 'Type',
+      options: [
+        { value: 'compressor', label: 'Compressor Cooling',   match: p => /compressor/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'electric',   label: 'Electric Cooling',     match: p => /electric.?cool|thermoelectric/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'hot',        label: 'Hot & Cold',           match: p => /hot.{1,8}cold|cold.{1,8}hot/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'floor',      label: 'Floor Standing',       match: p => /floor.?stand|stand.?type/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'table',      label: 'Table Top / Mini',     match: p => /table.?top|mini|counter/i.test(p.simplified_name + ' ' + p.tags) },
       ],
     },
   ],
 }
 
-// Which SPEC_FILTERS key maps to a category slug
+// Which SPEC_FILTERS key maps to a category slug / id
 function getSpecKey(catId: string): string {
-  if (catId === 'ac')        return 'ac'
-  if (catId === 'fridge')    return 'fridge'
-  if (catId === 'washing')   return 'washing'
-  if (catId === 'kitchen')   return 'kitchen'
-  if (catId === 'microwave') return 'microwave'
-  if (catId === 'small')     return 'small'
+  if (catId === 'ac' || catId === 'air-conditioners' || catId === 'air_conditioner') return 'ac'
+  if (catId === 'fridge' || catId === 'refrigerators' || catId === 'refrigerator') return 'fridge'
+  if (catId === 'freezer' || catId === 'freezers' || catId === 'deep_freezer') return 'freezer'
+  if (catId === 'washing' || catId === 'washing-machines' || catId === 'washing_machine') return 'washing'
+  if (catId === 'tv' || catId === 'televisions' || catId === 'television') return 'tv'
+  if (catId === 'kitchen' || catId === 'kitchen-appliances') return 'kitchen'
+  if (catId === 'microwave' || catId === 'microwave-ovens') return 'microwave'
+  if (catId === 'small' || catId === 'small-appliances') return 'small'
+  if (catId === 'solar' || catId === 'solar-solutions') return 'solar'
+  if (catId === 'water' || catId === 'water-dispensers') return 'water'
   return ''
 }
 
@@ -238,10 +394,10 @@ export default function Products() {
   const seoTitle = activeCat
     ? `${activeCat.name} — Buy in Karachi on Installments`
     : search
-    ? `Search: "${search}" — Reliance Appliances`
+    ? `Search: "${search}" — Reliance by Tajallis`
     : 'All Products — Home Appliances Karachi'
 
-  const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://reliance.tajallis.com.pk'
+  const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://tajallis.com.pk'
   const pageUrl  = categorySlug ? `/products/category/${categorySlug}` : '/products'
 
   const itemListSchema = filteredProducts.length > 0 ? {

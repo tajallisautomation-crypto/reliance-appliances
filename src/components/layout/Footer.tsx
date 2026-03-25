@@ -12,10 +12,13 @@ export default function Footer() {
           <div className="flex items-center gap-2 mb-4">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-black"
               style={{ background: 'linear-gradient(135deg,#f97316,#f5c842)' }}>R</div>
-            <span className="font-black text-lg">Reliance Appliances</span>
+            <div>
+              <span className="font-black text-lg leading-tight">Reliance</span>
+              <span className="block text-xs text-gray-400 font-medium -mt-0.5">by Tajallis</span>
+            </div>
           </div>
           <p className="text-sm text-gray-400 leading-relaxed mb-4">
-            Karachi's most trusted home appliance partner since 2015. Serving 14,000+ households with premium products and genuine after-sales support.
+            Karachi's most trusted home appliance partner since 2015. Serving 14,000+ households with genuine products and real after-sales support.
           </p>
           <div className="flex gap-2">
             <a href={waSales()} target="_blank" rel="noreferrer"
@@ -50,8 +53,9 @@ export default function Footer() {
           <ul className="space-y-2">
             {[
               ['Installment Plans',  '/installments'],
+              ['Customer Support',   '/support'],
               ['Installation',       '/services'],
-              ['Warranty Claims',    '/services'],
+              ['Warranty Claims',    '/support'],
               ['Green Corridor',     '/green-corridor'],
               ['Partner With Us',    '/partner'],
               ['Refer & Earn',       '/referral'],
@@ -74,7 +78,8 @@ export default function Footer() {
             {[
               { icon: Phone, val: '+92 370 2578788', href: 'tel:+923702578788' },
               { icon: Phone, val: '+92 335 4266238', href: 'tel:+923354266238' },
-              { icon: Mail,  val: 'info@relianceappliances.pk', href: 'mailto:info@relianceappliances.pk' },
+              { icon: Mail,  val: 'sales@tajallis.com.pk',   href: 'mailto:sales@tajallis.com.pk' },
+              { icon: Mail,  val: 'support@tajallis.com.pk', href: 'mailto:support@tajallis.com.pk' },
               { icon: MapPin, val: 'Karachi, Pakistan', href: 'https://maps.google.com/?q=Karachi,Pakistan' },
             ].map(({ icon: Icon, val, href }) => (
               <li key={val}>
@@ -89,7 +94,7 @@ export default function Footer() {
 
       <div className="border-t border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="text-xs text-gray-500">© {year} Reliance Appliances. All rights reserved.</p>
+          <p className="text-xs text-gray-500">© {year} Reliance by Tajallis. All rights reserved.</p>
           <div className="flex gap-4">
             {[['Privacy','/policy/privacy'],['Terms','/policy/terms'],['Warranty','/policy/warranty'],['Refund','/policy/refund']].map(([l,h]) => (
               <Link key={h} to={h} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">{l}</Link>

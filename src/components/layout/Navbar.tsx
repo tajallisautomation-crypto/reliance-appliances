@@ -27,6 +27,7 @@ const MOBILE_LINKS = [
   ['Services',          '/services'],
   ['Partner With Us',   '/partner'],
   ['Refer & Earn',      '/referral'],
+  ['Support / Complaints', '/support'],
   ['About',             '/about'],
   ['Contact',           '/contact'],
 ];
@@ -56,7 +57,9 @@ export default function Navbar() {
             <Link to="/" className="flex items-center gap-2 font-black text-lg text-gray-900 shrink-0 mr-2">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-black"
                 style={{ background: 'linear-gradient(135deg,#f97316,#f5c842)' }}>R</div>
-              <span className="hidden sm:inline">Reliance</span>
+              <span className="hidden sm:inline leading-tight">
+                Reliance <span className="text-xs font-medium text-gray-400 block -mt-0.5">by Tajallis</span>
+              </span>
             </Link>
 
             {/* Nav links — desktop */}

@@ -1,10 +1,10 @@
-import { useEffect, useState, startTransition } from 'react';
+import { useEffect, useState, startTransition, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import {
   ArrowLeft, ShoppingCart, MessageCircle, Shield, Truck, Award,
   Check, Wrench, Share2, Star, Phone, CalendarDays,
-  TrendingDown, TrendingUp, History, Info,
+  TrendingDown, TrendingUp, History, Info, ZoomIn, X, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { getProductBySlug, getRelatedProducts, getPriceHistory, formatPrice, DEFAULT_CATEGORIES } from '@/lib/api';
 import type { Product } from '@/lib/types';
@@ -48,6 +48,10 @@ export default function ProductDetail() {
   const [activeTab,  setActiveTab]  = useState<TabKey>('specs');
   const [priceHistory, setPriceHistory] = useState<{ retail_price: number; imported_at: string }[]>([]);
   const [priceHistoryLoading, setPriceHistoryLoading] = useState(true);
+  const [lightbox, setLightbox] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const dragRef = useRef<{ dragging: boolean; startX: number; startY: number; panX: number; panY: number }>({ dragging: false, startX: 0, startY: 0, panX: 0, panY: 0 });
 
   const addItem = useCartStore(s => s.addItem);
   const consultationThreshold = useSettingsStore(s => s.consultationThreshold) ?? CONSULTATION_THRESHOLD_DEFAULT;
@@ -93,6 +97,29 @@ export default function ProductDetail() {
   const specEntries = Object.entries(p.specs || {}).filter(([, v]) => v);
   const tags        = (p.tags || '').split(',').map(t => t.trim()).filter(Boolean);
 
+  // Lightbox helpers
+  const openLightbox = useCallback((idx: number) => { setActiveImg(idx); setZoom(1); setPan({ x: 0, y: 0 }); setLightbox(true); }, []);
+  const closeLightbox = useCallback(() => { setLightbox(false); setZoom(1); setPan({ x: 0, y: 0 }); }, []);
+  const lbPrev = useCallback(() => { setActiveImg(i => (i - 1 + allImages.length) % allImages.length); setZoom(1); setPan({ x: 0, y: 0 }); }, [allImages.length]);
+  const lbNext = useCallback(() => { setActiveImg(i => (i + 1) % allImages.length); setZoom(1); setPan({ x: 0, y: 0 }); }, [allImages.length]);
+
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    setZoom(z => Math.min(5, Math.max(1, z - e.deltaY * 0.002)));
+  }, []);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (zoom <= 1) return;
+    dragRef.current = { dragging: true, startX: e.clientX, startY: e.clientY, panX: pan.x, panY: pan.y };
+  }, [zoom, pan]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!dragRef.current.dragging) return;
+    setPan({ x: dragRef.current.panX + e.clientX - dragRef.current.startX, y: dragRef.current.panY + e.clientY - dragRef.current.startY });
+  }, []);
+
+  const handleMouseUp = useCallback(() => { dragRef.current.dragging = false; }, []);
+
   // WhatsApp CTA URL
   const waUrl = plan === 'cash'
     ? waProduct(p.brand, p.model)
@@ -102,7 +129,7 @@ export default function ProductDetail() {
     `Hi, I'm interested in the ${p.simplified_name || `${p.brand} ${p.model}`} and would like to book a free consultation.`
   );
 
-  const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://reliance.tajallis.com.pk';
+  const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://tajallis.com.pk';
   // Find the best matching DEFAULT_CATEGORIES entry for this product's DB category
   // (DB may store "Televisions & LEDs" which differs from slug 'televisions')
   const _rawCat = p.category.toLowerCase();
@@ -134,7 +161,7 @@ export default function ProductDetail() {
         ? 'https://schema.org/InStock'
         : 'https://schema.org/OutOfStock',
       url: `${SITE_URL}/products/${p.slug}`,
-      seller: { '@type': 'Organization', name: 'Reliance Appliances', url: SITE_URL },
+      seller: { '@type': 'Organization', name: 'Reliance by Tajallis', url: SITE_URL },
       priceValidUntil: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
       hasMerchantReturnPolicy: {
         '@type': 'MerchantReturnPolicy',
@@ -191,13 +218,26 @@ export default function ProductDetail() {
 
         {/* ── Images (sticky) ── */}
         <div className="md:sticky md:top-24 self-start">
-          <div className="aspect-square rounded-3xl overflow-hidden bg-gray-50 mb-3 shadow-apple-lg relative group">
+          <div
+            className="aspect-square rounded-3xl overflow-hidden bg-gray-50 mb-3 shadow-apple-lg relative group cursor-zoom-in"
+            onClick={() => openLightbox(activeImg)}
+          >
             <img src={allImages[activeImg] || p.thumbnail} alt={`${p.brand} ${p.model}`}
               className="w-full h-full object-cover transition-opacity duration-300" />
-            <button onClick={handleShare}
-              className="absolute top-3 right-3 w-9 h-9 bg-white/90 rounded-full flex items-center justify-center text-gray-500 hover:text-brand-500 shadow-apple transition-colors opacity-0 group-hover:opacity-100">
-              <Share2 className="h-4 w-4" />
-            </button>
+            {/* Overlay buttons */}
+            <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={e => { e.stopPropagation(); openLightbox(activeImg); }}
+                className="w-9 h-9 bg-white/90 rounded-full flex items-center justify-center text-gray-600 hover:text-brand-500 shadow-apple">
+                <ZoomIn className="h-4 w-4" />
+              </button>
+              <button onClick={e => { e.stopPropagation(); handleShare(); }}
+                className="w-9 h-9 bg-white/90 rounded-full flex items-center justify-center text-gray-500 hover:text-brand-500 shadow-apple">
+                <Share2 className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="absolute bottom-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="bg-black/50 text-white text-xs px-2 py-1 rounded-lg font-medium">Click to zoom</span>
+            </div>
           </div>
           {allImages.length > 1 && (
             <div className="flex gap-2 overflow-x-auto pb-1">
@@ -215,6 +255,82 @@ export default function ProductDetail() {
             </div>
           )}
         </div>
+
+        {/* ── Lightbox ── */}
+        {lightbox && (
+          <div
+            className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
+            onKeyDown={e => { if (e.key === 'Escape') closeLightbox(); if (e.key === 'ArrowLeft') lbPrev(); if (e.key === 'ArrowRight') lbNext(); }}
+            tabIndex={-1}
+            ref={el => el?.focus()}
+          >
+            {/* Close */}
+            <button onClick={closeLightbox}
+              className="absolute top-4 right-4 z-10 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Nav arrows */}
+            {allImages.length > 1 && (
+              <>
+                <button onClick={lbPrev}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors">
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button onClick={lbNext}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors">
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </>
+            )}
+
+            {/* Zoom controls */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-3 bg-black/60 rounded-2xl px-4 py-2">
+              <button onClick={() => setZoom(z => Math.max(1, z - 0.5))} className="text-white/70 hover:text-white w-7 h-7 flex items-center justify-center text-xl font-bold">−</button>
+              <span className="text-white text-sm font-medium w-12 text-center">{Math.round(zoom * 100)}%</span>
+              <button onClick={() => setZoom(z => Math.min(5, z + 0.5))} className="text-white/70 hover:text-white w-7 h-7 flex items-center justify-center text-xl font-bold">+</button>
+              {zoom > 1 && <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="text-white/50 hover:text-white text-xs ml-1">Reset</button>}
+            </div>
+
+            {/* Counter */}
+            {allImages.length > 1 && (
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white/60 text-sm font-medium">
+                {activeImg + 1} / {allImages.length}
+              </div>
+            )}
+
+            {/* Image */}
+            <div
+              className="w-full h-full flex items-center justify-center overflow-hidden"
+              onWheel={handleWheel}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              style={{ cursor: zoom > 1 ? (dragRef.current.dragging ? 'grabbing' : 'grab') : 'zoom-in' }}
+            >
+              <img
+                src={allImages[activeImg]}
+                alt={`${p.brand} ${p.model}`}
+                draggable={false}
+                className="max-h-[90vh] max-w-[90vw] object-contain select-none transition-transform duration-100"
+                style={{ transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)` }}
+              />
+            </div>
+
+            {/* Thumbnail strip */}
+            {allImages.length > 1 && (
+              <div className="absolute bottom-14 left-1/2 -translate-x-1/2 flex gap-2 overflow-x-auto max-w-[90vw]">
+                {allImages.map((img, i) => (
+                  <button key={i} onClick={() => { setActiveImg(i); setZoom(1); setPan({ x: 0, y: 0 }); }}
+                    className={`flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition-all ${activeImg === i ? 'border-white' : 'border-white/20 hover:border-white/60'}`}>
+                    <img src={img} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Details ── */}
         <div>

@@ -64,7 +64,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-white">
       <SEO
-        title="Reliance Appliances — Premium Home Appliances Karachi"
+        title="Reliance by Tajallis — Premium Home Appliances Karachi"
         description="Shop ACs, refrigerators, washing machines, TVs & solar systems on easy installments. Karachi's most trusted appliance store since 2015. Genuine products, home delivery & after-sale support."
         keywords="home appliances karachi, buy ac karachi, refrigerator installment karachi, solar panels karachi, haier dawlance price pakistan"
         path="/"

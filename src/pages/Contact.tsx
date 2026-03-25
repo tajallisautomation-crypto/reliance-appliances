@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 const CONTACT_INFO = [
   { icon: Phone,   label: 'Sales',   value: '+92 370 2578788', href: 'tel:+923702578788' },
   { icon: Phone,   label: 'Support', value: '+92 335 4266238', href: 'tel:+923354266238' },
-  { icon: Mail,    label: 'Email',   value: 'info@relianceappliances.pk', href: 'mailto:info@relianceappliances.pk' },
+  { icon: Mail,    label: 'Email',   value: 'support@tajallis.com.pk', href: 'mailto:support@tajallis.com.pk' },
   { icon: MapPin,  label: 'Location', value: 'Karachi, Pakistan', href: '#' },
 ]
 
@@ -49,8 +49,8 @@ export default function Contact() {
   return (
     <div className="min-h-screen bg-white">
       <SEO
-        title="Contact Us — Reliance Appliances Karachi"
-        description="Get in touch with Reliance Appliances. Call, WhatsApp, or send us a message. We're here to help with product enquiries, orders, and after-sale support."
+        title="Contact Us — Reliance by Tajallis Karachi"
+        description="Get in touch with Reliance by Tajallis. Call, WhatsApp, or send us a message. We're here to help with product enquiries, orders, and after-sale support."
         keywords="contact reliance appliances karachi, appliance store phone number, whatsapp appliances pakistan"
       />
 

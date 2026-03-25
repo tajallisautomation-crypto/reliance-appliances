@@ -3173,7 +3173,7 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
 
 // ── WhatsApp Catalog Export Panel ─────────────────────────────────────────────
 
-const FEED_URL = 'https://reliance.tajallis.com.pk/api/meta-catalog';
+const FEED_URL = 'https://tajallis.com.pk/api/meta-catalog';
 
 function CatalogExportPanel({ products }: { products: Product[] }) {
   const [view,       setView]       = useState<'summary' | 'issues' | 'sets'>('summary');
@@ -3692,7 +3692,7 @@ function generateSolarPdf(lead: SolarLead, opts: {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(160, 160, 160);
-  doc.text('reliance.tajallis.com.pk  |  +92 335 426 6238  |  Karachi', margin, 28);
+  doc.text('tajallis.com.pk  |  +92 335 426 6238  |  Karachi', margin, 28);
 
   doc.setTextColor(251, 146, 60); // orange-400
   doc.setFont('helvetica', 'bold');
@@ -3847,7 +3847,7 @@ function generateSolarPdf(lead: SolarLead, opts: {
   doc.setFont('helvetica', 'normal');
   doc.text('This proposal is valid for 7 days. Prices are subject to market variation. Reliance Tajalli — Karachi.', margin, 284);
   doc.setTextColor(251, 146, 60);
-  doc.text('reliance.tajallis.com.pk', W / 2, 291, { align: 'center' });
+  doc.text('tajallis.com.pk', W / 2, 291, { align: 'center' });
 
   return doc.output('blob') as Blob;
 }

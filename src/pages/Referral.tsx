@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Gift, Share2, CheckCircle, Users, TrendingUp, Copy, MessageCircle } from 'lucide-react'
 import SEO from '../components/ui/SEO'
 
-const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://reliance.tajallis.com.pk'
+const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://tajallis.com.pk'
 
 function generateCode(name: string, phone: string): string {
   const namePart = name.replace(/\s+/g, '').toUpperCase().slice(0, 4)
@@ -42,8 +42,8 @@ export default function ReferralPage() {
   return (
     <div className="min-h-screen bg-white">
       <SEO
-        title="Referral Program — Reliance Appliances"
-        description="Earn 1% commission on every sale you refer to Reliance Appliances. Share your link, earn rewards."
+        title="Referral Program — Reliance by Tajallis"
+        description="Earn 1% commission on every sale you refer to Reliance by Tajallis. Share your link, earn rewards."
       />
 
       {/* Hero */}

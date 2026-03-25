@@ -101,7 +101,7 @@ export default function GreenCorridor() {
     <div className="min-h-screen bg-white">
       <SEO
         path="/green-corridor"
-        title="Green Corridor — Solar, Inverter ACs & EV Charging | Reliance Appliances"
+        title="Green Corridor — Solar, Inverter ACs & EV Charging | Reliance by Tajallis"
         description="Cut your electricity bill by up to 85%. Complete solar systems, inverter ACs and EV home chargers on easy installments. Free site assessment in Karachi."
         keywords="solar system karachi, inverter ac karachi, ev charger pakistan, solar installation karachi, green energy karachi"
       />

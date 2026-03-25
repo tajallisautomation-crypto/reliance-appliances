@@ -4,7 +4,7 @@ import SEO from '@/components/ui/SEO'
 import { waSales } from '@/lib/whatsapp'
 
 const TEAM = [
-  { name: 'Reliance Appliances', role: 'Karachi\'s trusted home appliance partner since 2015', initial: 'R', color: 'from-blue-500 to-cyan-500' },
+  { name: 'Reliance by Tajallis', role: 'Karachi\'s trusted home appliance partner since 2015', initial: 'R', color: 'from-blue-500 to-cyan-500' },
 ]
 
 const STATS = [
@@ -25,8 +25,8 @@ export default function About() {
   return (
     <div className="min-h-screen bg-white">
       <SEO
-        title="About Us — Reliance Appliances Karachi"
-        description="Learn about Reliance Appliances — Karachi's most trusted home appliance partner since 2015. Serving 14,000+ households with genuine products, easy installments & real after-sale support."
+        title="About Us — Reliance by Tajallis Karachi"
+        description="Learn about Reliance by Tajallis — Karachi's most trusted home appliance destination since 2015. Serving 14,000+ households with genuine products, easy installments & real after-sale support."
         keywords="about reliance appliances karachi, home appliances karachi, trusted appliance store pakistan"
       />
 
@@ -40,7 +40,7 @@ export default function About() {
             Karachi's Most Trusted<br />Appliance Partner
           </h1>
           <p className="text-lg text-blue-100 max-w-2xl mx-auto">
-            Since 2015, Reliance Appliances has been helping Karachi households get the best home appliances — with genuine products, flexible installments, and real after-sale support.
+            Since 2015, Reliance by Tajallis has been helping Karachi households get the best home appliances — with genuine products, flexible installments, and real after-sale support.
           </p>
         </div>
       </section>
@@ -65,7 +65,7 @@ export default function About() {
             <h2 className="text-3xl font-black text-gray-900 mb-4">Built on Trust, Grown by Service</h2>
             <div className="space-y-4 text-gray-600 leading-relaxed">
               <p>
-                Reliance Appliances was founded with a simple belief: every Pakistani family deserves access to quality home appliances at fair prices — without the runaround of grey-market products or opaque pricing.
+                Reliance by Tajallis was founded with a simple belief: every Pakistani family deserves access to quality home appliances at fair prices — without the runaround of grey-market products or opaque pricing.
               </p>
               <p>
                 We started small in Karachi, focusing on a few key brands and building deep expertise in what we sell. Over the years, we've grown by word of mouth — customer by customer — because we do what we say.
