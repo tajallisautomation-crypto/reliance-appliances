@@ -294,8 +294,7 @@ export default function Portal() {
               <Phone className="w-4 h-4" /> Call Us
             </a>
             <a href={waSales()} target="_blank" rel="noreferrer"
-              className="flex items-center gap-2 text-white font-semibold px-5 py-3 rounded-xl text-sm"
-              style={{ background: '#25d366' }}>
+              className="flex items-center gap-2 text-white font-semibold px-5 py-3 rounded-xl text-sm bg-wa hover:bg-wa-hover transition-colors">
               <MessageCircle className="w-4 h-4" /> WhatsApp
             </a>
           </div>

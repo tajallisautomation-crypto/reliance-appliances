@@ -58,8 +58,7 @@ function WABtn({ text }: { text: string }) {
   if (encodeURIComponent(text).length <= MAX_WA_CHARS)
     return (
       <a href={wa(WA_SALES, text)} target="_blank" rel="noreferrer"
-        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-white hover:opacity-90"
-        style={{ background: '#25d366' }}>
+        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-white hover:opacity-90 bg-wa hover:bg-wa-hover transition-colors">
         <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
       </a>
     )
@@ -311,6 +310,7 @@ export default function SalesCatalog() {
   const [viewMode,    setViewMode]    = useState<'table' | 'flyer'>('flyer')
   const [cache,       setCache]       = useState<Record<string, Product[]>>({})
   const [loading,     setLoading]     = useState(false)
+  const [loadError,   setLoadError]   = useState('')
   const [megaCopied,  setMegaCopied]  = useState(false)
 
   const activeCat = CATALOG_CATEGORIES.find(c => c.id === activeCatId)!
@@ -318,10 +318,13 @@ export default function SalesCatalog() {
   const loadCat = useCallback(async (cat: CatalogCategory, force = false) => {
     if (!force && cache[cat.id] !== undefined) return
     setLoading(true)
+    setLoadError('')
     try {
-      // admin:true fetches ALL products including those without images
+      // admin:true fetches ALL products including those without images / prices
       const { products } = await getProducts({ category: cat.catParam, sort: 'name_asc', admin: 'true' })
       setCache(prev => ({ ...prev, [cat.id]: products }))
+    } catch (e: any) {
+      setLoadError(e?.message || 'Failed to load products.')
     } finally { setLoading(false) }
   }, [cache])
 
@@ -396,7 +399,17 @@ export default function SalesCatalog() {
               <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </button>
           </div>
-          <CategoryPanel cat={activeCat} products={cache[activeCatId] ?? null} loading={loading} viewMode={viewMode} />
+          {loadError && (
+            <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+              <span className="text-3xl">⚠️</span>
+              <p className="text-sm font-semibold text-red-600">{loadError}</p>
+              <button onClick={() => loadCat(activeCat, true)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors">
+                <RefreshCw className="w-3.5 h-3.5" /> Try Again
+              </button>
+            </div>
+          )}
+          {!loadError && <CategoryPanel cat={activeCat} products={cache[activeCatId] ?? null} loading={loading} viewMode={viewMode} />}
         </div>
       </div>
     </div>

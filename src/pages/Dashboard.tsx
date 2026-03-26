@@ -303,8 +303,7 @@ export default function Dashboard() {
                       <p className="text-xs text-gray-500">{f.product} · {f.type.replace('-',' ')}</p>
                     </div>
                     <a href={`https://wa.me/${f.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
-                      className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white"
-                      style={{ background:'#25d366' }}>
+                      className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white bg-wa hover:bg-wa-hover transition-colors">
                       <MessageCircle className="h-4 w-4" />
                     </a>
                   </div>
@@ -549,8 +548,7 @@ export default function Dashboard() {
                         <td className="py-3">
                           <a href={`https://wa.me/${f.phone.replace(/\D/g,'')}?text=Salam%20${f.customer}!`}
                             target="_blank" rel="noreferrer"
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold text-white"
-                            style={{ background:'#25d366' }}>
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold text-white bg-wa hover:bg-wa-hover transition-colors">
                             <MessageCircle className="h-3 w-3" /> Send
                           </a>
                         </td>

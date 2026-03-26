@@ -280,8 +280,7 @@ export default function Partner() {
               Our partnership team will call you within 48 hours. In the meantime, feel free to reach out on WhatsApp.
             </p>
             <a href={waPartner} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-2 font-bold text-white px-6 py-3 rounded-xl"
-              style={{ background: '#25d366' }}>
+              className="inline-flex items-center gap-2 font-bold text-white px-6 py-3 rounded-xl bg-wa hover:bg-wa-hover transition-colors">
               <MessageCircle className="w-4 h-4" /> WhatsApp Us
             </a>
           </div>
@@ -368,8 +367,7 @@ export default function Partner() {
               <div className="bg-red-50 border border-red-100 rounded-xl p-4">
                 <p className="text-sm text-red-700">{error}</p>
                 <a href={waPartner} target="_blank" rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-sm font-semibold mt-2"
-                  style={{ color: '#25d366' }}>
+                  className="inline-flex items-center gap-1 text-sm font-semibold mt-2 text-wa">
                   <MessageCircle className="w-4 h-4" /> WhatsApp Us Instead
                 </a>
               </div>

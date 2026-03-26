@@ -22,10 +22,10 @@ const BRANDS = [
 ]
 
 const WHY_RELIANCE = [
-  { icon: ShieldCheck, title: 'Authentic Products',   desc: 'Every product 100% genuine with official warranty.',          color: 'blue' },
-  { icon: CreditCard,  title: 'Easy Installments',    desc: '2–12 month plans, no bank account required.',                color: 'green' },
-  { icon: Truck,       title: 'Home Delivery',        desc: 'Fast delivery & professional installation service.',          color: 'orange' },
-  { icon: Headphones,  title: 'After-Sale Support',   desc: 'Dedicated service team, follow-up & warranty claims.',       color: 'purple' },
+  { icon: ShieldCheck, title: 'Authentic Products',   desc: 'Every product 100% genuine with official warranty.',          bg: '#dbeafe', fg: '#1d4ed8' },
+  { icon: CreditCard,  title: 'Easy Installments',    desc: '2–12 month plans, no bank account required.',                bg: '#dcfce7', fg: '#15803d' },
+  { icon: Truck,       title: 'Home Delivery',        desc: 'Fast delivery & professional installation service.',          bg: '#ffedd5', fg: '#c2410c' },
+  { icon: Headphones,  title: 'After-Sale Support',   desc: 'Dedicated service team, follow-up & warranty claims.',       bg: '#f3e8ff', fg: '#7e22ce' },
 ]
 
 const PLAN_OPTIONS = [
@@ -356,8 +356,8 @@ export default function Home() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {WHY_RELIANCE.map(item => (
             <div key={item.title} className="text-center p-6">
-              <div className={`w-14 h-14 bg-${item.color}-100 rounded-2xl flex items-center justify-center mx-auto mb-4`}>
-                <item.icon className={`w-7 h-7 text-${item.color}-600`} />
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: item.bg }}>
+                <item.icon className="w-7 h-7" style={{ color: item.fg }} />
               </div>
               <h3 className="font-bold text-gray-800 mb-2">{item.title}</h3>
               <p className="text-sm text-gray-500">{item.desc}</p>
@@ -414,8 +414,7 @@ export default function Home() {
               Shop All Products
             </Link>
             <a href={waSales()} target="_blank" rel="noreferrer"
-              className="font-bold px-8 py-4 rounded-2xl flex items-center gap-2 justify-center transition-colors"
-              style={{ background: '#25d366' }}>
+              className="bg-green-500 hover:bg-green-600 text-white font-bold px-8 py-4 rounded-2xl flex items-center gap-2 justify-center transition-colors">
               <MessageCircle className="w-4 h-4" /> WhatsApp Us
             </a>
           </div>

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Trash2, Plus, Minus, ShoppingCart, ArrowRight } from 'lucide-react'
+import { Trash2, Plus, Minus, ShoppingCart, ArrowRight, MessageCircle } from 'lucide-react'
 import { useCartStore } from '../store/cartStore'
 import { fmtPKR, fixImageUrl, calcAllPlans } from '../lib/api'
 import SEO from '../components/ui/SEO'
@@ -82,7 +82,7 @@ export default function Cart() {
               </Link>
               <a href={`https://wa.me/923702578788?text=${encodeURIComponent('Hi! I want to order:\n' + items.map(i => `• ${i.qty}× ${i.simplified_name || i.model} — ${fmtPKR((i.price?.cash_floor || 0) * i.qty)}`).join('\n') + `\n\nTotal: ${fmtPKR(cartTotal)}`)}`}
                 className="flex items-center justify-center gap-2 w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-semibold">
-                💬 Order via WhatsApp
+                <MessageCircle className="w-4 h-4" /> Order via WhatsApp
               </a>
             </div>
           </div>

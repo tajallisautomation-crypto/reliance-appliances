@@ -16,6 +16,14 @@ export default {
           700: '#c2410c',
           900: '#7c2d12',
         },
+        wa: {
+          DEFAULT: '#25d366',
+          hover:   '#1ebe57',
+        },
+        fb: {
+          DEFAULT: '#1877f2',
+          hover:   '#0d65d9',
+        },
         eco: {
           50:  '#f0fdf4',
           100: '#dcfce7',

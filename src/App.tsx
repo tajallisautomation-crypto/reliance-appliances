@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
 import { Suspense, lazy, useEffect } from 'react'
+import { Toaster } from 'react-hot-toast'
 import Layout from './components/layout/Layout'
 import { useSettingsStore } from './store/settingsStore'
 import ErrorBoundary from './components/ui/ErrorBoundary'
@@ -47,6 +48,7 @@ export default function App() {
   return (
     <Router>
       <ScrollToTop />
+      <Toaster position="bottom-right" toastOptions={{ duration: 2000, style: { borderRadius: '12px', fontSize: '13px' } }} />
       <ErrorBoundary>
       <Layout>
         <Suspense fallback={<Spinner />}>

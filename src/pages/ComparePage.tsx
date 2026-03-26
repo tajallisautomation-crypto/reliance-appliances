@@ -254,8 +254,7 @@ export default function ComparePage() {
                     <a
                       href={waProduct(p.brand, p.model)}
                       target="_blank" rel="noreferrer"
-                      className="flex items-center justify-center gap-1.5 text-xs font-bold py-2 rounded-lg w-full text-white transition-colors"
-                      style={{ background: '#25d366' }}
+                      className="flex items-center justify-center gap-1.5 text-xs font-bold py-2 rounded-lg w-full text-white bg-wa hover:bg-wa-hover transition-colors"
                     >
                       <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
                     </a>

@@ -114,13 +114,22 @@ export const CATEGORY_MAP: Record<string, string> = {
 /** Alias for backward compat */
 export const DEFAULT_CATEGORIES: Category[] = [
   { id:'ac',        name:'Air Conditioners',   icon:'❄️',  slug:'air-conditioners'    },
-  { id:'fridge',    name:'Refrigerators',      icon:'🧊',  slug:'refrigerators'       },
+  { id:'fridge',       name:'Refrigerators',        icon:'🧊',  slug:'refrigerators'            },
+  { id:'fridge-nofrost', name:'No-Frost Refs',    icon:'❄️',  slug:'no-frost-refrigerators'   },
+  { id:'fridge-sbs',     name:'Side by Side',     icon:'↔️',  slug:'side-by-side-refrigerators'},
+  { id:'fridge-french',  name:'French Door / T-Door', icon:'🚪', slug:'french-door-refrigerators'},
   { id:'freezer',   name:'Freezers',           icon:'🥶',  slug:'freezers'            },
   { id:'washing',   name:'Washing Machines',   icon:'👕',  slug:'washing-machines'    },
+  { id:'frontload', name:'Front Load',         icon:'🌀',  slug:'front-load-washing-machines' },
   { id:'tv',        name:'Televisions',        icon:'📺',  slug:'televisions'         },
   { id:'kitchen',   name:'Kitchen Appliances', icon:'🍳',  slug:'kitchen-appliances'  },
-  { id:'microwave', name:'Microwave Ovens',    icon:'📡',  slug:'microwave-ovens'     },
-  { id:'solar',     name:'Solar Solutions',    icon:'☀️',  slug:'solar-solutions'     },
+  { id:'microwave-solo',        name:'Solo Microwaves',        icon:'📡',  slug:'solo-microwave-ovens'          },
+  { id:'microwave-grill',       name:'Grill Microwaves',       icon:'🔥',  slug:'grill-microwave-ovens'         },
+  { id:'microwave-convection',  name:'Convection & Air Fryer', icon:'🌀',  slug:'convection-air-fryer-ovens'    },
+  { id:'solar-inverter',   name:'Solar Inverters',  icon:'⚡',  slug:'solar-inverters'      },
+  { id:'solar-battery',    name:'Solar Batteries',  icon:'🔋',  slug:'solar-batteries'      },
+  { id:'solar-panel',      name:'Solar Panels',     icon:'☀️',  slug:'solar-panels'         },
+  { id:'solar-pump',       name:'Solar Water Pumps',icon:'🌊',  slug:'solar-water-pumps'    },
   { id:'small',     name:'Small Appliances',   icon:'🔌',  slug:'small-appliances'    },
   { id:'water',     name:'Water Dispensers',   icon:'💧',  slug:'water-dispensers'    },
   { id:'hood',      name:'Hood & Hobs',        icon:'🔥',  slug:'hood-hobs'           },
@@ -185,7 +194,7 @@ function rowToProduct(r: any): Product {
 const _cache = new Map<string, { data: any; ts: number }>();
 function _fromCache(key: string) {
   const c = _cache.get(key);
-  return c && Date.now() - c.ts < 5 * 60 * 1000 ? c.data : null;
+  return c && Date.now() - c.ts < 30 * 1000 ? c.data : null;
 }
 function _setCache(key: string, data: any) { _cache.set(key, { data, ts: Date.now() }); }
 export function clearCache() { _cache.clear(); _rootFolderMap = null; }
@@ -194,8 +203,15 @@ export function clearCache() { _cache.clear(); _rootFolderMap = null; }
 
 export async function getProducts(params?: Record<string, string>): Promise<{ products: Product[]; total: number }> {
   const cKey = 'products:' + JSON.stringify(params || {});
+  const isAdmin = params?.admin === 'true';
   const hit = _fromCache(cKey);
-  if (hit) return hit;
+  if (hit) {
+    if (isAdmin) return hit;
+    // Always re-apply price filter on cached results — guards against stale cache
+    // that was populated before the filter existed.
+    const products = (hit.products as Product[]).filter(p => p.price.cash_floor > 0);
+    return { products, total: products.length };
+  }
 
   try {
     // Apply ordering — price/name sorts replace featured default so results are truly ordered
@@ -211,6 +227,12 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
     // products without images are still visible and can be managed.
     if (params?.admin !== 'true') {
       q = q.not('thumbnail_url', 'is', null).neq('thumbnail_url', '');
+      // Hide products with no price: require cash_floor > 0 OR retail_price > 0.
+      // cash_floor alone isn't enough because some rows store the price only in
+      // retail_price (cash_floor stays NULL), while rowToProduct derives
+      // the displayed price from whichever column is populated.
+      q = q.or('cash_floor.gt.0,retail_price.gt.0');
+      q = q.neq('stock_status', 'Discontinued');          // hide discontinued
     }
     if (params?.brand)        q = q.ilike('brand', params.brand);
     if (params?.stock_status) q = q.eq('stock_status', params.stock_status);
@@ -231,8 +253,12 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
         // ── Short button IDs ──────────────────────────────────────
         'ac':      ['air condition', 'ton air'],   // matches "1 Ton Air Conditioners" etc.
         'fridge':  ['refrigerat'],                 // matches "Small/Medium/Large Refrigerators"
+        'fridge-nofrost': ['no-frost refrigerat'],
+        'fridge-sbs':     ['side-by-side refrigerat'],
+        'fridge-french':  ['french door refrigerat'],
         'freezer': ['freezer'],
-        'washing': ['washing'],                    // matches "Automatic/Semi-Automatic Washing Machines"
+        'washing': ['washing'],                    // matches "Automatic/Semi-Automatic/Front Load Washing Machines"
+        'frontload': ['front load washing'],       // Front Load Washing Machines only
         'tv':      ['television', 'led', 'smart led', 'smart tv', 'qled'],
         'solar':   ['solar'],
         'kitchen': ['kitchen'],                    // matches all "Kitchen …" subcategories
@@ -318,6 +344,26 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
         'dishwasher':   ['dishwasher'],
         'spinners':     ['spinner', 'spin dryer'],
         'spin-dryers':  ['spinner', 'spin dryer'],
+        // ── Refrigerator sub-categories ──────────────────────────
+        'no-frost-refrigerators':       ['no-frost refrigerat'],
+        'side-by-side-refrigerators':   ['side-by-side refrigerat'],
+        'french-door-refrigerators':    ['french door refrigerat'],
+        // ── Microwave sub-categories ──────────────────────────────
+        'microwave-solo':                ['solo microwave'],
+        'solo-microwave-ovens':          ['solo microwave'],
+        'microwave-grill':               ['grill microwave'],
+        'grill-microwave-ovens':         ['grill microwave'],
+        'microwave-convection':          ['convection & air fryer'],
+        'convection-air-fryer-ovens':    ['convection & air fryer'],
+        // ── Solar sub-categories ──────────────────────────────────
+        'solar-inverter':   ['solar inverter'],
+        'solar-inverters':  ['solar inverter'],
+        'solar-battery':    ['solar battery'],
+        'solar-batteries':  ['solar battery'],
+        'solar-panel':        ['solar panel'],
+        'solar-panels':       ['solar panel'],
+        'solar-pump':         ['solar water pump'],
+        'solar-water-pumps':  ['solar water pump'],
       };
       const terms = CAT_TERMS[params.category.toLowerCase()];
       if (terms) {
@@ -335,7 +381,9 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
     }
     const { data, error } = await q;
     if (error) throw error;
-    const result = { products: (data || []).map(rowToProduct), total: data?.length || 0 };
+    const mapped = (data || []).map(rowToProduct);
+    const products = isAdmin ? mapped : mapped.filter(p => p.price.cash_floor > 0);
+    const result = { products, total: products.length };
     _setCache(cKey, result);
     return result;
   } catch {

@@ -8,13 +8,17 @@ import { buildSearchIndex, autocomplete, type SearchIndex, type SearchSuggestion
 
 // ── Shared index cache (so multiple SearchBar instances share one load) ────────
 let _cachedIndex: SearchIndex | null = null;
+let _indexTs = 0;
 let _indexPromise: Promise<SearchIndex> | null = null;
+const INDEX_TTL = 60 * 1000; // 1 minute
 
 async function getIndex(): Promise<SearchIndex> {
-  if (_cachedIndex) return _cachedIndex;
+  if (_cachedIndex && Date.now() - _indexTs < INDEX_TTL) return _cachedIndex;
   if (!_indexPromise) {
     _indexPromise = getProducts().then(({ products }) => {
       _cachedIndex = buildSearchIndex(products);
+      _indexTs = Date.now();
+      _indexPromise = null;
       return _cachedIndex;
     });
   }

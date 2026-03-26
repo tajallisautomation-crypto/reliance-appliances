@@ -22,13 +22,11 @@ export default function Footer() {
           </p>
           <div className="flex gap-2">
             <a href={waSales()} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white"
-              style={{ background: '#25d366' }}>
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white bg-green-500 hover:bg-green-600 transition-colors">
               <MessageCircle className="h-4 w-4" /> WhatsApp
             </a>
             <a href="https://www.facebook.com/tajallishomecollection/" target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white"
-              style={{ background: '#1877f2' }}>
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors">
               <Facebook className="h-4 w-4" /> Facebook
             </a>
           </div>

@@ -37,7 +37,7 @@ export default function ProductCard({ product: p }: Props) {
           <img
             src={p.thumbnail}
             alt={`${p.brand} ${p.model}`}
-            className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500 ease-out"
+            className="w-full h-full object-contain p-3 group-hover:scale-[1.03] transition-transform duration-500 ease-out"
             loading="lazy"
             onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
@@ -48,7 +48,12 @@ export default function ProductCard({ product: p }: Props) {
         )}
 
         {/* Badges — top */}
-        <div className="absolute top-2.5 left-2.5 flex gap-1.5">
+        <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5 max-w-[calc(100%-1.25rem)]">
+          {p.stock_status === 'Discontinued' && (
+            <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 tracking-wide">
+              Discontinued
+            </span>
+          )}
           {p.featured && (
             <span className="inline-flex items-center gap-1 bg-amber-400 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-full">
               <Star className="w-2.5 h-2.5 fill-current" /> Featured
@@ -60,9 +65,7 @@ export default function ProductCard({ product: p }: Props) {
             </span>
           )}
         </div>
-
-        {/* Out of stock overlay */}
-        {p.stock_status !== 'In Stock' && (
+        {p.stock_status !== 'In Stock' && p.stock_status !== 'Discontinued' && (
           <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center">
             <span className="text-white font-bold text-xs bg-black/50 px-3 py-1.5 rounded-full tracking-wide">Out of Stock</span>
           </div>
@@ -79,8 +82,7 @@ export default function ProductCard({ product: p }: Props) {
           <CompareButton product={p} variant="icon" />
           <a href={waProduct(p.brand, p.model)} target="_blank" rel="noreferrer"
             aria-label={`Enquire about ${p.model}`} onClick={e => e.stopPropagation()}
-            className="w-9 h-9 rounded-full bg-white shadow-apple-lg flex items-center justify-center transition-colors hover:bg-[#25d366] hover:text-white"
-            style={{ color: '#25d366' }}>
+            className="w-9 h-9 rounded-full bg-white shadow-apple-lg flex items-center justify-center transition-colors text-green-500 hover:bg-green-500 hover:text-white">
             <MessageCircle className="w-4 h-4" />
           </a>
         </div>

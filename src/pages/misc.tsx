@@ -81,8 +81,7 @@ export function Services() {
           </p>
           <div className="flex flex-wrap gap-4 justify-center mt-8">
             <a href="https://wa.me/923702578788?text=Hi%2C%20I%27d%20like%20to%20book%20a%20service"
-              className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-white"
-              style={{ background: '#25d366' }}>
+              className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
               <MessageCircle className="w-4 h-4" /> Book on WhatsApp
             </a>
             <a href="tel:+923702578788"
@@ -202,8 +201,7 @@ export function Services() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a href="https://wa.me/923702578788?text=Hi%2C%20I%27d%20like%20to%20book%20a%20service%20visit"
-              className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-bold text-white"
-              style={{ background: '#25d366' }}>
+              className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
               <MessageCircle className="w-4 h-4" /> Book on WhatsApp
             </a>
             <a href="tel:+923702578788"
@@ -280,8 +278,7 @@ export function Corporate() {
           </p>
           <div className="flex flex-wrap gap-4 justify-center mt-8">
             <a href="https://wa.me/923354266238?text=Hi%2C%20I%27d%20like%20a%20corporate%20quote"
-              className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-white"
-              style={{ background: '#25d366' }}>
+              className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
               <MessageCircle className="w-4 h-4" /> WhatsApp Corporate Team
             </a>
             <a href="tel:+923354266238"
@@ -370,8 +367,7 @@ export function Corporate() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a href="https://wa.me/923354266238?text=Hi%2C%20I%27d%20like%20a%20corporate%20appliance%20quote%20for%20my%20business"
-              className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-bold text-white"
-              style={{ background: '#25d366' }}>
+              className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
               <MessageCircle className="w-4 h-4" /> WhatsApp Corporate Team
             </a>
             <a href="tel:+923354266238"

@@ -157,33 +157,19 @@ const SPEC_FILTERS: Record<string, SpecFilter[]> = {
     {
       key: 'tvsize', label: 'Screen Size',
       options: [
-        { value: '32',  label: '32" & under',   match: p => { const i = _inches(p); return i > 0 ? i <= 32 : /\b32\b/.test(p.simplified_name) } },
-        { value: '43',  label: '40" – 43"',     match: p => { const i = _inches(p); return i >= 40 && i <= 43 } },
-        { value: '50',  label: '50" – 55"',     match: p => { const i = _inches(p); return i >= 50 && i <= 55 } },
-        { value: '65',  label: '65" – 75"',     match: p => { const i = _inches(p); return i >= 65 && i <= 75 } },
-        { value: '85',  label: '85"+ (Ultra Large)', match: p => { const i = _inches(p); return i >= 85 } },
+        { value: '32',  label: '32"',            match: p => { const i = _inches(p); return i > 0 ? i <= 32 : /\b32\b/.test(p.simplified_name) } },
+        { value: '43',  label: '40" – 43"',      match: p => { const i = _inches(p); return i >= 40 && i <= 43 } },
+        { value: '50',  label: '50" – 55"',      match: p => { const i = _inches(p); return i >= 50 && i <= 55 } },
+        { value: '65',  label: '65" – 75"',      match: p => { const i = _inches(p); return i >= 65 && i <= 75 } },
+        { value: '85',  label: '85"+ (Ultra)',   match: p => { const i = _inches(p); return i >= 85 } },
       ],
     },
     {
-      key: 'tvres', label: 'Resolution',
+      key: 'tvtech', label: 'Panel Type',
       options: [
-        { value: '4k',  label: '4K Ultra HD',   match: p => /\b4k|uhd|ultra.?hd/i.test(p.simplified_name + ' ' + p.tags) },
-        { value: 'fhd', label: 'Full HD (1080p)',match: p => /full.?hd|fhd|1080p/i.test(p.simplified_name + ' ' + p.tags) && !/4k|uhd/i.test(p.simplified_name + ' ' + p.tags) },
-        { value: 'hd',  label: 'HD Ready (720p)',match: p => /\bhd\b|\b720p\b/i.test(p.simplified_name + ' ' + p.tags) && !/full.?hd|fhd|4k|uhd/i.test(p.simplified_name + ' ' + p.tags) },
-      ],
-    },
-    {
-      key: 'tvsmart', label: 'Smart Features',
-      options: [
-        { value: 'smart',   label: 'Smart TV (Android/Tizen)', match: p => /smart|android|tizen|google.?tv/i.test(p.simplified_name + ' ' + p.tags) },
-        { value: 'nonsmart',label: 'Non-Smart (Standard LED)', match: p => !/smart|android|tizen|google.?tv/i.test(p.simplified_name + ' ' + p.tags) },
-      ],
-    },
-    {
-      key: 'tvtech', label: 'Panel Technology',
-      options: [
-        { value: 'qled', label: 'QLED / OLED',   match: p => /qled|oled/i.test(p.simplified_name + ' ' + p.tags) },
-        { value: 'hdr',  label: 'HDR / Dolby',   match: p => /hdr|dolby.?vision/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'qled', label: 'QLED',          match: p => /qled/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'oled', label: 'OLED',          match: p => /\boled\b/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'led',  label: 'LED / Smart LED',match: p => !/qled|oled/i.test(p.simplified_name + ' ' + p.tags) },
       ],
     },
   ],
@@ -204,15 +190,6 @@ const SPEC_FILTERS: Record<string, SpecFilter[]> = {
 
   // ── Microwave Ovens ──────────────────────────────────────────────────────────
   microwave: [
-    {
-      key: 'mwtype', label: 'Type',
-      options: [
-        { value: 'grill',    label: 'Grill / Combo',       match: p => /grill|combo/i.test(p.simplified_name + ' ' + (p.specs?.['Heating Technology'] || '')) },
-        { value: 'solo',     label: 'Solo',                match: p => /solo/i.test(p.simplified_name) },
-        { value: 'inverter', label: 'Inverter',            match: p => /inverter/i.test(p.simplified_name) },
-        { value: 'airfryer', label: 'Air Fryer Combo',     match: p => /air.?fry/i.test(p.simplified_name) },
-      ],
-    },
     {
       key: 'mwcap', label: 'Cavity Size',
       options: [
@@ -279,13 +256,24 @@ const SPEC_FILTERS: Record<string, SpecFilter[]> = {
 function getSpecKey(catId: string): string {
   if (catId === 'ac' || catId === 'air-conditioners' || catId === 'air_conditioner') return 'ac'
   if (catId === 'fridge' || catId === 'refrigerators' || catId === 'refrigerator') return 'fridge'
+  if (catId === 'fridge-nofrost' || catId === 'no-frost-refrigerators') return 'fridge'
+  if (catId === 'fridge-sbs' || catId === 'side-by-side-refrigerators') return 'fridge'
+  if (catId === 'fridge-french' || catId === 'french-door-refrigerators') return 'fridge'
   if (catId === 'freezer' || catId === 'freezers' || catId === 'deep_freezer') return 'freezer'
   if (catId === 'washing' || catId === 'washing-machines' || catId === 'washing_machine') return 'washing'
+  if (catId === 'frontload' || catId === 'front-load-washing-machines') return 'washing'
   if (catId === 'tv' || catId === 'televisions' || catId === 'television') return 'tv'
   if (catId === 'kitchen' || catId === 'kitchen-appliances') return 'kitchen'
   if (catId === 'microwave' || catId === 'microwave-ovens') return 'microwave'
+  if (catId === 'microwave-solo' || catId === 'solo-microwave-ovens') return 'microwave'
+  if (catId === 'microwave-grill' || catId === 'grill-microwave-ovens') return 'microwave'
+  if (catId === 'microwave-convection' || catId === 'convection-air-fryer-ovens') return 'microwave'
   if (catId === 'small' || catId === 'small-appliances') return 'small'
   if (catId === 'solar' || catId === 'solar-solutions') return 'solar'
+  if (catId === 'solar-inverter' || catId === 'solar-inverters') return 'solar'
+  if (catId === 'solar-battery' || catId === 'solar-batteries') return 'solar'
+  if (catId === 'solar-panel' || catId === 'solar-panels') return 'solar'
+  if (catId === 'solar-pump' || catId === 'solar-water-pumps') return 'solar'
   if (catId === 'water' || catId === 'water-dispensers') return 'water'
   return ''
 }
@@ -339,7 +327,7 @@ export default function Products() {
     [products]
   )
 
-  // Client-side filtering (budget, spec filters, in-stock)
+  // Client-side filtering (budget, spec filters, in-stock) + default price sort
   const filteredProducts = useMemo(() => {
     let list = products
     if (budgetIdx !== null) {
@@ -355,8 +343,12 @@ export default function Products() {
       const option = filterGroup?.options.find(o => o.value === val)
       if (option) list = list.filter(option.match)
     }
+    // When no explicit sort is chosen, default to price ascending in category/search views
+    if (!sort && (category || search)) {
+      list = [...list].sort((a, b) => (a.price.cash_floor || 0) - (b.price.cash_floor || 0))
+    }
     return list
-  }, [products, budgetIdx, inStockOnly, specFilters, catSpecFilters])
+  }, [products, budgetIdx, inStockOnly, specFilters, catSpecFilters, sort, category, search])
 
   function goToCategory(catId: string) {
     setSpecFilters({}); setBudgetIdx(null); setInStockOnly(false)
@@ -514,6 +506,14 @@ export default function Products() {
         {showFilters && (
           <div className="border-t bg-gray-50">
             <div className="max-w-7xl mx-auto px-4 py-5">
+              {/* Close bar */}
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Filters</span>
+                <button onClick={() => setShowFilters(false)}
+                  className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 transition-colors px-2.5 py-1.5 rounded-lg hover:bg-gray-200">
+                  <X className="w-3.5 h-3.5" /> Close
+                </button>
+              </div>
               {/* Mobile category picker */}
               <div className="lg:hidden mb-5">
                 <FilterSection label="Category" expanded={expandedSections.cat} onToggle={() => toggleSection('cat')}>
@@ -609,6 +609,13 @@ export default function Products() {
                   </button>
                 </div>
               )}
+              {/* Bottom close button */}
+              <div className="flex justify-center mt-5">
+                <button onClick={() => setShowFilters(false)}
+                  className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 bg-white border border-gray-200 hover:border-gray-400 px-5 py-2 rounded-xl transition-all">
+                  <X className="w-4 h-4" /> Close Filters
+                </button>
+              </div>
             </div>
           </div>
         )}

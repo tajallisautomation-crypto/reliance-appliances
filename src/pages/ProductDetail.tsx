@@ -219,11 +219,11 @@ export default function ProductDetail() {
         {/* ── Images (sticky) ── */}
         <div className="md:sticky md:top-24 self-start">
           <div
-            className="aspect-square rounded-3xl overflow-hidden bg-gray-50 mb-3 shadow-apple-lg relative group cursor-zoom-in"
+            className="aspect-square rounded-2xl overflow-hidden bg-gray-50 mb-3 shadow-apple-lg relative group cursor-zoom-in"
             onClick={() => openLightbox(activeImg)}
           >
             <img src={allImages[activeImg] || p.thumbnail} alt={`${p.brand} ${p.model}`}
-              className="w-full h-full object-cover transition-opacity duration-300" />
+              className="w-full h-full object-contain p-4 transition-opacity duration-300" />
             {/* Overlay buttons */}
             <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
               <button onClick={e => { e.stopPropagation(); openLightbox(activeImg); }}
@@ -244,7 +244,7 @@ export default function ProductDetail() {
               {allImages.map((img, i) => (
                 <button key={i} onClick={() => setActiveImg(i)}
                   className={`flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-all ${activeImg === i ? 'border-brand-500' : 'border-gray-100 hover:border-brand-200'}`}>
-                  <img src={img} alt="" className="w-full h-full object-cover" />
+                  <img src={img} alt="" className="w-full h-full object-contain p-1" />
                 </button>
               ))}
             </div>
@@ -324,7 +324,7 @@ export default function ProductDetail() {
                 {allImages.map((img, i) => (
                   <button key={i} onClick={() => { setActiveImg(i); setZoom(1); setPan({ x: 0, y: 0 }); }}
                     className={`flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition-all ${activeImg === i ? 'border-white' : 'border-white/20 hover:border-white/60'}`}>
-                    <img src={img} alt="" className="w-full h-full object-cover" />
+                    <img src={img} alt="" className="w-full h-full object-contain p-1" />
                   </button>
                 ))}
               </div>
@@ -347,7 +347,13 @@ export default function ProductDetail() {
 
           {/* Badges */}
           <div className="flex flex-wrap gap-2 mb-5">
-            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${p.stock_status === 'In Stock' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+              p.stock_status === 'In Stock'
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                : p.stock_status === 'Discontinued'
+                ? 'bg-amber-50 text-amber-700 border border-amber-300'
+                : 'bg-red-50 text-red-700 border border-red-200'
+            }`}>
               <Check className="h-3 w-3" /> {p.stock_status}
             </span>
             {p.warranty && (
@@ -545,8 +551,7 @@ export default function ProductDetail() {
               </p>
               <div className="grid grid-cols-1 gap-3">
                 <a href={waConsultUrl} target="_blank" rel="noreferrer"
-                  className="flex items-center justify-center gap-2 py-4 rounded-2xl text-base font-bold text-white transition-all hover:opacity-90"
-                  style={{ background: '#25d366' }}>
+                  className="flex items-center justify-center gap-2 py-4 rounded-2xl text-base font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
                   <CalendarDays className="h-5 w-5" /> Book Free Consultation
                 </a>
                 <a href="tel:+923702578788"
@@ -557,13 +562,21 @@ export default function ProductDetail() {
             </div>
           ) : (
             /* Standard purchase flow */
+            <>
+            {p.stock_status === 'Discontinued' && (
+              <div className="mb-4 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+                <span className="mt-0.5 text-base leading-none">⚠️</span>
+                <span>This model has been <strong>discontinued</strong>. Stock may still be available — WhatsApp us to confirm before ordering.</span>
+              </div>
+            )}
             <div className="space-y-3 mb-3">
               {/* WhatsApp — PRIMARY */}
               <a href={waUrl} target="_blank" rel="noreferrer"
-                className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-base font-bold text-white hover:opacity-90 transition-all"
-                style={{ background: '#25d366' }}>
+                className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-base font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
                 <MessageCircle className="h-5 w-5" />
-                {plan === 'cash' ? 'WhatsApp — Enquire Now' : `WhatsApp — ${PLAN_LABELS[plan]} Quote`}
+                {p.stock_status === 'Discontinued'
+                  ? 'WhatsApp — Check Availability'
+                  : plan === 'cash' ? 'WhatsApp — Enquire Now' : `WhatsApp — ${PLAN_LABELS[plan]} Quote`}
               </a>
               {/* Add to Cart — SECONDARY */}
               <button onClick={handleAdd} disabled={p.stock_status !== 'In Stock'}
@@ -571,6 +584,7 @@ export default function ProductDetail() {
                 <ShoppingCart className="h-5 w-5" /> Add to Cart
               </button>
             </div>
+            </>
           )}
 
           {/* Share + Compare row */}
@@ -689,8 +703,7 @@ export default function ProductDetail() {
               </p>
               <a href={waSales(`Hi, I'd like to book installation for ${p.simplified_name || `${p.brand} ${p.model}`}.`)}
                 target="_blank" rel="noreferrer"
-                className="inline-flex items-center gap-2 font-bold text-white px-6 py-3 rounded-xl transition-all hover:opacity-90"
-                style={{ background: '#25d366' }}>
+                className="inline-flex items-center gap-2 font-bold text-white px-6 py-3 rounded-xl bg-wa hover:bg-wa-hover transition-colors">
                 <MessageCircle className="h-4 w-4" /> Book via WhatsApp
               </a>
             </div>

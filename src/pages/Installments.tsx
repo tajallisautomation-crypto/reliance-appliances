@@ -61,8 +61,7 @@ export default function InstallmentsPage() {
           </p>
           <div className="flex flex-wrap gap-4 justify-center mt-8">
             <a href="https://wa.me/923702578788"
-              className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-white"
-              style={{ background: '#25d366' }}>
+              className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
               💬 Start on WhatsApp
             </a>
             <Link to="/products"
@@ -269,8 +268,7 @@ export default function InstallmentsPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a href="https://wa.me/923702578788?text=Hi%2C%20I%27d%20like%20to%20apply%20for%20an%20installment%20plan"
-              className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-bold text-white"
-              style={{ background: '#25d366' }}>
+              className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
               💬 Start Application on WhatsApp
             </a>
             <a href="tel:+923702578788"

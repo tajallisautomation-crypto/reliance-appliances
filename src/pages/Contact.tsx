@@ -105,8 +105,7 @@ export default function Contact() {
             </div>
 
             <a href={waSales()} target="_blank" rel="noreferrer"
-              className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl text-white font-bold text-lg shadow-lg hover:shadow-xl transition-all"
-              style={{ background: '#25d366' }}>
+              className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl text-white font-bold text-lg shadow-lg hover:shadow-xl bg-wa hover:bg-wa-hover transition-colors">
               <MessageCircle className="w-6 h-6" />
               Chat on WhatsApp
             </a>

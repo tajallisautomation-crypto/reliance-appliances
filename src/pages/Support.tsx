@@ -58,8 +58,7 @@ export default function Support() {
           </p>
           <div className="space-y-3">
             <a href={`https://wa.me/923702578788`} target="_blank" rel="noreferrer"
-              className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl font-bold text-white"
-              style={{ background: '#25d366' }}>
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
               <MessageCircle className="w-4 h-4" /> Open WhatsApp Chat
             </a>
             <Link to="/" className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl font-bold border border-gray-200 text-gray-700 hover:bg-gray-50">
@@ -205,8 +204,7 @@ export default function Support() {
               </div>
 
               <button type="submit"
-                className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-white text-base shadow-lg transition-all hover:opacity-90 active:scale-[0.98]"
-                style={{ background: '#25d366' }}>
+                className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-white text-base shadow-lg active:scale-[0.98] bg-wa hover:bg-wa-hover transition-colors">
                 <MessageCircle className="w-5 h-5" />
                 Send via WhatsApp
               </button>

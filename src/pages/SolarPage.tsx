@@ -188,8 +188,7 @@ function PackageCard({ pkg }: { pkg: SolarPackage }) {
           {/* CTAs */}
           <div className="space-y-2">
             <a href={wa(WA_SALES, buildWAMsg(pkg, withFrame))} target="_blank" rel="noreferrer"
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-white text-sm transition-opacity hover:opacity-90"
-              style={{ background: '#25d366' }}>
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-white text-sm bg-wa hover:bg-wa-hover transition-colors">
               <MessageCircle className="w-4 h-4" /> Get Quote on WhatsApp
             </a>
             <a href={wa(WA_SALES,

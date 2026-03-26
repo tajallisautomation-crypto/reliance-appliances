@@ -50,7 +50,7 @@ export default function Navbar() {
 
   return (
     <>
-      <header className={`sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-gray-100 transition-shadow duration-200 ${scrolled ? 'shadow-apple-lg' : ''}`}>
+      <header className={`sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-100/80 transition-shadow duration-200 ${scrolled ? 'shadow-apple-lg' : ''}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 h-16">
 
@@ -88,8 +88,7 @@ export default function Navbar() {
             {/* Right icons */}
             <div className="flex items-center gap-1 ml-auto sm:ml-0 shrink-0">
               <a href={waSales()} target="_blank" rel="noreferrer" aria-label="WhatsApp"
-                className="hidden sm:flex w-9 h-9 items-center justify-center rounded-full hover:bg-green-50 transition-colors"
-                style={{ color: '#25d366' }}>
+                className="hidden sm:flex w-9 h-9 items-center justify-center rounded-full text-green-500 hover:bg-green-50 transition-colors">
                 <Phone className="h-4 w-4" />
               </a>
               <Link to="/portal" aria-label="My Account"

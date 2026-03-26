@@ -142,8 +142,7 @@ export default function ReferralPage() {
                 href={waShareUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-bold text-white transition-opacity hover:opacity-90"
-                style={{ background: '#25d366' }}>
+                className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
                 <MessageCircle className="w-4 h-4" /> Share Recommendation on WhatsApp
               </a>
 
@@ -185,8 +184,7 @@ export default function ReferralPage() {
         <section className="text-center">
           <p className="text-gray-500 text-sm mb-4">Questions about the referral programme?</p>
           <a href="https://wa.me/923702578788?text=Hi%2C%20I%27d%20like%20to%20know%20more%20about%20the%20referral%20programme"
-            className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-white"
-            style={{ background: '#25d366' }}>
+            className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
             💬 Ask on WhatsApp
           </a>
           <div className="mt-4">
