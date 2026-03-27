@@ -17,29 +17,32 @@ function s(p: Product, key: string): string {
 // T3: appended ONLY when the model name explicitly contains "T3" (e.g. HSU-12LFCA1T3).
 
 function extractACGroup(p: Product): string {
-  // Tonnage — use specs.Tonnage first, fall back to category string
+  // Tonnage — DB stores as "1.0 Ton", "1.5 Ton", "2.0 Ton", etc.
+  // Parse numerically so "1.0 Ton" and "1 Ton" both work.
   const tonSpec = s(p, 'Tonnage');
-  const tonText = (tonSpec || p.category + ' ' + p.simplified_name).toLowerCase();
+  const tonNum  = parseFloat(tonSpec);  // "1.0 Ton" → 1.0, "1.5 Ton" → 1.5
   let tonnage = 'Other';
-  if (/3\s*ton/.test(tonText))        tonnage = '3 Ton';
-  else if (/2\.5\s*ton/.test(tonText))tonnage = '2.5 Ton';
-  else if (/2\s*ton/.test(tonText))   tonnage = '2 Ton';
-  else if (/1\.8\s*ton|1\.7\s*ton/.test(tonText)) tonnage = '1.5 Ton';
-  else if (/1\.5\s*ton/.test(tonText))tonnage = '1.5 Ton';
-  else if (/1\.2\s*ton/.test(tonText))tonnage = '1 Ton';
-  else if (/1\s*ton|0\.9\s*ton/.test(tonText)) tonnage = '1 Ton';
+  if (!isNaN(tonNum)) {
+    if      (tonNum >= 3.8) tonnage = '4 Ton';
+    else if (tonNum >= 3.3) tonnage = '3.5 Ton';
+    else if (tonNum >= 2.8) tonnage = '3 Ton';
+    else if (tonNum >= 2.3) tonnage = '2.5 Ton';
+    else if (tonNum >= 1.9) tonnage = '2 Ton';
+    else if (tonNum >= 1.3) tonnage = '1.5 Ton';  // 1.5, 1.7, 1.8
+    else                    tonnage = '1 Ton';     // 0.9, 1.0, 1.2
+  }
 
   // Heating: DB value is "No (cooling only)" or "Yes — Heat & Cool (works in winter)"
-  const heating  = s(p, 'Heating');
-  const isHeatCool = heating.toLowerCase().startsWith('yes') || p.sub_category === 'Heat & Cool';
+  const heating    = s(p, 'Heating');
+  const isHeatCool = heating.toLowerCase().startsWith('yes');
   const func = isHeatCool ? 'Heat & Cool' : 'Cool Only';
 
   // Inverter: DB value is "Yes" or "No"
-  const inv = s(p, 'Inverter');
-  const isInverter = inv.toLowerCase() === 'yes' || p.sub_category === 'DC Inverter';
+  const inv        = s(p, 'Inverter');
+  const isInverter = inv.toLowerCase() === 'yes';
 
-  // T3: models with standalone T3 (\bT3\b) OR EcoStar's WT3 suffix (e.g. ES-12AR01WT3)
-  const isT3 = /\bT3\b|WT3/i.test(p.model);
+  // T3: check model name (\bT3\b or EcoStar's WT3) OR sub_category contains "T3"
+  const isT3 = /\bT3\b|WT3/i.test(p.model) || /T3/i.test(p.sub_category || '');
 
   const tech = isInverter
     ? (isT3 ? 'Inverter T3' : 'Inverter')
@@ -57,8 +60,12 @@ const AC_GROUP_ORDER = [
   '2 Ton Heat & Cool Inverter T3',   '2 Ton Heat & Cool Inverter',  '2 Ton Heat & Cool Fixed Speed',
   '2.5 Ton Cool Only Inverter T3',   '2.5 Ton Cool Only Inverter',
   '2.5 Ton Heat & Cool Inverter T3', '2.5 Ton Heat & Cool Inverter',
-  '3 Ton Cool Only Inverter T3',     '3 Ton Cool Only Inverter',
-  '3 Ton Heat & Cool Inverter T3',   '3 Ton Heat & Cool Inverter',
+  '3 Ton Cool Only Inverter T3',     '3 Ton Cool Only Inverter',    '3 Ton Cool Only Fixed Speed',
+  '3 Ton Heat & Cool Inverter T3',   '3 Ton Heat & Cool Inverter',  '3 Ton Heat & Cool Fixed Speed',
+  '3.5 Ton Cool Only Inverter T3',   '3.5 Ton Cool Only Inverter',
+  '3.5 Ton Heat & Cool Inverter T3', '3.5 Ton Heat & Cool Inverter',
+  '4 Ton Cool Only Inverter T3',     '4 Ton Cool Only Inverter',
+  '4 Ton Heat & Cool Inverter T3',   '4 Ton Heat & Cool Inverter',
 ];
 
 // ── Fridge grouping ────────────────────────────────────────────────────────────
@@ -207,6 +214,20 @@ function extractSolarGroup(p: Product): string {
   return 'Solar Products';
 }
 
+// ── Pridor (Solar Pump Inverter / VFD) grouping ───────────────────────────────
+// Crown Pridor models: "Pridor 5/5KW", "Pridor 7/11KW", etc.
+// The second number (output KW) determines the motor it can drive.
+
+function extractPridorGroup(p: Product): string {
+  const m = p.model.match(/\/(\d+)\s*KW/i) || p.simplified_name.match(/\/(\d+)\s*KW/i);
+  const kw = m ? parseInt(m[1]) : null;
+  if (kw === null) return 'Solar Pump Inverter (VFD)';
+  if (kw <= 7)  return 'Up to 7KW';
+  if (kw <= 15) return '8 – 15KW';
+  if (kw <= 22) return '16 – 22KW';
+  return '30KW +';
+}
+
 // ── Kitchen grouping ──────────────────────────────────────────────────────────
 
 function extractKitchenGroup(p: Product): string {
@@ -276,6 +297,11 @@ export const CATALOG_CATEGORIES: CatalogCategory[] = [
     groupFn: extractKitchenGroup,
     sortGroupsFn: (keys) => [...keys].sort(),
   },
+  {
+    id: 'pridor', label: 'Crown Pridor — Solar Pump VFD', emoji: '💧', catParam: 'solar-pump',
+    groupFn: extractPridorGroup,
+    groupOrder: ['Up to 7KW', '8 – 15KW', '16 – 22KW', '30KW +', 'Solar Pump Inverter (VFD)'],
+  },
 ];
 
 // ── Grouping ──────────────────────────────────────────────────────────────────
@@ -320,6 +346,7 @@ export function getKeySpecs(p: Product, catId: string): string[] {
     case 'tv':        return pick('Screen Size', 'Resolution', 'OS').slice(0, 3);
     case 'microwave': return pick('Capacity', 'Power', 'Technology').slice(0, 3);
     case 'solar':     return pick('Power Output', 'Capacity', 'Battery Type').slice(0, 3);
+    case 'pridor':    return pick('Wattage', 'Power Supply', 'Type').slice(0, 3);
     default: return Object.values(p.specs || {}).filter(v => v && String(v).length < 35).slice(0, 2) as string[];
   }
 }
