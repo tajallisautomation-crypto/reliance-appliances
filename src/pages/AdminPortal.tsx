@@ -1528,6 +1528,26 @@ const BULK_FIELDS: { id: BulkField; label: string }[] = [
   { id: 'tags',        label: 'Tags' },
 ];
 
+// Quick spec presets — each applies a single spec key+value via merge
+const QUICK_SPEC_PRESETS: { label: string; key: string; val: string; color?: string }[] = [
+  // AC
+  { label: 'T3 ✓',        key: 'T3',       val: 'Yes',                                          color: 'blue'   },
+  { label: 'T3 ✗',        key: 'T3',       val: 'No',                                           color: 'gray'   },
+  { label: 'Heat & Cool', key: 'Heating',  val: 'Yes — Heat & Cool (works in winter)',           color: 'red'    },
+  { label: 'Cool Only',   key: 'Heating',  val: 'No (cooling only)',                             color: 'sky'    },
+  { label: 'Inverter ✓',  key: 'Inverter', val: 'Yes',                                          color: 'green'  },
+  { label: 'Inverter ✗',  key: 'Inverter', val: 'No',                                           color: 'gray'   },
+  // Fridge
+  { label: 'Glass Door',  key: 'Type',     val: 'Glass Door',                                   color: 'purple' },
+  { label: 'Double Door', key: 'Type',     val: 'Double Door',                                  color: 'indigo' },
+  { label: 'Side-by-Side',key: 'Type',     val: 'Side-by-Side (No-Frost)',                      color: 'indigo' },
+  { label: 'French Door', key: 'Type',     val: 'French Door / T-Door',                         color: 'indigo' },
+  // Washer
+  { label: 'Front Load',  key: 'Type',     val: 'Front Load — Fully Automatic',                 color: 'teal'   },
+  { label: 'Top Load',    key: 'Type',     val: 'Top Load — Fully Automatic',                   color: 'teal'   },
+  { label: 'Semi-Auto',   key: 'Type',     val: 'Semi-Automatic',                               color: 'teal'   },
+];
+
 function BulkEditPanel({
   selectedIds, products, onClose, onDone,
 }: {
@@ -1742,6 +1762,22 @@ function BulkEditPanel({
                   Warning: this will delete ALL existing specs on {n} product{n !== 1 ? 's' : ''} and replace with only the one spec you enter below.
                 </p>
               )}
+              {/* Quick presets */}
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Quick Presets</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {QUICK_SPEC_PRESETS.map(preset => (
+                    <button key={preset.label} type="button"
+                      onClick={() => { setSpecKey(preset.key); setSpecVal(preset.val); setAction('merge'); }}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors
+                        ${specKey === preset.key && specVal === preset.val
+                          ? 'bg-orange-500 text-white border-orange-500'
+                          : 'bg-white border-gray-200 text-gray-600 hover:border-orange-300 hover:text-orange-700'}`}>
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs font-medium text-gray-600 mb-1 block">Spec Key</label>

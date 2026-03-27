@@ -41,8 +41,8 @@ function extractACGroup(p: Product): string {
   const inv        = s(p, 'Inverter');
   const isInverter = inv.toLowerCase() === 'yes';
 
-  // T3: check model name (\bT3\b or EcoStar's WT3) OR sub_category contains "T3"
-  const isT3 = /\bT3\b|WT3/i.test(p.model) || /T3/i.test(p.sub_category || '');
+  // T3: check model name, sub_category, or specs.T3 flag (set via admin bulk action)
+  const isT3 = /\bT3\b|WT3/i.test(p.model) || /T3/i.test(p.sub_category || '') || s(p, 'T3') === 'Yes';
 
   const tech = isInverter
     ? (isT3 ? 'Inverter T3' : 'Inverter')
@@ -83,8 +83,9 @@ function extractFridgeGroup(p: Product): string {
   // Door type
   const typeStr = s(p, 'Type').toLowerCase();
   const sc = (p.sub_category || '').toLowerCase();
-  const isGlass     = typeStr.includes('glass') || sc.includes('glass');
-  const isSideBySide = typeStr.includes('side') || sc.includes('side');
+  const isGlass      = typeStr.includes('glass') || sc.includes('glass');
+  const isSideBySide = typeStr.includes('side') || sc.includes('side') ||
+                       typeStr.includes('french') || sc.includes('french');
 
   // Inverter
   const isInverter = s(p, 'Inverter').toLowerCase() === 'yes' ||
