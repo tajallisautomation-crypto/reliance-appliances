@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useCartStore } from '../store/cartStore'
 import { fmtPKR, calcAllPlans, submitOrder } from '../lib/api'
 import { waSales } from '../lib/whatsapp'
-import { CheckCircle, AlertCircle, Copy, Banknote, Upload } from 'lucide-react'
+import { CheckCircle, AlertCircle, Copy, Banknote, Upload, ArrowRight } from 'lucide-react'
 import SEO from '../components/ui/SEO'
 
 const PLAN_LABELS: Record<string, string> = {
@@ -48,6 +48,15 @@ export default function Checkout() {
 
   const phoneValid = /^(\+92|0)3\d{9}$/.test(form.phone.trim())
   const canSubmit = !loading && form.name.trim() && phoneValid && form.address.trim() && form.city.trim()
+
+  // Build a human-readable list of what's still missing for the disabled button hint
+  const missingFields = [
+    !form.name.trim()    && 'Full Name',
+    !form.phone.trim()   && 'Phone Number',
+    form.phone.trim() && !phoneValid && 'valid phone format',
+    !form.address.trim() && 'Delivery Address',
+    !form.city.trim()    && 'City',
+  ].filter(Boolean) as string[]
 
   const handleSubmit = async () => {
     if (!canSubmit) return
@@ -104,33 +113,68 @@ export default function Checkout() {
   )
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10">
+    <>
+    {/* Extra bottom padding on mobile so sticky bar doesn't cover the Place Order button */}
+    <div className="max-w-4xl mx-auto px-4 py-10 pb-32 md:pb-10">
       <SEO title="Checkout — Reliance by Tajallis" noIndex />
       <h1 className="text-2xl font-black text-gray-900 mb-8">Checkout</h1>
       <div className="grid md:grid-cols-2 gap-8">
         <div className="space-y-5">
           <h2 className="font-bold text-gray-800">Delivery Details</h2>
-          {[
-            {key:'name',    label:'Full Name *',         type:'text',  placeholder:'Your full name'},
-            {key:'phone',   label:'Phone Number *',      type:'tel',   placeholder:'+92 3XX XXXXXXX'},
-            {key:'email',   label:'Email (optional)',    type:'email', placeholder:'your@email.com'},
-            {key:'address', label:'Delivery Address *',  type:'text',  placeholder:'Street address'},
-            {key:'city',    label:'City *',              type:'text',  placeholder:'Karachi, Lahore...'},
-          ].map(f => (
-            <div key={f.key}>
-              <label className="text-sm font-medium text-gray-700 block mb-1">{f.label}</label>
-              <input type={f.type} placeholder={f.placeholder} value={(form as any)[f.key]}
-                onChange={e => setForm(p => ({...p, [f.key]: e.target.value}))}
-                className={`w-full border rounded-xl px-4 py-3 focus:outline-none text-sm ${
-                  f.key === 'phone' && form.phone && !phoneValid
-                    ? 'border-red-300 focus:border-red-400'
+
+          {/* Name */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Full Name *</label>
+            <input type="text" placeholder="e.g. Ahmed Khan" value={form.name}
+              onChange={e => setForm(p => ({...p, name: e.target.value}))}
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-orange-400 text-sm" />
+          </div>
+
+          {/* Phone */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Phone Number *</label>
+            <input type="tel" placeholder="03XX-XXXXXXX or +92 3XX XXXXXXX" value={form.phone}
+              onChange={e => setForm(p => ({...p, phone: e.target.value}))}
+              className={`w-full border rounded-xl px-4 py-3 focus:outline-none text-sm ${
+                form.phone && !phoneValid
+                  ? 'border-red-300 focus:border-red-400 bg-red-50'
+                  : form.phone && phoneValid
+                    ? 'border-green-300 focus:border-green-400'
                     : 'border-gray-200 focus:border-orange-400'
-                }`} />
-              {f.key === 'phone' && form.phone && !phoneValid && (
-                <p className="text-xs text-red-500 mt-1">Enter a valid Pakistani number (03XX XXXXXXX)</p>
-              )}
-            </div>
-          ))}
+              }`} />
+            {form.phone && !phoneValid && (
+              <p className="text-xs text-red-500 mt-1">Enter a valid Pakistani mobile number (03XX XXXXXXX)</p>
+            )}
+            {form.phone && phoneValid && (
+              <p className="text-xs text-green-600 mt-1">✓ Looks good — we'll call this number to confirm</p>
+            )}
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Email <span className="text-gray-400 font-normal">(optional)</span></label>
+            <input type="email" placeholder="your@email.com" value={form.email}
+              onChange={e => setForm(p => ({...p, email: e.target.value}))}
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-orange-400 text-sm" />
+          </div>
+
+          {/* Address */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Delivery Address *</label>
+            <input type="text" placeholder="e.g. House 12, Block B, F.B. Area" value={form.address}
+              onChange={e => setForm(p => ({...p, address: e.target.value}))}
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-orange-400 text-sm" />
+            <p className="text-xs text-gray-400 mt-1">Include street name, house/flat no., and area / neighbourhood</p>
+          </div>
+
+          {/* City */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">City *</label>
+            <input type="text" placeholder="e.g. Karachi" value={form.city}
+              onChange={e => setForm(p => ({...p, city: e.target.value}))}
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-orange-400 text-sm" />
+            <p className="text-xs text-gray-400 mt-1">We deliver across Karachi, Lahore, Islamabad & major cities</p>
+          </div>
           <div>
             <label className="text-sm font-medium text-gray-700 block mb-1">Notes</label>
             <textarea rows={3} placeholder="Any special instructions..." value={form.notes}
@@ -153,13 +197,14 @@ export default function Checkout() {
             </div>
           </div>
 
-          {/* Bank transfer discount */}
+          {/* Bank transfer discount — optional */}
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
             <div className="flex items-center gap-2 mb-3">
               <Banknote className="w-5 h-5 text-amber-600" />
               <p className="font-bold text-amber-900 text-sm">Get 1% off with bank transfer</p>
+              <span className="ml-auto text-[10px] font-bold uppercase tracking-wider bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">Optional</span>
             </div>
-            <p className="text-xs text-amber-700 mb-3">Transfer the advance or full amount to any of these accounts and save 1%.</p>
+            <p className="text-xs text-amber-700 mb-3">Skip this if paying cash on delivery. Transfer the advance or full amount to save 1%.</p>
             <div className="space-y-2">
               {BANK_DETAILS.map(b => (
                 <div key={b.bank} className="bg-white rounded-xl px-4 py-3 border border-amber-100">
@@ -194,18 +239,22 @@ export default function Checkout() {
               ))}
             </div>
             <div className="mt-4">
-              <label className="text-xs font-medium text-amber-800 block mb-1.5">Attach transfer screenshot (optional)</label>
+              <label className="text-xs font-medium text-amber-800 block mb-1.5">
+                Attach transfer screenshot <span className="font-normal text-amber-600">(max 5 MB — jpg, png, pdf)</span>
+              </label>
               <input
                 type="file" accept="image/*,application/pdf"
                 onChange={e => setTransferFile(e.target.files?.[0] || null)}
                 className="w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-amber-100 file:text-amber-700 file:font-medium hover:file:bg-amber-200 cursor-pointer"
               />
               {transferFile && <p className="text-xs text-green-600 mt-1">✓ {transferFile.name}</p>}
-              <p className="text-xs text-amber-600 mt-1.5">You can also send the screenshot via WhatsApp to <strong>+92 370 2578788</strong>.</p>
+              <p className="text-xs text-amber-600 mt-1.5">Or send the screenshot via WhatsApp to <strong>+92 370 2578788</strong>.</p>
             </div>
           </div>
         </div>
-        <div>
+
+        {/* Desktop order summary — sticky sidebar */}
+        <div className="hidden md:block">
           <div className="bg-gray-50 rounded-2xl p-6 sticky top-24">
             <h2 className="font-bold text-gray-800 mb-4">Order Summary</h2>
             <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
@@ -233,15 +282,53 @@ export default function Checkout() {
               </div>
             )}
             <button onClick={handleSubmit} disabled={!canSubmit}
-              className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white py-4 rounded-xl font-bold text-lg transition-colors">
+              className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold text-lg transition-colors">
               {loading ? 'Placing Order…' : '✅ Place Order'}
             </button>
-            {(!form.name || !form.phone || !form.address || !form.city) && (
-              <p className="text-xs text-gray-400 text-center mt-2">Fill in all required fields to continue</p>
+            {missingFields.length > 0 && (
+              <p className="text-xs text-gray-400 text-center mt-2">
+                Still needed: {missingFields.join(', ')}
+              </p>
             )}
           </div>
         </div>
       </div>
     </div>
+
+    {/* Mobile sticky bottom checkout bar */}
+    <div className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-white border-t border-gray-200 px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          {selectedPlan ? (
+            <>
+              <p className="text-xs text-gray-500">Advance due today</p>
+              <p className="text-lg font-black text-orange-600">{fmtPKR(selectedPlan.advance)}</p>
+              <p className="text-xs text-gray-400">then {fmtPKR(selectedPlan.monthly)}/mo × {selectedPlan.monthlyPayments}</p>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-gray-500">Total · Free delivery</p>
+              <p className="text-lg font-black text-gray-900">{fmtPKR(cartTotal)}</p>
+            </>
+          )}
+        </div>
+        <button
+          onClick={handleSubmit}
+          disabled={!canSubmit}
+          className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 h-12 rounded-xl font-bold text-sm transition-colors shrink-0"
+        >
+          {loading ? 'Placing…' : <><span>Place Order</span> <ArrowRight className="w-4 h-4" /></>}
+        </button>
+      </div>
+      {missingFields.length > 0 && (
+        <p className="text-[11px] text-gray-400 mt-1.5 text-center">
+          Still needed: {missingFields.join(', ')}
+        </p>
+      )}
+      {error && (
+        <p className="text-xs text-red-600 mt-1.5 text-center">{error}</p>
+      )}
+    </div>
+    </>
   )
 }

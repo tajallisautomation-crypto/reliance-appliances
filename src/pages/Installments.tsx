@@ -2,11 +2,46 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Calculator, Info, CheckCircle, Phone, FileText,
-  Home, Users, Clock, ShieldCheck, ChevronRight, AlertCircle,
+  Home, Users, Clock, ShieldCheck, ChevronRight, AlertCircle, ChevronDown,
 } from 'lucide-react'
 import { calcAllPlans, fmtPKR, roundTo100 } from '../lib/api'
 import SEO from '../components/ui/SEO'
 import { waSales } from '../lib/whatsapp'
+
+const FAQS = [
+  {
+    q: 'Does my guarantor need to come to your office?',
+    a: 'No. Your guarantor only needs to be available for a phone call and the home verification visit. They never need to visit our office.',
+  },
+  {
+    q: 'My guarantor is a tenant — what do I do?',
+    a: 'Guarantors must be homeowners. If your first guarantor is a tenant, you can provide two separate guarantors who are both homeowners. Their utility bills must be in their own names.',
+  },
+  {
+    q: 'Is the advance refundable if my application is rejected?',
+    a: 'Yes — fully. If verification is unsuccessful, the advance is returned to you with no deductions. Refunds are processed within 3 working days.',
+  },
+  {
+    q: 'What happens if I miss a monthly payment?',
+    a: 'Late payments attract a penalty charge as per your signed agreement. Persistent non-payment can result in product retrieval and legal proceedings. Contact us immediately on WhatsApp if you are facing difficulty — we can discuss options.',
+  },
+  {
+    q: 'Can I settle the full remaining balance early?',
+    a: 'Yes. Early settlement is welcome at any time. WhatsApp us to get your outstanding balance and arrange payment — no early-settlement penalty applies.',
+  },
+  {
+    q: 'Which products qualify for installments?',
+    a: 'Most products above PKR 15,000 qualify. Solar systems above 5 kW and orders above PKR 700,000 are cash only. Use the calculator on any product page to see what plans are available.',
+  },
+  {
+    q: 'Can I buy a product that isn\'t on your website on installments?',
+    a: 'Yes. WhatsApp us the product name and model and we\'ll check availability and put together an installment quote for you.',
+  },
+  {
+    q: 'How do I track my payment schedule?',
+    a: 'Log in to your customer portal at /portal to view your full payment schedule, outstanding balance, and payment history.',
+  },
+]
 
 const PLAN_DETAILS = [
   { key: '2 Payments',  label: '2 Payments',  splits: '2',  note: 'Pay a portion upfront, then 1 remaining payment.', popular: false },
@@ -35,8 +70,9 @@ const GUARANTOR_DOCS = [
 ]
 
 export default function InstallmentsPage() {
-  const [price, setPrice] = useState('')
-  const [result, setResult] = useState<any>(null)
+  const [price,   setPrice]   = useState('')
+  const [result,  setResult]  = useState<any>(null)
+  const [openFaq, setOpenFaq] = useState<number | null>(null)
 
   const calculate = () => {
     const p = parseFloat(price)
@@ -258,6 +294,42 @@ export default function InstallmentsPage() {
                 </p>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section>
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-black text-gray-900">Frequently Asked Questions</h2>
+            <p className="text-gray-500 mt-1 text-sm">Everything you need to know before applying</p>
+          </div>
+          <div className="space-y-2 max-w-3xl mx-auto">
+            {FAQS.map((faq, i) => (
+              <div key={i} className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+                <button
+                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                  className="w-full flex items-center justify-between gap-4 px-6 py-4 text-left hover:bg-gray-50 transition-colors"
+                >
+                  <span className="font-semibold text-gray-800 text-sm leading-snug">{faq.q}</span>
+                  <ChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-200 ${openFaq === i ? 'rotate-180' : ''}`} />
+                </button>
+                {openFaq === i && (
+                  <div className="px-6 pb-5 text-sm text-gray-600 leading-relaxed border-t border-gray-50 pt-4">
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="text-center mt-6">
+            <p className="text-sm text-gray-500">
+              Have a question not listed here?{' '}
+              <a href={waSales('Hi, I have a question about the installment plan')}
+                target="_blank" rel="noreferrer"
+                className="text-orange-500 font-semibold hover:underline">
+                Ask us on WhatsApp →
+              </a>
+            </p>
           </div>
         </section>
 

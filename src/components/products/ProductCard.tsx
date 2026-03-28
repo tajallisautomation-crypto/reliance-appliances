@@ -71,8 +71,8 @@ export default function ProductCard({ product: p }: Props) {
           </div>
         )}
 
-        {/* Hover actions */}
-        <div className="absolute bottom-2.5 right-2.5 flex gap-1.5 translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-200">
+        {/* Quick actions — always visible on mobile, hover-reveal on desktop */}
+        <div className="absolute bottom-2.5 right-2.5 flex gap-1.5 sm:translate-y-2 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100 transition-all duration-200">
           <button onClick={handleAdd} aria-label={`Add ${p.model} to cart`}
             className={`w-9 h-9 rounded-full shadow-apple-lg flex items-center justify-center transition-all duration-200 ${added ? 'bg-emerald-500 text-white scale-110' : 'bg-white text-brand-500 hover:bg-brand-500 hover:text-white'}`}>
             {added

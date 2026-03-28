@@ -56,6 +56,18 @@ const APPLIANCES = [
 ]
 const CATEGORIES = ['Cooling','Refrigeration','Lighting','Entertainment','Kitchen','Laundry','Office','Water','Misc']
 
+const CATEGORY_EMOJI: Record<string, string> = {
+  Cooling:       '❄️',
+  Refrigeration: '🧊',
+  Lighting:      '💡',
+  Entertainment: '📺',
+  Kitchen:       '🍳',
+  Laundry:       '🫧',
+  Office:        '💻',
+  Water:         '🚿',
+  Misc:          '🔌',
+}
+
 // Energy-efficient upgrade suggestions for common appliances
 const UPGRADE_SUGGESTIONS: Record<string, { label: string; savingsW: number; category: string; searchKey: string }> = {
   ac_1t_s:  { label:'Switch to a 1 Ton Inverter AC',    savingsW:300, category:'ac',     searchKey:'1 ton inverter'    },
@@ -450,25 +462,46 @@ export default function SolarCalculator() {
 
               {CATEGORIES.map(cat => {
                 const apps = APPLIANCES.filter(a => a.category === cat)
+                const addedCount = items.filter(i => i.category === cat).reduce((n, i) => n + i.qty, 0)
                 return (
-                  <div key={cat} className="bg-white rounded-2xl shadow-sm border border-orange-100 overflow-hidden">
+                  <div key={cat} className={`bg-white rounded-2xl shadow-sm border overflow-hidden ${addedCount > 0 ? 'border-orange-200' : 'border-orange-100'}`}>
                     <button onClick={() => setOpenCat(openCat === cat ? null : cat)}
                       className="w-full flex items-center justify-between p-4 hover:bg-orange-50 transition-colors">
-                      <span className="font-semibold text-gray-700 text-sm">{cat}</span>
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-base leading-none">{CATEGORY_EMOJI[cat]}</span>
+                        <span className="font-semibold text-gray-700 text-sm">{cat}</span>
+                        {addedCount > 0 && (
+                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-500 text-white text-[10px] font-bold">
+                            {addedCount}
+                          </span>
+                        )}
+                      </div>
                       {openCat === cat ? <ChevronUp className="w-4 h-4 text-gray-400"/> : <ChevronDown className="w-4 h-4 text-gray-400"/>}
                     </button>
                     {openCat === cat && (
                       <div className="px-4 pb-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {apps.map(app => (
-                          <button key={app.id} onClick={() => addItem(app)}
-                            className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-orange-300 hover:bg-orange-50 transition-all text-left group">
-                            <div>
-                              <div className="text-sm font-medium text-gray-700 group-hover:text-orange-700">{app.name}</div>
-                              <div className="text-xs text-gray-400">{app.watts}W</div>
-                            </div>
-                            <Plus className="w-4 h-4 text-gray-300 group-hover:text-orange-500"/>
-                          </button>
-                        ))}
+                        {apps.map(app => {
+                          const alreadyAdded = items.filter(i => i.id === app.id).reduce((n, i) => n + i.qty, 0)
+                          return (
+                            <button key={app.id} onClick={() => addItem(app)}
+                              className={`flex items-center justify-between p-3 rounded-xl border transition-all text-left group ${
+                                alreadyAdded > 0
+                                  ? 'border-orange-300 bg-orange-50'
+                                  : 'border-gray-100 hover:border-orange-300 hover:bg-orange-50'
+                              }`}>
+                              <div>
+                                <div className="text-sm font-medium text-gray-700 group-hover:text-orange-700">{app.name}</div>
+                                <div className="text-xs text-gray-400">{app.watts}W</div>
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {alreadyAdded > 0 && (
+                                  <span className="text-xs font-bold text-orange-600">×{alreadyAdded}</span>
+                                )}
+                                <Plus className="w-4 h-4 text-gray-300 group-hover:text-orange-500"/>
+                              </div>
+                            </button>
+                          )
+                        })}
                       </div>
                     )}
                   </div>

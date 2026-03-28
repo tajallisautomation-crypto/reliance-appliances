@@ -398,6 +398,23 @@ export default function Home() {
         </section>
       )}
 
+      {/* ── MYOP PROMO ───────────────────────────────────────────── */}
+      <section className="py-12 px-4 bg-gradient-to-r from-orange-500 to-amber-500">
+        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center gap-6 text-white">
+          <div className="text-4xl shrink-0">📦</div>
+          <div className="flex-1 text-center md:text-left">
+            <h2 className="text-2xl font-black mb-1">Build Your Own Package — Save 5%</h2>
+            <p className="text-orange-100 text-sm">
+              Mix and match ACs, fridges, washing machines, solar, TVs & more. Add 3+ items and get 5% off your entire order automatically.
+            </p>
+          </div>
+          <Link to="/build-your-package"
+            className="shrink-0 bg-white text-orange-600 font-black px-7 py-3.5 rounded-2xl hover:bg-orange-50 transition-colors whitespace-nowrap">
+            Start Building →
+          </Link>
+        </div>
+      </section>
+
       {/* ── FEATURED PRODUCTS ────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 py-14">
         <div className="flex items-center justify-between mb-8">
@@ -430,23 +447,6 @@ export default function Home() {
           <Link to="/products"
             className="inline-flex items-center gap-2 border-2 border-brand-500 text-brand-600 font-bold px-8 py-3 rounded-2xl hover:bg-brand-500 hover:text-white transition-all">
             Browse All {totalProducts > 0 ? `${totalProducts} ` : ''}Products <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-      </section>
-
-      {/* ── MYOP PROMO ───────────────────────────────────────────── */}
-      <section className="py-12 px-4 bg-gradient-to-r from-orange-500 to-amber-500">
-        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center gap-6 text-white">
-          <div className="text-4xl shrink-0">📦</div>
-          <div className="flex-1 text-center md:text-left">
-            <h2 className="text-2xl font-black mb-1">Build Your Own Package — Save 5%</h2>
-            <p className="text-orange-100 text-sm">
-              Mix and match ACs, fridges, washing machines, solar, TVs & more. Add 3+ items and get 5% off your entire order automatically.
-            </p>
-          </div>
-          <Link to="/build-your-package"
-            className="shrink-0 bg-white text-orange-600 font-black px-7 py-3.5 rounded-2xl hover:bg-orange-50 transition-colors whitespace-nowrap">
-            Start Building →
           </Link>
         </div>
       </section>

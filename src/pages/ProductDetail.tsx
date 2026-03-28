@@ -39,7 +39,8 @@ export default function ProductDetail() {
   const navigate    = useNavigate();
 
   const [product,    setProduct]    = useState<Product | null>(null);
-  const [related,    setRelated]    = useState<Product[]>([]);
+  const [related,        setRelated]        = useState<Product[]>([]);
+  const [relatedLoading, setRelatedLoading] = useState(true);
   const [loading,    setLoading]    = useState(true);
   const [plan,       setPlan]       = useState<'cash'|'2m'|'3m'|'6m'|'12m'>('cash');
   const [customAdvance, setCustomAdvance] = useState<number | null>(null);
@@ -67,8 +68,8 @@ export default function ProductDetail() {
         if (!p) { navigate('/products', { replace: true }); return; }
         startTransition(() => { setProduct(p); setLoading(false); });
         getRelatedProducts(p.id, p.category, 4)
-          .then(r => startTransition(() => setRelated(r)))
-          .catch(() => {});
+          .then(r => startTransition(() => { setRelated(r); setRelatedLoading(false); }))
+          .catch(() => setRelatedLoading(false));
         getPriceHistory(p.id)
           .then(ph => startTransition(() => { setPriceHistory(ph); setPriceHistoryLoading(false); }))
           .catch(() => setPriceHistoryLoading(false));
@@ -721,8 +722,30 @@ export default function ProductDetail() {
         {activeTab === 'price-history' && (
           <div className="animate-fade-in max-w-2xl">
             {priceHistoryLoading ? (
-              <div className="flex items-center justify-center py-16">
-                <div className="w-6 h-6 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+              <div className="space-y-4 animate-pulse">
+                {/* Header skeleton */}
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2">
+                    <div className="h-3.5 w-48 bg-gray-100 rounded-full" />
+                    <div className="h-2.5 w-64 bg-gray-100 rounded-full" />
+                  </div>
+                  <div className="h-6 w-24 bg-gray-100 rounded-full" />
+                </div>
+                {/* Chart skeleton */}
+                <div className="bg-gray-50 rounded-2xl border border-gray-100 h-40 flex items-end gap-1 px-4 pb-4">
+                  {[55, 70, 45, 80, 60, 90, 50, 75].map((h, i) => (
+                    <div key={i} className="flex-1 bg-gray-200 rounded-t-md" style={{ height: `${h}%` }} />
+                  ))}
+                </div>
+                {/* Footer skeleton */}
+                <div className="grid grid-cols-3 gap-3">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="bg-gray-50 rounded-xl p-3 space-y-1.5">
+                      <div className="h-2.5 w-16 bg-gray-100 rounded-full" />
+                      <div className="h-4 w-24 bg-gray-100 rounded-full" />
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : priceHistory.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -853,12 +876,25 @@ export default function ProductDetail() {
         )}
       </div>
 
-      {/* Related products */}
-      {related.length > 0 && (
+      {/* Related products — skeleton while loading, hidden if none found */}
+      {(relatedLoading || related.length > 0) && (
         <div className="mt-14">
           <h2 className="text-lg font-extrabold text-gray-900 mb-5">More {p.category.replace(/s$/, '')}s</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {related.map(r => <ProductCard key={r.id} product={r} />)}
+            {relatedLoading
+              ? Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                    <div className="aspect-square bg-gray-100 animate-pulse" />
+                    <div className="p-4 space-y-2.5">
+                      <div className="h-2 w-12 bg-gray-100 rounded-full animate-pulse" />
+                      <div className="h-3.5 w-3/4 bg-gray-100 rounded-full animate-pulse" />
+                      <div className="h-3 w-1/2 bg-gray-100 rounded-full animate-pulse" />
+                      <div className="h-3 w-1/3 bg-gray-100 rounded-full animate-pulse" />
+                    </div>
+                  </div>
+                ))
+              : related.map(r => <ProductCard key={r.id} product={r} />)
+            }
           </div>
         </div>
       )}

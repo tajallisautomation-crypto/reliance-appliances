@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ShoppingCart, Menu, X, Phone, User, Leaf } from 'lucide-react';
+import { ShoppingCart, Menu, X, Phone, User, Leaf, Search } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import CartDrawer from '@/components/cart/CartDrawer';
 import SearchBar from '@/components/SearchBar';
@@ -36,9 +36,10 @@ const MOBILE_LINKS = [
 ];
 
 export default function Navbar() {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [cartOpen,   setCartOpen]   = useState(false);
-  const [scrolled,   setScrolled]   = useState(false);
+  const [mobileOpen,   setMobileOpen]   = useState(false);
+  const [cartOpen,     setCartOpen]     = useState(false);
+  const [scrolled,     setScrolled]     = useState(false);
+  const [searchOpen,   setSearchOpen]   = useState(false);
   const location = useLocation();
   const totalItems = useCartStore(s => s.items.reduce((n, i) => n + i.qty, 0));
 
@@ -91,6 +92,15 @@ export default function Navbar() {
 
             {/* Right icons */}
             <div className="flex items-center gap-1 ml-auto sm:ml-0 shrink-0">
+              {/* Mobile search toggle — hidden on sm+ where the inline bar is always visible */}
+              <button
+                onClick={() => { setSearchOpen(s => !s); setMobileOpen(false); }}
+                aria-label="Search"
+                className="sm:hidden w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
+              >
+                {searchOpen ? <X className="h-5 w-5" /> : <Search className="h-4 w-4" />}
+              </button>
+
               <a href={waSales()} target="_blank" rel="noreferrer" aria-label="WhatsApp"
                 className="hidden sm:flex w-9 h-9 items-center justify-center rounded-full text-green-500 hover:bg-green-50 transition-colors">
                 <Phone className="h-4 w-4" />
@@ -108,13 +118,20 @@ export default function Navbar() {
                   </span>
                 )}
               </button>
-              <button onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menu"
+              <button onClick={() => { setMobileOpen(m => !m); setSearchOpen(false); }} aria-label="Menu"
                 className="lg:hidden w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 transition-colors">
                 {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </button>
             </div>
           </div>
         </div>
+
+        {/* Mobile search panel — toggled by search icon */}
+        {searchOpen && !mobileOpen && (
+          <div className="sm:hidden border-t border-gray-100 bg-white px-4 py-3">
+            <SearchBar placeholder="Search products, models, brands…" autoFocus />
+          </div>
+        )}
 
         {/* Mobile menu */}
         {mobileOpen && (
