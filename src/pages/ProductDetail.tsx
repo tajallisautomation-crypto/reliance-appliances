@@ -77,11 +77,35 @@ export default function ProductDetail() {
       .catch(() => navigate('/products', { replace: true }));
   }, [slug, navigate]);
 
+  // allImages + lightbox hooks must be declared BEFORE early returns (Rules of Hooks)
+  const allImages = product ? [product.thumbnail, ...product.gallery].filter(Boolean) : [];
+
+  const openLightbox = useCallback((idx: number) => { setActiveImg(idx); setZoom(1); setPan({ x: 0, y: 0 }); setLightbox(true); }, []);
+  const closeLightbox = useCallback(() => { setLightbox(false); setZoom(1); setPan({ x: 0, y: 0 }); }, []);
+  const lbPrev = useCallback(() => { setActiveImg(i => (i - 1 + allImages.length) % allImages.length); setZoom(1); setPan({ x: 0, y: 0 }); }, [allImages.length]);
+  const lbNext = useCallback(() => { setActiveImg(i => (i + 1) % allImages.length); setZoom(1); setPan({ x: 0, y: 0 }); }, [allImages.length]);
+
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    setZoom(z => Math.min(5, Math.max(1, z - e.deltaY * 0.002)));
+  }, []);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (zoom <= 1) return;
+    dragRef.current = { dragging: true, startX: e.clientX, startY: e.clientY, panX: pan.x, panY: pan.y };
+  }, [zoom, pan]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!dragRef.current.dragging) return;
+    setPan({ x: dragRef.current.panX + e.clientX - dragRef.current.startX, y: dragRef.current.panY + e.clientY - dragRef.current.startY });
+  }, []);
+
+  const handleMouseUp = useCallback(() => { dragRef.current.dragging = false; }, []);
+
   if (loading) return <Spinner />;
   if (!product) return null;
 
-  const p          = product;
-  const allImages  = [p.thumbnail, ...p.gallery].filter(Boolean);
+  const p = product;
   const INSTALL    = 2000;
   const planData   = plan !== 'cash' ? p.installments[plan] : null;
 
@@ -104,29 +128,6 @@ export default function ProductDetail() {
 
   const specEntries = Object.entries(p.specs || {}).filter(([, v]) => v);
   const tags        = (p.tags || '').split(',').map(t => t.trim()).filter(Boolean);
-
-  // Lightbox helpers
-  const openLightbox = useCallback((idx: number) => { setActiveImg(idx); setZoom(1); setPan({ x: 0, y: 0 }); setLightbox(true); }, []);
-  const closeLightbox = useCallback(() => { setLightbox(false); setZoom(1); setPan({ x: 0, y: 0 }); }, []);
-  const lbPrev = useCallback(() => { setActiveImg(i => (i - 1 + allImages.length) % allImages.length); setZoom(1); setPan({ x: 0, y: 0 }); }, [allImages.length]);
-  const lbNext = useCallback(() => { setActiveImg(i => (i + 1) % allImages.length); setZoom(1); setPan({ x: 0, y: 0 }); }, [allImages.length]);
-
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    setZoom(z => Math.min(5, Math.max(1, z - e.deltaY * 0.002)));
-  }, []);
-
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (zoom <= 1) return;
-    dragRef.current = { dragging: true, startX: e.clientX, startY: e.clientY, panX: pan.x, panY: pan.y };
-  }, [zoom, pan]);
-
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!dragRef.current.dragging) return;
-    setPan({ x: dragRef.current.panX + e.clientX - dragRef.current.startX, y: dragRef.current.panY + e.clientY - dragRef.current.startY });
-  }, []);
-
-  const handleMouseUp = useCallback(() => { dragRef.current.dragging = false; }, []);
 
   // WhatsApp CTA URL
   const waUrl = plan === 'cash'
