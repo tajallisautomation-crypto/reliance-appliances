@@ -285,6 +285,7 @@ export default function Products() {
   const [products, setProducts] = useState<Product[]>([])
   const [total, setTotal]       = useState(0)
   const [loading, setLoading]   = useState(true)
+  const [fetchError, setFetchError] = useState(false)
   const [view, setView]         = useState<'grid' | 'list'>('grid')
   const [showFilters, setShowFilters] = useState(false)
   const [specFilters, setSpecFilters] = useState<Record<string, string>>({})
@@ -305,6 +306,7 @@ export default function Products() {
 
   const fetchProducts = useCallback(() => {
     setLoading(true)
+    setFetchError(false)
     const params: Record<string, string> = {}
     if (category) params.category = category
     if (brand)    params.brand    = brand
@@ -313,6 +315,9 @@ export default function Products() {
     getProducts(params).then(d => {
       setProducts(d.products)
       setTotal(d.total)
+      setLoading(false)
+    }).catch(() => {
+      setFetchError(true)
       setLoading(false)
     })
   }, [category, brand, search, sort])
@@ -628,6 +633,15 @@ export default function Products() {
             {Array.from({ length: 12 }).map((_, i) => (
               <div key={i} className={`bg-gray-100 rounded-2xl animate-pulse ${view === 'grid' ? 'h-72' : 'h-28'}`} />
             ))}
+          </div>
+        ) : fetchError ? (
+          <div className="text-center py-20">
+            <div className="text-6xl mb-4">⚠️</div>
+            <h3 className="text-xl font-bold text-gray-700 mb-2">Could not load products</h3>
+            <p className="text-gray-500 mb-6">Check your connection and try again</p>
+            <button onClick={fetchProducts} className="bg-orange-500 text-white px-6 py-2.5 rounded-xl font-medium">
+              Retry
+            </button>
           </div>
         ) : filteredProducts.length === 0 ? (
           <div className="text-center py-20">

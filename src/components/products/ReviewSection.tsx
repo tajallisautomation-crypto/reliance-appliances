@@ -93,7 +93,8 @@ export default function ReviewSection({ productId, productName }: Props) {
       .then(({ data }) => {
         setReviews((data as Review[]) ?? []);
         setLoading(false);
-      });
+      })
+      .catch(() => setLoading(false));
   }, [productId]);
 
   const handleSubmit = async (e: FormEvent) => {

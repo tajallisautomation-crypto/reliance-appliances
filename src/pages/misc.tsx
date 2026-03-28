@@ -1,11 +1,13 @@
 // Services, Corporate pages
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Phone, MessageCircle, Building2, Award, Shield, ClipboardList,
   Wrench, Truck, CalendarCheck, CheckCircle, Star, Clock,
-  ThumbsUp, Headphones, Zap, Users,
+  ThumbsUp, Headphones, Zap, Users, ChevronRight,
 } from 'lucide-react'
 import SEO from '@/components/ui/SEO'
+import { getMaintenanceImages, type MediaItem } from '@/lib/gallery'
 
 // ── Services ─────────────────────────────────────────────────────────────────
 
@@ -56,13 +58,16 @@ const PROCESS = [
 ]
 
 const TRUST_STATS = [
-  { value: '15+', label: 'Years in Service' },
-  { value: '14,000+', label: 'Homes Served' },
+  { value: '11', label: 'Years in Business' },
+  { value: '14,400+', label: 'Clients Served' },
   { value: 'Same Day', label: 'Karachi Response' },
   { value: '90 Days', label: 'Workmanship Guarantee' },
 ]
 
 export function Services() {
+  const [recentWork, setRecentWork] = useState<MediaItem[]>([])
+  useEffect(() => { getMaintenanceImages(6).then(setRecentWork) }, [])
+
   return (
     <div className="min-h-screen bg-white">
       <SEO
@@ -128,6 +133,35 @@ export function Services() {
           </div>
         </section>
 
+        {/* Recent work photo strip */}
+        {recentWork.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-black text-gray-900">Recent Work</h2>
+                <p className="text-gray-500 text-sm mt-0.5">Real jobs, real technicians, real Karachi homes</p>
+              </div>
+              <Link to="/gallery"
+                className="flex items-center gap-1 text-orange-500 hover:text-orange-600 font-semibold text-sm transition-colors">
+                See all <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {recentWork.map(item => (
+                <Link key={item.id} to="/gallery"
+                  className="aspect-square rounded-2xl overflow-hidden block bg-gray-100 hover:opacity-90 transition-opacity">
+                  <img
+                    src={item.public_url}
+                    alt={item.caption}
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                  />
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* How it works */}
         <section className="bg-gray-50 rounded-3xl p-8 border border-gray-100">
           <div className="text-center mb-10">
@@ -151,12 +185,12 @@ export function Services() {
         <section>
           <div className="grid sm:grid-cols-3 gap-4">
             {[
-              { icon: ThumbsUp, title: '90-Day Workmanship Guarantee', desc: 'If the same fault recurs within 90 days of repair, we fix it free of charge.', color: 'green' },
-              { icon: Shield, title: 'Genuine Parts Only', desc: 'We source parts directly from brand-authorised suppliers — no grey-market components.', color: 'blue' },
-              { icon: Headphones, title: 'Post-Service Support', desc: 'Our technician\'s direct line stays available for 7 days after any service visit.', color: 'orange' },
+              { icon: ThumbsUp, title: '90-Day Workmanship Guarantee', desc: 'If the same fault recurs within 90 days of repair, we fix it free of charge.', bg: 'bg-green-50 border-green-100', fg: 'text-green-600' },
+              { icon: Shield, title: 'Genuine Parts Only', desc: 'We source parts directly from brand-authorised suppliers — no grey-market components.', bg: 'bg-blue-50 border-blue-100', fg: 'text-blue-600' },
+              { icon: Headphones, title: 'Post-Service Support', desc: 'Our technician\'s direct line stays available for 7 days after any service visit.', bg: 'bg-orange-50 border-orange-100', fg: 'text-orange-600' },
             ].map(g => (
-              <div key={g.title} className={`bg-${g.color}-50 border border-${g.color}-100 rounded-2xl p-5`}>
-                <g.icon className={`w-6 h-6 text-${g.color}-600 mb-3`} />
+              <div key={g.title} className={`${g.bg} border rounded-2xl p-5`}>
+                <g.icon className={`w-6 h-6 ${g.fg} mb-3`} />
                 <h3 className="font-bold text-gray-900 mb-1 text-sm">{g.title}</h3>
                 <p className="text-xs text-gray-600 leading-relaxed">{g.desc}</p>
               </div>
@@ -211,7 +245,7 @@ export function Services() {
           </div>
           <div className="mt-6 flex flex-wrap gap-4 justify-center text-sm">
             <Link to="/installments" className="text-gray-400 hover:text-white underline">Installment Plans</Link>
-            <Link to="/referral" className="text-gray-400 hover:text-white underline">Refer & Earn 1%</Link>
+            <Link to="/referral" className="text-gray-400 hover:text-white underline">Refer & Earn 2%</Link>
             <Link to="/contact" className="text-gray-400 hover:text-white underline">Get in Touch</Link>
           </div>
         </section>
@@ -228,25 +262,25 @@ const CORP_BENEFITS = [
     icon: Building2,
     title: 'Volume Pricing',
     desc: 'Dedicated pricing tiers for orders of 5, 10, 20+ units. The more you order, the more you save — with no compromise on after-sale support.',
-    color: 'blue',
+    bg: 'bg-blue-50 border-blue-100',   fg: 'text-blue-600',
   },
   {
     icon: Shield,
     title: 'Extended Warranty & Priority Service',
     desc: 'Corporate clients receive extended warranty periods and jump-the-queue priority for any service or breakdown calls — guaranteed response within 4 hours.',
-    color: 'green',
+    bg: 'bg-green-50 border-green-100',  fg: 'text-green-600',
   },
   {
     icon: ClipboardList,
     title: 'Dedicated Account Manager',
     desc: 'A single point of contact manages your entire procurement — from quotation to delivery to after-sale. No call centres, no hold music.',
-    color: 'orange',
+    bg: 'bg-orange-50 border-orange-100', fg: 'text-orange-600',
   },
   {
     icon: Award,
     title: 'Custom Procurement Packages',
     desc: 'We build brand-agnostic bundles optimised for your use case — office, hotel, hospital, or factory. Specification, sourcing, and logistics handled end-to-end.',
-    color: 'purple',
+    bg: 'bg-purple-50 border-purple-100', fg: 'text-purple-600',
   },
 ]
 
@@ -299,8 +333,8 @@ export function Corporate() {
           </div>
           <div className="grid sm:grid-cols-2 gap-6">
             {CORP_BENEFITS.map(b => (
-              <div key={b.title} className={`bg-${b.color}-50 border border-${b.color}-100 rounded-2xl p-6`}>
-                <b.icon className={`w-8 h-8 text-${b.color}-600 mb-4`} />
+              <div key={b.title} className={`${b.bg} border rounded-2xl p-6`}>
+                <b.icon className={`w-8 h-8 ${b.fg} mb-4`} />
                 <h3 className="font-bold text-gray-900 mb-2">{b.title}</h3>
                 <p className="text-sm text-gray-600 leading-relaxed">{b.desc}</p>
               </div>

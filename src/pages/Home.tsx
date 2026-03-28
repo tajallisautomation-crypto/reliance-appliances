@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight, Sun, Calculator, ShieldCheck, Truck, CreditCard, Headphones,
-  ChevronRight, Zap, Leaf, MessageCircle,
+  ChevronRight, Zap, Leaf, MessageCircle, Images,
 } from 'lucide-react'
 import { getProducts, getProductCount, DEFAULT_CATEGORIES, type Product, formatPrice } from '../lib/api'
 import { calcPlan } from '../lib/plans'
@@ -11,6 +11,7 @@ import AnimatedCounter from '../components/ui/AnimatedCounter'
 import SEO from '../components/ui/SEO'
 import { waSales } from '../lib/whatsapp'
 import OfferBannerSlider from '../components/OfferBannerSlider'
+import { getInstallationImages, type MediaItem } from '../lib/gallery'
 
 const BRANDS = [
   { name: 'Haier',     slug: 'haier',     color: '#e31837', desc: "World's #1 home appliance brand" },
@@ -49,14 +50,16 @@ export default function Home() {
   const [totalProducts,  setTotalProducts] = useState(0)
   const [activePlan,     setActivePlan]    = useState<'2m'|'3m'|'6m'|'12m'>('3m')
   const [samplePrice,    setSamplePrice]   = useState(150000)
+  const [galleryStrip,   setGalleryStrip]  = useState<MediaItem[]>([])
 
   useEffect(() => {
     getProducts({ featured: 'true' }).then(d => {
       setHeroProduct(d.products[0] ?? null)
       setFeatured(d.products.slice(0, 8))
       setLoading(false)
-    })
+    }).catch(() => setLoading(false))
     getProductCount().then(setTotalProducts)
+    getInstallationImages(6).then(setGalleryStrip)
   }, [])
 
   const calc = calcPlan(samplePrice, activePlan)
@@ -64,7 +67,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-white">
       <SEO
-        title="Reliance by Tajallis — Premium Home Appliances Karachi"
+        title="Reliance by Tajallis — Premium Appliances Karachi"
         description="Shop ACs, refrigerators, washing machines, TVs & solar systems on easy installments. Karachi's most trusted appliance store since 2015. Genuine products, home delivery & after-sale support."
         keywords="home appliances karachi, buy ac karachi, refrigerator installment karachi, solar panels karachi, haier dawlance price pakistan"
         path="/"
@@ -120,12 +123,12 @@ export default function Home() {
             </div>
             {/* Floating badges */}
             <div className="absolute -bottom-5 -left-5 bg-white rounded-2xl shadow-apple-xl px-5 py-4 border border-gray-100 animate-slide-up">
-              <p className="text-2xl font-black text-gray-900 leading-none">14,000+</p>
-              <p className="text-xs text-gray-400 mt-0.5 font-medium">Homes served</p>
+              <p className="text-2xl font-black text-gray-900 leading-none">14,400+</p>
+              <p className="text-xs text-gray-400 mt-0.5 font-medium">Clients served</p>
             </div>
             <div className="absolute -top-5 -right-5 bg-gray-900 text-white rounded-2xl shadow-apple-xl px-5 py-4 animate-slide-up">
-              <p className="text-2xl font-black leading-none text-brand-400">23K+</p>
-              <p className="text-xs opacity-60 mt-0.5 font-medium">Moments created</p>
+              <p className="text-2xl font-black leading-none text-brand-400">24K+</p>
+              <p className="text-xs opacity-60 mt-0.5 font-medium">Orders fulfilled</p>
             </div>
           </div>
         </div>
@@ -136,9 +139,9 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {[
             { target: 11,    suffix: ' Years', label: 'In Business' },
-            { target: 14000, suffix: '+',      label: 'Homes Served' },
-            { target: 80,    suffix: '%',       label: 'Customer Retention' },
-            { target: 23000, suffix: '+',      label: 'Moments Created' },
+            { target: 14400, suffix: '+',      label: 'Clients Served' },
+            { target: 75,    suffix: '%',      label: 'Returning Customers' },
+            { target: 24000, suffix: '+',      label: 'Orders Fulfilled' },
           ].map(item => (
             <div key={item.label}>
               <p className="text-4xl md:text-5xl font-black text-brand-400 mb-1">
@@ -366,6 +369,35 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── PROOF OF WORK ────────────────────────────────────────── */}
+      {galleryStrip.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 pb-6">
+          <div className="flex items-end justify-between mb-6">
+            <div>
+              <p className="text-brand-500 text-xs font-bold uppercase tracking-widest mb-1">Real Jobs</p>
+              <h2 className="text-2xl font-black text-gray-900">Installed Across Karachi</h2>
+            </div>
+            <Link to="/gallery"
+              className="flex items-center gap-1 text-brand-600 hover:text-brand-700 font-semibold text-sm transition-colors">
+              <Images className="w-4 h-4" /> Full Gallery <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {galleryStrip.map(item => (
+              <Link key={item.id} to="/gallery"
+                className="aspect-square rounded-2xl overflow-hidden block bg-gray-100 hover:opacity-90 transition-opacity">
+                <img
+                  src={item.public_url}
+                  alt={item.caption}
+                  loading="lazy"
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                />
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* ── FEATURED PRODUCTS ────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 py-14">
         <div className="flex items-center justify-between mb-8">
@@ -398,6 +430,23 @@ export default function Home() {
           <Link to="/products"
             className="inline-flex items-center gap-2 border-2 border-brand-500 text-brand-600 font-bold px-8 py-3 rounded-2xl hover:bg-brand-500 hover:text-white transition-all">
             Browse All {totalProducts > 0 ? `${totalProducts} ` : ''}Products <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </section>
+
+      {/* ── MYOP PROMO ───────────────────────────────────────────── */}
+      <section className="py-12 px-4 bg-gradient-to-r from-orange-500 to-amber-500">
+        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center gap-6 text-white">
+          <div className="text-4xl shrink-0">📦</div>
+          <div className="flex-1 text-center md:text-left">
+            <h2 className="text-2xl font-black mb-1">Build Your Own Package — Save 5%</h2>
+            <p className="text-orange-100 text-sm">
+              Mix and match ACs, fridges, washing machines, solar, TVs & more. Add 3+ items and get 5% off your entire order automatically.
+            </p>
+          </div>
+          <Link to="/build-your-package"
+            className="shrink-0 bg-white text-orange-600 font-black px-7 py-3.5 rounded-2xl hover:bg-orange-50 transition-colors whitespace-nowrap">
+            Start Building →
           </Link>
         </div>
       </section>

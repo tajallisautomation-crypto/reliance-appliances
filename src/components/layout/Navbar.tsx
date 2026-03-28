@@ -8,6 +8,7 @@ import { waSales } from '@/lib/whatsapp';
 
 const NAV_LINKS = [
   { label: 'Products',        href: '/products' },
+  { label: 'Build a Package', href: '/build-your-package', highlight: true },
   { label: 'Installments',    href: '/installments' },
   { label: 'Solar',           href: '/solar' },
   { label: 'Green Corridor',  href: '/green-corridor', eco: true },
@@ -18,6 +19,7 @@ const NAV_LINKS = [
 
 const MOBILE_LINKS = [
   ['Products',          '/products'],
+  ['Build a Package 🎁', '/build-your-package'],
   ['Installments',      '/installments'],
   ['Solar Solutions',   '/solar'],
   ['Green Corridor',    '/green-corridor'],
@@ -65,14 +67,16 @@ export default function Navbar() {
 
             {/* Nav links — desktop */}
             <nav className="hidden lg:flex items-center gap-0.5">
-              {NAV_LINKS.map(({ label, href, eco }) => (
+              {NAV_LINKS.map(({ label, href, eco, highlight }) => (
                 <Link key={href} to={href}
                   className={`px-3 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${
                     isActive(href)
                       ? 'bg-brand-50 text-brand-600 font-semibold'
-                      : eco
-                        ? 'text-eco-700 hover:bg-eco-50 hover:text-eco-700'
-                        : 'text-gray-600 hover:text-brand-600 hover:bg-brand-50'
+                      : highlight
+                        ? 'bg-orange-50 text-orange-600 hover:bg-orange-100 font-semibold'
+                        : eco
+                          ? 'text-eco-700 hover:bg-eco-50 hover:text-eco-700'
+                          : 'text-gray-600 hover:text-brand-600 hover:bg-brand-50'
                   }`}>
                   {eco && <Leaf className="w-3 h-3" />}
                   {label}

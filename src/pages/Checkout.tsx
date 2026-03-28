@@ -11,9 +11,16 @@ const PLAN_LABELS: Record<string, string> = {
 }
 
 const BANK_DETAILS = [
-  { bank: 'Meezan Bank', account: '02890106575055', title: 'Reliance by Tajallis' },
-  { bank: 'JazzCash',    account: '03702578788',    title: 'Reliance by Tajallis' },
-  { bank: 'EasyPaisa',   account: '03702578788',    title: 'Reliance by Tajallis' },
+  {
+    bank:    'Meezan Bank',
+    account: '01060101874794',
+    iban:    'PK33MEZN0001060101874794',
+    branch:  'F.B Area Branch, Karachi',
+    title:   "Tajalli's Home Collection",
+    qr:      '/meezan-qr.jpeg',
+  },
+  { bank: 'JazzCash',  account: '03702578788', iban: '', branch: '', title: 'Reliance by Tajallis', qr: '' },
+  { bank: 'EasyPaisa', account: '03702578788', iban: '', branch: '', title: 'Reliance by Tajallis', qr: '' },
 ]
 
 export default function Checkout() {
@@ -155,21 +162,34 @@ export default function Checkout() {
             <p className="text-xs text-amber-700 mb-3">Transfer the advance or full amount to any of these accounts and save 1%.</p>
             <div className="space-y-2">
               {BANK_DETAILS.map(b => (
-                <div key={b.bank} className="bg-white rounded-xl px-4 py-3 flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-xs font-bold text-gray-800">{b.bank}</p>
-                    <p className="text-xs text-gray-500 font-mono">{b.account} · {b.title}</p>
+                <div key={b.bank} className="bg-white rounded-xl px-4 py-3 border border-amber-100">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-gray-800">{b.bank}</p>
+                      <p className="text-xs text-gray-500 font-mono truncate">{b.account} · {b.title}</p>
+                      {b.iban   && <p className="text-[10px] text-gray-400 font-mono mt-0.5">IBAN: {b.iban}</p>}
+                      {b.branch && <p className="text-[10px] text-gray-400 mt-0.5">{b.branch}</p>}
+                    </div>
+                    <button
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(b.iban || b.account)
+                        setCopiedBank(b.bank)
+                        setTimeout(() => setCopiedBank(''), 2000)
+                      }}
+                      className="text-xs text-gray-500 hover:text-gray-800 flex items-center gap-1 shrink-0">
+                      <Copy className="w-3 h-3" />
+                      {copiedBank === b.bank ? 'Copied!' : 'Copy'}
+                    </button>
                   </div>
-                  <button
-                    onClick={async () => {
-                      await navigator.clipboard.writeText(b.account)
-                      setCopiedBank(b.bank)
-                      setTimeout(() => setCopiedBank(''), 2000)
-                    }}
-                    className="text-xs text-gray-500 hover:text-gray-800 flex items-center gap-1">
-                    <Copy className="w-3 h-3" />
-                    {copiedBank === b.bank ? 'Copied!' : 'Copy'}
-                  </button>
+                  {b.qr && (
+                    <div className="mt-3 flex items-center gap-3">
+                      <img src={b.qr} alt="Meezan Bank payment QR"
+                        className="w-24 h-24 rounded-xl border border-gray-200 object-contain" />
+                      <p className="text-[11px] text-gray-500 leading-relaxed">
+                        Scan with your <strong>Meezan Bank app</strong> or any UPI-compatible app to pay instantly.
+                      </p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

@@ -1,32 +1,36 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ShieldCheck, CreditCard, Truck, Headphones, MapPin, Phone, Mail, MessageCircle } from 'lucide-react'
+import { ShieldCheck, CreditCard, Truck, Headphones, MessageCircle, ChevronRight, Images } from 'lucide-react'
 import SEO from '@/components/ui/SEO'
 import { waSales } from '@/lib/whatsapp'
-
-const TEAM = [
-  { name: 'Reliance by Tajallis', role: 'Karachi\'s trusted home appliance partner since 2015', initial: 'R', color: 'from-blue-500 to-cyan-500' },
-]
+import { getInstallationImages, type MediaItem } from '@/lib/gallery'
 
 const STATS = [
   { value: '11',      label: 'Years in Business' },
-  { value: '14,000+', label: 'Happy Customers' },
-  { value: '400+',    label: 'Products Available' },
-  { value: '6+',      label: 'Premium Brands' },
+  { value: '14,400+', label: 'Customers Served' },
+  { value: '24,000+', label: 'Orders Fulfilled' },
+  { value: '75%',     label: 'Returning Customers' },
 ]
 
 const VALUES = [
-  { icon: ShieldCheck, title: 'Authenticity',     desc: 'Every product we sell is 100% genuine with official brand warranty. No grey-market or parallel imports.', color: 'blue' },
-  { icon: CreditCard,  title: 'Flexibility',      desc: 'We offer 2–12 month installment plans so everyone can afford quality appliances, no bank account needed.', color: 'green' },
-  { icon: Truck,       title: 'Reliability',      desc: 'We deliver to your door and provide professional installation — so your appliance is set up right from day one.', color: 'orange' },
-  { icon: Headphones,  title: 'After-Sale Care',  desc: 'Our relationship doesn\'t end at the sale. We follow up, handle warranty claims, and provide ongoing support.', color: 'purple' },
+  { icon: ShieldCheck, title: 'Authenticity',    desc: 'Every product we sell is 100% genuine with official brand warranty. No grey-market or parallel imports.', bg: 'bg-blue-100',   fg: 'text-blue-600' },
+  { icon: CreditCard,  title: 'Flexibility',     desc: 'We offer 2–12 month installment plans so everyone can afford quality appliances, no bank account needed.', bg: 'bg-green-100',  fg: 'text-green-600' },
+  { icon: Truck,       title: 'Reliability',     desc: 'We deliver to your door and provide professional installation — so your appliance is set up right from day one.', bg: 'bg-orange-100', fg: 'text-orange-600' },
+  { icon: Headphones,  title: 'After-Sale Care', desc: "Our relationship doesn't end at the sale. We follow up, handle warranty claims, and provide ongoing support.", bg: 'bg-purple-100', fg: 'text-purple-600' },
 ]
 
 export default function About() {
+  const [galleryStrip, setGalleryStrip] = useState<MediaItem[]>([])
+
+  useEffect(() => {
+    getInstallationImages(5).then(setGalleryStrip)
+  }, [])
+
   return (
     <div className="min-h-screen bg-white">
       <SEO
         title="About Us — Reliance by Tajallis Karachi"
-        description="Learn about Reliance by Tajallis — Karachi's most trusted home appliance destination since 2015. Serving 14,000+ households with genuine products, easy installments & real after-sale support."
+        description="Learn about Reliance by Tajallis — Karachi's trusted appliance partner since 2015. 14,400+ clients served, 24,000+ orders fulfilled, genuine products & real after-sale support."
         keywords="about reliance appliances karachi, home appliances karachi, trusted appliance store pakistan"
       />
 
@@ -40,7 +44,8 @@ export default function About() {
             Karachi's Most Trusted<br />Appliance Partner
           </h1>
           <p className="text-lg text-blue-100 max-w-2xl mx-auto">
-            Since 2015, Reliance by Tajallis has been helping Karachi households get the best home appliances — with genuine products, flexible installments, and real after-sale support.
+            Since 2015, Reliance by Tajallis has been the trusted appliance partner for homes,
+            offices, and businesses across Karachi — genuine products, flexible terms, real support.
           </p>
         </div>
       </section>
@@ -65,16 +70,22 @@ export default function About() {
             <h2 className="text-3xl font-black text-gray-900 mb-4">Built on Trust, Grown by Service</h2>
             <div className="space-y-4 text-gray-600 leading-relaxed">
               <p>
-                Reliance by Tajallis was founded with a simple belief: every Pakistani family deserves access to quality home appliances at fair prices — without the runaround of grey-market products or opaque pricing.
+                Reliance by Tajallis was founded with a simple belief: every Pakistani family deserves
+                access to quality appliances at fair prices — without the runaround of grey-market
+                products or opaque pricing.
               </p>
               <p>
-                We started small in Karachi, focusing on a few key brands and building deep expertise in what we sell. Over the years, we've grown by word of mouth — customer by customer — because we do what we say.
+                We started small in Karachi, focusing on a few key brands and building deep expertise in
+                what we sell. Over the years, we've grown by word of mouth — customer by customer —
+                because we do what we say.
               </p>
               <p>
-                Today we carry 400+ products from Haier, Dawlance, Gree, EcoStar, Westpoint, and Crown — as an authorised dealer for Pakistan's leading appliance brands. Our installment plans have helped thousands of families afford air conditioners, refrigerators, and solar systems that make their lives better.
+                Today we carry 400+ products from Haier, Dawlance, Gree, EcoStar, Westpoint, and Crown
+                — as an authorised dealer for Pakistan's leading appliance brands.
               </p>
             </div>
           </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-6 text-white">
               <div className="text-4xl font-black mb-1">2015</div>
@@ -96,6 +107,45 @@ export default function About() {
         </div>
       </section>
 
+      {/* Real Work strip — only rendered once gallery is populated */}
+      {galleryStrip.length > 0 && (
+        <section className="bg-gray-950 py-14 px-4">
+          <div className="max-w-5xl mx-auto">
+            <div className="flex items-end justify-between mb-7">
+              <div>
+                <p className="text-orange-400 text-xs font-bold uppercase tracking-widest mb-2">Proof of Work</p>
+                <h2 className="text-2xl font-black text-white">Real Jobs. Real Homes. Karachi.</h2>
+                <p className="text-gray-400 text-sm mt-1">Every photo is a real installation or service call.</p>
+              </div>
+              <Link to="/gallery"
+                className="hidden sm:flex items-center gap-1.5 text-orange-400 hover:text-orange-300 font-semibold text-sm transition-colors flex-shrink-0 ml-6">
+                <Images className="w-4 h-4" /> Full Gallery <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {galleryStrip.map(item => (
+                <Link key={item.id} to="/gallery"
+                  className="aspect-square rounded-2xl overflow-hidden block bg-gray-800 hover:opacity-90 transition-opacity">
+                  <img
+                    src={item.public_url}
+                    alt={item.caption}
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                  />
+                </Link>
+              ))}
+            </div>
+
+            <div className="mt-5 text-center sm:hidden">
+              <Link to="/gallery" className="text-orange-400 font-semibold text-sm">
+                View Full Gallery →
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Values */}
       <section className="bg-gray-50 py-16 px-4">
         <div className="max-w-5xl mx-auto">
@@ -106,8 +156,8 @@ export default function About() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {VALUES.map(v => (
               <div key={v.title} className="bg-white rounded-2xl p-6 shadow-sm text-center">
-                <div className={`w-14 h-14 bg-${v.color}-100 rounded-2xl flex items-center justify-center mx-auto mb-4`}>
-                  <v.icon className={`w-7 h-7 text-${v.color}-600`} />
+                <div className={`w-14 h-14 ${v.bg} rounded-2xl flex items-center justify-center mx-auto mb-4`}>
+                  <v.icon className={`w-7 h-7 ${v.fg}`} />
                 </div>
                 <h3 className="font-bold text-gray-900 mb-2">{v.title}</h3>
                 <p className="text-sm text-gray-500 leading-relaxed">{v.desc}</p>
@@ -125,12 +175,12 @@ export default function About() {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
           {[
-            { name: 'Haier',     color: '#e31837', desc: "World's #1 appliance brand",      slug: 'haier' },
-            { name: 'Dawlance',  color: '#003087', desc: "Pakistan's most trusted brand",    slug: 'dawlance' },
-            { name: 'Gree',      color: '#00843d', desc: 'Energy-efficient inverter ACs',    slug: 'gree' },
-            { name: 'EcoStar',   color: '#0070c0', desc: 'Smart TVs & air conditioners',     slug: 'ecostar' },
-            { name: 'Crown',     color: '#1a1a2e', desc: 'Premium solar solutions',          slug: 'crown' },
-            { name: 'Westpoint', color: '#2563eb', desc: 'Quality kitchen & home appliances',slug: 'westpoint' },
+            { name: 'Haier',     color: '#e31837', desc: "World's #1 appliance brand",       slug: 'haier' },
+            { name: 'Dawlance',  color: '#003087', desc: "Pakistan's most trusted brand",     slug: 'dawlance' },
+            { name: 'Gree',      color: '#00843d', desc: 'Energy-efficient inverter ACs',     slug: 'gree' },
+            { name: 'EcoStar',   color: '#0070c0', desc: 'Smart TVs & air conditioners',      slug: 'ecostar' },
+            { name: 'Crown',     color: '#1a1a2e', desc: 'Premium solar solutions',           slug: 'crown' },
+            { name: 'Westpoint', color: '#2563eb', desc: 'Quality kitchen & home appliances', slug: 'westpoint' },
           ].map(b => (
             <Link key={b.slug} to={`/products?brand=${b.slug}`}
               className="flex flex-col items-center gap-3 bg-white border border-gray-100 hover:border-orange-300 hover:shadow-md rounded-2xl p-6 transition-all text-center">

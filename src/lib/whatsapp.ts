@@ -155,7 +155,7 @@ export const TEMPLATES = {
     `3. Advance payment at delivery\n` +
     `4. Professional installation on the spot\n\n` +
     `Questions? Call/WhatsApp: +92 370 2578788\n` +
-    `${COMPANY} — Your trusted home appliance partner 🏠`,
+    `${COMPANY} — Your trusted appliance & solutions partner`,
 
   // ── 6. POST-SALE FOLLOW-UP ────────────────────────────────────────
   followup_postsale_ur: (name: string, product: string) =>

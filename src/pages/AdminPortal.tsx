@@ -557,8 +557,8 @@ function ProductModal({
   }
 
   function requestSave() {
-    if (!form.brand || !form.model || !form.category || !form.retail_price) {
-      setErr('Brand, Model, Category, and Retail Price are required.'); return;
+    if (!form.brand || !form.model || !form.category || !form.retail_price?.toString().trim() || Number(form.retail_price) <= 0) {
+      setErr('Brand, Model, Category, and Retail Price (must be a positive number) are required.'); return;
     }
     if (form.id) { setConfirmSave(true); return; }
     doSave();
@@ -726,8 +726,8 @@ function Field({ label, value, onChange, type = 'text', placeholder = '', multil
     <div>
       <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
       {multiline
-        ? <textarea value={value || ''} onChange={e => onChange(e.target.value)} rows={3} placeholder={placeholder} className={cls} />
-        : <input type={type} value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} className={cls} />
+        ? <textarea value={value ?? ''} onChange={e => onChange(e.target.value)} rows={3} placeholder={placeholder} className={cls} />
+        : <input type={type} value={value ?? ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} className={cls} />
       }
     </div>
   );

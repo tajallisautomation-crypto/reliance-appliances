@@ -10,7 +10,7 @@ const SOLAR_BENEFITS = [
   { icon:'☀️', title:'25 Year Performance Warranty', desc:'Panels guaranteed at 80% output for 25 years.' },
   { icon:'💰', title:'80% Bill Reduction', desc:'Average customer saves PKR 8,000–25,000/month.' },
   { icon:'🔋', title:'Backup Power', desc:'Hybrid systems keep your home running during outages.' },
-  { icon:'🌿', title:'Net Metering', desc:'Sell excess power back to the grid and earn credits.' },
+  { icon:'🌿', title:'Net Metering', desc:'Sell excess power back to the grid and earn credits (KE requires 10kW+ for Net Metering).' },
 ]
 
 interface SolarPackage {

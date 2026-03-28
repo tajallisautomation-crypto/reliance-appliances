@@ -49,7 +49,7 @@ const WEBSITE_SCHEMA = {
   '@id': `${SITE_URL}/#website`,
   name: COMPANY,
   url: SITE_URL,
-  description: `Pakistan's leading home appliance store in ${CITY}. Buy ACs, Refrigerators, Washing Machines, Solar Systems on easy installments.`,
+  description: `Pakistan's leading appliance supplier in ${CITY}. ACs, Refrigerators, Washing Machines, Solar Systems — retail & B2B supply on easy installments.`,
   publisher: { '@id': `${SITE_URL}/#organization` },
   potentialAction: {
     '@type': 'SearchAction',
@@ -60,8 +60,8 @@ const WEBSITE_SCHEMA = {
 };
 
 export default function SEO({ title, description, keywords, path = '/', ogImage, noIndex, type = 'website' }: Props) {
-  const fullTitle  = title ? `${title} | ${COMPANY}` : `${COMPANY} — Premium Home Appliances ${CITY}`;
-  const desc       = description || `Pakistan's trusted home appliance store. Premium ACs, Refrigerators, Solar & more on easy installments. Serving 14,000+ households in ${CITY} since 2015.`;
+  const fullTitle  = title ? `${title} | ${COMPANY}` : `${COMPANY} — Premium Appliances ${CITY}`;
+  const desc       = description || `Pakistan's trusted appliance supplier. Premium ACs, Refrigerators, Solar & more on easy installments. Serving 14,400+ clients in ${CITY} since 2015.`;
   const canonical  = `${SITE_URL}${path}`;
   const image      = ogImage || `${SITE_URL}/og-image.svg`;
 

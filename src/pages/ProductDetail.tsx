@@ -58,15 +58,22 @@ export default function ProductDetail() {
 
   useEffect(() => {
     if (!slug) { navigate('/products'); return; }
-    getProductBySlug(slug).then(p => {
-      if (!p) { navigate('/products', { replace: true }); return; }
-      startTransition(() => {
-        setProduct(p);
-        setLoading(false);
-      });
-      getRelatedProducts(p.id, p.category, 4).then(r => startTransition(() => setRelated(r)));
-      getPriceHistory(p.id).then(ph => startTransition(() => { setPriceHistory(ph); setPriceHistoryLoading(false); }));
-    });
+    // Reset plan selection so the new product doesn't inherit a plan key it may not have
+    setPlan('cash');
+    setCustomAdvance(null);
+    setLoading(true);
+    getProductBySlug(slug)
+      .then(p => {
+        if (!p) { navigate('/products', { replace: true }); return; }
+        startTransition(() => { setProduct(p); setLoading(false); });
+        getRelatedProducts(p.id, p.category, 4)
+          .then(r => startTransition(() => setRelated(r)))
+          .catch(() => {});
+        getPriceHistory(p.id)
+          .then(ph => startTransition(() => { setPriceHistory(ph); setPriceHistoryLoading(false); }))
+          .catch(() => setPriceHistoryLoading(false));
+      })
+      .catch(() => navigate('/products', { replace: true }));
   }, [slug, navigate]);
 
   if (loading) return <Spinner />;
@@ -337,7 +344,7 @@ export default function ProductDetail() {
           <p className="text-brand-500 font-bold text-xs uppercase tracking-widest mb-1">{p.brand}</p>
           <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight leading-tight mb-1">
             {p.simplified_name
-              ? p.simplified_name.replace(new RegExp(`^${p.brand}\\s+`, 'i'), '')
+              ? p.simplified_name.replace(new RegExp(`^${p.brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+`, 'i'), '')
               : `${p.brand} ${p.model}`}
           </h1>
           {p.simplified_name && (

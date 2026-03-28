@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { calcAllPlans, fmtPKR, roundTo100 } from '../lib/api'
 import SEO from '../components/ui/SEO'
+import { waSales } from '../lib/whatsapp'
 
 const PLAN_DETAILS = [
   { key: '2 Payments',  label: '2 Payments',  splits: '2',  note: 'Pay a portion upfront, then 1 remaining payment.', popular: false },
@@ -60,7 +61,7 @@ export default function InstallmentsPage() {
             Professional verification. Transparent terms.
           </p>
           <div className="flex flex-wrap gap-4 justify-center mt-8">
-            <a href="https://wa.me/923702578788"
+            <a href={waSales('Hi, I\'d like to apply for an installment plan')}
               className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
               💬 Start on WhatsApp
             </a>
@@ -267,7 +268,7 @@ export default function InstallmentsPage() {
             WhatsApp us with the product you want and we'll walk you through the process step by step.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="https://wa.me/923702578788?text=Hi%2C%20I%27d%20like%20to%20apply%20for%20an%20installment%20plan"
+            <a href={waSales('Hi, I\'d like to apply for an installment plan')}
               className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
               💬 Start Application on WhatsApp
             </a>

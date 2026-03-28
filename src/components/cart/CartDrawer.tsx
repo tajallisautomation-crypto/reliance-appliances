@@ -38,7 +38,7 @@ export default function CartDrawer({ open, onClose }: Props) {
             <div key={item.id} className="flex gap-3">
               <img src={item.thumbnail} alt={item.model}
                 className="w-16 h-16 rounded-apple object-cover flex-shrink-0 bg-surface-secondary"
-                onError={e => { (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=80&q=60'; }} />
+                onError={e => { (e.currentTarget as HTMLImageElement).src = '/placeholder-product.svg'; }} />
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-brand-500 font-semibold">{item.brand}</p>
                 <p className="text-sm font-bold text-gray-900 truncate">{item.simplified_name || item.model}</p>

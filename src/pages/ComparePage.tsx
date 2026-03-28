@@ -44,8 +44,8 @@ export default function ComparePage() {
   if (items.length === 0) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-        <SEO path="/compare" title="Compare Products — Tajalli's Home Collection"
-          description="Compare home appliances side by side." keywords="compare appliances pakistan" />
+        <SEO path="/compare" title="Compare Products — Tajallis"
+          description="Compare appliances side by side." keywords="compare appliances pakistan" />
         <GitCompareArrows className="w-16 h-16 text-gray-200 mx-auto mb-4" />
         <h1 className="text-2xl font-black text-gray-800 mb-2">No products to compare</h1>
         <p className="text-gray-500 mb-6">

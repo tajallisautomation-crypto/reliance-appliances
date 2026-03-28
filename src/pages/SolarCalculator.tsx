@@ -68,7 +68,8 @@ const UPGRADE_SUGGESTIONS: Record<string, { label: string; savingsW: number; cat
 // ── Pricing constants ──────────────────────────────────────────────────────────
 
 const PANEL_WATTS        = 575       // standard panel wattage
-const PANEL_PRICE        = 14000     // PKR per panel (575W)
+const PANEL_PRICE_PER_W  = 45        // PKR per watt (575W panel = PKR 25,875)
+const UNIT_RATE          = 70        // PKR per kWh — hardcoded Karachi average
 const WIRING_PER_W       = 12        // Rs/W — solar wiring & equipment
 const LABOR_PER_W        = 5         // Rs/W — solar installation labor
 const ELEVATED_FRAME_W   = 28        // Rs/W — elevated frame surcharge
@@ -93,7 +94,7 @@ interface Quote {
   inverterKW:  number
   invProduct:  Product | null
   batteryKWh:  number
-  batProduct:  Product | null
+  batBank:     BatteryBank | null
   type:        'on-grid'|'hybrid'|'off-grid'|'ups-only'
   costs: {
     panels:number; inverter:number; battery:number
@@ -146,25 +147,45 @@ function bestInverter(inverters: Product[], targetKW: number): Product | null {
     })[0] || inverters[0] || null
 }
 
-function bestBattery(batteries: Product[], targetKWh: number): Product | null {
-  if (!targetKWh) return null
+interface BatteryBank {
+  product:   Product
+  qty:       number
+  totalKWh:  number
+  totalCost: number
+}
+
+function bestBatteryBank(batteries: Product[], targetKWh: number): BatteryBank | null {
+  if (!targetKWh || !batteries.length) return null
   const kwhOf = (p: Product) => {
-    const m = (p.simplified_name + ' ' + p.specs?.Capacity + '').match(/(\d+(?:\.\d)?)\s*k[wW]h/i)
+    const m = (p.simplified_name + ' ' + (p.specs?.Capacity ?? '') + '').match(/(\d+(?:\.\d)?)\s*k[wW]h/i)
     return m ? parseFloat(m[1]) : 0
   }
-  const sorted = batteries.filter(p => kwhOf(p) > 0).sort((a,b) => kwhOf(a) - kwhOf(b))
-  // Pick smallest that covers target, or largest available
-  return sorted.find(p => kwhOf(p) >= targetKWh) || sorted[sorted.length - 1] || null
+  const valid = batteries.filter(p => kwhOf(p) > 0)
+  if (!valid.length) return null
+  // Pick the option with lowest total cost to cover targetKWh
+  let best: BatteryBank | null = null
+  for (const p of valid) {
+    const unitKWh = kwhOf(p)
+    const qty = Math.ceil(targetKWh / unitKWh)
+    const totalCost = p.price.cash_floor * qty
+    const totalKWh  = unitKWh * qty
+    if (!best || totalCost < best.totalCost) {
+      best = { product: p, qty, totalKWh, totalCost }
+    }
+  }
+  return best
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function SolarCalculator() {
+  const [mode,        setMode]      = useState<'solar'|'ups'>('solar')
   const [step,        setStep]      = useState<1|2|3|4>(1)
   const [items,       setItems]     = useState<Item[]>([])
   const [sysType,     setSysType]   = useState<'on-grid'|'hybrid'|'off-grid'|'ups-only'>('hybrid')
   const [peakHrs,     setPeakHrs]   = useState(7)
   const [elevFrame,   setElevFrame] = useState(false)
+  const [backupHrs,   setBackupHrs] = useState(4)   // UPS mode: desired backup hours
   const [quote,       setQuote]     = useState<Quote | null>(null)
   const [loading,     setLoading]   = useState(false)
   const [openCat,     setOpenCat]   = useState<string|null>('Cooling')
@@ -174,7 +195,6 @@ export default function SolarCalculator() {
   const [solarProds,  setSolarProds] = useState<SolarProducts>({ panels:[], inverters:[], batteries:[] })
   const [billMode,    setBillMode]  = useState(false)
   const [billAmount,  setBillAmount]= useState('')
-  const [unitRate,    setUnitRate]  = useState(50)   // PKR per unit (kWh) — avg Karachi KESC
 
   // Load solar products from Supabase on mount
   useEffect(() => {
@@ -194,12 +214,12 @@ export default function SolarCalculator() {
   const totalW  = items.reduce((s,i) => s + i.watts * i.qty, 0)
   const dailyU  = items.reduce((s,i) => s + i.watts * i.qty * i.hours / 1000, 0)
 
-  // Bill-based load estimate
+  // Bill-based load estimate (PKR 70/kWh assumed)
   const billKWh = useMemo(() => {
     const a = parseFloat(billAmount)
-    if (!a || !unitRate) return 0
-    return Math.round(a / unitRate)           // monthly kWh
-  }, [billAmount, unitRate])
+    if (!a) return 0
+    return Math.round(a / UNIT_RATE)          // monthly kWh
+  }, [billAmount])
 
   const effectiveDailyU = billMode && billKWh ? billKWh / 30 : dailyU
 
@@ -210,7 +230,7 @@ export default function SolarCalculator() {
   })
   const removeItem = (id: string) => setItems(p => p.filter(i => i.id !== id))
   const updHours   = (id: string, h: number) => setItems(p => p.map(i => i.id === id ? { ...i, hours: h } : i))
-  const updQty     = (id: string, q: number) => setItems(p => p.map(i => i.id === id ? { ...i, qty: Math.max(1, q) } : i))
+  const updQty     = (id: string, q: number) => setItems(p => p.map(i => i.id === id ? { ...i, qty: Math.max(0, q) } : i))
 
   const addCustom = () => {
     if (!custom.name || !custom.watts) return
@@ -231,62 +251,91 @@ export default function SolarCalculator() {
   , [items])
 
   const calc = async () => {
-    if (!effectiveDailyU && !items.length) return
+    if (!effectiveDailyU && !items.length && mode === 'solar') return
+    if (!totalW && mode === 'ups') return
     setLoading(true)
     try {
+      const activeType = mode === 'ups' ? 'ups-only' : sysType
       const refU = effectiveDailyU || dailyU
+
+      // ── UPS mode: size by load × backup hours ──────────────────────────────
+      if (mode === 'ups') {
+        const batKWh  = Math.ceil(totalW * backupHrs / 1000 * 1.2)  // 20% buffer
+        const invKW   = Math.ceil(totalW / 100) / 10                 // round up to 0.1kW
+        const batBank = bestBatteryBank(solarProds.batteries, batKWh)
+        const batCost = batBank ? batBank.totalCost : r100(batKWh * BATTERY_PER_KWH)
+        const invProduct = bestInverter(solarProds.inverters, invKW)
+        const invCost    = invProduct ? invProduct.price.cash_floor : r100(invKW * 15000)
+        const wiringCost = r100(totalW * (UPS_WIRING_PER_W + UPS_LABOR_PER_W))
+        const total      = r100(invCost + batCost + wiringCost)
+        const allPlans   = calcAllPlans(total)
+        const plans      = filterPlans(total, invKW, allPlans)
+        setQuote({
+          systemKW: invKW, panels: 0, panelProduct: null,
+          inverterKW: invKW, invProduct, batteryKWh: batBank ? batBank.totalKWh : batKWh, batBank,
+          type: 'ups-only',
+          costs: { panels: 0, inverter: invCost, battery: batCost, wiring: wiringCost, labor: 0, frame: 0, total },
+          savings: { unitsPerMonth: 0, monthlySaving: 0, annualSaving: 0, paybackYears: 0 },
+          plans, totalW, dailyU: +refU.toFixed(2),
+          withInstallments: Object.keys(plans).length > 0,
+          noInstallReason: noInstallReason(total, invKW),
+        })
+        setStep(3)
+        return
+      }
+
+      // ── Solar mode ─────────────────────────────────────────────────────────
       // Size the system: add 25% safety margin, divide by peak sun hours
       const rawKW  = refU * 1.25 / peakHrs
       const sysKW  = Math.ceil(rawKW * 10) / 10   // round up to 1 decimal
 
       // Panels
-      const panelCount  = sysType === 'ups-only' ? 0 : Math.ceil(sysKW * 1000 / PANEL_WATTS)
-      const panProduct  = sysType === 'ups-only' ? null : bestPanel(solarProds.panels)
+      const panelCount  = activeType === 'ups-only' ? 0 : Math.ceil(sysKW * 1000 / PANEL_WATTS)
+      const panProduct  = activeType === 'ups-only' ? null : bestPanel(solarProds.panels)
       const panelCost   = panProduct
         ? panProduct.price.cash_floor * panelCount
-        : r100(panelCount * PANEL_PRICE)
+        : r100(panelCount * PANEL_WATTS * PANEL_PRICE_PER_W)
 
-      // Inverter / UPS
-      let invKW = sysType === 'ups-only' ? sysKW : (sysKW <= 3 ? 3 : sysKW <= 5 ? 5 : sysKW <= 8 ? 8 : sysKW <= 12 ? 12 : 15)
-      const invProduct  = bestInverter(solarProds.inverters, invKW)
-      const invCost     = invProduct ? invProduct.price.cash_floor : r100(invKW * 15000)
+      // Inverter
+      const invKW      = activeType === 'ups-only' ? sysKW : (sysKW <= 3 ? 3 : sysKW <= 5 ? 5 : sysKW <= 8 ? 8 : sysKW <= 12 ? 12 : 15)
+      const invProduct = bestInverter(solarProds.inverters, invKW)
+      const invCost    = invProduct ? invProduct.price.cash_floor : r100(invKW * 15000)
 
-      // Battery
-      const needBat = sysType !== 'on-grid'
+      // Battery bank (supports stacking multiple units)
+      const needBat = activeType !== 'on-grid'
       const batKWh  = needBat ? Math.ceil(refU * 0.6) : 0   // cover 60% of daily from battery
-      const batProduct = needBat ? bestBattery(solarProds.batteries, batKWh) : null
-      const batCost    = needBat
-        ? (batProduct ? batProduct.price.cash_floor : r100(batKWh * BATTERY_PER_KWH))
+      const batBank = needBat ? bestBatteryBank(solarProds.batteries, batKWh) : null
+      const batCost = needBat
+        ? (batBank ? batBank.totalCost : r100(batKWh * BATTERY_PER_KWH))
         : 0
 
       // Installation
       const effectiveW = sysKW * 1000
-      const wiringCost = sysType === 'ups-only'
+      const wiringCost = activeType === 'ups-only'
         ? r100(effectiveW * (UPS_WIRING_PER_W + UPS_LABOR_PER_W))
         : r100(effectiveW * (WIRING_PER_W + LABOR_PER_W))
-      const laborCost  = 0   // already included in wiringCost above
       const frameCost  = elevFrame ? r100(effectiveW * ELEVATED_FRAME_W) : 0
 
       const total = r100(panelCost + invCost + batCost + wiringCost + frameCost)
 
-      // Savings (skip for UPS-only which doesn't generate power)
-      const monthlyUnits = sysType === 'ups-only' ? 0 : +(refU * 30).toFixed(0)
-      const mSave = r100(monthlyUnits * unitRate)
-      const paybackYrs = mSave > 0 ? +(total / mSave / 12).toFixed(1) : 99
+      // Savings (skip for UPS-only)
+      const monthlyUnits = activeType === 'ups-only' ? 0 : +(refU * 30).toFixed(0)
+      const mSave        = r100(monthlyUnits * UNIT_RATE)
+      const paybackYrs   = mSave > 0 ? +(total / mSave / 12).toFixed(1) : 99
 
       const allPlans = calcAllPlans(total)
       const plans    = filterPlans(total, sysKW, allPlans)
-      const reason   = noInstallReason(total, sysKW)
 
       setQuote({
         systemKW: sysKW, panels: panelCount, panelProduct: panProduct,
-        inverterKW: invKW, invProduct, batteryKWh: batKWh, batProduct,
-        type: sysType,
-        costs: { panels: panelCost, inverter: invCost, battery: batCost, wiring: wiringCost, labor: laborCost, frame: frameCost, total },
+        inverterKW: invKW, invProduct,
+        batteryKWh: batBank ? batBank.totalKWh : batKWh, batBank,
+        type: activeType,
+        costs: { panels: panelCost, inverter: invCost, battery: batCost, wiring: wiringCost, labor: 0, frame: frameCost, total },
         savings: { unitsPerMonth: monthlyUnits, monthlySaving: mSave, annualSaving: r100(mSave * 12), paybackYears: paybackYrs },
         plans, totalW, dailyU: +refU.toFixed(2),
         withInstallments: Object.keys(plans).length > 0,
-        noInstallReason: reason,
+        noInstallReason: noInstallReason(total, sysKW),
       })
       setStep(3)
     } finally { setLoading(false) }
@@ -308,20 +357,42 @@ export default function SolarCalculator() {
       {/* Hero */}
       <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 text-white py-14 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full text-sm font-medium mb-4">
-            <Sun className="w-4 h-4" /> Solar Load Calculator
+          {/* Mode toggle */}
+          <div className="inline-flex bg-white/20 rounded-2xl p-1 mb-6">
+            <button onClick={() => { setMode('solar'); setQuote(null); setStep(1); }}
+              className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${mode === 'solar' ? 'bg-white text-orange-600 shadow' : 'text-white/80 hover:text-white'}`}>
+              ☀️ Solar Calculator
+            </button>
+            <button onClick={() => { setMode('ups'); setQuote(null); setStep(1); }}
+              className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${mode === 'ups' ? 'bg-white text-orange-600 shadow' : 'text-white/80 hover:text-white'}`}>
+              🔌 UPS Calculator
+            </button>
           </div>
-          <h1 className="text-3xl md:text-5xl font-bold mb-3">How much solar do you need?</h1>
-          <p className="text-amber-100 text-lg max-w-2xl mx-auto">
-            Add your appliances and get an instant, accurate quote using real product prices.
-          </p>
+          {mode === 'solar' ? (
+            <>
+              <h1 className="text-3xl md:text-5xl font-bold mb-3">How much solar do you need?</h1>
+              <p className="text-amber-100 text-lg max-w-2xl mx-auto">
+                Add your appliances and get an instant, accurate quote using real product prices.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-3xl md:text-5xl font-bold mb-3">UPS & Battery Backup Calculator</h1>
+              <p className="text-amber-100 text-lg max-w-2xl mx-auto">
+                Find the right UPS inverter and battery bank to keep your home running during load shedding.
+              </p>
+            </>
+          )}
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-6">
         {/* Steps */}
         <div className="flex items-center gap-2 justify-center mb-8">
-          {[{n:1,label:'Appliances'},{n:2,label:'Preferences'},{n:3,label:'Quote'},{n:4,label:'Upgrades'}].map((s,i) => (
+          {(mode === 'ups'
+            ? [{n:1,label:'Appliances'},{n:2,label:'Backup Hours'},{n:3,label:'Quote'}]
+            : [{n:1,label:'Appliances'},{n:2,label:'Preferences'},{n:3,label:'Quote'},{n:4,label:'Upgrades'}]
+          ).map((s,i,arr) => (
             <div key={s.n} className="flex items-center gap-1.5">
               <button onClick={() => quote && setStep(s.n as 1|2|3|4)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all
@@ -331,7 +402,7 @@ export default function SolarCalculator() {
                 {step > s.n ? <CheckCircle className="w-3.5 h-3.5"/> : <span>{s.n}</span>}
                 <span className="hidden sm:block">{s.label}</span>
               </button>
-              {i < 3 && <div className={`w-6 h-0.5 ${step > s.n+1 ? 'bg-green-400' : step > s.n ? 'bg-orange-300' : 'bg-gray-200'}`}/>}
+              {i < arr.length - 1 && <div className={`w-6 h-0.5 ${step > s.n+1 ? 'bg-green-400' : step > s.n ? 'bg-orange-300' : 'bg-gray-200'}`}/>}
             </div>
           ))}
         </div>
@@ -360,14 +431,6 @@ export default function SolarCalculator() {
                         placeholder="e.g. 15000"
                         className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"/>
                     </div>
-                    <div>
-                      <label className="text-xs font-medium text-gray-600 block mb-1">
-                        Per-unit rate (PKR/kWh) — check your bill
-                      </label>
-                      <input type="number" value={unitRate} onChange={e => setUnitRate(Number(e.target.value) || 50)}
-                        placeholder="50"
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"/>
-                    </div>
                     {billKWh > 0 && (
                       <div className="bg-orange-50 rounded-xl px-4 py-3 text-sm">
                         <span className="font-bold text-orange-700">{billKWh} kWh/month</span>
@@ -375,7 +438,7 @@ export default function SolarCalculator() {
                       </div>
                     )}
                     <p className="text-xs text-gray-400">
-                      You can also add specific appliances below to identify energy drainers and get upgrade suggestions.
+                      Calculated at PKR {UNIT_RATE}/kWh (Karachi average). You can also add specific appliances below to identify energy drainers and get upgrade suggestions.
                     </p>
                   </div>
                 )}
@@ -455,14 +518,14 @@ export default function SolarCalculator() {
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div>
                           <label className="text-gray-500 block mb-1">Qty</label>
-                          <input type="number" min={1} value={item.qty}
-                            onChange={e => updQty(item.id, parseInt(e.target.value) || 1)}
+                          <input type="number" min={0} value={item.qty}
+                            onChange={e => updQty(item.id, parseInt(e.target.value) || 0)}
                             className="w-full border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:border-orange-400"/>
                         </div>
                         <div>
                           <label className="text-gray-500 block mb-1">Hours/day</label>
-                          <input type="number" min={0.5} max={24} step={0.5} value={item.hours}
-                            onChange={e => updHours(item.id, parseFloat(e.target.value) || 1)}
+                          <input type="number" min={0} max={24} step={0.5} value={item.hours}
+                            onChange={e => updHours(item.id, parseFloat(e.target.value) || 0)}
                             className="w-full border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:border-orange-400"/>
                         </div>
                       </div>
@@ -498,7 +561,7 @@ export default function SolarCalculator() {
                     )}
                     <button onClick={() => setStep(2)}
                       className="w-full mt-3 bg-white text-orange-600 font-semibold rounded-xl py-2 hover:bg-orange-50 transition-colors text-sm">
-                      Next: Preferences
+                      {mode === 'ups' ? 'Next: Backup Hours' : 'Next: Preferences'}
                     </button>
                   </div>
                 )}
@@ -507,8 +570,54 @@ export default function SolarCalculator() {
           </div>
         )}
 
-        {/* ── Step 2: Preferences ─────────────────────────────────────────────── */}
-        {step === 2 && (
+        {/* ── Step 2: UPS mode — backup hours ─────────────────────────────────── */}
+        {step === 2 && mode === 'ups' && (
+          <div className="max-w-2xl mx-auto space-y-5">
+            <h2 className="text-2xl font-bold text-gray-800 text-center">UPS Preferences</h2>
+
+            <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-6">
+              <h3 className="font-semibold text-gray-700 mb-1 text-sm">Desired Backup Duration</h3>
+              <p className="text-xs text-gray-500 mb-4">How many hours do you want to run during load shedding?</p>
+              <div className="flex items-center gap-4">
+                <input type="range" min={1} max={12} step={0.5} value={backupHrs}
+                  onChange={e => setBackupHrs(parseFloat(e.target.value))}
+                  className="flex-1 accent-orange-500"/>
+                <div className="bg-orange-100 text-orange-700 font-bold px-4 py-2 rounded-xl min-w-[60px] text-center text-sm">
+                  {backupHrs}h
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-r from-orange-100 to-amber-100 rounded-2xl p-5">
+              <div className="grid grid-cols-3 gap-3 text-center">
+                {[
+                  { v: `${totalW}W`,    l: 'Total Load' },
+                  { v: `${backupHrs}h`, l: 'Backup Time' },
+                  { v: `${+(totalW * backupHrs / 1000 * 1.2).toFixed(1)} kWh`, l: 'Battery Needed' },
+                ].map((x,i) => (
+                  <div key={i} className="bg-white rounded-xl p-3">
+                    <div className="text-xl font-bold text-orange-600">{x.v}</div>
+                    <div className="text-[10px] text-gray-500">{x.l}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => setStep(1)}
+                className="flex-1 border border-gray-300 text-gray-600 rounded-xl py-3 font-medium hover:bg-gray-50 text-sm">
+                Back
+              </button>
+              <button onClick={calc} disabled={loading || !totalW}
+                className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl py-3 font-semibold shadow-lg disabled:opacity-50 text-sm">
+                {loading ? 'Calculating…' : 'Generate Quote'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 2: Solar — Preferences ─────────────────────────────────────── */}
+        {step === 2 && mode === 'solar' && (
           <div className="max-w-2xl mx-auto space-y-5">
             <h2 className="text-2xl font-bold text-gray-800 text-center">System Preferences</h2>
 
@@ -565,17 +674,16 @@ export default function SolarCalculator() {
               </div>
             )}
 
-            {/* Unit rate (for savings calculation) */}
-            <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-5">
-              <h3 className="font-semibold text-gray-700 mb-2 text-sm">Your Electricity Rate (PKR/kWh)</h3>
-              <p className="text-xs text-gray-500 mb-3">Used to calculate your monthly savings. Check your electricity bill.</p>
-              <div className="flex items-center gap-3">
-                <input type="number" value={unitRate} min={20} max={150}
-                  onChange={e => setUnitRate(Number(e.target.value) || 50)}
-                  className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"/>
-                <span className="text-sm text-gray-500">PKR per unit (Karachi avg: 45-55)</span>
+            {/* KE Net Metering info — only relevant for grid-tied systems */}
+            {(sysType === 'on-grid' || sysType === 'hybrid') && (
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex gap-3">
+                <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5"/>
+                <div className="text-xs text-blue-800">
+                  <span className="font-semibold">KE Net Metering: </span>
+                  K-Electric (KE) only approves Net Metering for systems of <span className="font-semibold">10kW or above</span>. Systems under 10kW will not qualify — you can still use solar to offset your own consumption, but you cannot sell surplus electricity back to the grid.
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Summary */}
             <div className="bg-gradient-to-r from-orange-100 to-amber-100 rounded-2xl p-5">
@@ -621,7 +729,7 @@ export default function SolarCalculator() {
                 {[
                   { v: quote.type === 'ups-only' ? '—' : `${quote.panels}`, l: quote.panelProduct ? quote.panelProduct.brand + ' Panels' : `Panels (${PANEL_WATTS}W)` },
                   { v: quote.invProduct ? quote.invProduct.brand : `${quote.inverterKW}kW`, l: quote.invProduct ? quote.invProduct.simplified_name.replace(/\d+(?:\.\d)?kw/i,'').trim().slice(0,20) : 'Inverter' },
-                  { v: quote.batteryKWh || '—', l: quote.batProduct ? quote.batProduct.brand + ' Battery' : quote.batteryKWh ? `kWh Battery` : 'No Battery' },
+                  { v: quote.batBank ? `${quote.batBank.qty > 1 ? `${quote.batBank.qty}×` : ''}${quote.batteryKWh.toFixed(1)} kWh` : (quote.batteryKWh ? `${quote.batteryKWh} kWh` : '—'), l: quote.batBank ? quote.batBank.product.brand + ' Battery' : quote.batteryKWh ? 'kWh Battery' : 'No Battery' },
                 ].map((x,i) => (
                   <div key={i} className="bg-white/20 rounded-xl p-3">
                     <div className="font-bold text-lg">{x.v}</div>
@@ -631,8 +739,19 @@ export default function SolarCalculator() {
               </div>
             </div>
 
+            {/* KE Net Metering warning — shown when grid-tied and system < 10kW */}
+            {(quote.type === 'on-grid' || quote.type === 'hybrid') && quote.systemKW < 10 && (
+              <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 flex gap-3">
+                <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5"/>
+                <div className="text-sm text-amber-900">
+                  <span className="font-semibold">Net Metering not available for this system. </span>
+                  K-Electric (KE) requires a minimum of <span className="font-semibold">10kW</span> for Net Metering approval. Your {quote.systemKW}kW system will reduce your electricity bill by consuming solar power directly, but you cannot export surplus power to the grid under KE's current policy. Contact us if you'd like to size up to 10kW.
+                </div>
+              </div>
+            )}
+
             {/* Recommended products */}
-            {(quote.panelProduct || quote.invProduct || quote.batProduct) && (
+            {(quote.panelProduct || quote.invProduct || quote.batBank) && (
               <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-5">
                 <h3 className="font-bold text-gray-800 mb-3 text-sm flex items-center gap-2">
                   <Star className="w-4 h-4 text-amber-500 fill-current"/> Recommended Products
@@ -659,7 +778,7 @@ export default function SolarCalculator() {
                         <img src={quote.invProduct.thumbnail} alt="" className="w-10 h-10 object-contain rounded"/>
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold text-gray-500">{quote.invProduct.brand} — Inverter</div>
+                        <div className="text-xs font-bold text-gray-500">{quote.invProduct.brand} — {quote.type === 'ups-only' ? 'UPS Inverter' : 'Solar Inverter'}</div>
                         <div className="text-sm font-semibold text-gray-800 truncate">{quote.invProduct.simplified_name}</div>
                       </div>
                       <div className="text-right shrink-0">
@@ -667,23 +786,27 @@ export default function SolarCalculator() {
                       </div>
                     </div>
                   )}
-                  {quote.batProduct && (
+                  {quote.batBank && (
                     <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                      {quote.batProduct.thumbnail && (
-                        <img src={quote.batProduct.thumbnail} alt="" className="w-10 h-10 object-contain rounded"/>
+                      {quote.batBank.product.thumbnail && (
+                        <img src={quote.batBank.product.thumbnail} alt="" className="w-10 h-10 object-contain rounded"/>
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold text-gray-500">{quote.batProduct.brand} — Battery</div>
-                        <div className="text-sm font-semibold text-gray-800 truncate">{quote.batProduct.simplified_name}</div>
+                        <div className="text-xs font-bold text-gray-500">{quote.batBank.product.brand} — Battery{quote.batBank.qty > 1 ? ` Bank (${quote.batBank.qty} units)` : ''}</div>
+                        <div className="text-sm font-semibold text-gray-800 truncate">{quote.batBank.product.simplified_name}</div>
+                        {quote.batBank.qty > 1 && (
+                          <div className="text-xs text-orange-600 mt-0.5">{quote.batBank.qty}× units = {quote.batBank.totalKWh.toFixed(1)} kWh total</div>
+                        )}
                       </div>
                       <div className="text-right shrink-0">
+                        <div className="text-xs text-gray-400">×{quote.batBank.qty}</div>
                         <div className="text-sm font-bold text-orange-600">{fmtPKR(quote.costs.battery)}</div>
                       </div>
                     </div>
                   )}
                 </div>
                 <p className="text-[10px] text-gray-400 mt-2 flex items-center gap-1">
-                  <Info className="w-3 h-3"/> Crown Nexus inverters can be paired to combine capacity. Elektra Boost batteries can be stacked.
+                  <Info className="w-3 h-3"/> Multiple battery units are stacked to meet your capacity requirement.
                 </p>
               </div>
             )}
@@ -695,7 +818,7 @@ export default function SolarCalculator() {
                 {[
                   quote.type !== 'ups-only' && quote.panels > 0 && { label: `${quote.panels}× Solar Panels`, val: quote.costs.panels },
                   { label: `${quote.inverterKW}kW ${quote.type === 'ups-only' ? 'UPS Inverter' : 'Solar Inverter'}`, val: quote.costs.inverter },
-                  quote.batteryKWh > 0 && { label: `${quote.batteryKWh} kWh Battery`, val: quote.costs.battery },
+                  quote.batteryKWh > 0 && { label: quote.batBank && quote.batBank.qty > 1 ? `${quote.batBank.qty}× Battery Units (${quote.batteryKWh.toFixed(1)} kWh)` : `${quote.batteryKWh} kWh Battery`, val: quote.costs.battery },
                   { label: `Wiring, Equipment & Installation`, val: quote.costs.wiring },
                   quote.costs.frame > 0 && { label: 'Elevated Frame', val: quote.costs.frame },
                 ].filter(Boolean).map((row: any, i) => (
@@ -776,10 +899,12 @@ export default function SolarCalculator() {
                     className="bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl py-3 font-semibold disabled:opacity-50 hover:shadow-lg transition-all text-sm">
                     Request Detailed Quote
                   </button>
-                  <button onClick={() => { setStep(4) }}
-                    className="border-2 border-orange-300 text-orange-600 rounded-xl py-3 font-semibold hover:bg-orange-50 transition-all flex items-center justify-center gap-2 text-sm">
-                    See Upgrade Savings <ArrowRight className="w-4 h-4"/>
-                  </button>
+                  {mode === 'solar' && (
+                    <button onClick={() => { setStep(4) }}
+                      className="border-2 border-orange-300 text-orange-600 rounded-xl py-3 font-semibold hover:bg-orange-50 transition-all flex items-center justify-center gap-2 text-sm">
+                      See Upgrade Savings <ArrowRight className="w-4 h-4"/>
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
@@ -819,7 +944,7 @@ export default function SolarCalculator() {
                   const reducedW    = totalW - savingsW * item.qty
                   const reducedKW   = +(reducedW * 1.25 / peakHrs / 1000).toFixed(1)
                   const savedKW     = quote.systemKW - reducedKW
-                  const savedCost   = r100(savedKW * (WIRING_PER_W + LABOR_PER_W + (PANEL_PRICE / PANEL_WATTS)) * 1000)
+                  const savedCost   = r100(savedKW * (WIRING_PER_W + LABOR_PER_W + PANEL_PRICE_PER_W) * 1000)
                   return (
                     <div key={item.id} className="bg-white rounded-2xl shadow-sm border border-amber-100 p-5">
                       <div className="flex items-start gap-3 mb-3">

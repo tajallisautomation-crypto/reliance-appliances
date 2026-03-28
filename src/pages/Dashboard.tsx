@@ -442,15 +442,15 @@ export default function Dashboard() {
               <h3 className="font-bold text-gray-900 mb-4">Enrichment Status</h3>
               <div className="grid sm:grid-cols-3 gap-4 mb-4">
                 {[
-                  { l:'Fully Enriched',  v:18, total:24, color:'emerald' },
-                  { l:'Needs Review',    v:4,  total:24, color:'amber' },
-                  { l:'Pending Images',  v:2,  total:24, color:'red' },
+                  { l:'Fully Enriched',  v:18, total:24, numCls:'text-emerald-600', barCls:'bg-emerald-500' },
+                  { l:'Needs Review',    v:4,  total:24, numCls:'text-amber-600',   barCls:'bg-amber-500' },
+                  { l:'Pending Images',  v:2,  total:24, numCls:'text-red-600',     barCls:'bg-red-500' },
                 ].map(s => (
                   <div key={s.l} className="text-center p-4 bg-surface-secondary rounded-apple-xl">
-                    <div className={`text-3xl font-black text-${s.color}-600`}>{s.v}</div>
+                    <div className={`text-3xl font-black ${s.numCls}`}>{s.v}</div>
                     <p className="text-xs text-gray-500 mt-1">{s.l}</p>
                     <div className="h-1.5 bg-gray-200 rounded-full mt-2 overflow-hidden">
-                      <div className={`h-full bg-${s.color}-500 rounded-full`} style={{ width:`${(s.v/s.total)*100}%` }} />
+                      <div className={`h-full ${s.barCls} rounded-full`} style={{ width:`${(s.v/s.total)*100}%` }} />
                     </div>
                   </div>
                 ))}

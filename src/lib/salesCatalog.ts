@@ -385,7 +385,7 @@ export function buildCategoryWAMessage(cat: CatalogCategory, grouped: Map<string
 export function buildMegaWAMessage(allData: { cat: CatalogCategory; products: Product[] }[]): string {
   const lines = [
     `*📋 Full Catalogue — ${COMPANY}*`,
-    `_Karachi's trusted home appliance partner since 2015_`,
+    `_Karachi's trusted appliance partner since 2015_`,
     '',
   ];
   for (const { cat, products } of allData) {
@@ -457,7 +457,7 @@ export function buildPrintHTML(cat: CatalogCategory, grouped: Map<string, Produc
 <div class="header">
   <div>
     <div class="brand-name">Reliance <span style="font-size:13px;font-weight:400;color:#888">by Tajallis</span></div>
-    <div style="font-size:10px;color:#888;margin-top:2px">Karachi's trusted home appliance partner since 2015 · 14,000+ customers</div>
+    <div style="font-size:10px;color:#888;margin-top:2px">Karachi's trusted appliance partner since 2015 · 14,400+ clients</div>
   </div>
   <div style="text-align:right">
     <div class="cat-badge">${cat.emoji} ${cat.label}</div>

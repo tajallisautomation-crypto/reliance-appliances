@@ -31,7 +31,7 @@ const HOW_IT_WORKS = [
   {
     step: '02',
     title: 'We display & market',
-    desc: 'Your brand reaches our 14,000-household network via our physical showroom, website, and 1,600-member Facebook community.',
+    desc: 'Your brand reaches our 14,400-client network via our physical showroom, website, and 1,600-member Facebook community.',
   },
   {
     step: '03',
@@ -52,7 +52,7 @@ const PARTNER_TYPES = [
     iconBg: 'bg-amber-50',
     title: 'Solar & Energy Brands',
     pitch: 'We have the rooftop access you need.',
-    body: '14,000 pre-engaged households actively looking at solar. Our Green Corridor initiative is driving qualified, high-intent buyers directly to us.',
+    body: '14,400 pre-engaged clients actively looking at solar. Our Green Corridor initiative is driving qualified, high-intent buyers directly to us.',
     proof: '95% of our solar leads come with a monthly bill over PKR 8,000.',
   },
   {
@@ -133,7 +133,7 @@ export default function Partner() {
       <SEO
         path="/partner"
         title="Partner With Us — Reliance Appliances B2B"
-        description="Partner with Karachi's most trusted home appliance distributor. Zero-risk consignment model. 14,000 households, 98% credit recovery, 15 years in business."
+        description="Partner with Karachi's most trusted appliance distributor. Zero-risk consignment model. 14,400 clients, 98% credit recovery, 11 years in business."
         keywords="distributor karachi, appliance brand partner pakistan, consignment sales karachi, solar distributor karachi"
       />
 
@@ -145,7 +145,7 @@ export default function Partner() {
           <p className="text-brand-400 text-xs font-bold uppercase tracking-[0.2em] mb-6">B2B Partnership</p>
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-black text-white leading-[1.05] tracking-tight mb-6">
             You make it.<br />
-            <span className="text-brand-400">We put it in 14,000 homes.</span>
+            <span className="text-brand-400">We put it in 14,400 hands.</span>
           </h1>
           <p className="text-gray-400 text-xl mb-4 max-w-xl mx-auto">
             No upfront investment from you. Pay-as-it-sells. Zero credit risk.
@@ -175,9 +175,9 @@ export default function Partner() {
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {[
-              { target: 15,    suffix: ' Years', label: 'In Business',         sub: 'Established 2010, serving all Karachi' },
-              { target: 14000, suffix: '+',      label: 'Households in Network', sub: 'Verified buying customers' },
-              { target: 23000, suffix: '+',      label: 'Invoices Processed',   sub: 'Documented transaction history' },
+              { target: 11,    suffix: ' Years', label: 'In Business',       sub: 'Established 2015, serving all Karachi' },
+              { target: 14400, suffix: '+',      label: 'Clients in Network', sub: 'Verified buying customers' },
+              { target: 24000, suffix: '+',      label: 'Orders Processed',   sub: 'Documented transaction history' },
               { target: 98,    suffix: '%',       label: 'Credit Recovery Rate', sub: 'Our SLA to finance partners' },
             ].map(item => (
               <div key={item.label}>
@@ -213,7 +213,7 @@ export default function Partner() {
           <p className="text-brand-500 text-xs font-bold uppercase tracking-widest mb-3">The Model</p>
           <h2 className="text-3xl md:text-4xl font-black text-gray-900">Zero risk. Maximum reach.</h2>
           <p className="text-gray-500 mt-3 max-w-xl mx-auto">
-            The consignment model removes every barrier between your product and 14,000 qualified buyers.
+            The consignment model removes every barrier between your product and 14,400 qualified buyers.
           </p>
         </div>
 
@@ -394,7 +394,7 @@ export default function Partner() {
           <div className="text-3xl">🎁</div>
           <div className="flex-1 text-center sm:text-left">
             <p className="font-bold text-gray-900">Not a business? You can still earn.</p>
-            <p className="text-sm text-gray-500 mt-0.5">Individuals can refer friends and family and earn 1% on every completed sale — no sign-up required.</p>
+            <p className="text-sm text-gray-500 mt-0.5">Individuals can refer friends and family and earn 2% on every completed sale — no sign-up required.</p>
           </div>
           <Link to="/referral"
             className="shrink-0 bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors whitespace-nowrap">

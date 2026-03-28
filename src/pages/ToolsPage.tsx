@@ -25,7 +25,7 @@ function BillSavingsCalc() {
         <div><label className="text-sm font-medium text-gray-700 block mb-1">Current Bill (optional)</label><input type="number" value={bill} onChange={e=>setBill(e.target.value)} placeholder="PKR" className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-orange-400"/></div>
       </div>
       <button onClick={calculate} className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl py-3 font-semibold">Calculate My Savings</button>
-      {result && <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">{[{label:'Current Bill',val:fmtPKR(result.currentBill),color:'red'},{label:'Monthly Saving',val:fmtPKR(result.savedAmount),color:'green'},{label:'New Bill',val:fmtPKR(result.remainingBill),color:'blue'},{label:'Annual Saving',val:fmtPKR(result.annualSaving),color:'orange'}].map((s,i)=><div key={i} className={`bg-${s.color}-50 rounded-xl p-4 text-center`}><div className={`font-bold text-${s.color}-700 text-lg`}>{s.val}</div><div className="text-xs text-gray-500 mt-1">{s.label}</div></div>)}</div>}
+      {result && <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">{[{label:'Current Bill',val:fmtPKR(result.currentBill),cls:'bg-red-50 text-red-700'},{label:'Monthly Saving',val:fmtPKR(result.savedAmount),cls:'bg-green-50 text-green-700'},{label:'New Bill',val:fmtPKR(result.remainingBill),cls:'bg-blue-50 text-blue-700'},{label:'Annual Saving',val:fmtPKR(result.annualSaving),cls:'bg-orange-50 text-orange-700'}].map((s,i)=><div key={i} className={`${s.cls} rounded-xl p-4 text-center`}><div className={`font-bold text-lg`}>{s.val}</div><div className="text-xs text-gray-500 mt-1">{s.label}</div></div>)}</div>}
     </div>
   )
 }
@@ -59,9 +59,11 @@ function NetMeteringChecker() {
   const DISCOS: Record<string,string> = {'LESCO':'Lahore Electric Supply Company','HESCO':'Hyderabad Electric Supply Company','PESCO':'Peshawar Electric Supply Company','MEPCO':'Multan Electric Power Company','SEPCO':'Sukkur Electric Power Company','QESCO':'Quetta Electric Supply Company','GEPCO':'Gujranwala Electric Power Company','IESCO':'Islamabad Electric Supply Company','TESCO':'Tribal Areas Electric Supply Company','K-Electric':'K-Electric (Karachi)'}
   const check = () => {
     const kw=parseFloat(systemKW); if(!kw) return
-    const eligible=kw>=1&&kw<=1000
+    const isKE = disco === 'K-Electric'
+    const eligible = isKE ? kw >= 10 && kw <= 1000 : kw >= 1 && kw <= 1000
     const netExport=kw*7*0.3*30,monthlyCredit=roundTo100(netExport*12)
-    setResult({eligible,kw,monthlyCredit,requirements:[`System size ${kw}kW — ${eligible?'✅ Within 1kW–1MW range':'❌ Outside eligible range'}`,'✅ System must use Type-1 approved net meter','✅ Must apply to your DISCO for NM connection agreement','✅ Tier-1 certified installer required','✅ Processing time: 4-8 weeks typically']})
+    const keNote = isKE && kw < 10 ? `❌ K-Electric minimum is 10kW — your ${kw}kW system is not eligible for KE Net Metering` : `System size ${kw}kW — ${eligible?'✅ Within eligible range':'❌ Outside eligible range'}`
+    setResult({eligible,kw,monthlyCredit,isKE,requirements:[keNote,'✅ System must use Type-1 approved net meter','✅ Must apply to your DISCO for NM connection agreement','✅ Tier-1 certified installer required','✅ Processing time: 4-8 weeks typically']})
   }
   return (
     <div className="space-y-4">

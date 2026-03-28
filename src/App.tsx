@@ -35,6 +35,8 @@ const BuyingGuide     = lazy(() => import('./pages/BuyingGuide'))
 const Referral        = lazy(() => import('./pages/Referral'))
 const Support         = lazy(() => import('./pages/Support'))
 const SalesCatalog    = lazy(() => import('./pages/SalesCatalog'))
+const MYOP            = lazy(() => import('./pages/MYOP'))
+const Gallery         = lazy(() => import('./pages/Gallery'))
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -75,9 +77,11 @@ export default function App() {
             <Route path="/search"                           element={<SearchResults />} />
             <Route path="/compare"                          element={<ComparePage />} />
             <Route path="/buying-guide"                     element={<BuyingGuide />} />
+            <Route path="/build-your-package"               element={<MYOP />} />
             <Route path="/referral"                         element={<Referral />} />
             <Route path="/support"                          element={<Support />} />
             <Route path="/catalog"                          element={<SalesCatalog />} />
+            <Route path="/gallery"                          element={<Gallery />} />
             <Route path="/policy/:type"                     element={<PolicyPage />} />
             <Route path="*" element={
               <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">

@@ -71,13 +71,13 @@ export default function ReferralPage() {
           <h2 className="text-2xl font-black text-gray-900 text-center mb-10">How It Works</h2>
           <div className="grid sm:grid-cols-3 gap-6">
             {[
-              { icon: Users,     title: 'Get Your Link',  color: 'blue',   desc: 'Generate your unique link below using your name and phone number.' },
-              { icon: Share2,    title: 'Share Naturally', color: 'orange', desc: 'Send it to family or friends looking for appliances — just like a personal recommendation.' },
-              { icon: TrendingUp, title: 'Earn 2%',       color: 'green',  desc: 'When they make a purchase, you receive 2% of the total sale amount — paid directly to you.' },
+              { icon: Users,     title: 'Get Your Link',  bg: 'bg-blue-100',   fg: 'text-blue-600',   desc: 'Generate your unique link below using your name and phone number.' },
+              { icon: Share2,    title: 'Share Naturally', bg: 'bg-orange-100', fg: 'text-orange-600', desc: 'Send it to family or friends looking for appliances — just like a personal recommendation.' },
+              { icon: TrendingUp, title: 'Earn 2%',       bg: 'bg-green-100',  fg: 'text-green-600',  desc: 'When they make a purchase, you receive 2% of the total sale amount — paid directly to you.' },
             ].map(item => (
               <div key={item.title} className="text-center p-6 bg-gray-50 rounded-2xl">
-                <div className={`w-12 h-12 bg-${item.color}-100 rounded-2xl flex items-center justify-center mx-auto mb-4`}>
-                  <item.icon className={`w-6 h-6 text-${item.color}-600`} />
+                <div className={`w-12 h-12 ${item.bg} rounded-2xl flex items-center justify-center mx-auto mb-4`}>
+                  <item.icon className={`w-6 h-6 ${item.fg}`} />
                 </div>
                 <h3 className="font-bold text-gray-900 mb-2">{item.title}</h3>
                 <p className="text-sm text-gray-500 leading-relaxed">{item.desc}</p>

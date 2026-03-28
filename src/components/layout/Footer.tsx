@@ -18,7 +18,7 @@ export default function Footer() {
             </div>
           </div>
           <p className="text-sm text-gray-400 leading-relaxed mb-4">
-            Karachi's most trusted home appliance partner since 2015. Serving 14,000+ households with genuine products and real after-sales support.
+            Karachi's most trusted appliance partner since 2015. Serving 14,400+ clients — homes, offices & businesses — with genuine products and real after-sales support.
           </p>
           <div className="flex gap-2">
             <a href={waSales()} target="_blank" rel="noreferrer"
@@ -50,6 +50,7 @@ export default function Footer() {
           <h3 className="font-bold text-sm uppercase tracking-wider text-gray-300 mb-3">Services</h3>
           <ul className="space-y-2">
             {[
+              ['Build a Package',    '/build-your-package'],
               ['Installment Plans',  '/installments'],
               ['Customer Support',   '/support'],
               ['Installation',       '/services'],

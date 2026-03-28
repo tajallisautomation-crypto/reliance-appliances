@@ -126,7 +126,7 @@ export default function PolicyPage() {
   const { type } = useParams<{ type: string }>()
   if (!type || !(type in POLICIES)) return <Navigate to="/" replace />
   const policy = POLICIES[type as PolicyType]
-  const lastUpdated = 'March 2025'
+  const lastUpdated = 'March 2026'
 
   return (
     <div className="min-h-screen bg-white">

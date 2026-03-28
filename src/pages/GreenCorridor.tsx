@@ -347,7 +347,10 @@ export default function GreenCorridor() {
             ))}
           </div>
 
-          <p className="text-center text-xs text-gray-400 mt-8">
+          <div className="mt-6 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 text-sm text-amber-800">
+            <strong>KE Net Metering note:</strong> K-Electric (KE) only approves Net Metering for systems of <strong>10kW or above</strong>. The Starter (3kW) and Home Complete (5kW) packages are not eligible for KE Net Metering — they operate as standard grid-tied or hybrid systems. The Total Freedom (8kW) package is also below the KE threshold. Contact us for a 10kW+ system if Net Metering is a priority.
+          </div>
+          <p className="text-center text-xs text-gray-400 mt-4">
             All prices are estimates. Final quote provided after free site assessment. Prices subject to equipment availability.
           </p>
         </div>
@@ -360,7 +363,7 @@ export default function GreenCorridor() {
             { icon: TrendingDown, stat: 'Up to 85%', label: 'Reduction in electricity bill',  color: 'text-eco-500' },
             { icon: Sun,          stat: '25 Years',  label: 'Panel performance warranty',     color: 'text-amber-500' },
             { icon: Zap,          stat: '1 Day',     label: 'Average installation time',      color: 'text-blue-500' },
-            { icon: CheckCircle,  stat: '100%',      label: 'DISCO-approved net metering',    color: 'text-eco-500' },
+            { icon: CheckCircle,  stat: '100%',      label: 'Genuine DISCO-approved equipment', color: 'text-eco-500' },
           ].map(item => (
             <div key={item.label} className="p-6">
               <item.icon className={`w-8 h-8 ${item.color} mx-auto mb-3`} />
