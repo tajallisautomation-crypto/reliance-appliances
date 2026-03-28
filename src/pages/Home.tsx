@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight, Sun, Calculator, ShieldCheck, Truck, CreditCard, Headphones,
-  ChevronRight, Zap, Leaf, MessageCircle, Images,
+  ChevronRight, Zap, Leaf, MessageCircle, Image,
 } from 'lucide-react'
 import { getProducts, getProductCount, DEFAULT_CATEGORIES, type Product, formatPrice } from '../lib/api'
 import { calcPlan } from '../lib/plans'
@@ -379,7 +379,7 @@ export default function Home() {
             </div>
             <Link to="/gallery"
               className="flex items-center gap-1 text-brand-600 hover:text-brand-700 font-semibold text-sm transition-colors">
-              <Images className="w-4 h-4" /> Full Gallery <ChevronRight className="w-4 h-4" />
+              <Image className="w-4 h-4" /> Full Gallery <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">

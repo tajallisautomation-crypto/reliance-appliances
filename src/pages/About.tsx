@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ShieldCheck, CreditCard, Truck, Headphones, MessageCircle, ChevronRight, Images } from 'lucide-react'
+import { ShieldCheck, CreditCard, Truck, Headphones, MessageCircle, ChevronRight, Image } from 'lucide-react'
 import SEO from '@/components/ui/SEO'
 import { waSales } from '@/lib/whatsapp'
 import { getInstallationImages, type MediaItem } from '@/lib/gallery'
@@ -119,7 +119,7 @@ export default function About() {
               </div>
               <Link to="/gallery"
                 className="hidden sm:flex items-center gap-1.5 text-orange-400 hover:text-orange-300 font-semibold text-sm transition-colors flex-shrink-0 ml-6">
-                <Images className="w-4 h-4" /> Full Gallery <ChevronRight className="w-4 h-4" />
+                <Image className="w-4 h-4" /> Full Gallery <ChevronRight className="w-4 h-4" />
               </Link>
             </div>
 

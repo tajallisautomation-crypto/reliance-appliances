@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { X, ChevronLeft, ChevronRight, Play, Images, MessageCircle } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, Play, Image, MessageCircle } from 'lucide-react'
 import { getGallery, CATEGORY_LABELS, type MediaItem, type MediaCategory } from '../lib/gallery'
 import SEO from '../components/ui/SEO'
 import { waSales } from '../lib/whatsapp'
@@ -160,7 +160,7 @@ function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
       <div className="w-20 h-20 bg-orange-50 rounded-3xl flex items-center justify-center mb-5">
-        <Images className="w-9 h-9 text-orange-400" />
+        <Image className="w-9 h-9 text-orange-400" />
       </div>
       <h3 className="font-bold text-gray-800 mb-2">No photos yet</h3>
       <p className="text-sm text-gray-400 max-w-xs leading-relaxed">
