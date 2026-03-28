@@ -85,16 +85,15 @@ export default function ReviewSection({ productId, productName }: Props) {
 
   useEffect(() => {
     setLoading(true);
-    supabase
-      .from('reviews')
-      .select('*')
-      .eq('product_id', productId)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        setReviews((data as Review[]) ?? []);
-        setLoading(false);
-      })
-      .finally(() => setLoading(false));
+    Promise.resolve(
+      supabase
+        .from('reviews')
+        .select('*')
+        .eq('product_id', productId)
+        .order('created_at', { ascending: false })
+    ).then(({ data }) => {
+      setReviews((data as Review[]) ?? []);
+    }).finally(() => setLoading(false));
   }, [productId]);
 
   const handleSubmit = async (e: FormEvent) => {
