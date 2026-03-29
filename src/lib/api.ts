@@ -346,7 +346,6 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
         'hood':         ['hood', 'hob'],
         'hood-hobs':    ['hood', 'hob'],
         'care':         ['personal care'],
-        'fans':         ['fan'],
         'air-fryers':   ['air fry'],
         'dishwasher':   ['dishwasher'],
         'spinners':     ['spinner', 'spin dryer'],
