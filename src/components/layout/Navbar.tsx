@@ -67,16 +67,14 @@ export default function Navbar() {
 
             {/* Nav links — desktop */}
             <nav className="hidden lg:flex items-center gap-0.5">
-              {NAV_LINKS.map(({ label, href, eco, highlight }) => (
+              {NAV_LINKS.map(({ label, href, eco }) => (
                 <Link key={href} to={href}
                   className={`px-3 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${
                     isActive(href)
                       ? 'bg-brand-50 text-brand-600 font-semibold'
-                      : highlight
-                        ? 'bg-brand-50 text-brand-600 hover:bg-brand-100 font-semibold'
-                        : eco
-                          ? 'text-eco-700 hover:bg-eco-50 hover:text-eco-700'
-                          : 'text-gray-600 hover:text-brand-600 hover:bg-brand-50'
+                      : eco
+                        ? 'text-eco-700 hover:bg-eco-50 hover:text-eco-700'
+                        : 'text-gray-600 hover:text-brand-600 hover:bg-brand-50'
                   }`}>
                   {eco && <Leaf className="w-3 h-3" />}
                   {label}
