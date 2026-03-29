@@ -14,7 +14,7 @@ const HOME_CATEGORIES = [
   { id:'washing',     name:'Washing Machines',    icon:'👕',  slug:'washing-machines'      },
   { id:'fan',         name:'Fans',                icon:'💨',  slug:'fans'                  },
   { id:'freezer',     name:'Freezers',            icon:'🥶',  slug:'freezers'              },
-  { id:'ev',          name:'Electric Motorcycles',icon:'⚡',  slug:'electric-motorcycles'  },
+  { id:'kitchen',     name:'Kitchen Appliances',  icon:'🍳',  slug:'kitchen-appliances'    },
 ]
 import { calcPlan } from '../lib/plans'
 import ProductCard from '../components/products/ProductCard'
@@ -78,9 +78,9 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-white">
       <SEO
-        title="Reliance by Tajallis — Electric Motorcycles & Home Appliances Karachi"
-        description="Buy electric motorcycles, ACs, refrigerators, washing machines & solar systems on easy installments in Karachi. Pakistan's most trusted store since 2015. Home delivery & after-sale support."
-        keywords="electric motorcycle karachi, electric bike pakistan, ev motorcycle installment, home appliances karachi, buy ac karachi, solar panels karachi, haier dawlance price pakistan"
+        title="Reliance by Tajallis — Home Appliances & Solar Solutions Karachi"
+        description="Buy ACs, refrigerators, washing machines, solar systems & kitchen appliances on easy installments in Karachi. Pakistan's most trusted store since 2015. Home delivery & after-sale support."
+        keywords="home appliances karachi, buy ac karachi, solar panels karachi, haier dawlance price pakistan, refrigerator installment karachi, washing machine price karachi"
         path="/"
       />
 
@@ -98,21 +98,21 @@ export default function Home() {
               <span className="text-brand-500 text-xs font-bold uppercase tracking-[0.2em] whitespace-nowrap">11 Years of Trust</span>
             </div>
             <h1 className="text-5xl md:text-6xl lg:text-[4.5rem] font-black text-gray-900 leading-[1.04] tracking-tight mb-6">
-              Electric Bikes.<br />Home Appliances.<br />
+              Home Appliances.<br />Solar Solutions.<br />
               <span className="text-brand-500">All on Installments.</span>
             </h1>
             <p className="text-lg text-gray-500 leading-relaxed mb-8 max-w-md">
-              Pakistan's first store for electric motorcycles and home appliances — ACs, fridges, solar & more.
-              Cash or installments. Delivered across Karachi.
+              Karachi's trusted store for ACs, fridges, washing machines, solar & more — since 2015.
+              Cash or installments. Delivered to your door.
             </p>
             <div className="flex flex-wrap gap-3">
-              <Link to="/products/category/electric-motorcycles"
-                className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-7 py-4 rounded-2xl shadow-brand transition-all">
-                <Zap className="w-4 h-4" /> Electric Motorcycles
-              </Link>
               <Link to="/products"
+                className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-7 py-4 rounded-2xl shadow-brand transition-all">
+                Shop Now <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link to="/solar"
                 className="inline-flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white font-bold px-7 py-4 rounded-2xl transition-all">
-                All Products <ArrowRight className="w-4 h-4" />
+                <Zap className="w-4 h-4" /> Solar Solutions
               </Link>
             </div>
           </div>
@@ -315,18 +315,18 @@ export default function Home() {
             <h2 className="text-4xl md:text-5xl font-black text-white mb-4 leading-tight">
               Cut your bill.<br />
               Power your home.<br />
-              <span className="text-eco-400">Ride electric.</span>
+              <span className="text-eco-400">Go green.</span>
             </h2>
             <p className="text-gray-400 text-lg mb-10 max-w-xl mx-auto">
-              Electric Motorcycles · Solar · Inverter ACs — all from one company, on installments.
+              Solar · Inverter ACs · Energy Storage — all from one company, on installments.
             </p>
 
             {/* Journey */}
             <div className="flex items-center justify-center gap-3 mb-10 flex-wrap">
               {[
-                { emoji: '⚡', label: 'Electric Bikes' },
-                null,
                 { emoji: '☀️', label: 'Solar Panels' },
+                null,
+                { emoji: '🔋', label: 'Battery Storage' },
                 null,
                 { emoji: '❄️', label: 'Inverter ACs' },
               ].map((item, i) =>
@@ -466,7 +466,7 @@ export default function Home() {
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl font-black mb-4">Ready to shop?</h2>
           <p className="text-gray-400 mb-8 text-lg">
-            Electric motorcycles, ACs, fridges, solar &amp; more — {totalProducts > 0 ? totalProducts : '400+'} products on easy installments. Delivered to your door in Karachi.
+            ACs, fridges, washing machines, solar &amp; more — {totalProducts > 0 ? totalProducts : '400+'} products on easy installments. Delivered to your door in Karachi.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/products" className="bg-brand-500 hover:bg-brand-600 text-white font-bold px-8 py-4 rounded-2xl transition-colors">

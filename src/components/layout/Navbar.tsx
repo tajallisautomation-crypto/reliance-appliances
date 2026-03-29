@@ -7,7 +7,6 @@ import SearchBar from '@/components/SearchBar';
 import { waSales } from '@/lib/whatsapp';
 
 const NAV_LINKS = [
-  { label: '⚡ Electric Bikes', href: '/products/category/electric-motorcycles', highlight: true },
   { label: 'Products',        href: '/products' },
   { label: 'Build a Package', href: '/build-your-package' },
   { label: 'Installments',    href: '/installments' },
@@ -18,7 +17,6 @@ const NAV_LINKS = [
 ];
 
 const MOBILE_LINKS = [
-  ['⚡ Electric Motorcycles', '/products/category/electric-motorcycles'],
   ['Products',          '/products'],
   ['Build a Package 🎁', '/build-your-package'],
   ['Installments',      '/installments'],

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Leaf, Sun, Zap, Bike, TrendingDown, CheckCircle, MessageCircle, Calculator } from 'lucide-react'
+import { ArrowRight, Leaf, Sun, Zap, TrendingDown, CheckCircle, MessageCircle, Calculator, Battery } from 'lucide-react'
 import SEO from '@/components/ui/SEO'
 import AnimatedCounter from '@/components/ui/AnimatedCounter'
 import { calcPlan } from '@/lib/plans'
@@ -38,16 +38,16 @@ const JOURNEY_STEPS = [
   },
   {
     number: '03',
-    icon: Bike,
+    icon: Battery,
     iconColor: 'text-eco-400',
     bgColor: 'bg-eco-400/10',
-    title: 'Ride an Electric Motorcycle',
-    subtitle: 'PKR 1–2/km vs PKR 20+/km on petrol',
-    body: 'Charge your electric motorcycle overnight on solar power and ride for a fraction of the petrol cost. The economics are clear: an electric bike costs 10–20× less per kilometre to run. Combined with your solar system, your daily commute is effectively free.',
+    title: 'Add Battery Storage',
+    subtitle: 'Power through load shedding — no generator needed',
+    body: 'A lithium battery bank paired with your solar system keeps your home running during load shedding. No diesel, no noise, no fumes. Charge during the day, use at night. Payback accelerated by the fuel savings alone.',
     stats: [
-      { label: 'Cost per km', value: 'PKR 1–2' },
-      { label: 'Petrol comparison', value: '90% cheaper' },
-      { label: 'Daily charge', value: 'Overnight' },
+      { label: 'Load shedding cover', value: '8–12 hrs' },
+      { label: 'vs Generator cost', value: '80% cheaper' },
+      { label: 'Battery life', value: '10–20 yrs' },
     ],
   },
 ]
@@ -73,8 +73,8 @@ const PACKAGES = [
   },
   {
     name: 'Total Freedom',
-    tagline: 'For larger homes + electric motorcycle owners',
-    includes: ['8kW Solar System', '4 Inverter ACs', 'Electric Motorcycle (on installments)', '5-year workmanship warranty'],
+    tagline: 'For larger homes with battery backup',
+    includes: ['8kW Solar System', '4 Inverter ACs', 'Lithium Battery Storage', '5-year workmanship warranty'],
     price: 1400000,
     popular: false,
     color: 'border-gray-200',
@@ -85,13 +85,13 @@ const PACKAGES = [
 export default function GreenCorridor() {
   const [monthlyBill, setMonthlyBill] = useState(8000)
   const [numACs,      setNumACs]      = useState(2)
-  const [hasEV,       setHasEV]       = useState(false)
+  const [hasBattery,  setHasBattery]  = useState(false)
 
   // Simplified savings estimate
-  const solarSavingPct  = Math.min(0.85, 0.55 + numACs * 0.05 + (hasEV ? 0.10 : 0))
+  const solarSavingPct  = Math.min(0.85, 0.55 + numACs * 0.05 + (hasBattery ? 0.10 : 0))
   const monthlySaving   = Math.round(monthlyBill * solarSavingPct / 100) * 100
   const annualSaving    = monthlySaving * 12
-  const systemCost      = (numACs <= 2 ? 450000 : numACs <= 4 ? 850000 : 1400000) + (hasEV ? 250000 : 0)
+  const systemCost      = (numACs <= 2 ? 450000 : numACs <= 4 ? 850000 : 1400000) + (hasBattery ? 250000 : 0)
   const paybackYears    = annualSaving > 0 ? +(systemCost / annualSaving).toFixed(1) : 0
   const plan3m          = calcPlan(systemCost, '3m')
 
@@ -101,9 +101,9 @@ export default function GreenCorridor() {
     <div className="min-h-screen bg-white">
       <SEO
         path="/green-corridor"
-        title="Green Corridor — Solar, Inverter ACs & Electric Motorcycles | Reliance by Tajallis"
-        description="Cut your electricity bill by up to 85%. Complete solar systems, inverter ACs and electric motorcycles on easy installments. Free site assessment in Karachi."
-        keywords="solar system karachi, inverter ac karachi, electric motorcycle pakistan, solar installation karachi, green energy karachi"
+        title="Green Corridor — Solar, Inverter ACs & Battery Storage | Reliance by Tajallis"
+        description="Cut your electricity bill by up to 85%. Complete solar systems, inverter ACs and battery storage on easy installments. Free site assessment in Karachi."
+        keywords="solar system karachi, inverter ac karachi, battery storage karachi, solar installation karachi, green energy karachi"
       />
 
       {/* ── HERO ─────────────────────────────────────────────────── */}
@@ -123,7 +123,7 @@ export default function GreenCorridor() {
             <span className="text-eco-400">Off the grid.</span>
           </h1>
           <p className="text-gray-400 text-xl mb-10 max-w-2xl mx-auto leading-relaxed">
-            Solar · Inverter ACs · Electric Motorcycles<br />
+            Solar · Inverter ACs · Battery Storage<br />
             One roof. One partner. Zero compromise.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -237,15 +237,15 @@ export default function GreenCorridor() {
               </div>
             </div>
 
-            {/* EV toggle */}
+            {/* Battery toggle */}
             <div>
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-3">
-                Electric motorcycle?
+                Add battery storage?
               </label>
               <div className="flex gap-2">
                 {(['No', 'Yes'] as const).map((val) => (
-                  <button key={val} onClick={() => setHasEV(val === 'Yes')}
-                    className={`flex-1 py-3 rounded-xl text-sm font-bold border transition-all ${(val === 'Yes') === hasEV ? 'bg-gray-900 text-white border-gray-900' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-400'}`}>
+                  <button key={val} onClick={() => setHasBattery(val === 'Yes')}
+                    className={`flex-1 py-3 rounded-xl text-sm font-bold border transition-all ${(val === 'Yes') === hasBattery ? 'bg-gray-900 text-white border-gray-900' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-400'}`}>
                     {val}
                   </button>
                 ))}
@@ -254,7 +254,7 @@ export default function GreenCorridor() {
           </div>
 
           {/* Results */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-apple animate-fade-in" key={`${monthlyBill}-${numACs}-${hasEV}`}>
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-apple animate-fade-in" key={`${monthlyBill}-${numACs}-${hasBattery}`}>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               {[
                 { label: 'Monthly saving',  value: `PKR ${formatPrice(monthlySaving)}`,  color: 'text-eco-600' },

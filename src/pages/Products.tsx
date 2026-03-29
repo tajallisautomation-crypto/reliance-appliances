@@ -24,7 +24,6 @@ const BUDGET_RANGES = [
 
 // Broad category groups — each group contains one or more DEFAULT_CATEGORIES ids
 const CATEGORY_GROUPS = [
-  { id: 'ev',      label: 'Electric Bikes',     icon: '⚡', cats: ['ev'] },
   { id: 'cooling', label: 'Cooling & Climate',  icon: '❄️', cats: ['ac', 'fridge', 'fridge-nofrost', 'fridge-sbs', 'fridge-french', 'freezer'] },
   { id: 'laundry', label: 'Laundry',            icon: '🫧', cats: ['washing', 'frontload'] },
   { id: 'kitchen', label: 'Kitchen & Cooking',  icon: '🍳', cats: ['kitchen', 'microwave-solo', 'microwave-grill', 'microwave-convection', 'hood'] },
