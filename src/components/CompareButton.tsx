@@ -29,10 +29,10 @@ export default function CompareButton({ product, variant = 'full', className = '
         title={full ? `Max ${MAX_COMPARE_ITEMS} products` : active ? 'Remove from compare' : 'Add to compare'}
         className={`w-11 h-11 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shadow-apple-lg transition-colors
           ${active
-            ? 'bg-orange-500 text-white'
+            ? 'bg-brand-500 text-white'
             : full
               ? 'bg-white text-gray-300 cursor-not-allowed opacity-60'
-              : 'bg-white text-gray-500 hover:bg-orange-50 hover:text-orange-500'}
+              : 'bg-white text-gray-500 hover:bg-brand-50 hover:text-brand-500'}
           ${className}`}
       >
         {active ? <CheckSquare className="w-4 h-4" /> : <GitCompareArrows className="w-4 h-4" />}
@@ -47,10 +47,10 @@ export default function CompareButton({ product, variant = 'full', className = '
       title={full ? `Max ${MAX_COMPARE_ITEMS} products` : undefined}
       className={`flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-1.5 transition-colors
         ${active
-          ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+          ? 'bg-brand-100 text-brand-700 hover:bg-brand-200'
           : full
             ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-            : 'bg-gray-100 text-gray-600 hover:bg-orange-50 hover:text-orange-600'}
+            : 'bg-gray-100 text-gray-600 hover:bg-brand-50 hover:text-brand-600'}
         ${className}`}
     >
       <GitCompareArrows className="w-3.5 h-3.5" />
@@ -67,8 +67,8 @@ export function CompareBar() {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 text-white shadow-2xl">
       <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
-        <GitCompareArrows className="w-5 h-5 text-orange-400 shrink-0" />
-        <span className="text-sm font-semibold text-orange-300 shrink-0">
+        <GitCompareArrows className="w-5 h-5 text-brand-400 shrink-0" />
+        <span className="text-sm font-semibold text-brand-300 shrink-0">
           Compare ({items.length}/{MAX_COMPARE_ITEMS})
         </span>
         <div className="flex-1 flex gap-2 overflow-x-auto no-scrollbar">
@@ -90,7 +90,7 @@ export function CompareBar() {
           <button onClick={clear} className="text-xs text-gray-400 hover:text-white">Clear</button>
           <Link
             to="/compare"
-            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors"
           >
             <GitCompareArrows className="w-3.5 h-3.5" />
             Compare Now

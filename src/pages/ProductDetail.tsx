@@ -800,7 +800,7 @@ export default function ProductDetail() {
                         </span>
                       )}
                       {trending && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-orange-50 text-orange-700 border border-orange-200">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-brand-50 text-brand-700 border border-brand-200">
                           <TrendingDown className="w-3 h-3" /> {Math.round((1 - current.retail_price / maxP) * 100)}% off peak
                         </span>
                       )}

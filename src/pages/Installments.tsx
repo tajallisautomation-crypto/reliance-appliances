@@ -90,7 +90,7 @@ export default function InstallmentsPage() {
       {/* Hero */}
       <div className="bg-gray-900 text-white py-16 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-orange-400 text-xs font-bold uppercase tracking-widest mb-3">Flexible Financing</p>
+          <p className="text-brand-400 text-xs font-bold uppercase tracking-widest mb-3">Flexible Financing</p>
           <h1 className="text-3xl md:text-5xl font-black mb-4">Buy Now, Pay Easy</h1>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
             Up to 12-payment plans with no bank account required.
@@ -119,13 +119,13 @@ export default function InstallmentsPage() {
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {PLAN_DETAILS.map(p => (
-              <div key={p.key} className={`relative bg-white rounded-2xl border-2 p-6 ${p.popular ? 'border-orange-400 shadow-lg shadow-orange-50' : 'border-gray-100'}`}>
+              <div key={p.key} className={`relative bg-white rounded-2xl border-2 p-6 ${p.popular ? 'border-brand-400 shadow-lg shadow-brand-50' : 'border-gray-100'}`}>
                 {p.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full">MOST POPULAR</div>
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand-500 text-white text-xs font-bold px-3 py-1 rounded-full">MOST POPULAR</div>
                 )}
                 <div className="text-center">
                   <div className="text-2xl font-black text-gray-900 mb-2">{p.label}</div>
-                  <div className="text-4xl font-black text-orange-500 mb-4">{p.splits}×</div>
+                  <div className="text-4xl font-black text-brand-500 mb-4">{p.splits}×</div>
                   <p className="text-sm text-gray-500 leading-relaxed">{p.note}</p>
                   <p className="text-xs text-gray-400 mt-3">Use the calculator below to see exact amounts for your product.</p>
                 </div>
@@ -137,7 +137,7 @@ export default function InstallmentsPage() {
         {/* Calculator */}
         <section className="bg-gray-50 rounded-3xl p-8 border border-gray-100">
           <h2 className="text-2xl font-black text-gray-900 mb-2 flex items-center gap-2">
-            <Calculator className="w-6 h-6 text-orange-500" /> Installment Calculator
+            <Calculator className="w-6 h-6 text-brand-500" /> Installment Calculator
           </h2>
           <p className="text-sm text-gray-500 mb-6">Enter any product price to see exact monthly amounts</p>
           <div className="flex gap-3 max-w-md">
@@ -148,7 +148,7 @@ export default function InstallmentsPage() {
                 onChange={e => setPrice(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && calculate()}
                 placeholder="e.g. 75000"
-                className="w-full border-2 border-gray-200 rounded-xl pl-12 pr-4 py-3 text-lg font-semibold focus:outline-none focus:border-orange-400"
+                className="w-full border-2 border-gray-200 rounded-xl pl-12 pr-4 py-3 text-lg font-semibold focus:outline-none focus:border-brand-400"
               />
             </div>
             <button onClick={calculate}
@@ -161,7 +161,7 @@ export default function InstallmentsPage() {
               <p className="text-sm text-gray-500">Results for <strong>{fmtPKR(result.price)}</strong></p>
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {Object.entries(result.plans).map(([key, plan]: [string, any]) => (
-                  <div key={key} className={`rounded-2xl border-2 p-5 ${key === '3m' ? 'border-orange-400 bg-orange-50' : 'border-gray-200 bg-white'}`}>
+                  <div key={key} className={`rounded-2xl border-2 p-5 ${key === '3m' ? 'border-brand-400 bg-brand-50' : 'border-gray-200 bg-white'}`}>
                     <div className="font-bold text-base text-gray-800 mb-4">
                       {key === '2m' ? '2' : key === '3m' ? '3' : key === '6m' ? '6' : '12'} Payments
                     </div>
@@ -170,9 +170,9 @@ export default function InstallmentsPage() {
                         <div className="text-xs text-gray-500 mb-0.5">Total</div>
                         <div className="font-bold">{fmtPKR(plan.total)}</div>
                       </div>
-                      <div className="bg-orange-50 rounded-xl p-3 border border-orange-100">
-                        <div className="text-xs text-orange-600 mb-0.5">Advance ({Math.round(plan.advancePct * 100)}%)</div>
-                        <div className="font-bold text-lg text-orange-700">{fmtPKR(plan.advance)}</div>
+                      <div className="bg-brand-50 rounded-xl p-3 border border-brand-100">
+                        <div className="text-xs text-brand-600 mb-0.5">Advance ({Math.round(plan.advancePct * 100)}%)</div>
+                        <div className="font-bold text-lg text-brand-700">{fmtPKR(plan.advance)}</div>
                       </div>
                       {plan.monthly > 0 && (
                         <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
@@ -243,8 +243,8 @@ export default function InstallmentsPage() {
             {/* Guarantor documents */}
             <div className="bg-white border border-gray-100 rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-5">
-                <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center">
-                  <Users className="w-5 h-5 text-orange-600" />
+                <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center">
+                  <Users className="w-5 h-5 text-brand-600" />
                 </div>
                 <div>
                   <h3 className="font-bold text-gray-900">Guarantor Documents</h3>
@@ -326,7 +326,7 @@ export default function InstallmentsPage() {
               Have a question not listed here?{' '}
               <a href={waSales('Hi, I have a question about the installment plan')}
                 target="_blank" rel="noreferrer"
-                className="text-orange-500 font-semibold hover:underline">
+                className="text-brand-500 font-semibold hover:underline">
                 Ask us on WhatsApp →
               </a>
             </p>

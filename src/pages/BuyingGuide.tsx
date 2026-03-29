@@ -20,7 +20,7 @@ function Select({ value, onChange, options }: {
     <select
       value={value}
       onChange={e => onChange(e.target.value)}
-      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-400 bg-white"
+      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-400 bg-white"
     >
       {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
@@ -34,16 +34,16 @@ function NumberInput({ value, onChange, placeholder, min = 1, max = 999 }: {
     <input
       type="number" value={value} onChange={e => onChange(e.target.value)}
       placeholder={placeholder} min={min} max={max}
-      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-400"
+      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-400"
     />
   )
 }
 
-function ResultCard({ icon, label, value, sub, color = 'orange' }: {
+function ResultCard({ icon, label, value, sub, color = 'brand' }: {
   icon: React.ReactNode; label: string; value: string; sub?: string; color?: string
 }) {
   const colors: Record<string, string> = {
-    orange: 'bg-orange-50 border-orange-200 text-orange-700',
+    brand: 'bg-brand-50 border-brand-200 text-brand-700',
     blue:   'bg-blue-50  border-blue-200  text-blue-700',
     green:  'bg-green-50 border-green-200 text-green-700',
     purple: 'bg-purple-50 border-purple-200 text-purple-700',
@@ -650,7 +650,7 @@ export default function BuyingGuide() {
       {/* Hero */}
       <div className="bg-white border-b">
         <div className="max-w-3xl mx-auto px-4 py-10 text-center">
-          <span className="inline-block text-xs font-bold text-orange-600 bg-orange-50 px-3 py-1 rounded-full mb-4">
+          <span className="inline-block text-xs font-bold text-brand-600 bg-brand-50 px-3 py-1 rounded-full mb-4">
             Free Tools
           </span>
           <h1 className="text-3xl md:text-4xl font-black text-gray-900 mb-3">
@@ -669,7 +669,7 @@ export default function BuyingGuide() {
         <ShirtCalculator />
 
         {/* Bottom CTA */}
-        <div className="bg-gradient-to-r from-orange-500 to-rose-500 rounded-3xl p-6 text-center text-white">
+        <div className="bg-gradient-to-r from-brand-500 to-brand-700 rounded-3xl p-6 text-center text-white">
           <p className="font-black text-lg mb-1">Still not sure? Talk to our team.</p>
           <p className="text-white/80 text-sm mb-4">
             Our advisors help thousands of Karachi families choose the right appliance every month.
@@ -678,7 +678,7 @@ export default function BuyingGuide() {
           <a
             href="https://wa.me/923702578788?text=Hi%2C%20I%20need%20help%20choosing%20the%20right%20appliance%20for%20my%20home."
             target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-white text-orange-600 font-bold px-6 py-3 rounded-xl hover:bg-orange-50 transition-colors"
+            className="inline-flex items-center gap-2 bg-white text-brand-600 font-bold px-6 py-3 rounded-xl hover:bg-brand-50 transition-colors"
           >
             Chat on WhatsApp <ChevronRight className="w-4 h-4" />
           </a>

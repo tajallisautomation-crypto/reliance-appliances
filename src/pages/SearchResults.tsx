@@ -147,7 +147,7 @@ export default function SearchResults() {
             ) : (
               <p className="text-sm text-gray-600">
                 <span className="font-bold text-gray-900">{filtered.length.toLocaleString()}</span>
-                {rawQuery ? <> results for <span className="font-bold text-orange-600">"{rawQuery}"</span></> : ' products'}
+                {rawQuery ? <> results for <span className="font-bold text-brand-600">"{rawQuery}"</span></> : ' products'}
               </p>
             )}
           </div>
@@ -156,7 +156,7 @@ export default function SearchResults() {
           <div className="flex flex-wrap items-center gap-2">
             {[...filterBrands].map(b => (
               <button key={b} onClick={() => setFilterBrands(s => toggleSet(s, b))}
-                className="flex items-center gap-1 text-xs bg-orange-100 text-orange-700 px-2.5 py-1 rounded-full font-medium">
+                className="flex items-center gap-1 text-xs bg-brand-100 text-brand-700 px-2.5 py-1 rounded-full font-medium">
                 {b} <X className="w-3 h-3" />
               </button>
             ))}
@@ -192,7 +192,7 @@ export default function SearchResults() {
                   <SlidersHorizontal className="w-4 h-4" /> Filters
                 </h3>
                 {hasActiveFilters && (
-                  <button onClick={clearAll} className="text-xs text-orange-500 hover:text-orange-700">Clear</button>
+                  <button onClick={clearAll} className="text-xs text-brand-500 hover:text-brand-700">Clear</button>
                 )}
               </div>
 
@@ -204,7 +204,7 @@ export default function SearchResults() {
                       <label key={cat} className="flex items-center gap-2 cursor-pointer group">
                         <input type="checkbox" checked={filterCategories.has(cat)}
                           onChange={() => setFilterCategories(s => toggleSet(s, cat))}
-                          className="accent-orange-500 w-3.5 h-3.5" />
+                          className="accent-brand-500 w-3.5 h-3.5" />
                         <span className="text-xs text-gray-700 group-hover:text-gray-900 flex-1">{cat}</span>
                         <span className="text-[10px] text-gray-400">
                           {results.filter(r => r.product.category === cat).length}
@@ -223,7 +223,7 @@ export default function SearchResults() {
                       <label key={brand} className="flex items-center gap-2 cursor-pointer group">
                         <input type="checkbox" checked={filterBrands.has(brand)}
                           onChange={() => setFilterBrands(s => toggleSet(s, brand))}
-                          className="accent-orange-500 w-3.5 h-3.5" />
+                          className="accent-brand-500 w-3.5 h-3.5" />
                         <span className="text-xs text-gray-700 group-hover:text-gray-900 flex-1">{brand}</span>
                         <span className="text-[10px] text-gray-400">
                           {results.filter(r => r.product.brand === brand).length}
@@ -242,7 +242,7 @@ export default function SearchResults() {
                     return (
                       <button key={r.label} onClick={() => active ? setPriceRange(0, Infinity) : setPriceRange(r.min, r.max)}
                         className={`w-full text-left text-xs px-2.5 py-1.5 rounded-lg transition-colors ${
-                          active ? 'bg-orange-100 text-orange-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
+                          active ? 'bg-brand-100 text-brand-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
                         }`}>
                         {r.label}
                       </button>
@@ -254,10 +254,10 @@ export default function SearchResults() {
                 <div className="flex gap-2 mt-3">
                   <input type="number" placeholder="Min" value={filterPriceMin ?? ''}
                     onChange={e => setFilterPriceMin(e.target.value ? Number(e.target.value) : undefined)}
-                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
                   <input type="number" placeholder="Max" value={filterPriceMax ?? ''}
                     onChange={e => setFilterPriceMax(e.target.value ? Number(e.target.value) : undefined)}
-                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
                 </div>
               </FilterSection>
 
@@ -274,7 +274,7 @@ export default function SearchResults() {
                   }}
                   className={`w-full text-left text-xs px-2.5 py-2 rounded-lg border transition-colors ${
                     filterPriceMin === 10000
-                      ? 'border-orange-300 bg-orange-50 text-orange-700 font-medium'
+                      ? 'border-brand-200 bg-brand-50 text-brand-700 font-medium'
                       : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                   }`}>
                   💳 Installment Eligible
@@ -287,7 +287,7 @@ export default function SearchResults() {
           <div className="flex-1 min-w-0">
             {loading ? (
               <div className="flex items-center justify-center py-32">
-                <Loader2 className="w-8 h-8 animate-spin text-orange-400" />
+                <Loader2 className="w-8 h-8 animate-spin text-brand-400" />
               </div>
             ) : loadError ? (
               <div className="text-center py-32">
@@ -309,7 +309,7 @@ export default function SearchResults() {
                 <div className="flex flex-wrap gap-2 justify-center">
                   {['Air Conditioners','Refrigerators','Washing Machines','Kitchen Appliances'].map(cat => (
                     <Link key={cat} to={`/search?q=${encodeURIComponent(cat)}`}
-                      className="text-sm px-3 py-1.5 bg-orange-100 text-orange-700 rounded-full font-medium hover:bg-orange-200 transition-colors">
+                      className="text-sm px-3 py-1.5 bg-brand-100 text-brand-700 rounded-full font-medium hover:bg-brand-200 transition-colors">
                       {cat}
                     </Link>
                   ))}

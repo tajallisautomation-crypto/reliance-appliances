@@ -446,11 +446,11 @@ export default function Products() {
             <span className="ml-1">products</span>
             {activeCat && (
               <span className="ml-1 hidden sm:inline">
-                in <span className="text-orange-600 font-medium">{activeCat.icon} {activeCat.name}</span>
+                in <span className="text-brand-600 font-medium">{activeCat.icon} {activeCat.name}</span>
               </span>
             )}
             {search && (
-              <span className="ml-1">for "<span className="text-orange-600 font-medium">{search}</span>"</span>
+              <span className="ml-1">for "<span className="text-brand-600 font-medium">{search}</span>"</span>
             )}
           </div>
 
@@ -459,13 +459,13 @@ export default function Products() {
             <div className="hidden lg:flex gap-1 overflow-x-auto max-w-2xl">
               <button onClick={() => goToCategory('')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all
-                  ${!category ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-orange-50'}`}>
+                  ${!category ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-brand-50'}`}>
                 All
               </button>
               {DEFAULT_CATEGORIES.map(c => (
                 <button key={c.id} onClick={() => goToCategory(c.id)}
                   className={`px-2.5 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap flex items-center gap-1 transition-all
-                    ${activeCat?.id === c.id ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-orange-50'}`}>
+                    ${activeCat?.id === c.id ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-brand-50'}`}>
                   {c.icon} {c.name}
                 </button>
               ))}
@@ -474,19 +474,19 @@ export default function Products() {
             <div className="flex items-center gap-2">
               {/* Sort */}
               <select value={sort} onChange={e => setFilter('sort', e.target.value)}
-                className="text-xs border border-gray-200 rounded-xl px-3 py-1.5 bg-white focus:outline-none focus:border-orange-400 cursor-pointer">
+                className="text-xs border border-gray-200 rounded-xl px-3 py-1.5 bg-white focus:outline-none focus:border-brand-400 cursor-pointer">
                 {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
 
               {/* Filter toggle */}
               <button onClick={() => setShowFilters(f => !f)}
                 className={`relative flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border transition-all
-                  ${showFilters ? 'bg-orange-500 text-white border-orange-500' : 'border-gray-200 text-gray-600 hover:border-orange-300'}`}>
+                  ${showFilters ? 'bg-brand-500 text-white border-brand-500' : 'border-gray-200 text-gray-600 hover:border-brand-200'}`}>
                 <SlidersHorizontal className="w-3.5 h-3.5" />
                 Filters
                 {activeFilterCount > 0 && (
                   <span className={`ml-0.5 w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center
-                    ${showFilters ? 'bg-white text-orange-500' : 'bg-orange-500 text-white'}`}>
+                    ${showFilters ? 'bg-white text-brand-500' : 'bg-brand-500 text-white'}`}>
                     {activeFilterCount}
                   </span>
                 )}
@@ -495,11 +495,11 @@ export default function Products() {
               {/* View toggle */}
               <div className="flex border border-gray-200 rounded-xl overflow-hidden">
                 <button onClick={() => setView('grid')}
-                  className={`p-1.5 transition-colors ${view === 'grid' ? 'bg-orange-500 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                  className={`p-1.5 transition-colors ${view === 'grid' ? 'bg-brand-500 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
                   <Grid3X3 className="w-4 h-4" />
                 </button>
                 <button onClick={() => setView('list')}
-                  className={`p-1.5 transition-colors ${view === 'list' ? 'bg-orange-500 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                  className={`p-1.5 transition-colors ${view === 'list' ? 'bg-brand-500 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
                   <List className="w-4 h-4" />
                 </button>
               </div>
@@ -542,8 +542,8 @@ export default function Products() {
                       <label key={i} className="flex items-center gap-2.5 cursor-pointer group">
                         <input type="radio" name="budget" checked={budgetIdx === i}
                           onChange={() => setBudgetIdx(budgetIdx === i ? null : i)}
-                          className="accent-orange-500 w-3.5 h-3.5 cursor-pointer" />
-                        <span className={`text-sm transition-colors ${budgetIdx === i ? 'text-orange-600 font-semibold' : 'text-gray-600 group-hover:text-gray-900'}`}>
+                          className="accent-brand-500 w-3.5 h-3.5 cursor-pointer" />
+                        <span className={`text-sm transition-colors ${budgetIdx === i ? 'text-brand-600 font-semibold' : 'text-gray-600 group-hover:text-gray-900'}`}>
                           {r.label}
                         </span>
                       </label>
@@ -573,8 +573,8 @@ export default function Products() {
                         <label key={opt.value} className="flex items-center gap-2.5 cursor-pointer group">
                           <input type="checkbox" checked={specFilters[sf.key] === opt.value}
                             onChange={() => setSpecFilters(prev => ({ ...prev, [sf.key]: prev[sf.key] === opt.value ? '' : opt.value }))}
-                            className="accent-orange-500 w-3.5 h-3.5 cursor-pointer rounded" />
-                          <span className={`text-sm transition-colors ${specFilters[sf.key] === opt.value ? 'text-orange-600 font-semibold' : 'text-gray-600 group-hover:text-gray-900'}`}>
+                            className="accent-brand-500 w-3.5 h-3.5 cursor-pointer rounded" />
+                          <span className={`text-sm transition-colors ${specFilters[sf.key] === opt.value ? 'text-brand-600 font-semibold' : 'text-gray-600 group-hover:text-gray-900'}`}>
                             {opt.label}
                           </span>
                         </label>
@@ -588,8 +588,8 @@ export default function Products() {
                   <label className="flex items-center gap-2.5 cursor-pointer group">
                     <input type="checkbox" checked={inStockOnly}
                       onChange={() => setInStockOnly(v => !v)}
-                      className="accent-orange-500 w-3.5 h-3.5 cursor-pointer rounded" />
-                    <span className={`text-sm ${inStockOnly ? 'text-orange-600 font-semibold' : 'text-gray-600 group-hover:text-gray-900'}`}>
+                      className="accent-brand-500 w-3.5 h-3.5 cursor-pointer rounded" />
+                    <span className={`text-sm ${inStockOnly ? 'text-brand-600 font-semibold' : 'text-gray-600 group-hover:text-gray-900'}`}>
                       In Stock only
                     </span>
                   </label>
@@ -639,7 +639,7 @@ export default function Products() {
             <div className="text-6xl mb-4">⚠️</div>
             <h3 className="text-xl font-bold text-gray-700 mb-2">Could not load products</h3>
             <p className="text-gray-500 mb-6">Check your connection and try again</p>
-            <button onClick={fetchProducts} className="bg-orange-500 text-white px-6 py-2.5 rounded-xl font-medium">
+            <button onClick={fetchProducts} className="bg-brand-500 text-white px-6 py-2.5 rounded-xl font-medium">
               Retry
             </button>
           </div>
@@ -648,7 +648,7 @@ export default function Products() {
             <div className="text-6xl mb-4">🔍</div>
             <h3 className="text-xl font-bold text-gray-700 mb-2">No products found</h3>
             <p className="text-gray-500 mb-6">Try adjusting your filters or search term</p>
-            <button onClick={clearAll} className="bg-orange-500 text-white px-6 py-2.5 rounded-xl font-medium">
+            <button onClick={clearAll} className="bg-brand-500 text-white px-6 py-2.5 rounded-xl font-medium">
               Clear Filters
             </button>
           </div>
@@ -696,7 +696,7 @@ function Pill({ active, onClick, children }: { active: boolean; onClick: () => v
   return (
     <button onClick={onClick}
       className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all
-        ${active ? 'bg-orange-500 text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-700 hover:border-orange-300 hover:text-orange-600'}`}>
+        ${active ? 'bg-brand-500 text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-700 hover:border-brand-200 hover:text-brand-600'}`}>
       {children}
     </button>
   )
@@ -704,7 +704,7 @@ function Pill({ active, onClick, children }: { active: boolean; onClick: () => v
 
 function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
-    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-orange-50 border border-orange-200 text-orange-700 rounded-full text-xs font-medium">
+    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-brand-50 border border-brand-200 text-brand-700 rounded-full text-xs font-medium">
       {label}
       <button onClick={onRemove} className="hover:text-red-500 transition-colors ml-0.5">
         <X className="w-3 h-3" />

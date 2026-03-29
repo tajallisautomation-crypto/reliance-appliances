@@ -8,9 +8,9 @@ import { getProducts, getProductCount, type Product, formatPrice } from '../lib/
 
 // Only the top-level categories shown on the home page — no subcategory splits
 const HOME_CATEGORIES = [
+  { id:'ev',       name:'Electric Motorcycles', icon:'⚡', slug:'electric-motorcycles' },
   { id:'ac',       name:'Air Conditioners', icon:'❄️',  slug:'air-conditioners'  },
   { id:'fridge',   name:'Refrigerators',    icon:'🧊',  slug:'refrigerators'     },
-  { id:'freezer',  name:'Freezers',         icon:'🥶',  slug:'freezers'          },
   { id:'washing',  name:'Washing Machines', icon:'👕',  slug:'washing-machines'  },
   { id:'tv',       name:'Televisions',      icon:'📺',  slug:'televisions'       },
   { id:'kitchen',  name:'Kitchen',          icon:'🍳',  slug:'kitchen-appliances'},
@@ -81,9 +81,9 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-white">
       <SEO
-        title="Reliance by Tajallis — Premium Appliances Karachi"
-        description="Shop ACs, refrigerators, washing machines, TVs & solar systems on easy installments. Karachi's most trusted appliance store since 2015. Genuine products, home delivery & after-sale support."
-        keywords="home appliances karachi, buy ac karachi, refrigerator installment karachi, solar panels karachi, haier dawlance price pakistan"
+        title="Reliance by Tajallis — Electric Motorcycles & Home Appliances Karachi"
+        description="Buy electric motorcycles, ACs, refrigerators, washing machines & solar systems on easy installments in Karachi. Pakistan's most trusted store since 2015. Home delivery & after-sale support."
+        keywords="electric motorcycle karachi, electric bike pakistan, ev motorcycle installment, home appliances karachi, buy ac karachi, solar panels karachi, haier dawlance price pakistan"
         path="/"
       />
 
@@ -101,23 +101,22 @@ export default function Home() {
               <span className="text-brand-500 text-xs font-bold uppercase tracking-[0.2em] whitespace-nowrap">11 Years of Trust</span>
             </div>
             <h1 className="text-5xl md:text-6xl lg:text-[4.5rem] font-black text-gray-900 leading-[1.04] tracking-tight mb-6">
-              Pakistan's Most<br />Trusted Home<br />
-              <span className="text-brand-500">Technology Partner.</span>
+              Electric Bikes.<br />Home Appliances.<br />
+              <span className="text-brand-500">All on Installments.</span>
             </h1>
             <p className="text-lg text-gray-500 leading-relaxed mb-8 max-w-md">
-              Every appliance. Every service. Cash or installments.<br className="hidden md:block" />
-              One call — delivered across Karachi to your doorstep.
+              Pakistan's first store for electric motorcycles and home appliances — ACs, fridges, solar & more.
+              Cash or installments. Delivered across Karachi.
             </p>
             <div className="flex flex-wrap gap-3">
-              <Link to="/products"
+              <Link to="/products/category/electric-motorcycles"
                 className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-7 py-4 rounded-2xl shadow-brand transition-all">
-                Shop Products <ArrowRight className="w-4 h-4" />
+                <Zap className="w-4 h-4" /> Electric Motorcycles
               </Link>
-              <a href={waSales('Hi, I would like to book a consultation.')}
-                target="_blank" rel="noreferrer"
+              <Link to="/products"
                 className="inline-flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white font-bold px-7 py-4 rounded-2xl transition-all">
-                <MessageCircle className="w-4 h-4" /> Book Consultation
-              </a>
+                All Products <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
           </div>
 
@@ -185,17 +184,17 @@ export default function Home() {
       <OfferBannerSlider />
 
       {/* ── MYOP PROMO ───────────────────────────────────────────── */}
-      <section className="py-12 px-4 bg-gradient-to-r from-orange-500 to-amber-500">
+      <section className="py-12 px-4 bg-gradient-to-r from-brand-500 to-brand-700">
         <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center gap-6 text-white">
           <div className="text-4xl shrink-0">📦</div>
           <div className="flex-1 text-center md:text-left">
             <h2 className="text-2xl font-black mb-1">Build Your Own Package — Save 5%</h2>
-            <p className="text-orange-100 text-sm">
+            <p className="text-brand-100 text-sm">
               Mix and match ACs, fridges, washing machines, solar, TVs & more. Add 3+ items and get 5% off your entire order automatically.
             </p>
           </div>
           <Link to="/build-your-package"
-            className="shrink-0 bg-white text-orange-600 font-black px-7 py-3.5 rounded-2xl hover:bg-orange-50 transition-colors whitespace-nowrap">
+            className="shrink-0 bg-white text-brand-600 font-black px-7 py-3.5 rounded-2xl hover:bg-brand-50 transition-colors whitespace-nowrap">
             Start Building →
           </Link>
         </div>
@@ -317,22 +316,22 @@ export default function Home() {
               <Leaf className="w-4 h-4" /> Green Corridor
             </div>
             <h2 className="text-4xl md:text-5xl font-black text-white mb-4 leading-tight">
-              Cut your electricity bill.<br />
+              Cut your bill.<br />
               Power your home.<br />
-              <span className="text-eco-400">Charge your car.</span>
+              <span className="text-eco-400">Ride electric.</span>
             </h2>
             <p className="text-gray-400 text-lg mb-10 max-w-xl mx-auto">
-              Solar · Inverter ACs · EV Charging — all from one company, on installments.
+              Electric Motorcycles · Solar · Inverter ACs — all from one company, on installments.
             </p>
 
             {/* Journey */}
             <div className="flex items-center justify-center gap-3 mb-10 flex-wrap">
               {[
+                { emoji: '⚡', label: 'Electric Bikes' },
+                null,
                 { emoji: '☀️', label: 'Solar Panels' },
                 null,
                 { emoji: '❄️', label: 'Inverter ACs' },
-                null,
-                { emoji: '⚡', label: 'EV Charging' },
               ].map((item, i) =>
                 item === null ? (
                   <ArrowRight key={i} className="w-4 h-4 text-gray-600" />
@@ -368,7 +367,7 @@ export default function Home() {
           </div>
           <div className="flex flex-col gap-3 flex-shrink-0">
             <Link to="/solar-calculator"
-              className="inline-flex items-center gap-2 bg-white text-brand-600 font-bold px-8 py-4 rounded-2xl hover:bg-orange-50 shadow-lg">
+              className="inline-flex items-center gap-2 bg-white text-brand-600 font-bold px-8 py-4 rounded-2xl hover:bg-brand-50 shadow-lg">
               <Calculator className="w-5 h-5" /> Solar Calculator
             </Link>
             <Link to="/solar"
@@ -470,7 +469,7 @@ export default function Home() {
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl font-black mb-4">Ready to shop?</h2>
           <p className="text-gray-400 mb-8 text-lg">
-            Browse {totalProducts > 0 ? totalProducts : '400+'} products from Haier, Dawlance, Gree, EcoStar, Westpoint &amp; more with easy installments.
+            Electric motorcycles, ACs, fridges, solar &amp; more — {totalProducts > 0 ? totalProducts : '400+'} products on easy installments. Delivered to your door in Karachi.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/products" className="bg-brand-500 hover:bg-brand-600 text-white font-bold px-8 py-4 rounded-2xl transition-colors">

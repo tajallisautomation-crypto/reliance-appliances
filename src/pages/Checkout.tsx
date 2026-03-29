@@ -42,7 +42,7 @@ export default function Checkout() {
       <SEO title="Checkout — Reliance by Tajallis" noIndex />
       <div className="text-5xl">🛒</div>
       <h2 className="text-xl font-bold text-gray-700">Your cart is empty</h2>
-      <Link to="/products" className="bg-orange-500 text-white px-6 py-2.5 rounded-xl font-medium">Browse Products</Link>
+      <Link to="/products" className="bg-brand-500 text-white px-6 py-2.5 rounded-xl font-medium">Browse Products</Link>
     </div>
   )
 
@@ -108,7 +108,7 @@ export default function Checkout() {
         className="bg-green-500 text-white px-8 py-3 rounded-xl font-semibold w-full">
         💬 Track on WhatsApp
       </a>
-      <Link to="/products" className="text-orange-500 hover:underline text-sm">Continue Shopping</Link>
+      <Link to="/products" className="text-brand-500 hover:underline text-sm">Continue Shopping</Link>
     </div>
   )
 
@@ -127,7 +127,7 @@ export default function Checkout() {
             <label className="text-sm font-medium text-gray-700 block mb-1">Full Name *</label>
             <input type="text" placeholder="e.g. Ahmed Khan" value={form.name}
               onChange={e => setForm(p => ({...p, name: e.target.value}))}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-orange-400 text-sm" />
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-brand-400 text-sm" />
           </div>
 
           {/* Phone */}
@@ -140,7 +140,7 @@ export default function Checkout() {
                   ? 'border-red-300 focus:border-red-400 bg-red-50'
                   : form.phone && phoneValid
                     ? 'border-green-300 focus:border-green-400'
-                    : 'border-gray-200 focus:border-orange-400'
+                    : 'border-gray-200 focus:border-brand-400'
               }`} />
             {form.phone && !phoneValid && (
               <p className="text-xs text-red-500 mt-1">Enter a valid Pakistani mobile number (03XX XXXXXXX)</p>
@@ -155,7 +155,7 @@ export default function Checkout() {
             <label className="text-sm font-medium text-gray-700 block mb-1">Email <span className="text-gray-400 font-normal">(optional)</span></label>
             <input type="email" placeholder="your@email.com" value={form.email}
               onChange={e => setForm(p => ({...p, email: e.target.value}))}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-orange-400 text-sm" />
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-brand-400 text-sm" />
           </div>
 
           {/* Address */}
@@ -163,7 +163,7 @@ export default function Checkout() {
             <label className="text-sm font-medium text-gray-700 block mb-1">Delivery Address *</label>
             <input type="text" placeholder="e.g. House 12, Block B, F.B. Area" value={form.address}
               onChange={e => setForm(p => ({...p, address: e.target.value}))}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-orange-400 text-sm" />
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-brand-400 text-sm" />
             <p className="text-xs text-gray-400 mt-1">Include street name, house/flat no., and area / neighbourhood</p>
           </div>
 
@@ -172,24 +172,24 @@ export default function Checkout() {
             <label className="text-sm font-medium text-gray-700 block mb-1">City *</label>
             <input type="text" placeholder="e.g. Karachi" value={form.city}
               onChange={e => setForm(p => ({...p, city: e.target.value}))}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-orange-400 text-sm" />
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-brand-400 text-sm" />
             <p className="text-xs text-gray-400 mt-1">We deliver across Karachi, Lahore, Islamabad & major cities</p>
           </div>
           <div>
             <label className="text-sm font-medium text-gray-700 block mb-1">Notes</label>
             <textarea rows={3} placeholder="Any special instructions..." value={form.notes}
               onChange={e => setForm(p => ({...p, notes: e.target.value}))}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-orange-400 text-sm resize-none" />
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-brand-400 text-sm resize-none" />
           </div>
           <div>
             <label className="text-sm font-medium text-gray-700 block mb-3">Payment Method</label>
             <div className="space-y-2">
-              <button onClick={() => setPlan('cash')} className={`w-full p-4 rounded-xl border-2 text-left ${plan==='cash'?'border-orange-500 bg-orange-50':'border-gray-200'}`}>
+              <button onClick={() => setPlan('cash')} className={`w-full p-4 rounded-xl border-2 text-left ${plan==='cash'?'border-brand-500 bg-brand-50':'border-gray-200'}`}>
                 <div className="font-semibold text-gray-800">Cash on Delivery</div>
                 <div className="text-sm text-gray-500">Full amount: {fmtPKR(cartTotal)}</div>
               </button>
               {Object.entries(plans).map(([key, p]) => (
-                <button key={key} onClick={() => setPlan(key)} className={`w-full p-4 rounded-xl border-2 text-left ${plan===key?'border-orange-500 bg-orange-50':'border-gray-200'}`}>
+                <button key={key} onClick={() => setPlan(key)} className={`w-full p-4 rounded-xl border-2 text-left ${plan===key?'border-brand-500 bg-brand-50':'border-gray-200'}`}>
                   <div className="font-semibold text-gray-800">{PLAN_LABELS[key] || key} Installment Plan</div>
                   <div className="text-sm text-gray-500">Advance: {fmtPKR(p.advance)} · Then {fmtPKR(p.monthly)}/mo × {p.monthlyPayments}</div>
                 </button>
@@ -268,12 +268,12 @@ export default function Checkout() {
             <div className="border-t pt-3 mb-5">
               {selectedPlan ? (
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between text-orange-700 font-bold"><span>Advance Due Today</span><span>{fmtPKR(selectedPlan.advance)}</span></div>
+                  <div className="flex justify-between text-brand-700 font-bold"><span>Advance Due Today</span><span>{fmtPKR(selectedPlan.advance)}</span></div>
                   <div className="flex justify-between text-blue-700"><span>{selectedPlan.monthlyPayments}× Monthly</span><span>{fmtPKR(selectedPlan.monthly)}</span></div>
                   <div className="flex justify-between text-gray-500 text-xs border-t pt-2"><span>Plan total</span><span>{fmtPKR(selectedPlan.total)}</span></div>
                 </div>
               ) : (
-                <div className="flex justify-between font-bold text-lg"><span>Total</span><span className="text-orange-600">{fmtPKR(cartTotal)}</span></div>
+                <div className="flex justify-between font-bold text-lg"><span>Total</span><span className="text-brand-600">{fmtPKR(cartTotal)}</span></div>
               )}
             </div>
             {error && (
@@ -282,7 +282,7 @@ export default function Checkout() {
               </div>
             )}
             <button onClick={handleSubmit} disabled={!canSubmit}
-              className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold text-lg transition-colors">
+              className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold text-lg transition-colors">
               {loading ? 'Placing Order…' : '✅ Place Order'}
             </button>
             {missingFields.length > 0 && (
@@ -302,7 +302,7 @@ export default function Checkout() {
           {selectedPlan ? (
             <>
               <p className="text-xs text-gray-500">Advance due today</p>
-              <p className="text-lg font-black text-orange-600">{fmtPKR(selectedPlan.advance)}</p>
+              <p className="text-lg font-black text-brand-600">{fmtPKR(selectedPlan.advance)}</p>
               <p className="text-xs text-gray-400">then {fmtPKR(selectedPlan.monthly)}/mo × {selectedPlan.monthlyPayments}</p>
             </>
           ) : (
@@ -315,7 +315,7 @@ export default function Checkout() {
         <button
           onClick={handleSubmit}
           disabled={!canSubmit}
-          className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 h-12 rounded-xl font-bold text-sm transition-colors shrink-0"
+          className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 h-12 rounded-xl font-bold text-sm transition-colors shrink-0"
         >
           {loading ? 'Placing…' : <><span>Place Order</span> <ArrowRight className="w-4 h-4" /></>}
         </button>

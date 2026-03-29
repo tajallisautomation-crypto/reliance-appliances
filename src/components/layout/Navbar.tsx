@@ -7,17 +7,18 @@ import SearchBar from '@/components/SearchBar';
 import { waSales } from '@/lib/whatsapp';
 
 const NAV_LINKS = [
+  { label: '⚡ Electric Bikes', href: '/products/category/electric-motorcycles', highlight: true },
   { label: 'Products',        href: '/products' },
-  { label: 'Build a Package', href: '/build-your-package', highlight: true },
+  { label: 'Build a Package', href: '/build-your-package' },
   { label: 'Installments',    href: '/installments' },
   { label: 'Solar',           href: '/solar' },
   { label: 'Green Corridor',  href: '/green-corridor', eco: true },
   { label: 'Buying Guide',    href: '/buying-guide' },
   { label: 'Services',        href: '/services' },
-  { label: 'Partner With Us', href: '/partner' },
 ];
 
 const MOBILE_LINKS = [
+  ['⚡ Electric Motorcycles', '/products/category/electric-motorcycles'],
   ['Products',          '/products'],
   ['Build a Package 🎁', '/build-your-package'],
   ['Installments',      '/installments'],
@@ -62,7 +63,7 @@ export default function Navbar() {
               <img src="/tajallis-logo-icon.svg" alt="" aria-hidden="true" className="h-9 w-9" />
               <span className="hidden sm:block leading-none">
                 <span className="block font-black text-[17px] text-[#1b3a6e] tracking-tight leading-none">Tajalli&#8217;s</span>
-                <span className="block text-[10px] font-medium text-gray-400 mt-0.5 tracking-wide uppercase">Home &amp; Commercial</span>
+                <span className="block text-[10px] font-medium text-gray-400 mt-0.5 tracking-wide uppercase">EV &amp; Home Appliances</span>
               </span>
             </Link>
 
@@ -74,7 +75,7 @@ export default function Navbar() {
                     isActive(href)
                       ? 'bg-brand-50 text-brand-600 font-semibold'
                       : highlight
-                        ? 'bg-orange-50 text-orange-600 hover:bg-orange-100 font-semibold'
+                        ? 'bg-brand-50 text-brand-600 hover:bg-brand-100 font-semibold'
                         : eco
                           ? 'text-eco-700 hover:bg-eco-50 hover:text-eco-700'
                           : 'text-gray-600 hover:text-brand-600 hover:bg-brand-50'

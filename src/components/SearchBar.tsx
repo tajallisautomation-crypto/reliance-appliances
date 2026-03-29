@@ -35,7 +35,7 @@ export function invalidateSearchIndex() {
 function SuggestionIcon({ type }: { type: SearchSuggestion['type'] }) {
   if (type === 'category') return <Tag className="w-3.5 h-3.5 text-blue-400 shrink-0" />;
   if (type === 'brand')    return <span className="text-[10px] font-bold text-purple-500 shrink-0 w-3.5">B</span>;
-  if (type === 'model')    return <span className="text-[10px] font-bold text-orange-400 shrink-0 w-3.5">#</span>;
+  if (type === 'model')    return <span className="text-[10px] font-bold text-brand-400 shrink-0 w-3.5">#</span>;
   return <Package className="w-3.5 h-3.5 text-gray-400 shrink-0" />;
 }
 
@@ -151,7 +151,7 @@ export default function SearchBar({
           onChange={e => { setQuery(e.target.value); setActiveIdx(-1); }}
           onFocus={() => { ensureIndex(); if (suggestions.length > 0) setOpen(true); }}
           onKeyDown={handleKey}
-          className={`pl-9 pr-8 py-2 w-full rounded-full bg-white border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent ${inputClass}`}
+          className={`pl-9 pr-8 py-2 w-full rounded-full bg-white border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent ${inputClass}`}
         />
         {query && (
           <button
@@ -172,7 +172,7 @@ export default function SearchBar({
               onMouseDown={e => { e.preventDefault(); setQuery(s.text); submit(s.text); }}
               onMouseEnter={() => setActiveIdx(i)}
               className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                i === activeIdx ? 'bg-orange-50' : 'hover:bg-gray-50'
+                i === activeIdx ? 'bg-brand-50' : 'hover:bg-gray-50'
               } ${i > 0 ? 'border-t border-gray-50' : ''}`}
             >
               <SuggestionIcon type={s.type} />
@@ -187,10 +187,10 @@ export default function SearchBar({
           {/* Search all hint */}
           <button
             onMouseDown={e => { e.preventDefault(); submit(query); }}
-            className="w-full flex items-center gap-3 px-4 py-3 text-left bg-gray-50 border-t border-gray-100 hover:bg-orange-50 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-3 text-left bg-gray-50 border-t border-gray-100 hover:bg-brand-50 transition-colors"
           >
-            <Search className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-            <span className="text-sm text-orange-600 font-medium">
+            <Search className="w-3.5 h-3.5 text-brand-500 shrink-0" />
+            <span className="text-sm text-brand-600 font-medium">
               Search all results for "<span className="font-bold">{query}</span>"
             </span>
           </button>

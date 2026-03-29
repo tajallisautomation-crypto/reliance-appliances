@@ -15,7 +15,7 @@ export default function Cart() {
       <ShoppingCart className="w-16 h-16 text-gray-200" />
       <h2 className="text-2xl font-bold text-gray-700">Your cart is empty</h2>
       <p className="text-gray-400">Add some products to get started</p>
-      <Link to="/products" className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-2xl font-semibold transition-colors">
+      <Link to="/products" className="bg-brand-500 hover:bg-brand-600 text-white px-8 py-3 rounded-2xl font-semibold transition-colors">
         Browse Products
       </Link>
     </div>
@@ -43,7 +43,7 @@ export default function Cart() {
                     className="w-full h-full object-contain p-2" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs text-orange-500 font-semibold">{item.brand}</div>
+                  <div className="text-xs text-brand-500 font-semibold">{item.brand}</div>
                   <div className="font-semibold text-gray-800 text-sm leading-snug mb-1 line-clamp-2">{item.simplified_name || item.model}</div>
                   <div className="text-xs text-gray-400 mb-2">{item.model}</div>
                   <div className="font-bold text-gray-900">{fmtPKR(item.price.cash_floor * item.qty)}</div>
@@ -82,12 +82,12 @@ export default function Cart() {
               </div>
               <div className="border-t pt-3 mb-5">
                 <div className="flex justify-between font-bold text-lg">
-                  <span>Total</span><span className="text-orange-600">{fmtPKR(cartTotal)}</span>
+                  <span>Total</span><span className="text-brand-600">{fmtPKR(cartTotal)}</span>
                 </div>
                 {plan12 && <div className="text-xs text-gray-500 mt-1">Or {fmtPKR(plan12.monthly)}/mo on 12-payment plan</div>}
               </div>
               <div className="space-y-2">
-                <Link to="/checkout" className="flex items-center justify-center gap-2 w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-semibold">
+                <Link to="/checkout" className="flex items-center justify-center gap-2 w-full bg-brand-500 hover:bg-brand-600 text-white py-3 rounded-xl font-semibold">
                   Proceed to Checkout <ArrowRight className="w-4 h-4" />
                 </Link>
                 <a href={waLink}
@@ -114,7 +114,7 @@ export default function Cart() {
               <MessageCircle className="w-5 h-5" />
             </a>
             <Link to="/checkout"
-              className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-5 h-11 rounded-xl font-bold text-sm transition-colors">
+              className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white px-5 h-11 rounded-xl font-bold text-sm transition-colors">
               Checkout <ArrowRight className="w-4 h-4" />
             </Link>
           </div>

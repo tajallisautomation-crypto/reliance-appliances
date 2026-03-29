@@ -77,13 +77,13 @@ export default function Contact() {
               <div className="space-y-4">
                 {CONTACT_INFO.map(c => (
                   <a key={c.value} href={c.href}
-                    className="flex items-center gap-4 p-4 bg-gray-50 hover:bg-orange-50 rounded-2xl transition-colors group">
+                    className="flex items-center gap-4 p-4 bg-gray-50 hover:bg-brand-50 rounded-2xl transition-colors group">
                     <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center flex-shrink-0">
-                      <c.icon className="w-5 h-5 text-orange-500" />
+                      <c.icon className="w-5 h-5 text-brand-500" />
                     </div>
                     <div>
                       <div className="text-xs text-gray-400 font-medium">{c.label}</div>
-                      <div className="text-sm font-semibold text-gray-800 group-hover:text-orange-700">{c.value}</div>
+                      <div className="text-sm font-semibold text-gray-800 group-hover:text-brand-700">{c.value}</div>
                     </div>
                   </a>
                 ))}
@@ -92,7 +92,7 @@ export default function Contact() {
 
             <div>
               <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-orange-500" /> Business Hours
+                <Clock className="w-4 h-4 text-brand-500" /> Business Hours
               </h3>
               <div className="space-y-2">
                 {HOURS.map(h => (
@@ -132,25 +132,25 @@ export default function Contact() {
                     <label className="text-sm font-medium text-gray-700 block mb-1">Full Name *</label>
                     <input required value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
                       placeholder="Your name"
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-400" />
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-400" />
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-700 block mb-1">Phone Number *</label>
                     <input required value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
                       placeholder="+92 3XX XXXXXXX" type="tel"
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-400" />
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-400" />
                   </div>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700 block mb-1">Email (optional)</label>
                   <input value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
                     placeholder="your@email.com" type="email"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-400" />
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-400" />
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700 block mb-1">Subject</label>
                   <select value={form.subject} onChange={e => setForm(p => ({ ...p, subject: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-400 bg-white">
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-400 bg-white">
                     <option value="">Select a topic...</option>
                     <option>Product Enquiry</option>
                     <option>Order Status</option>
@@ -165,11 +165,11 @@ export default function Contact() {
                   <label className="text-sm font-medium text-gray-700 block mb-1">Message *</label>
                   <textarea required rows={5} value={form.message} onChange={e => setForm(p => ({ ...p, message: e.target.value }))}
                     placeholder="Tell us how we can help..."
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-400 resize-none" />
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-400 resize-none" />
                 </div>
                 {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3">{error}</p>}
                 <button type="submit" disabled={loading || !form.name || !form.phone || !form.message}
-                  className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold py-4 rounded-xl transition-colors">
+                  className="w-full flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-bold py-4 rounded-xl transition-colors">
                   <Send className="w-4 h-4" />
                   {loading ? 'Sending...' : 'Send Message'}
                 </button>

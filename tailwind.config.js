@@ -8,13 +8,21 @@ export default {
       },
       colors: {
         brand: {
+          50:  '#eff4fb',
+          100: '#d6e2f0',
+          400: '#4d7cc8',
+          500: '#1b3a6e',
+          600: '#152d55',
+          700: '#0f2040',
+          900: '#060e1e',
+        },
+        accent: {
           50:  '#fff7ed',
           100: '#ffedd5',
           400: '#fb923c',
           500: '#f97316',
           600: '#ea580c',
           700: '#c2410c',
-          900: '#7c2d12',
         },
         wa: {
           DEFAULT: '#25d366',
@@ -57,7 +65,7 @@ export default {
         'apple-xl':   '0 8px 32px rgba(0,0,0,0.12)',
         'apple-2xl':  '0 16px 48px rgba(0,0,0,0.16)',
         'eco':        '0 4px 20px rgba(34,197,94,0.25)',
-        'brand':      '0 4px 20px rgba(249,115,22,0.30)',
+        'brand':      '0 4px 20px rgba(27,58,110,0.30)',
       },
     }
   },

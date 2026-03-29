@@ -51,7 +51,7 @@ export default function ComparePage() {
         <p className="text-gray-500 mb-6">
           Add up to {MAX_COMPARE_ITEMS} products using the "Compare" button on any product page.
         </p>
-        <Link to="/products" className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-6 py-3 rounded-xl transition-colors">
+        <Link to="/products" className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-6 py-3 rounded-xl transition-colors">
           <ArrowLeft className="w-4 h-4" /> Browse Products
         </Link>
       </div>
@@ -70,7 +70,7 @@ export default function ComparePage() {
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
-            <GitCompareArrows className="w-6 h-6 text-orange-500" />
+            <GitCompareArrows className="w-6 h-6 text-brand-500" />
             Product Comparison
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">
@@ -80,7 +80,7 @@ export default function ComparePage() {
         <div className="flex items-center gap-3">
           {items.length < MAX_COMPARE_ITEMS && (
             <Link to="/products"
-              className="flex items-center gap-1.5 border border-orange-300 text-orange-600 hover:bg-orange-50 text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
+              className="flex items-center gap-1.5 border border-brand-200 text-brand-600 hover:bg-brand-50 text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
               + Add product
             </Link>
           )}
@@ -118,8 +118,8 @@ export default function ComparePage() {
                           onError={e => { (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80'; }}
                         />
                       </div>
-                      <p className="text-xs font-bold text-orange-500 uppercase tracking-wide mb-0.5">{p.brand}</p>
-                      <p className="text-sm font-bold text-gray-900 leading-snug hover:text-orange-600 transition-colors line-clamp-2">
+                      <p className="text-xs font-bold text-brand-500 uppercase tracking-wide mb-0.5">{p.brand}</p>
+                      <p className="text-sm font-bold text-gray-900 leading-snug hover:text-brand-600 transition-colors line-clamp-2">
                         {p.simplified_name || p.model}
                       </p>
                       <p className="text-[11px] text-gray-400 font-mono mt-0.5">{p.model}</p>
@@ -137,7 +137,7 @@ export default function ComparePage() {
 
           <tbody>
             {/* Price row */}
-            <tr className="border-b border-gray-50 bg-orange-50/40">
+            <tr className="border-b border-gray-50 bg-brand-50/40">
               <td className="px-5 py-3 text-xs font-semibold text-gray-500 bg-gray-50">Price</td>
               {items.map(p => {
                 const prices = items.map(x => x.price.cash_floor);
@@ -212,7 +212,7 @@ export default function ComparePage() {
                               {pos ? '✓ Yes' : neg ? '✗ No' : val}
                             </span>
                             {isBest && (
-                              <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-orange-600 mt-0.5">
+                              <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-brand-600 mt-0.5">
                                 <Trophy className="w-2.5 h-2.5" />
                                 {highlightLabel(field)}
                               </div>
@@ -248,7 +248,7 @@ export default function ComparePage() {
                     <button
                       onClick={() => { addItem(p); toast.success(`${p.model} added to cart!`); }}
                       disabled={p.stock_status !== 'In Stock'}
-                      className="flex items-center justify-center gap-1.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white text-xs font-bold py-2 rounded-lg w-full transition-colors"
+                      className="flex items-center justify-center gap-1.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white text-xs font-bold py-2 rounded-lg w-full transition-colors"
                     >
                       <ShoppingCart className="w-3.5 h-3.5" /> Add to Cart
                     </button>
@@ -260,7 +260,7 @@ export default function ComparePage() {
                       <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
                     </a>
                     <Link to={`/products/${p.slug}`}
-                      className="text-center text-xs text-gray-500 hover:text-orange-600 underline underline-offset-2 transition-colors">
+                      className="text-center text-xs text-gray-500 hover:text-brand-600 underline underline-offset-2 transition-colors">
                       View Details
                     </Link>
                   </div>
@@ -291,7 +291,7 @@ export default function ComparePage() {
 
       {/* Back link */}
       <div className="mt-8 text-center">
-        <Link to="/products" className="text-sm text-gray-500 hover:text-orange-600 font-medium transition-colors">
+        <Link to="/products" className="text-sm text-gray-500 hover:text-brand-600 font-medium transition-colors">
           ← Continue browsing
         </Link>
       </div>

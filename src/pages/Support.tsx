@@ -184,7 +184,7 @@ export default function Support() {
                     {[{ v: 'normal', l: 'Normal (2–4 hrs)' }, { v: 'urgent', l: 'Urgent (ASAP)' }].map(u => (
                       <label key={u.v} className="flex items-center gap-2 cursor-pointer">
                         <input type="radio" name="urgency" value={u.v} checked={form.urgency === u.v} onChange={handleChange}
-                          className="accent-orange-500" />
+                          className="accent-brand-500" />
                         <span className="text-sm text-gray-700">{u.l}</span>
                       </label>
                     ))}

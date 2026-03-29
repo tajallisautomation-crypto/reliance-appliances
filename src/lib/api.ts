@@ -113,6 +113,7 @@ export const CATEGORY_MAP: Record<string, string> = {
 
 /** Alias for backward compat */
 export const DEFAULT_CATEGORIES: Category[] = [
+  { id:'ev',        name:'Electric Motorcycles', icon:'⚡', slug:'electric-motorcycles' },
   { id:'ac',        name:'Air Conditioners',   icon:'❄️',  slug:'air-conditioners'    },
   { id:'fridge',       name:'Refrigerators',        icon:'🧊',  slug:'refrigerators'            },
   { id:'fridge-nofrost', name:'No-Frost Refs',    icon:'❄️',  slug:'no-frost-refrigerators'   },
@@ -251,6 +252,8 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
       // – raw DB category strings lowercased (refrigerators, gas appliances …)
       const CAT_TERMS: Record<string, string[]> = {
         // ── Short button IDs ──────────────────────────────────────
+        'ev':      ['electric motorcycle', 'electric bike', 'ev motorcycle'],
+        'electric-motorcycles': ['electric motorcycle', 'electric bike', 'ev motorcycle'],
         'ac':      ['air condition', 'ton air'],   // matches "1 Ton Air Conditioners" etc.
         'fridge':  ['refrigerat'],                 // matches "Small/Medium/Large Refrigerators"
         'fridge-nofrost': ['no-frost refrigerat'],
