@@ -72,9 +72,9 @@ export default function ProductCard({ product: p }: Props) {
         )}
 
         {/* Quick actions — always visible on mobile, hover-reveal on desktop */}
-        <div className="absolute bottom-2.5 right-2.5 flex gap-1.5 sm:translate-y-2 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100 transition-all duration-200">
+        <div className="absolute bottom-2.5 right-2.5 flex gap-2 sm:translate-y-2 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100 transition-all duration-200">
           <button onClick={handleAdd} aria-label={`Add ${p.model} to cart`}
-            className={`w-9 h-9 rounded-full shadow-apple-lg flex items-center justify-center transition-all duration-200 ${added ? 'bg-emerald-500 text-white scale-110' : 'bg-white text-brand-500 hover:bg-brand-500 hover:text-white'}`}>
+            className={`w-11 h-11 sm:w-9 sm:h-9 rounded-full shadow-apple-lg flex items-center justify-center transition-all duration-200 ${added ? 'bg-emerald-500 text-white scale-110' : 'bg-white text-brand-500 hover:bg-brand-500 hover:text-white'}`}>
             {added
               ? <CheckCircle className="w-4 h-4" />
               : <ShoppingCart className="w-4 h-4" />}
@@ -82,7 +82,7 @@ export default function ProductCard({ product: p }: Props) {
           <CompareButton product={p} variant="icon" />
           <a href={waProduct(p.brand, p.model)} target="_blank" rel="noreferrer"
             aria-label={`Enquire about ${p.model}`} onClick={e => e.stopPropagation()}
-            className="w-9 h-9 rounded-full bg-white shadow-apple-lg flex items-center justify-center transition-colors text-green-500 hover:bg-green-500 hover:text-white">
+            className="w-11 h-11 sm:w-9 sm:h-9 rounded-full bg-white shadow-apple-lg flex items-center justify-center transition-colors text-green-500 hover:bg-green-500 hover:text-white">
             <MessageCircle className="w-4 h-4" />
           </a>
         </div>

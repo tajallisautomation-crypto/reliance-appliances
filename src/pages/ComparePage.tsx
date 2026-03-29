@@ -122,6 +122,7 @@ export default function ComparePage() {
                       <p className="text-sm font-bold text-gray-900 leading-snug hover:text-orange-600 transition-colors line-clamp-2">
                         {p.simplified_name || p.model}
                       </p>
+                      <p className="text-[11px] text-gray-400 font-mono mt-0.5">{p.model}</p>
                     </Link>
                     {p.featured && (
                       <div className="flex items-center gap-1 text-amber-600 text-[10px] font-bold mt-1">

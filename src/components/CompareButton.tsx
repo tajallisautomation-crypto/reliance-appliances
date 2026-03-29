@@ -27,7 +27,7 @@ export default function CompareButton({ product, variant = 'full', className = '
       <button
         onClick={handleClick}
         title={full ? `Max ${MAX_COMPARE_ITEMS} products` : active ? 'Remove from compare' : 'Add to compare'}
-        className={`w-9 h-9 rounded-full flex items-center justify-center shadow-apple-lg transition-colors
+        className={`w-11 h-11 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shadow-apple-lg transition-colors
           ${active
             ? 'bg-orange-500 text-white'
             : full

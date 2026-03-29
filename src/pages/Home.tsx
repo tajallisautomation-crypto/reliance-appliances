@@ -4,7 +4,21 @@ import {
   ArrowRight, Sun, Calculator, ShieldCheck, Truck, CreditCard, Headphones,
   ChevronRight, Zap, Leaf, MessageCircle, Image,
 } from 'lucide-react'
-import { getProducts, getProductCount, DEFAULT_CATEGORIES, type Product, formatPrice } from '../lib/api'
+import { getProducts, getProductCount, type Product, formatPrice } from '../lib/api'
+
+// Only the top-level categories shown on the home page — no subcategory splits
+const HOME_CATEGORIES = [
+  { id:'ac',       name:'Air Conditioners', icon:'❄️',  slug:'air-conditioners'  },
+  { id:'fridge',   name:'Refrigerators',    icon:'🧊',  slug:'refrigerators'     },
+  { id:'freezer',  name:'Freezers',         icon:'🥶',  slug:'freezers'          },
+  { id:'washing',  name:'Washing Machines', icon:'👕',  slug:'washing-machines'  },
+  { id:'tv',       name:'Televisions',      icon:'📺',  slug:'televisions'       },
+  { id:'kitchen',  name:'Kitchen',          icon:'🍳',  slug:'kitchen-appliances'},
+  { id:'solar-panel', name:'Solar',         icon:'☀️',  slug:'solar-panels'      },
+  { id:'small',    name:'Small Appliances', icon:'🔌',  slug:'small-appliances'  },
+  { id:'water',    name:'Water Dispensers', icon:'💧',  slug:'water-dispensers'  },
+  { id:'care',     name:'Personal Care',    icon:'✨',  slug:'personal-care'     },
+]
 import { calcPlan } from '../lib/plans'
 import ProductCard from '../components/products/ProductCard'
 import AnimatedCounter from '../components/ui/AnimatedCounter'
@@ -156,12 +170,12 @@ export default function Home() {
       {/* ── CATEGORY GRID ────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-5">Shop by Category</p>
-        <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-2.5">
-          {DEFAULT_CATEGORIES.map(cat => (
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          {HOME_CATEGORIES.map(cat => (
             <Link key={cat.id} to={`/products/category/${cat.slug}`}
-              className="group flex flex-col items-center gap-1.5 py-3.5 px-1.5 rounded-2xl bg-gray-50 hover:bg-brand-50 border border-transparent hover:border-brand-200 transition-all duration-200 text-center">
-              <span className="text-2xl group-hover:scale-110 transition-transform duration-200 leading-none">{cat.icon}</span>
-              <span className="text-[10px] font-semibold text-gray-600 group-hover:text-brand-700 leading-tight">{cat.name}</span>
+              className="group flex items-center gap-3 sm:flex-col sm:gap-2 py-4 px-5 sm:py-5 sm:px-3 rounded-2xl bg-gray-50 hover:bg-brand-50 border border-transparent hover:border-brand-200 transition-all duration-200 text-left sm:text-center">
+              <span className="text-3xl sm:text-2xl group-hover:scale-110 transition-transform duration-200 leading-none shrink-0">{cat.icon}</span>
+              <span className="text-sm sm:text-[11px] font-semibold text-gray-700 group-hover:text-brand-700 leading-tight">{cat.name}</span>
             </Link>
           ))}
         </div>
