@@ -22,6 +22,17 @@ const BUDGET_RANGES = [
   { label: 'Above 2 Lac',    min: 200000,  max: 9999999 },
 ]
 
+// Broad category groups — each group contains one or more DEFAULT_CATEGORIES ids
+const CATEGORY_GROUPS = [
+  { id: 'ev',      label: 'Electric Bikes',     icon: '⚡', cats: ['ev'] },
+  { id: 'cooling', label: 'Cooling & Climate',  icon: '❄️', cats: ['ac', 'fridge', 'fridge-nofrost', 'fridge-sbs', 'fridge-french', 'freezer'] },
+  { id: 'laundry', label: 'Laundry',            icon: '🫧', cats: ['washing', 'frontload'] },
+  { id: 'kitchen', label: 'Kitchen & Cooking',  icon: '🍳', cats: ['kitchen', 'microwave-solo', 'microwave-grill', 'microwave-convection', 'hood'] },
+  { id: 'tv',      label: 'Televisions',        icon: '📺', cats: ['tv'] },
+  { id: 'solar',   label: 'Solar & Energy',     icon: '☀️', cats: ['solar-inverter', 'solar-battery', 'solar-panel', 'solar-pump'] },
+  { id: 'home',    label: 'Home & Comfort',     icon: '🏠', cats: ['fan', 'water', 'small', 'care'] },
+] as const
+
 // Category-specific spec filters — applied client-side
 type SpecFilter = { key: string; label: string; options: { value: string; label: string; match: (p: Product) => boolean }[] }
 
@@ -291,6 +302,7 @@ export default function Products() {
   const [specFilters, setSpecFilters] = useState<Record<string, string>>({})
   const [budgetIdx, setBudgetIdx] = useState<number | null>(null)
   const [inStockOnly, setInStockOnly] = useState(false)
+  const [manualGroup, setManualGroup] = useState<string | null>(null)
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     budget: true, brand: true, specs: true, stock: true,
   })
@@ -303,6 +315,12 @@ export default function Products() {
   const activeCat = DEFAULT_CATEGORIES.find(c => c.id === category || c.slug === category)
   const specKey   = getSpecKey(activeCat?.id || category)
   const catSpecFilters = SPEC_FILTERS[specKey] || []
+
+  // Derive the active group from the selected sub-category, or from the manually selected group
+  const activeGroupId   = activeCat
+    ? (CATEGORY_GROUPS.find(g => (g.cats as readonly string[]).includes(activeCat.id))?.id ?? null)
+    : manualGroup
+  const activeGroupData = CATEGORY_GROUPS.find(g => g.id === activeGroupId) ?? null
 
   const fetchProducts = useCallback(() => {
     setLoading(true)
@@ -348,16 +366,12 @@ export default function Products() {
       const option = filterGroup?.options.find(o => o.value === val)
       if (option) list = list.filter(option.match)
     }
-    // When no explicit sort is chosen, default to price ascending in category/search views
-    if (!sort && (category || search)) {
-      list = [...list].sort((a, b) => (a.price.cash_floor || 0) - (b.price.cash_floor || 0))
-    }
     return list
   }, [products, budgetIdx, inStockOnly, specFilters, catSpecFilters, sort, category, search])
 
   function goToCategory(catId: string) {
     setSpecFilters({}); setBudgetIdx(null); setInStockOnly(false)
-    if (!catId) { navigate('/products'); return }
+    if (!catId) { setManualGroup(null); navigate('/products'); return }
     const cat = DEFAULT_CATEGORIES.find(c => c.id === catId || c.slug === catId)
     if (cat) { navigate(`/products/category/${cat.slug}`); return }
     const next = new URLSearchParams(sp)
@@ -373,7 +387,7 @@ export default function Products() {
   }
 
   function clearAll() {
-    setSpecFilters({}); setBudgetIdx(null); setInStockOnly(false)
+    setSpecFilters({}); setBudgetIdx(null); setInStockOnly(false); setManualGroup(null)
     if (categorySlug) { navigate('/products'); return }
     setSp({})
   }
@@ -455,20 +469,31 @@ export default function Products() {
           </div>
 
           <div className="flex items-center gap-2 ml-auto flex-wrap">
-            {/* Category tabs — desktop */}
-            <div className="hidden lg:flex gap-1 overflow-x-auto max-w-2xl">
-              <button onClick={() => goToCategory('')}
+            {/* Group tabs — desktop */}
+            <div className="hidden lg:flex gap-1 overflow-x-auto">
+              <button onClick={() => { goToCategory(''); setManualGroup(null) }}
                 className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all
-                  ${!category ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-brand-50'}`}>
+                  ${!activeGroupId ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-brand-50'}`}>
                 All
               </button>
-              {DEFAULT_CATEGORIES.map(c => (
-                <button key={c.id} onClick={() => goToCategory(c.id)}
-                  className={`px-2.5 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap flex items-center gap-1 transition-all
-                    ${activeCat?.id === c.id ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-brand-50'}`}>
-                  {c.icon} {c.name}
-                </button>
-              ))}
+              {CATEGORY_GROUPS.map(g => {
+                const isActive = g.id === activeGroupId
+                return (
+                  <button key={g.id}
+                    onClick={() => {
+                      if (g.cats.length === 1) {
+                        setManualGroup(g.id); goToCategory(g.cats[0])
+                      } else {
+                        setManualGroup(isActive ? null : g.id)
+                        if (isActive) goToCategory('')
+                      }
+                    }}
+                    className={`px-2.5 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap flex items-center gap-1 transition-all
+                      ${isActive ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-brand-50'}`}>
+                    {g.icon} {g.label}
+                  </button>
+                )
+              })}
             </div>
 
             <div className="flex items-center gap-2">
@@ -507,6 +532,33 @@ export default function Products() {
           </div>
         </div>
 
+        {/* ── Sub-category strip (desktop) — shown when a group with multiple cats is active ── */}
+        {activeGroupData && activeGroupData.cats.length > 1 && (
+          <div className="hidden lg:block border-t bg-brand-50/60 px-4 py-2">
+            <div className="max-w-7xl mx-auto flex gap-1.5 flex-wrap">
+              <button
+                onClick={() => goToCategory('')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                  !category ? 'bg-brand-500 text-white' : 'text-brand-700 hover:bg-brand-100'
+                }`}>
+                All {activeGroupData.label}
+              </button>
+              {(activeGroupData.cats as readonly string[]).map(id => {
+                const cat = DEFAULT_CATEGORIES.find(c => c.id === id)
+                if (!cat) return null
+                return (
+                  <button key={id} onClick={() => goToCategory(id)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap flex items-center gap-1 transition-all ${
+                      activeCat?.id === id ? 'bg-brand-500 text-white' : 'text-brand-700 hover:bg-brand-100'
+                    }`}>
+                    {cat.icon} {cat.name}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* ── Filter Panel ── */}
         {showFilters && (
           <div className="border-t bg-gray-50">
@@ -519,18 +571,36 @@ export default function Products() {
                   <X className="w-3.5 h-3.5" /> Close
                 </button>
               </div>
-              {/* Mobile category picker */}
-              <div className="lg:hidden mb-5">
-                <FilterSection label="Category" expanded={expandedSections.cat} onToggle={() => toggleSection('cat')}>
-                  <div className="flex gap-2 flex-wrap">
-                    <Pill active={!category} onClick={() => { goToCategory(''); setShowFilters(false) }}>All</Pill>
-                    {DEFAULT_CATEGORIES.map(c => (
-                      <Pill key={c.id} active={activeCat?.id === c.id} onClick={() => { goToCategory(c.id); setShowFilters(false) }}>
-                        {c.icon} {c.name}
-                      </Pill>
-                    ))}
+              {/* Mobile category picker — grouped */}
+              <div className="lg:hidden mb-5 space-y-3">
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">Category</div>
+                <div className="flex gap-2 flex-wrap">
+                  <Pill active={!activeGroupId} onClick={() => { goToCategory(''); setManualGroup(null); setShowFilters(false) }}>All</Pill>
+                  {CATEGORY_GROUPS.map(g => (
+                    <Pill key={g.id} active={g.id === activeGroupId}
+                      onClick={() => {
+                        if (g.cats.length === 1) { setManualGroup(g.id); goToCategory(g.cats[0]); setShowFilters(false) }
+                        else { setManualGroup(g.id === activeGroupId ? null : g.id); if (g.id === activeGroupId) goToCategory('') }
+                      }}>
+                      {g.icon} {g.label}
+                    </Pill>
+                  ))}
+                </div>
+                {/* Sub-category pills when a group is selected */}
+                {activeGroupData && activeGroupData.cats.length > 1 && (
+                  <div className="flex gap-1.5 flex-wrap pl-2 border-l-2 border-brand-200">
+                    <Pill active={!category} onClick={() => { goToCategory('') }}>All {activeGroupData.label}</Pill>
+                    {(activeGroupData.cats as readonly string[]).map(id => {
+                      const cat = DEFAULT_CATEGORIES.find(c => c.id === id)
+                      if (!cat) return null
+                      return (
+                        <Pill key={id} active={activeCat?.id === id} onClick={() => { goToCategory(id); setShowFilters(false) }}>
+                          {cat.icon} {cat.name}
+                        </Pill>
+                      )
+                    })}
                   </div>
-                </FilterSection>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
