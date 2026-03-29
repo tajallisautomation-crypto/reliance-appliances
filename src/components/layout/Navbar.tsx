@@ -63,7 +63,7 @@ export default function Navbar() {
               <img src="/tajallis-logo-icon.svg" alt="" aria-hidden="true" className="h-9 w-9" />
               <span className="hidden sm:block leading-none">
                 <span className="block font-black text-[17px] text-[#1b3a6e] tracking-tight leading-none">Tajalli&#8217;s</span>
-                <span className="block text-[10px] font-medium text-gray-400 mt-0.5 tracking-wide uppercase">EV &amp; Home Appliances</span>
+                <span className="block text-[10px] font-medium text-gray-400 mt-0.5 tracking-wide uppercase">Home &amp; Commercial Solutions</span>
               </span>
             </Link>
 
