@@ -6,18 +6,15 @@ import {
 } from 'lucide-react'
 import { getProducts, getProductCount, type Product, formatPrice } from '../lib/api'
 
-// Only the top-level categories shown on the home page — no subcategory splits
+// Only the top-level categories shown on the home page
 const HOME_CATEGORIES = [
-  { id:'ev',       name:'Electric Motorcycles', icon:'⚡', slug:'electric-motorcycles' },
-  { id:'ac',       name:'Air Conditioners', icon:'❄️',  slug:'air-conditioners'  },
-  { id:'fridge',   name:'Refrigerators',    icon:'🧊',  slug:'refrigerators'     },
-  { id:'washing',  name:'Washing Machines', icon:'👕',  slug:'washing-machines'  },
-  { id:'tv',       name:'Televisions',      icon:'📺',  slug:'televisions'       },
-  { id:'kitchen',  name:'Kitchen',          icon:'🍳',  slug:'kitchen-appliances'},
-  { id:'solar-panel', name:'Solar',         icon:'☀️',  slug:'solar-panels'      },
-  { id:'small',    name:'Small Appliances', icon:'🔌',  slug:'small-appliances'  },
-  { id:'water',    name:'Water Dispensers', icon:'💧',  slug:'water-dispensers'  },
-  { id:'care',     name:'Personal Care',    icon:'✨',  slug:'personal-care'     },
+  { id:'ac',          name:'Air Conditioners',    icon:'❄️',  slug:'air-conditioners'      },
+  { id:'solar-panel', name:'Solar',               icon:'☀️',  slug:'solar-panels'          },
+  { id:'fridge',      name:'Refrigerators',       icon:'🧊',  slug:'refrigerators'         },
+  { id:'washing',     name:'Washing Machines',    icon:'👕',  slug:'washing-machines'      },
+  { id:'fan',         name:'Fans',                icon:'💨',  slug:'fans'                  },
+  { id:'freezer',     name:'Freezers',            icon:'🥶',  slug:'freezers'              },
+  { id:'ev',          name:'Electric Motorcycles',icon:'⚡',  slug:'electric-motorcycles'  },
 ]
 import { calcPlan } from '../lib/plans'
 import ProductCard from '../components/products/ProductCard'

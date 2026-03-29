@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Leaf, Sun, Zap, Car, TrendingDown, CheckCircle, MessageCircle, Calculator } from 'lucide-react'
+import { ArrowRight, Leaf, Sun, Zap, Bike, TrendingDown, CheckCircle, MessageCircle, Calculator } from 'lucide-react'
 import SEO from '@/components/ui/SEO'
 import AnimatedCounter from '@/components/ui/AnimatedCounter'
 import { calcPlan } from '@/lib/plans'
@@ -38,16 +38,16 @@ const JOURNEY_STEPS = [
   },
   {
     number: '03',
-    icon: Car,
+    icon: Bike,
     iconColor: 'text-eco-400',
     bgColor: 'bg-eco-400/10',
-    title: 'Charge Your EV at Home',
-    subtitle: 'PKR 12/kWh vs PKR 350+/liter',
-    body: 'Install a 7kW AC home charger and get a full charge overnight using your own solar generation. The economics are straightforward: solar electricity costs a fraction of petrol. Payback on the charger is typically under 18 months.',
+    title: 'Ride an Electric Motorcycle',
+    subtitle: 'PKR 1–2/km vs PKR 20+/km on petrol',
+    body: 'Charge your electric motorcycle overnight on solar power and ride for a fraction of the petrol cost. The economics are clear: an electric bike costs 10–20× less per kilometre to run. Combined with your solar system, your daily commute is effectively free.',
     stats: [
-      { label: 'Fuel comparison', value: '95% cheaper' },
-      { label: 'Full charge', value: 'Overnight' },
-      { label: 'Payback', value: '< 18 months' },
+      { label: 'Cost per km', value: 'PKR 1–2' },
+      { label: 'Petrol comparison', value: '90% cheaper' },
+      { label: 'Daily charge', value: 'Overnight' },
     ],
   },
 ]
@@ -73,8 +73,8 @@ const PACKAGES = [
   },
   {
     name: 'Total Freedom',
-    tagline: 'For larger homes + EV owners',
-    includes: ['8kW Solar System', '4 Inverter ACs', 'Home EV Charger (7kW)', '5-year workmanship warranty'],
+    tagline: 'For larger homes + electric motorcycle owners',
+    includes: ['8kW Solar System', '4 Inverter ACs', 'Electric Motorcycle (on installments)', '5-year workmanship warranty'],
     price: 1400000,
     popular: false,
     color: 'border-gray-200',
@@ -101,9 +101,9 @@ export default function GreenCorridor() {
     <div className="min-h-screen bg-white">
       <SEO
         path="/green-corridor"
-        title="Green Corridor — Solar, Inverter ACs & EV Charging | Reliance by Tajallis"
-        description="Cut your electricity bill by up to 85%. Complete solar systems, inverter ACs and EV home chargers on easy installments. Free site assessment in Karachi."
-        keywords="solar system karachi, inverter ac karachi, ev charger pakistan, solar installation karachi, green energy karachi"
+        title="Green Corridor — Solar, Inverter ACs & Electric Motorcycles | Reliance by Tajallis"
+        description="Cut your electricity bill by up to 85%. Complete solar systems, inverter ACs and electric motorcycles on easy installments. Free site assessment in Karachi."
+        keywords="solar system karachi, inverter ac karachi, electric motorcycle pakistan, solar installation karachi, green energy karachi"
       />
 
       {/* ── HERO ─────────────────────────────────────────────────── */}
@@ -123,7 +123,7 @@ export default function GreenCorridor() {
             <span className="text-eco-400">Off the grid.</span>
           </h1>
           <p className="text-gray-400 text-xl mb-10 max-w-2xl mx-auto leading-relaxed">
-            Solar · Inverter ACs · EV Charging<br />
+            Solar · Inverter ACs · Electric Motorcycles<br />
             One roof. One partner. Zero compromise.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -240,7 +240,7 @@ export default function GreenCorridor() {
             {/* EV toggle */}
             <div>
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-3">
-                Electric vehicle?
+                Electric motorcycle?
               </label>
               <div className="flex gap-2">
                 {(['No', 'Yes'] as const).map((val) => (

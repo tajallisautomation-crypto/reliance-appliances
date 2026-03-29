@@ -131,6 +131,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
   { id:'solar-battery',    name:'Solar Batteries',  icon:'🔋',  slug:'solar-batteries'      },
   { id:'solar-panel',      name:'Solar Panels',     icon:'☀️',  slug:'solar-panels'         },
   { id:'solar-pump',       name:'Solar Water Pumps',icon:'🌊',  slug:'solar-water-pumps'    },
+  { id:'fan',       name:'Fans',               icon:'💨',  slug:'fans'                },
   { id:'small',     name:'Small Appliances',   icon:'🔌',  slug:'small-appliances'    },
   { id:'water',     name:'Water Dispensers',   icon:'💧',  slug:'water-dispensers'    },
   { id:'hood',      name:'Hood & Hobs',        icon:'🔥',  slug:'hood-hobs'           },
@@ -254,6 +255,8 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
         // ── Short button IDs ──────────────────────────────────────
         'ev':      ['electric motorcycle', 'electric bike', 'ev motorcycle'],
         'electric-motorcycles': ['electric motorcycle', 'electric bike', 'ev motorcycle'],
+        'fan':     ['fan'],
+        'fans':    ['fan'],
         'ac':      ['air condition', 'ton air'],   // matches "1 Ton Air Conditioners" etc.
         'fridge':  ['refrigerat'],                 // matches "Small/Medium/Large Refrigerators"
         'fridge-nofrost': ['no-frost refrigerat'],
@@ -343,6 +346,7 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
         'hood':         ['hood', 'hob'],
         'hood-hobs':    ['hood', 'hob'],
         'care':         ['personal care'],
+        'fans':         ['fan'],
         'air-fryers':   ['air fry'],
         'dishwasher':   ['dishwasher'],
         'spinners':     ['spinner', 'spin dryer'],
