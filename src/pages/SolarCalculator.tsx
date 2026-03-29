@@ -21,8 +21,8 @@ import type { Product, InstallmentPlan } from '../lib/api'
 // ── Appliance list ─────────────────────────────────────────────────────────────
 
 const APPLIANCES = [
-  { id:'ac_1t',    name:'1 Ton AC (Inverter)',              category:'Cooling',       watts:900  },
-  { id:'ac_15t',   name:'1.5 Ton AC (Inverter)',            category:'Cooling',       watts:1300 },
+  { id:'ac_1t',    name:'1 Ton AC (Inverter)',              category:'Cooling',       watts:700  },
+  { id:'ac_15t',   name:'1.5 Ton AC (Inverter)',            category:'Cooling',       watts:1000 },
   { id:'ac_2t',    name:'2 Ton AC (Inverter)',              category:'Cooling',       watts:1800 },
   { id:'ac_1t_s',  name:'1 Ton AC (Non-Inverter)',          category:'Cooling',       watts:1200 },
   { id:'ac_15t_s', name:'1.5 Ton AC (Non-Inverter)',        category:'Cooling',       watts:1600 },
@@ -34,6 +34,7 @@ const APPLIANCES = [
   { id:'led_9w',   name:'LED Bulb (9W)',                    category:'Lighting',      watts:9    },
   { id:'led_18w',  name:'LED Tube (18W)',                   category:'Lighting',      watts:18   },
   { id:'fan_ceil', name:'Ceiling Fan',                      category:'Lighting',      watts:75   },
+  { id:'fan_inv',  name:'Inverter Ceiling Fan',             category:'Lighting',      watts:30   },
   { id:'fan_ped',  name:'Pedestal Fan',                     category:'Lighting',      watts:60   },
   { id:'tv_32',    name:'32in LED TV',                      category:'Entertainment', watts:40   },
   { id:'tv_55',    name:'55in LED TV',                      category:'Entertainment', watts:80   },
@@ -45,6 +46,8 @@ const APPLIANCES = [
   { id:'juicer',   name:'Juicer/Blender',                   category:'Kitchen',       watts:350  },
   { id:'wm_auto',  name:'Automatic Washing Machine',        category:'Laundry',       watts:500  },
   { id:'wm_fl',    name:'Front Load Washing Machine',       category:'Laundry',       watts:2000 },
+  { id:'wm_semi_w',name:'Semi-Auto WM — Washer Motor',      category:'Laundry',       watts:350  },
+  { id:'wm_semi_s',name:'Semi-Auto WM — Spinner Motor',     category:'Laundry',       watts:250  },
   { id:'pc',       name:'Desktop Computer',                 category:'Office',        watts:200  },
   { id:'laptop',   name:'Laptop',                           category:'Office',        watts:65   },
   { id:'router',   name:'WiFi Router',                      category:'Office',        watts:10   },
@@ -52,6 +55,7 @@ const APPLIANCES = [
   { id:'wp',       name:'Water Pump (1HP)',                 category:'Water',         watts:750  },
   { id:'wd',       name:'Water Dispenser',                  category:'Water',         watts:100  },
   { id:'iron',     name:'Electric Iron',                    category:'Misc',          watts:1000 },
+  { id:'fan_inv2', name:'Inverter Fan (Stand/Table)',        category:'Misc',          watts:30   },
   { id:'vacuum',   name:'Vacuum Cleaner',                   category:'Misc',          watts:1200 },
 ]
 const CATEGORIES = ['Cooling','Refrigeration','Lighting','Entertainment','Kitchen','Laundry','Office','Water','Misc']
@@ -87,7 +91,7 @@ const LABOR_PER_W        = 5         // Rs/W — solar installation labor
 const ELEVATED_FRAME_W   = 28        // Rs/W — elevated frame surcharge
 const UPS_WIRING_PER_W   = 9         // Rs/W — UPS wiring & equipment
 const UPS_LABOR_PER_W    = 3         // Rs/W — UPS labor
-const BATTERY_PER_KWH    = 22000     // PKR per kWh of battery
+const BATTERY_PER_KWH    = 65000     // PKR per kWh of battery
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -760,7 +764,7 @@ export default function SolarCalculator() {
               </div>
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { v: quote.type === 'ups-only' ? '—' : `${quote.panels}`, l: quote.panelProduct ? quote.panelProduct.brand + ' Panels' : `Panels (${PANEL_WATTS}W)` },
+                  { v: quote.type === 'ups-only' ? `${(quote.batteryKWh / (quote.totalW / 1000) * 0.85).toFixed(1)}h` : `${quote.panels}`, l: quote.type === 'ups-only' ? 'Backup at Full Load' : (quote.panelProduct ? quote.panelProduct.brand + ' Panels' : `Panels (${PANEL_WATTS}W)`) },
                   { v: quote.invProduct ? quote.invProduct.brand : `${quote.inverterKW}kW`, l: quote.invProduct ? quote.invProduct.simplified_name.replace(/\d+(?:\.\d)?kw/i,'').trim().slice(0,20) : 'Inverter' },
                   { v: quote.batBank ? `${quote.batBank.qty > 1 ? `${quote.batBank.qty}×` : ''}${quote.batteryKWh.toFixed(1)} kWh` : (quote.batteryKWh ? `${quote.batteryKWh} kWh` : '—'), l: quote.batBank ? quote.batBank.product.brand + ' Battery' : quote.batteryKWh ? 'kWh Battery' : 'No Battery' },
                 ].map((x,i) => (
@@ -866,6 +870,78 @@ export default function SolarCalculator() {
                 </div>
               </div>
             </div>
+
+            {/* UPS Backup Duration */}
+            {quote.type === 'ups-only' && quote.totalW > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-blue-100 p-5">
+                <h3 className="font-bold text-gray-800 mb-1 text-sm flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-blue-500"/> Expected Backup Duration
+                </h3>
+                <p className="text-xs text-gray-500 mb-4">
+                  Based on your {quote.batteryKWh.toFixed(1)} kWh battery bank and {quote.totalW}W total load (85% inverter efficiency):
+                </p>
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  {[
+                    { load: '100%', w: quote.totalW,        color: 'red'   },
+                    { load: '75%',  w: quote.totalW * 0.75, color: 'amber' },
+                    { load: '50%',  w: quote.totalW * 0.5,  color: 'green' },
+                  ].map((x, i) => {
+                    const hrs = (quote.batteryKWh / (x.w / 1000) * 0.85)
+                    const colorMap: Record<string, string> = {
+                      red:   'bg-red-50 border-red-200 text-red-600',
+                      amber: 'bg-amber-50 border-amber-200 text-amber-600',
+                      green: 'bg-green-50 border-green-200 text-green-600',
+                    }
+                    return (
+                      <div key={i} className={`rounded-xl p-4 text-center border ${colorMap[x.color]}`}>
+                        <div className={`text-2xl font-bold`}>{hrs.toFixed(1)}h</div>
+                        <div className="text-xs font-semibold text-gray-700 mt-1">{x.load} Load</div>
+                        <div className="text-[10px] text-gray-500">{Math.round(x.w)}W</div>
+                      </div>
+                    )
+                  })}
+                </div>
+                <p className="text-[10px] text-gray-400 flex items-center gap-1">
+                  <Info className="w-3 h-3 shrink-0"/> Real-world backup may vary with battery age and appliance usage. Allow 10–15% margin for conservative planning.
+                </p>
+              </div>
+            )}
+
+            {/* UPS Battery Size Options */}
+            {quote.type === 'ups-only' && quote.totalW > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-5">
+                <h3 className="font-bold text-gray-800 mb-1 text-sm">🔋 Battery Size Options</h3>
+                <p className="text-xs text-gray-500 mb-4">Compare backup tiers — all prices are battery cost only, excluding inverter &amp; installation.</p>
+                <div className="space-y-3">
+                  {[
+                    { tier: 'Economy',     hrs: Math.max(1, Math.round(backupHrs * 0.5)), tag: '' },
+                    { tier: 'Recommended', hrs: backupHrs, tag: 'Your Selection' },
+                    { tier: 'Extended',    hrs: Math.round(backupHrs * 1.75), tag: '' },
+                  ].map((opt, i) => {
+                    const kWh  = Math.ceil(quote.totalW * opt.hrs / 1000 * 1.2 * 10) / 10
+                    const cost = Math.round(kWh * BATTERY_PER_KWH / 100) * 100
+                    const actualHrs = (kWh / (quote.totalW / 1000) * 0.85).toFixed(1)
+                    return (
+                      <div key={i} className={`flex items-center gap-4 p-4 rounded-xl border-2 ${i === 1 ? 'border-orange-400 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-sm text-gray-800">{opt.tier}</span>
+                            {opt.tag && (
+                              <span className="text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded-full font-semibold">{opt.tag}</span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-0.5">{kWh.toFixed(1)} kWh · ~{actualHrs}h backup at full load</div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="font-bold text-orange-600 text-sm">{fmtPKR(cost)}</div>
+                          <div className="text-[10px] text-gray-400">battery cost only</div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Savings */}
             {quote.savings.monthlySaving > 0 && (

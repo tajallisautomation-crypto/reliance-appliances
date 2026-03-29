@@ -58,11 +58,11 @@ export default function Navbar() {
           <div className="flex items-center gap-3 h-16">
 
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2 font-black text-lg text-gray-900 shrink-0 mr-2">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-black"
-                style={{ background: 'linear-gradient(135deg,#f97316,#f5c842)' }}>R</div>
-              <span className="hidden sm:inline leading-tight">
-                Reliance <span className="text-xs font-medium text-gray-400 block -mt-0.5">by Tajallis</span>
+            <Link to="/" className="flex items-center gap-2.5 shrink-0 mr-2" aria-label="Tajalli's — Home page">
+              <img src="/tajallis-logo-icon.svg" alt="" aria-hidden="true" className="h-9 w-9" />
+              <span className="hidden sm:block leading-none">
+                <span className="block font-black text-[17px] text-[#1b3a6e] tracking-tight leading-none">Tajalli&#8217;s</span>
+                <span className="block text-[10px] font-medium text-gray-400 mt-0.5 tracking-wide uppercase">Home &amp; Commercial</span>
               </span>
             </Link>
 
