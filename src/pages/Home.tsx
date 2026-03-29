@@ -184,6 +184,59 @@ export default function Home() {
       {/* ── OFFER BANNERS ────────────────────────────────────────── */}
       <OfferBannerSlider />
 
+      {/* ── MYOP PROMO ───────────────────────────────────────────── */}
+      <section className="py-12 px-4 bg-gradient-to-r from-orange-500 to-amber-500">
+        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center gap-6 text-white">
+          <div className="text-4xl shrink-0">📦</div>
+          <div className="flex-1 text-center md:text-left">
+            <h2 className="text-2xl font-black mb-1">Build Your Own Package — Save 5%</h2>
+            <p className="text-orange-100 text-sm">
+              Mix and match ACs, fridges, washing machines, solar, TVs & more. Add 3+ items and get 5% off your entire order automatically.
+            </p>
+          </div>
+          <Link to="/build-your-package"
+            className="shrink-0 bg-white text-orange-600 font-black px-7 py-3.5 rounded-2xl hover:bg-orange-50 transition-colors whitespace-nowrap">
+            Start Building →
+          </Link>
+        </div>
+      </section>
+
+      {/* ── FEATURED PRODUCTS ────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-4 py-14">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <p className="text-brand-500 text-xs font-bold uppercase tracking-widest mb-1">Featured</p>
+            <h2 className="text-2xl md:text-3xl font-black text-gray-900">Top Picks for You</h2>
+          </div>
+          <Link to="/products?featured=true"
+            className="hidden sm:flex items-center gap-1 text-brand-600 font-semibold text-sm hover:text-brand-700">
+            View All <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
+        {loading
+          ? <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                  <div className="aspect-square bg-gray-100 animate-pulse" />
+                  <div className="p-4 space-y-2.5">
+                    <div className="h-2.5 w-16 bg-gray-100 rounded-full animate-pulse" />
+                    <div className="h-3.5 w-3/4 bg-gray-100 rounded-full animate-pulse" />
+                    <div className="h-3.5 w-1/2 bg-gray-100 rounded-full animate-pulse" />
+                    <div className="h-3 w-1/3 bg-gray-100 rounded-full animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          : <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">{featured.map(p => <ProductCard key={p.id} product={p} />)}</div>
+        }
+        <div className="text-center mt-8">
+          <Link to="/products"
+            className="inline-flex items-center gap-2 border-2 border-brand-500 text-brand-600 font-bold px-8 py-3 rounded-2xl hover:bg-brand-500 hover:text-white transition-all">
+            Browse All {totalProducts > 0 ? `${totalProducts} ` : ''}Products <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </section>
+
       {/* ── INSTALLMENT ENGINE ───────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 pb-4">
         <div className="bg-gray-950 rounded-3xl p-8 md:p-12">
@@ -411,59 +464,6 @@ export default function Home() {
           </div>
         </section>
       )}
-
-      {/* ── MYOP PROMO ───────────────────────────────────────────── */}
-      <section className="py-12 px-4 bg-gradient-to-r from-orange-500 to-amber-500">
-        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center gap-6 text-white">
-          <div className="text-4xl shrink-0">📦</div>
-          <div className="flex-1 text-center md:text-left">
-            <h2 className="text-2xl font-black mb-1">Build Your Own Package — Save 5%</h2>
-            <p className="text-orange-100 text-sm">
-              Mix and match ACs, fridges, washing machines, solar, TVs & more. Add 3+ items and get 5% off your entire order automatically.
-            </p>
-          </div>
-          <Link to="/build-your-package"
-            className="shrink-0 bg-white text-orange-600 font-black px-7 py-3.5 rounded-2xl hover:bg-orange-50 transition-colors whitespace-nowrap">
-            Start Building →
-          </Link>
-        </div>
-      </section>
-
-      {/* ── FEATURED PRODUCTS ────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 py-14">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <p className="text-brand-500 text-xs font-bold uppercase tracking-widest mb-1">Featured</p>
-            <h2 className="text-2xl md:text-3xl font-black text-gray-900">Top Picks for You</h2>
-          </div>
-          <Link to="/products?featured=true"
-            className="hidden sm:flex items-center gap-1 text-brand-600 font-semibold text-sm hover:text-brand-700">
-            View All <ChevronRight className="w-4 h-4" />
-          </Link>
-        </div>
-        {loading
-          ? <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                  <div className="aspect-square bg-gray-100 animate-pulse" />
-                  <div className="p-4 space-y-2.5">
-                    <div className="h-2.5 w-16 bg-gray-100 rounded-full animate-pulse" />
-                    <div className="h-3.5 w-3/4 bg-gray-100 rounded-full animate-pulse" />
-                    <div className="h-3.5 w-1/2 bg-gray-100 rounded-full animate-pulse" />
-                    <div className="h-3 w-1/3 bg-gray-100 rounded-full animate-pulse" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          : <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">{featured.map(p => <ProductCard key={p.id} product={p} />)}</div>
-        }
-        <div className="text-center mt-8">
-          <Link to="/products"
-            className="inline-flex items-center gap-2 border-2 border-brand-500 text-brand-600 font-bold px-8 py-3 rounded-2xl hover:bg-brand-500 hover:text-white transition-all">
-            Browse All {totalProducts > 0 ? `${totalProducts} ` : ''}Products <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-      </section>
 
       {/* ── FINAL CTA ────────────────────────────────────────────── */}
       <section className="bg-gray-900 text-white py-16 px-4">
