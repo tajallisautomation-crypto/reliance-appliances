@@ -56,9 +56,22 @@ export default function Navbar() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 h-16">
 
-            {/* Logo */}
-            <Link to="/" className="flex items-center gap-2 shrink-0 mr-2" aria-label="Tajalli's — Home page">
-              <img src="/tajallis-logo.jpeg" alt="Tajalli's" className="h-10 w-auto object-contain" />
+            {/* Logo — seamless SVG mark + wordmark, transparent background */}
+            <Link to="/" className="flex items-center gap-2 shrink-0 mr-3 group" aria-label="Tajalli's — Home page">
+              <img
+                src="/tajallis-logo-icon.svg"
+                alt=""
+                aria-hidden="true"
+                className="h-9 w-9 transition-transform duration-200 group-hover:scale-105"
+              />
+              <span className="leading-none select-none">
+                <span className="block font-black text-[18px] text-brand-500 tracking-tight leading-none">
+                  Tajalli&#8217;s
+                </span>
+                <span className="block text-[9.5px] font-semibold text-gray-400 mt-0.5 tracking-[0.08em] uppercase">
+                  Home &amp; Commercial Solutions
+                </span>
+              </span>
             </Link>
 
             {/* Nav links — desktop */}
