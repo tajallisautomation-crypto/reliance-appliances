@@ -52,23 +52,23 @@ export default function Navbar() {
 
   return (
     <>
-      <header className={`sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-100/80 transition-shadow duration-200 ${scrolled ? 'shadow-apple-lg' : ''}`}>
+      <header className={`sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-100/80 transition-shadow duration-200 overflow-x-hidden ${scrolled ? 'shadow-apple-lg' : ''}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3 h-16">
+          <div className="flex items-center gap-1 sm:gap-3 h-16">
 
             {/* Logo — seamless SVG mark + wordmark, transparent background */}
-            <Link to="/" className="flex items-center gap-2 shrink-0 mr-3 group" aria-label="Tajalli's — Home page">
+            <Link to="/" className="flex items-center gap-1.5 sm:gap-2 shrink-0 mr-1 sm:mr-3 group" aria-label="Tajalli's — Home page">
               <img
                 src="/tajallis-logo-icon.svg"
                 alt=""
                 aria-hidden="true"
-                className="h-9 w-9 transition-transform duration-200 group-hover:scale-105"
+                className="h-7 w-7 sm:h-9 sm:w-9 transition-transform duration-200 group-hover:scale-105"
               />
               <span className="leading-none select-none">
                 <span className="block font-black text-[18px] text-brand-500 tracking-tight leading-none">
                   Tajalli&#8217;s
                 </span>
-                <span className="block text-[9.5px] font-semibold text-gray-400 mt-0.5 tracking-[0.08em] uppercase">
+                <span className="hidden sm:block text-[9.5px] font-semibold text-gray-400 mt-0.5 tracking-[0.08em] uppercase">
                   Home &amp; Commercial Solutions
                 </span>
               </span>
@@ -97,14 +97,14 @@ export default function Navbar() {
             </div>
 
             {/* Right icons */}
-            <div className="flex items-center gap-1 ml-auto sm:ml-0 shrink-0">
+            <div className="flex items-center gap-0.5 sm:gap-1 ml-auto sm:ml-0 shrink-0">
               {/* Mobile search toggle — hidden on sm+ where the inline bar is always visible */}
               <button
                 onClick={() => { setSearchOpen(s => !s); setMobileOpen(false); }}
                 aria-label="Search"
-                className="sm:hidden w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
+                className="sm:hidden w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
               >
-                {searchOpen ? <X className="h-5 w-5" /> : <Search className="h-4 w-4" />}
+                {searchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
               </button>
 
               <a href={waSales()} target="_blank" rel="noreferrer" aria-label="WhatsApp"
@@ -112,11 +112,11 @@ export default function Navbar() {
                 <Phone className="h-4 w-4" />
               </a>
               <Link to="/portal" aria-label="My Account"
-                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-brand-50 text-gray-500 hover:text-brand-600 transition-colors">
+                className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full hover:bg-brand-50 text-gray-500 hover:text-brand-600 transition-colors">
                 <User className="h-4 w-4" />
               </Link>
               <button onClick={() => setCartOpen(true)} aria-label={`Cart (${totalItems} items)`}
-                className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-brand-50 text-gray-500 hover:text-brand-600 transition-colors">
+                className="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full hover:bg-brand-50 text-gray-500 hover:text-brand-600 transition-colors">
                 <ShoppingCart className="h-4 w-4" />
                 {totalItems > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-brand-500 text-white text-[10px] font-bold flex items-center justify-center">
@@ -125,7 +125,7 @@ export default function Navbar() {
                 )}
               </button>
               <button onClick={() => { setMobileOpen(m => !m); setSearchOpen(false); }} aria-label="Menu"
-                className="lg:hidden w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 transition-colors">
+                className="lg:hidden w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 transition-colors">
                 {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </button>
             </div>
