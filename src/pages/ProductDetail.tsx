@@ -13,6 +13,7 @@ import ReviewSection from '@/components/products/ReviewSection';
 import CompareButton from '@/components/CompareButton';
 import SEO from '@/components/ui/SEO';
 import Spinner from '@/components/ui/Spinner';
+import SolarCompatibilityPanel from '@/components/products/SolarCompatibilityPanel';
 import { useCartStore } from '@/store/cartStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { waProduct, waInstallment, waSales } from '@/lib/whatsapp';
@@ -876,6 +877,9 @@ export default function ProductDetail() {
           </div>
         )}
       </div>
+
+      {/* Solar Compatibility Panel */}
+      <SolarCompatibilityPanel product={p} />
 
       {/* Related products — skeleton while loading, hidden if none found */}
       {(relatedLoading || related.length > 0) && (
