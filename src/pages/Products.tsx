@@ -301,7 +301,10 @@ export default function Products() {
   const [specFilters, setSpecFilters] = useState<Record<string, string>>({})
   const [budgetIdx, setBudgetIdx] = useState<number | null>(null)
   const [inStockOnly, setInStockOnly] = useState(false)
-  const [manualGroup, setManualGroup] = useState<string | null>(null)
+  const [manualGroup, setManualGroup] = useState<string | null>(() => {
+    const g = sp.get('group')
+    return g && CATEGORY_GROUPS.find(cg => cg.id === g) ? g : null
+  })
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     budget: true, brand: true, specs: true, stock: true,
   })
