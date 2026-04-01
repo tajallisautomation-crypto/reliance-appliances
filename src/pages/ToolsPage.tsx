@@ -91,14 +91,46 @@ const TOOLS = [
 
 export default function ToolsPage() {
   const [activeTool, setActiveTool] = useState('bill')
-  const active = TOOLS.find(t => t.id === activeTool)!
+  const active = TOOLS.find(t => t.id === activeTool) ?? TOOLS[0]
+  // JSX requires component references to be a capitalised variable
+  const ActiveComponent = active.component
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b"><div className="max-w-5xl mx-auto px-4 py-12 text-center"><div className="inline-flex items-center gap-2 bg-orange-100 text-orange-700 px-4 py-1.5 rounded-full text-sm font-medium mb-4"><Calculator className="w-4 h-4"/> Free Tools</div><h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">Smart Buying Tools</h1><p className="text-gray-500 max-w-2xl mx-auto">Make smarter decisions with our free calculators.</p></div></div>
+      <div className="bg-white border-b">
+        <div className="max-w-5xl mx-auto px-4 py-12 text-center">
+          <div className="inline-flex items-center gap-2 bg-orange-100 text-orange-700 px-4 py-1.5 rounded-full text-sm font-medium mb-4">
+            <Calculator className="w-4 h-4"/> Free Tools
+          </div>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">Smart Buying Tools</h1>
+          <p className="text-gray-500 max-w-2xl mx-auto">Make smarter decisions with our free calculators.</p>
+        </div>
+      </div>
       <div className="max-w-5xl mx-auto px-4 py-8">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">{TOOLS.map(t=><button key={t.id} onClick={()=>setActiveTool(t.id)} className={`p-4 rounded-2xl border-2 text-left transition-all ${activeTool===t.id?'border-orange-400 bg-orange-50 shadow-md scale-[1.02]':'border-gray-200 bg-white hover:border-orange-300'}`}><div className="text-3xl mb-2">{t.icon}</div><div className="font-semibold text-gray-800 text-sm">{t.title}</div><div className="text-xs text-gray-500 mt-1">{t.desc}</div></button>)}</div>
-        <div className="bg-white rounded-2xl shadow-sm border p-6 md:p-8"><h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2"><span>{active.icon}</span> {active.title}</h2><active.component /></div>
-        <div className="mt-6 bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 text-white"><div><h3 className="font-bold text-lg">Ready to go solar?</h3><p className="text-amber-100 text-sm">Use our full Solar Load Calculator for a customised quote.</p></div><Link to="/solar-calculator" className="whitespace-nowrap bg-white text-orange-600 px-6 py-3 rounded-xl font-semibold flex items-center gap-2 hover:bg-orange-50">Solar Calculator <ChevronRight className="w-4 h-4"/></Link></div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {TOOLS.map(t => (
+            <button key={t.id} onClick={() => setActiveTool(t.id)}
+              className={`p-4 rounded-2xl border-2 text-left transition-all ${activeTool === t.id ? 'border-orange-400 bg-orange-50 shadow-md scale-[1.02]' : 'border-gray-200 bg-white hover:border-orange-300'}`}>
+              <div className="text-3xl mb-2">{t.icon}</div>
+              <div className="font-semibold text-gray-800 text-sm">{t.title}</div>
+              <div className="text-xs text-gray-500 mt-1">{t.desc}</div>
+            </button>
+          ))}
+        </div>
+        <div className="bg-white rounded-2xl shadow-sm border p-6 md:p-8">
+          <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+            <span>{active.icon}</span> {active.title}
+          </h2>
+          <ActiveComponent />
+        </div>
+        <div className="mt-6 bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 text-white">
+          <div>
+            <h3 className="font-bold text-lg">Ready to go solar?</h3>
+            <p className="text-amber-100 text-sm">Use our full Solar Load Calculator for a customised quote.</p>
+          </div>
+          <Link to="/solar-calculator" className="whitespace-nowrap bg-white text-orange-600 px-6 py-3 rounded-xl font-semibold flex items-center gap-2 hover:bg-orange-50">
+            Solar Calculator <ChevronRight className="w-4 h-4"/>
+          </Link>
+        </div>
       </div>
     </div>
   )
