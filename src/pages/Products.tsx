@@ -328,10 +328,15 @@ export default function Products() {
     setLoading(true)
     setFetchError(false)
     const params: Record<string, string> = {}
-    if (category) params.category = category
-    if (brand)    params.brand    = brand
-    if (search)   params.search   = search
-    if (sort)     params.sort     = sort
+    if (category) {
+      params.category = category
+    } else if (activeGroupId && activeGroupData) {
+      // No specific sub-category selected — filter by all cats in the active group
+      params.categories = activeGroupData.cats.join(',')
+    }
+    if (brand)  params.brand  = brand
+    if (search) params.search = search
+    if (sort)   params.sort   = sort
     getProducts(params).then(d => {
       setProducts(d.products)
       setTotal(d.total)
@@ -340,7 +345,7 @@ export default function Products() {
       setFetchError(true)
       setLoading(false)
     })
-  }, [category, brand, search, sort])
+  }, [category, brand, search, sort, activeGroupId, activeGroupData])
 
   useEffect(() => { fetchProducts() }, [fetchProducts])
 
@@ -371,9 +376,14 @@ export default function Products() {
     return list
   }, [products, budgetIdx, inStockOnly, specFilters, catSpecFilters, sort, category, search])
 
-  function goToCategory(catId: string) {
+  function goToCategory(catId: string, keepGroup = false) {
     setSpecFilters({}); setBudgetIdx(null); setInStockOnly(false)
-    if (!catId) { setManualGroup(null); navigate('/products'); return }
+    if (!catId) {
+      if (!keepGroup) setManualGroup(null)
+      if (categorySlug) navigate('/products')
+      else setSp({})
+      return
+    }
     const cat = DEFAULT_CATEGORIES.find(c => c.id === catId || c.slug === catId)
     if (cat) { navigate(`/products/category/${cat.slug}`); return }
     const next = new URLSearchParams(sp)
@@ -539,7 +549,7 @@ export default function Products() {
           <div className="hidden lg:block border-t bg-brand-50/60 px-4 py-2">
             <div className="max-w-7xl mx-auto flex gap-1.5 flex-wrap">
               <button
-                onClick={() => goToCategory('')}
+                onClick={() => goToCategory('', true)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
                   !category ? 'bg-brand-500 text-white' : 'text-brand-700 hover:bg-brand-100'
                 }`}>
@@ -591,7 +601,7 @@ export default function Products() {
                 {/* Sub-category pills when a group is selected */}
                 {activeGroupData && activeGroupData.cats.length > 1 && (
                   <div className="flex gap-1.5 flex-wrap pl-2 border-l-2 border-brand-200">
-                    <Pill active={!category} onClick={() => { goToCategory('') }}>All {activeGroupData.label}</Pill>
+                    <Pill active={!category} onClick={() => { goToCategory('', true) }}>All {activeGroupData.label}</Pill>
                     {(activeGroupData.cats as readonly string[]).map(id => {
                       const cat = DEFAULT_CATEGORIES.find(c => c.id === id)
                       if (!cat) return null
@@ -672,7 +682,7 @@ export default function Products() {
               {hasFilters && (
                 <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-200">
                   <span className="text-xs text-gray-400 font-medium">Active:</span>
-                  {activeCat && <FilterChip label={`${activeCat.icon} ${activeCat.name}`} onRemove={() => goToCategory('')} />}
+                  {activeCat && <FilterChip label={`${activeCat.icon} ${activeCat.name}`} onRemove={() => goToCategory('', true)} />}
                   {brand && <FilterChip label={`Brand: ${brand}`} onRemove={() => setFilter('brand', '')} />}
                   {budgetIdx !== null && <FilterChip label={`Budget: ${BUDGET_RANGES[budgetIdx].label}`} onRemove={() => setBudgetIdx(null)} />}
                   {inStockOnly && <FilterChip label="In Stock" onRemove={() => setInStockOnly(false)} />}

@@ -378,6 +378,39 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
         q = q.ilike('category', `%${params.category}%`);
       }
     }
+    if (params?.categories) {
+      // Multi-category filter used when a group tab (not a sub-category) is selected.
+      // Maps the same group cat IDs used in CATEGORY_GROUPS → DB search terms.
+      const GROUP_TERMS: Record<string, string[]> = {
+        'ac':                 ['air condition', 'ton air'],
+        'fridge':             ['refrigerat'],
+        'fridge-nofrost':     ['no-frost refrigerat'],
+        'fridge-sbs':         ['side-by-side refrigerat'],
+        'fridge-french':      ['french door refrigerat'],
+        'freezer':            ['freezer'],
+        'washing':            ['washing'],
+        'frontload':          ['front load washing'],
+        'kitchen':            ['kitchen'],
+        'microwave-solo':     ['solo microwave'],
+        'microwave-grill':    ['grill microwave'],
+        'microwave-convection':['convection & air fryer'],
+        'hood':               ['hood', 'hob'],
+        'tv':                 ['television', 'led', 'smart led', 'smart tv', 'qled'],
+        'solar-inverter':     ['solar inverter'],
+        'solar-battery':      ['solar battery'],
+        'solar-panel':        ['solar panel'],
+        'solar-pump':         ['solar water pump'],
+        'fan':                ['fan'],
+        'water':              ['water dispenser'],
+        'small':              ['personal care', 'home & heating'],
+        'care':               ['personal care'],
+      };
+      const catIds = params.categories.split(',').map((s: string) => s.trim());
+      const allTerms = [...new Set(catIds.flatMap(id => GROUP_TERMS[id.toLowerCase()] ?? []))];
+      if (allTerms.length) {
+        q = q.or(allTerms.map(t => `category.ilike.*${t}*`).join(','));
+      }
+    }
     if (params?.search) {
       const s = params.search.replace(/'/g, "''");
       q = q.or(`simplified_name.ilike.*${s}*,category.ilike.*${s}*,brand.ilike.*${s}*,tags.ilike.*${s}*`);
