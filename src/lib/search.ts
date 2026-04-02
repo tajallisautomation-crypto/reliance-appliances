@@ -71,16 +71,17 @@ const KNOWN_BRANDS = [
 // ── Category keyword → display name mapping ───────────────────────────────────
 
 const CAT_KEYWORDS: Array<[string, string[]]> = [
-  ['Air Conditioners',  ['air conditioner','split ac','inverter ac','dc inverter','window ac','floor standing ac','ac']],
-  ['Refrigerators',     ['refrigerator','fridge','double door','side by side','french door','no frost']],
-  ['Freezers',          ['deep freezer','chest freezer','freezer']],
-  ['Washing Machines',  ['washing machine','washer','top load','front load','twin tub','semi automatic','fully automatic','washing']],
-  ['Televisions',       ['television','smart tv','led tv','qled','oled','4k tv','android tv','google tv']],
+  // Abbreviations listed before full terms so shorter queries resolve correctly
+  ['Air Conditioners',  ['air conditioner','split ac','inverter ac','dc inverter','window ac','floor standing ac',' ac ','acs','ac unit']],
+  ['Refrigerators',     ['refrigerator','fridge','fridges','refs','ref ','no frost','side by side','french door','double door','minibar']],
+  ['Freezers',          ['deep freezer','chest freezer','vertical freezer','freezer','deep freeze']],
+  ['Washing Machines',  ['washing machine','washer','washers','top load','front load','twin tub','semi automatic','fully automatic','washing']],
+  ['Televisions',       ['television','televisions','smart tv','led tv','led tvs','qled','oled','4k tv','android tv','google tv','tvs','tv set']],
   ['Solar Solutions',   ['solar panel','solar inverter','solar system','ups','battery','solar']],
-  ['Kitchen Appliances',['microwave','air fryer','blender','juicer','toaster','kettle','rice cooker','sandwich maker','food processor','hand blender','kitchen']],
+  ['Kitchen Appliances',['microwave','microwaves','air fryer','blender','juicer','toaster','kettle','rice cooker','sandwich maker','food processor','hand blender']],
   ['Water Dispensers',  ['water dispenser','water cooler','dispenser']],
   ['Vacuum Cleaners',   ['vacuum cleaner','vacuum']],
-  ['Small Appliances',  ['iron','fan','heater','air cooler','trimmer','hair dryer','hand mixer','blender','small appliance']],
+  ['Small Appliances',  ['ceiling fan','fans','iron','heater','air cooler','trimmer','hair dryer','hand mixer','small appliance']],
 ];
 
 // ── Normalization helpers ──────────────────────────────────────────────────────
@@ -352,10 +353,24 @@ export function search(
   if (options.priceMin !== undefined) candidates = candidates.filter(ip => ip.price >= options.priceMin!);
   if (options.priceMax !== undefined) candidates = candidates.filter(ip => ip.price <= options.priceMax!);
 
+  // When the query maps to a specific category, restrict candidates to that category.
+  // This prevents e.g. "led" or "refs" from returning ACs/TVs via token or fuzzy matches.
+  if (pq.categoryHint) {
+    const hint = pq.categoryHint.toLowerCase().replace(/s$/, ''); // strip trailing s for partial match
+    const catCandidates = candidates.filter(ip =>
+      ip.catLower.includes(hint) || ip.subCatLower.includes(hint)
+    );
+    // Only restrict if at least some products match the category — avoids empty results
+    if (catCandidates.length > 0) candidates = catCandidates;
+  }
+
+  // Minimum score: 12 filters out weak fuzzy/blob-only matches
+  const MIN_SCORE = pq.clean ? 12 : 1;
+
   const results: SearchResult[] = [];
   for (const ip of candidates) {
     const score = scoreProduct(ip, pq);
-    if (score > 0) results.push({ product: ip.product, score });
+    if (score >= MIN_SCORE) results.push({ product: ip.product, score });
   }
 
   results.sort((a, b) => {

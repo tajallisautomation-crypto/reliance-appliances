@@ -37,23 +37,38 @@ function estimateLoad(product: Product): ApplianceLoad | null {
 
   const isInverter = name.includes('inverter')
 
+  // Helper: read numeric wattage from any spec key matching a pattern
+  function specWatts(...patterns: RegExp[]): number | null {
+    for (const pat of patterns) {
+      const entry = Object.entries(specs).find(([k]) => pat.test(k))
+      if (entry) {
+        const v = parseFloat(String(entry[1]).replace(/[^\d.]/g, ''))
+        if (v > 0) return v
+      }
+    }
+    return null
+  }
+
   // ── Air Conditioners ──────────────────────────────────────────────
   if (cat.includes('air condition') || cat.includes('ton air')) {
     const tonM = name.match(/(\d+(?:\.\d+)?)\s*ton/)
     const ton  = tonM ? parseFloat(tonM[1]) : 1.5
+    // Read actual wattage from spec if available, else use tonnage table
+    const fromSpec = specWatts(/running\s*wattage/i, /power\s*consumption/i, /input\s*power/i)
     const wattsByTon: Record<string, [number, number]> = {
       '1':   [700,  1200], '1.0': [700,  1200],
       '1.2': [800,  1300],
-      '1.5': [1000, 1600],
+      '1.5': [1050, 1650],
       '2':   [1800, 2400], '2.0': [1800, 2400],
       '2.5': [2200, 3000],
       '3':   [2800, 3600], '3.0': [2800, 3600],
       '3.5': [3200, 4200],
       '4':   [4200, 5200], '4.0': [4200, 5200],
     }
-    const [wInv, wStd] = wattsByTon[String(ton)] ?? [1000, 1600]
+    const [wInv, wStd] = wattsByTon[String(ton)] ?? [1050, 1650]
+    const watts = fromSpec ?? (isInverter ? wInv : wStd)
     return {
-      watts: isInverter ? wInv : wStd,
+      watts,
       dailyHours: 8,
       label: `${ton} Ton${isInverter ? ' Inverter' : ''} AC`,
       isInverter,
@@ -63,9 +78,11 @@ function estimateLoad(product: Product): ApplianceLoad | null {
 
   // ── Refrigerators ─────────────────────────────────────────────────
   if (cat.includes('refrigerat') || cat.includes('fridge') || cat.includes('minibar')) {
+    const fromSpec = specWatts(/running\s*wattage/i, /power\s*consumption/i, /rated\s*power/i)
     const cuFtV = Object.values(specs).find(v => /cu\.?\s*ft/i.test(String(v)))
     const cuFt  = cuFtV ? parseFloat(String(cuFtV)) : 14
-    const watts = isInverter ? 70 : cuFt > 18 ? 200 : cuFt > 10 ? 150 : 100
+    const fallback = isInverter ? 65 : cuFt > 22 ? 220 : cuFt > 16 ? 175 : cuFt > 10 ? 140 : 95
+    const watts = fromSpec ?? fallback
     return {
       watts, dailyHours: 24,
       label: `${cuFt ? cuFt + ' Cu.Ft ' : ''}${isInverter ? 'Inverter ' : ''}Refrigerator`.trim(),
@@ -75,8 +92,10 @@ function estimateLoad(product: Product): ApplianceLoad | null {
 
   // ── Freezers ──────────────────────────────────────────────────────
   if (cat.includes('freezer')) {
+    const fromSpec = specWatts(/running\s*wattage/i, /power\s*consumption/i)
     const vert  = name.includes('vertical') || cat.includes('vertical')
-    const watts = isInverter ? 75 : vert ? 125 : 150
+    const fallback = isInverter ? 70 : vert ? 125 : 155
+    const watts = fromSpec ?? fallback
     return {
       watts, dailyHours: 24,
       label: `${isInverter ? 'Inverter ' : ''}${vert ? 'Vertical' : 'Chest'} Freezer`,
@@ -88,7 +107,9 @@ function estimateLoad(product: Product): ApplianceLoad | null {
   if (cat.includes('washing') || cat.includes('washer')) {
     const fl   = cat.includes('front') || name.includes('front')
     const semi = cat.includes('semi') || name.includes('semi')
-    const watts = fl ? 2000 : semi ? 400 : 500
+    const fromSpec = specWatts(/rated\s*power/i, /power\s*consumption/i, /wattage/i)
+    const fallback = fl ? 2000 : semi ? 400 : 500
+    const watts = fromSpec ?? fallback
     return {
       watts, dailyHours: 1.5,
       label: `${fl ? 'Front-Load' : semi ? 'Semi-Auto' : 'Top-Load'} Washing Machine`,
@@ -100,7 +121,10 @@ function estimateLoad(product: Product): ApplianceLoad | null {
   if (cat.includes('television') || cat.includes(' led') || cat.includes('qled') || cat.includes('smart tv')) {
     const inchM = name.match(/(\d{2,3})["""'']/) || name.match(/(\d{2,3})\s*(?:inch|")/i)
     const inch  = inchM ? parseInt(inchM[1]) : 43
-    const watts = inch >= 75 ? 150 : inch >= 65 ? 120 : inch >= 50 ? 80 : 40
+    const fromSpec = specWatts(/power\s*consumption/i, /rated\s*power/i, /wattage/i)
+    // Table: typical modern LED/QLED power by size
+    const fallback = inch >= 85 ? 190 : inch >= 75 ? 155 : inch >= 65 ? 120 : inch >= 55 ? 90 : inch >= 43 ? 65 : 40
+    const watts = fromSpec ?? fallback
     return {
       watts, dailyHours: 6,
       label: `${inch}" Smart TV`,
@@ -110,15 +134,16 @@ function estimateLoad(product: Product): ApplianceLoad | null {
 
   // ── Microwave Ovens ───────────────────────────────────────────────
   if (cat.includes('microwave')) {
-    const pwrSpec = Object.entries(specs).find(([k]) => /power|watt/i.test(k))
-    const watts   = pwrSpec ? (parseFloat(String(pwrSpec[1])) || 1200) : 1200
+    const watts = specWatts(/^power$/i, /wattage/i, /output\s*power/i) ?? 1200
     return { watts, dailyHours: 0.5, label: 'Microwave Oven', isInverter: false, tonOrSize: '' }
   }
 
   // ── Fans ──────────────────────────────────────────────────────────
   if (cat.includes('fan') && !cat.includes('kitchen')) {
+    const fromSpec = specWatts(/wattage/i, /power/i)
+    const fallback = isInverter ? 28 : 75
     return {
-      watts: isInverter ? 30 : 75, dailyHours: 12,
+      watts: fromSpec ?? fallback, dailyHours: 12,
       label: `${isInverter ? 'Inverter ' : ''}Ceiling Fan`,
       isInverter, tonOrSize: '',
     }
@@ -126,7 +151,8 @@ function estimateLoad(product: Product): ApplianceLoad | null {
 
   // ── Water Dispensers ──────────────────────────────────────────────
   if (cat.includes('water dispenser')) {
-    return { watts: 100, dailyHours: 24, label: 'Water Dispenser', isInverter: false, tonOrSize: '' }
+    const watts = specWatts(/wattage/i, /power/i) ?? 100
+    return { watts, dailyHours: 24, label: 'Water Dispenser', isInverter: false, tonOrSize: '' }
   }
 
   return null

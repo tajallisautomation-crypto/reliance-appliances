@@ -412,8 +412,28 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
       }
     }
     if (params?.search) {
-      const s = params.search.replace(/'/g, "''");
-      q = q.or(`simplified_name.ilike.*${s}*,category.ilike.*${s}*,brand.ilike.*${s}*,tags.ilike.*${s}*`);
+      // Expand common abbreviations / shorthands to their full category terms
+      // so "refs" finds refrigerators, "acs" finds air conditioners, etc.
+      const SEARCH_ALIASES: Record<string, string> = {
+        'refs':        'refrigerator',
+        'ref':         'refrigerator',
+        'fridges':     'refrigerator',
+        'fridge':      'refrigerator',
+        'acs':         'air conditioner',
+        'tvs':         'television',
+        'washers':     'washing machine',
+        'microwaves':  'microwave',
+        'micros':      'microwave',
+        'freezers':    'freezer',
+        'fans':        'ceiling fan',
+      };
+      const rawTerm  = params.search.trim().toLowerCase();
+      const expanded = SEARCH_ALIASES[rawTerm] ?? params.search;
+      const s = expanded.replace(/'/g, "''");
+      // Search only on name, model, and brand — not category or tags.
+      // Category names already appear in simplified_name (e.g. "... Refrigerator HRF-...")
+      // and tags are too broad/unreliable for precise free-text search.
+      q = q.or(`simplified_name.ilike.*${s}*,model.ilike.*${s}*,brand.ilike.*${s}*`);
     }
     const { data, error } = await q;
     if (error) throw error;
@@ -1557,12 +1577,19 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
     }
     const isInv = /HNF|PITH|CITH|FAIRY|LOMO|UFLY|ULTRA|INVERTER|\bINV\b|\bDC\b|LF\b|LFW|HFT|HFP|HPM|RFP/.test(m);
     const isHC  = /HFC|HFAB|HFTEX|HPU|PRIMA|GALLANT|HEAT|H&C/.test(m);
+    const isT3  = /\bT3\b/i.test(m);
     specs['Type']             = isHC ? 'Split AC (Heat & Cool)' : 'Split Air Conditioner';
     specs['Inverter']         = isInv ? 'Yes' : 'No';
     specs['Compressor']       = isInv ? 'DC Inverter (Variable Speed)' : 'Conventional Rotary';
-    specs['T3 Rating']        = 'Yes — T3 Tropical Rated (operates up to 52°C ambient)';
+    if (isT3) specs['T3 Rating'] = 'Yes — T3 Tropical Rated (operates up to 52°C ambient)';
     specs['Gas Type']         = 'R32 (Eco-Friendly, Low GWP)';
-    if (ton) specs['Power Consumption'] = Math.round(parseFloat(ton) * (isInv ? 850 : 1100)) + 'W';
+    if (ton) {
+      const tonNum   = parseFloat(ton);
+      const runW     = Math.round(tonNum * (isInv ? 850 : 1100));
+      const runAmps  = (runW / (220 * 0.85)).toFixed(1);   // PF ≈ 0.85 for AC compressor
+      specs['Running Wattage']  = runW + 'W' + (isInv ? ' (rated load — varies 40–100%)' : '');
+      specs['Running Current']  = runAmps + 'A @ 220V / 50Hz';
+    }
     specs['Energy Rating']    = isInv ? '5-Star Inverter' : '3-Star';
     specs['Heating']         = isHC ? 'Yes — Heat & Cool (works in winter)' : 'No (cooling only)';
     specs['Auto Restart']    = 'Yes — resumes last setting after power failure';
