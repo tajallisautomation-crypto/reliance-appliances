@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Sun, Zap, Battery, TrendingDown, ChevronRight, ArrowRight, Leaf } from 'lucide-react'
+import { Sun, Zap, Battery, TrendingDown, ChevronRight, ArrowRight, Leaf, Droplets } from 'lucide-react'
 import { getProducts, formatPrice } from '@/lib/api'
 import { calcPlan } from '@/lib/plans'
 import type { Product } from '@/lib/types'
 
 // ── Constants (aligned with SolarCalculator.tsx pre-fed values) ────────────────
 const PANEL_WATTS   = 620        // W per panel
-const PANEL_PRICE   = 30_000     // PKR per panel (rate hidden)
+const PANEL_PRICE   = 30_000     // PKR per panel
 const PEAK_HRS      = 5          // avg daily peak sun hours (Karachi)
 const UNIT_RATE     = 70         // PKR / kWh — grid rate
-const WIRING_PER_W  = 12         // Rs/W — wiring & equipment (from SolarCalculator)
+const WIRING_PER_W  = 12         // Rs/W — wiring & equipment
 const LABOR_PER_W   = 7          // Rs/W — installation labor (PKR 7,000/kW)
 
 // ── Wattage estimation ─────────────────────────────────────────────────────────
@@ -20,7 +20,7 @@ interface ApplianceLoad {
   dailyHours: number
   label: string
   isInverter: boolean
-  tonOrSize: string    // for finding efficient alternative
+  tonOrSize: string
 }
 
 function estimateLoad(product: Product): ApplianceLoad | null {
@@ -28,7 +28,7 @@ function estimateLoad(product: Product): ApplianceLoad | null {
   const name = (product.simplified_name || product.model || '').toLowerCase()
   const specs = product.specs || {}
 
-  // Skip solar, gas, gas appliances, hoods/hobs, accessories, stabilizers
+  // Skip solar, gas, hoods/hobs, accessories, stabilizers
   if (
     cat.includes('solar') || cat.includes('gas') || cat.includes('geyser') ||
     cat.includes('hood') || cat.includes('hob') || cat.includes('accessories') ||
@@ -37,7 +37,6 @@ function estimateLoad(product: Product): ApplianceLoad | null {
 
   const isInverter = name.includes('inverter')
 
-  // Helper: read numeric wattage from any spec key matching a pattern
   function specWatts(...patterns: RegExp[]): number | null {
     for (const pat of patterns) {
       const entry = Object.entries(specs).find(([k]) => pat.test(k))
@@ -53,7 +52,6 @@ function estimateLoad(product: Product): ApplianceLoad | null {
   if (cat.includes('air condition') || cat.includes('ton air')) {
     const tonM = name.match(/(\d+(?:\.\d+)?)\s*ton/)
     const ton  = tonM ? parseFloat(tonM[1]) : 1.5
-    // Read actual wattage from spec if available, else use tonnage table
     const fromSpec = specWatts(/running\s*wattage/i, /power\s*consumption/i, /input\s*power/i)
     const wattsByTon: Record<string, [number, number]> = {
       '1':   [700,  1200], '1.0': [700,  1200],
@@ -67,13 +65,7 @@ function estimateLoad(product: Product): ApplianceLoad | null {
     }
     const [wInv, wStd] = wattsByTon[String(ton)] ?? [1050, 1650]
     const watts = fromSpec ?? (isInverter ? wInv : wStd)
-    return {
-      watts,
-      dailyHours: 8,
-      label: `${ton} Ton${isInverter ? ' Inverter' : ''} AC`,
-      isInverter,
-      tonOrSize: String(ton),
-    }
+    return { watts, dailyHours: 8, label: `${ton} Ton${isInverter ? ' Inverter' : ''} AC`, isInverter, tonOrSize: String(ton) }
   }
 
   // ── Refrigerators ─────────────────────────────────────────────────
@@ -82,9 +74,8 @@ function estimateLoad(product: Product): ApplianceLoad | null {
     const cuFtV = Object.values(specs).find(v => /cu\.?\s*ft/i.test(String(v)))
     const cuFt  = cuFtV ? parseFloat(String(cuFtV)) : 14
     const fallback = isInverter ? 65 : cuFt > 22 ? 220 : cuFt > 16 ? 175 : cuFt > 10 ? 140 : 95
-    const watts = fromSpec ?? fallback
     return {
-      watts, dailyHours: 24,
+      watts: fromSpec ?? fallback, dailyHours: 24,
       label: `${cuFt ? cuFt + ' Cu.Ft ' : ''}${isInverter ? 'Inverter ' : ''}Refrigerator`.trim(),
       isInverter, tonOrSize: String(cuFt),
     }
@@ -94,10 +85,8 @@ function estimateLoad(product: Product): ApplianceLoad | null {
   if (cat.includes('freezer')) {
     const fromSpec = specWatts(/running\s*wattage/i, /power\s*consumption/i)
     const vert  = name.includes('vertical') || cat.includes('vertical')
-    const fallback = isInverter ? 70 : vert ? 125 : 155
-    const watts = fromSpec ?? fallback
     return {
-      watts, dailyHours: 24,
+      watts: fromSpec ?? (isInverter ? 70 : vert ? 125 : 155), dailyHours: 24,
       label: `${isInverter ? 'Inverter ' : ''}${vert ? 'Vertical' : 'Chest'} Freezer`,
       isInverter, tonOrSize: vert ? 'vertical' : 'chest',
     }
@@ -108,10 +97,8 @@ function estimateLoad(product: Product): ApplianceLoad | null {
     const fl   = cat.includes('front') || name.includes('front')
     const semi = cat.includes('semi') || name.includes('semi')
     const fromSpec = specWatts(/rated\s*power/i, /power\s*consumption/i, /wattage/i)
-    const fallback = fl ? 2000 : semi ? 400 : 500
-    const watts = fromSpec ?? fallback
     return {
-      watts, dailyHours: 1.5,
+      watts: fromSpec ?? (fl ? 2000 : semi ? 400 : 500), dailyHours: 1.5,
       label: `${fl ? 'Front-Load' : semi ? 'Semi-Auto' : 'Top-Load'} Washing Machine`,
       isInverter, tonOrSize: fl ? 'front' : semi ? 'semi' : 'top',
     }
@@ -122,14 +109,8 @@ function estimateLoad(product: Product): ApplianceLoad | null {
     const inchM = name.match(/(\d{2,3})["""'']/) || name.match(/(\d{2,3})\s*(?:inch|")/i)
     const inch  = inchM ? parseInt(inchM[1]) : 43
     const fromSpec = specWatts(/power\s*consumption/i, /rated\s*power/i, /wattage/i)
-    // Table: typical modern LED/QLED power by size
     const fallback = inch >= 85 ? 190 : inch >= 75 ? 155 : inch >= 65 ? 120 : inch >= 55 ? 90 : inch >= 43 ? 65 : 40
-    const watts = fromSpec ?? fallback
-    return {
-      watts, dailyHours: 6,
-      label: `${inch}" Smart TV`,
-      isInverter: false, tonOrSize: String(inch),
-    }
+    return { watts: fromSpec ?? fallback, dailyHours: 6, label: `${inch}" Smart TV`, isInverter: false, tonOrSize: String(inch) }
   }
 
   // ── Microwave Ovens ───────────────────────────────────────────────
@@ -141,9 +122,8 @@ function estimateLoad(product: Product): ApplianceLoad | null {
   // ── Fans ──────────────────────────────────────────────────────────
   if (cat.includes('fan') && !cat.includes('kitchen')) {
     const fromSpec = specWatts(/wattage/i, /power/i)
-    const fallback = isInverter ? 28 : 75
     return {
-      watts: fromSpec ?? fallback, dailyHours: 12,
+      watts: fromSpec ?? (isInverter ? 28 : 75), dailyHours: 12,
       label: `${isInverter ? 'Inverter ' : ''}Ceiling Fan`,
       isInverter, tonOrSize: '',
     }
@@ -161,62 +141,56 @@ function estimateLoad(product: Product): ApplianceLoad | null {
 // ── Solar sizing ───────────────────────────────────────────────────────────────
 
 interface SolarSizing {
-  panelCount: number       // number of 620W panels
-  actualKW: number         // actual system kW (panelCount × 620W)
-  invKW: number            // recommended inverter tier
-  dailyKWh: number         // appliance daily consumption
-  monthlyUnits: number     // appliance monthly consumption (units offset)
-  monthlySavings: number   // PKR/month at UNIT_RATE
-  panelCost: number        // panelCount × 30,000
-  installCost: number      // wiring + labor (17 Rs/W)
-  totalMin: number         // panels + install (inverter added separately from DB)
+  panelCount: number
+  actualKW: number
+  invKW: number
+  dailyKWh: number
+  monthlyUnits: number
+  monthlySavings: number
+  panelCost: number
+  installCost: number
+  totalMin: number
 }
 
 function r100(n: number) { return Math.round(n / 100) * 100 }
 
 function calcSizing(load: ApplianceLoad): SolarSizing {
-  // Size the system to cover the appliance's actual daily consumption + 25% losses
   const dailyKWh  = (load.watts * load.dailyHours) / 1000
   const neededKW  = (dailyKWh * 1.25) / PEAK_HRS
-  // Round up to nearest 0.5 kW, minimum 1 kW
   const sizedKW   = Math.max(1, Math.ceil(neededKW * 2) / 2)
-
   const panelCount  = Math.ceil(sizedKW * 1000 / PANEL_WATTS)
   const actualKW    = (panelCount * PANEL_WATTS) / 1000
-
-  // Inverter tier: must be >= actualKW
   const invKW = actualKW <= 3 ? 3 : actualKW <= 5 ? 5 : actualKW <= 8 ? 8 : actualKW <= 12 ? 12 : 15
-
-  // Monthly units = appliance consumption (not system generation)
   const monthlyUnits   = Math.round(dailyKWh * 30)
   const monthlySavings = r100(monthlyUnits * UNIT_RATE)
-
   const panelCost   = panelCount * PANEL_PRICE
   const installCost = r100(actualKW * 1000 * (WIRING_PER_W + LABOR_PER_W))
-  const totalMin    = panelCost + installCost   // inverter from DB added on top
-
+  const totalMin    = panelCost + installCost
   return { panelCount, actualKW, invKW, dailyKWh, monthlyUnits, monthlySavings, panelCost, installCost, totalMin }
+}
+
+// ── Battery value score: kWh per 100,000 PKR (higher = better value) ──────────
+function batteryKwh(bat: Product): number {
+  const m = (bat.simplified_name + ' ' + (bat.specs?.Capacity ?? '') + ' ' + bat.model)
+    .match(/(\d+(?:\.\d+)?)\s*k[wW]h/i)
+  return m ? parseFloat(m[1]) : 0
+}
+
+function batteryValueScore(bat: Product): number {
+  const kwh = batteryKwh(bat)
+  return kwh > 0 ? (kwh / bat.price.cash_floor) * 100_000 : 0
 }
 
 // ── Efficient alternative search ───────────────────────────────────────────────
 
 function shouldSuggestAlternative(product: Product, load: ApplianceLoad): string | null {
-  const cat  = (product.category || '').toLowerCase()
-  const name = (product.simplified_name || product.model || '').toLowerCase()
-
-  // Suggest inverter AC if current is non-inverter
-  if ((cat.includes('air condition') || cat.includes('ton air')) && !load.isInverter) {
-    const ton = load.tonOrSize
-    return `${ton} ton inverter air conditioner`
-  }
-  // Suggest inverter fridge if current is non-inverter
-  if ((cat.includes('refrigerat') || cat.includes('fridge')) && !load.isInverter) {
+  const cat = (product.category || '').toLowerCase()
+  if ((cat.includes('air condition') || cat.includes('ton air')) && !load.isInverter)
+    return `${load.tonOrSize} ton inverter air conditioner`
+  if ((cat.includes('refrigerat') || cat.includes('fridge')) && !load.isInverter)
     return 'inverter refrigerator'
-  }
-  // Suggest inverter fan
-  if (cat.includes('fan') && !load.isInverter) {
+  if (cat.includes('fan') && !load.isInverter)
     return 'inverter ceiling fan'
-  }
   return null
 }
 
@@ -226,7 +200,6 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
   const [solarInverters, setSolarInverters] = useState<Product[]>([])
   const [batteries,      setBatteries]      = useState<Product[]>([])
   const [efficientAlt,   setEfficientAlt]   = useState<Product | null>(null)
-  const [showBattery,    setShowBattery]    = useState(false)
 
   const load = estimateLoad(product)
   if (!load) return null
@@ -254,10 +227,13 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
       .catch(() => {})
   }, [sizing.invKW])
 
-  // ── Fetch batteries from DB ───────────────────────────────────────
+  // ── Fetch batteries — sorted by best value (kWh/PKR) ─────────────
   useEffect(() => {
     getProducts({ category: 'solar-battery', sort: 'price_asc' })
-      .then(({ products }) => setBatteries(products.slice(0, 2)))
+      .then(({ products }) => {
+        const sorted = [...products].sort((a, b) => batteryValueScore(b) - batteryValueScore(a))
+        setBatteries(sorted.slice(0, 3))
+      })
       .catch(() => {})
   }, [])
 
@@ -276,29 +252,35 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
       .catch(() => {})
   }, [product.id])
 
-  // ── Cheapest matching inverter (for cost estimate) ─────────────────
-  const cheapestInv     = solarInverters[0]
-  const invCost         = cheapestInv?.price.cash_floor ?? 0
-  const totalWithInv    = invCost ? sizing.totalMin + invCost : null
+  // ── Cost calculations ──────────────────────────────────────────────
+  const cheapestInv   = solarInverters[0]
+  const invCost       = cheapestInv?.price.cash_floor ?? 0
+  const bestBattery   = batteries[0] ?? null
+  const batCost       = bestBattery?.price.cash_floor ?? 0
+  const bestBatKwh    = bestBattery ? batteryKwh(bestBattery) : 0
 
-  // ── Payback ────────────────────────────────────────────────────────
-  const paybackYrs = totalWithInv && sizing.monthlySavings > 0
-    ? (totalWithInv / (sizing.monthlySavings * 12)).toFixed(1)
-    : null
+  // Package totals
+  const totalNoBat    = invCost ? sizing.totalMin + invCost : null
+  const totalWithBat  = totalNoBat && batCost ? totalNoBat + batCost : null
 
-  // ── Installment check ──────────────────────────────────────────────
-  const installBase  = totalWithInv ?? sizing.totalMin
-  const canInstall   = installBase <= 700_000 && sizing.actualKW <= 5
-  const installPlan  = canInstall
+  // Payback on full package (with battery — complete system)
+  const paybackYrs = totalWithBat && sizing.monthlySavings > 0
+    ? (totalWithBat / (sizing.monthlySavings * 12)).toFixed(1)
+    : totalNoBat && sizing.monthlySavings > 0
+      ? (totalNoBat / (sizing.monthlySavings * 12)).toFixed(1)
+      : null
+
+  // ── Installment ────────────────────────────────────────────────────
+  const installBase = totalWithBat ?? totalNoBat ?? sizing.totalMin
+  const canInstall  = installBase <= 700_000 && sizing.actualKW <= 5
+  const installPlan = canInstall
     ? calcPlan(installBase, installBase > 500_000 ? '2m' : installBase > 150_000 ? '6m' : '12m')
     : null
 
   // ── Efficient alternative wattage savings ──────────────────────────
-  const altLoad = efficientAlt ? estimateLoad(efficientAlt) : null
-  const altSavedUnits = altLoad
-    ? Math.max(0, Math.round((load.watts - altLoad.watts) * load.dailyHours * 30 / 1000))
-    : 0
-  const altSavedPKR = r100(altSavedUnits * UNIT_RATE)
+  const altLoad       = efficientAlt ? estimateLoad(efficientAlt) : null
+  const altSavedUnits = altLoad ? Math.max(0, Math.round((load.watts - altLoad.watts) * load.dailyHours * 30 / 1000)) : 0
+  const altSavedPKR   = r100(altSavedUnits * UNIT_RATE)
 
   return (
     <div className="mt-10 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 overflow-hidden">
@@ -308,9 +290,7 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
         <Sun className="w-5 h-5 shrink-0" />
         <div>
           <p className="font-bold text-sm leading-tight">Solar Compatibility</p>
-          <p className="text-amber-100 text-xs mt-0.5">
-            Run this {load.label} on clean solar power
-          </p>
+          <p className="text-amber-100 text-xs mt-0.5">Run this {load.label} on clean solar power</p>
         </div>
         <Link
           to="/solar-calculator"
@@ -345,8 +325,8 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
           </div>
         )}
 
-        {/* Stat cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Stat cards — 5 cards: Running Load, Daily Consumption, System Size, Monthly Saving, Payback */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           <div className="bg-white rounded-xl p-3.5 border border-amber-100">
             <div className="flex items-center gap-1.5 text-amber-600 mb-1">
               <Zap className="w-3.5 h-3.5" />
@@ -356,6 +336,17 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
               {load.watts >= 1000 ? `${(load.watts / 1000).toFixed(1)} kW` : `${load.watts} W`}
             </p>
             <p className="text-xs text-gray-400 mt-0.5">{load.dailyHours}h/day typical</p>
+          </div>
+
+          <div className="bg-white rounded-xl p-3.5 border border-amber-100">
+            <div className="flex items-center gap-1.5 text-violet-600 mb-1">
+              <Droplets className="w-3.5 h-3.5" />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Daily Consumption</span>
+            </div>
+            <p className="text-xl font-black text-gray-900">
+              {sizing.dailyKWh >= 10 ? sizing.dailyKWh.toFixed(1) : sizing.dailyKWh.toFixed(2)} kWh
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5">{sizing.monthlyUnits} units/month</p>
           </div>
 
           <div className="bg-white rounded-xl p-3.5 border border-amber-100">
@@ -375,18 +366,18 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
             <p className="text-xl font-black text-gray-900">
               PKR {sizing.monthlySavings.toLocaleString()}
             </p>
-            <p className="text-xs text-gray-400 mt-0.5">offsets {sizing.monthlyUnits} units/mo</p>
+            <p className="text-xs text-gray-400 mt-0.5">at PKR {UNIT_RATE}/kWh</p>
           </div>
 
-          <div className="bg-white rounded-xl p-3.5 border border-amber-100">
+          <div className="bg-white rounded-xl p-3.5 border border-amber-100 col-span-2 sm:col-span-1">
             <div className="flex items-center gap-1.5 text-blue-600 mb-1">
               <Battery className="w-3.5 h-3.5" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Inverter</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">Payback Period</span>
             </div>
-            <p className="text-xl font-black text-gray-900">{sizing.invKW} kW</p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              {paybackYrs ? `~${paybackYrs} yr payback` : 'recommended size'}
+            <p className="text-xl font-black text-gray-900">
+              {paybackYrs ? `~${paybackYrs} yrs` : '—'}
             </p>
+            <p className="text-xs text-gray-400 mt-0.5">{sizing.invKW}kW inverter needed</p>
           </div>
         </div>
 
@@ -397,12 +388,15 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5">Complete Solar Package</p>
               <p className="text-[11px] text-gray-400">
                 {sizing.panelCount} × {PANEL_WATTS}W panels · {sizing.invKW}kW inverter · wiring &amp; installation
+                {bestBattery ? ` · ${bestBatKwh > 0 ? bestBatKwh + ' kWh' : ''} battery` : ''}
               </p>
             </div>
             <div className="text-right">
-              {totalWithInv ? (
+              {(totalWithBat ?? totalNoBat) ? (
                 <>
-                  <p className="text-2xl font-black text-gray-900">PKR {totalWithInv.toLocaleString()}</p>
+                  <p className="text-2xl font-black text-gray-900">
+                    PKR {(totalWithBat ?? totalNoBat)!.toLocaleString()}
+                  </p>
                   {installPlan && (
                     <p className="text-[11px] text-brand-600 font-medium mt-0.5">
                       or PKR {installPlan.monthly.toLocaleString()}/mo · {installPlan.months} months
@@ -416,51 +410,56 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
           </div>
         </div>
 
-        {/* Battery add-on section */}
-        {batteries.length > 0 && (
+        {/* Best-value battery — always shown */}
+        {bestBattery && (
           <div>
-            <button
-              onClick={() => setShowBattery(s => !s)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-white border border-amber-100 rounded-xl text-sm font-semibold text-gray-700 hover:bg-amber-50 transition-colors"
-            >
-              <span className="flex items-center gap-2">
-                <Battery className="w-4 h-4 text-blue-500" />
-                Add battery backup (optional)
-              </span>
-              <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${showBattery ? 'rotate-90' : ''}`} />
-            </button>
-
-            {showBattery && (
-              <div className="mt-2 grid sm:grid-cols-2 gap-3">
-                {batteries.map(bat => {
-                  const kwhM = (bat.simplified_name + ' ' + (bat.specs?.Capacity ?? '')).match(/(\d+(?:\.\d+)?)\s*k[wW]h/i)
-                  const kwh  = kwhM ? parseFloat(kwhM[1]) : null
-                  return (
-                    <Link
-                      key={bat.id}
-                      to={`/products/${bat.id}`}
-                      className="group flex gap-3 bg-white hover:bg-blue-50 border border-blue-100 hover:border-blue-300 rounded-xl p-3.5 transition-all"
-                    >
-                      {bat.thumbnail && (
-                        <img src={bat.thumbnail} alt={bat.simplified_name} className="w-12 h-12 object-contain shrink-0" />
+            <div className="flex items-center justify-between mb-2.5">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                Recommended Battery Backup
+              </p>
+              <Link
+                to="/products?category=solar-battery"
+                className="text-[11px] text-brand-600 hover:text-brand-700 font-semibold flex items-center gap-0.5"
+              >
+                See all <ChevronRight className="w-3 h-3" />
+              </Link>
+            </div>
+            <div className="grid sm:grid-cols-3 gap-3">
+              {batteries.map((bat, i) => {
+                const kwh = batteryKwh(bat)
+                return (
+                  <Link
+                    key={bat.id}
+                    to={`/products/${bat.id}`}
+                    className="group relative flex gap-3 bg-white hover:bg-blue-50 border border-blue-100 hover:border-blue-300 rounded-xl p-3.5 transition-all"
+                  >
+                    {i === 0 && (
+                      <span className="absolute top-2 right-2 text-[9px] font-bold uppercase bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">
+                        Best Value
+                      </span>
+                    )}
+                    {bat.thumbnail && (
+                      <img src={bat.thumbnail} alt={bat.simplified_name} className="w-12 h-12 object-contain shrink-0" />
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-bold text-gray-400">{bat.brand}</p>
+                      <p className="text-xs font-semibold text-gray-800 group-hover:text-brand-600 leading-tight line-clamp-2 pr-10">
+                        {bat.simplified_name}
+                      </p>
+                      {kwh > 0 && (
+                        <p className="text-[11px] text-blue-600 mt-0.5">{kwh} kWh capacity</p>
                       )}
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-bold text-gray-400">{bat.brand}</p>
-                        <p className="text-xs font-semibold text-gray-800 group-hover:text-brand-600 leading-tight line-clamp-2">
-                          {bat.simplified_name}
-                        </p>
-                        {kwh && (
-                          <p className="text-[11px] text-blue-600 mt-0.5">{kwh} kWh capacity</p>
-                        )}
-                        <p className="text-sm font-black text-gray-900 mt-1">
-                          {formatPrice(bat.price.cash_floor)}
-                        </p>
-                      </div>
-                    </Link>
-                  )
-                })}
-              </div>
-            )}
+                      <p className="text-sm font-black text-gray-900 mt-1">
+                        {formatPrice(bat.price.cash_floor)}
+                      </p>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+            <p className="text-[10px] text-gray-400 mt-2">
+              Battery backup prevents excess solar energy from going to waste and powers your appliance during outages and at night.
+            </p>
           </div>
         )}
 
@@ -506,9 +505,7 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
 
         {/* Shop solar CTA */}
         <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl px-4 py-3 text-white">
-          <p className="text-sm font-semibold">
-            Need a full household quote?
-          </p>
+          <p className="text-sm font-semibold">Need a full household quote?</p>
           <Link
             to="/solar-calculator"
             className="shrink-0 inline-flex items-center gap-1.5 bg-white text-orange-600 text-xs font-bold px-4 py-2 rounded-lg hover:bg-orange-50 transition-colors"
@@ -519,8 +516,9 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
 
         {/* Disclaimer */}
         <p className="text-[10px] text-gray-400 leading-relaxed">
-          Estimates based on {PEAK_HRS}h peak sun (Karachi), {load.dailyHours}h/day typical usage, PKR {UNIT_RATE}/kWh grid rate, and PKR {(WIRING_PER_W + LABOR_PER_W)}/W for wiring, equipment &amp; installation (PKR {WIRING_PER_W}/W equipment + PKR {LABOR_PER_W}/W labor).
-          Monthly units show this appliance's consumption, not total system generation.
+          Estimates based on {PEAK_HRS}h peak sun (Karachi), {load.dailyHours}h/day typical usage, PKR {UNIT_RATE}/kWh grid rate,
+          and PKR {(WIRING_PER_W + LABOR_PER_W)}/W for wiring, equipment &amp; installation (PKR {WIRING_PER_W}/W equipment + PKR {LABOR_PER_W}/W labor).
+          Monthly units reflect this appliance's consumption only. Battery recommendation sorted by best kWh-per-rupee value.
           Actual sizing may vary. Use our{' '}
           <Link to="/solar-calculator" className="underline hover:text-brand-500">Solar Calculator</Link>{' '}
           for a full household assessment, or{' '}
