@@ -11,7 +11,7 @@ const PANEL_PRICE   = 30_000     // PKR per panel (rate hidden)
 const PEAK_HRS      = 5          // avg daily peak sun hours (Karachi)
 const UNIT_RATE     = 70         // PKR / kWh — grid rate
 const WIRING_PER_W  = 12         // Rs/W — wiring & equipment (from SolarCalculator)
-const LABOR_PER_W   = 5          // Rs/W — installation labor (from SolarCalculator)
+const LABOR_PER_W   = 7          // Rs/W — installation labor (PKR 7,000/kW)
 
 // ── Wattage estimation ─────────────────────────────────────────────────────────
 
@@ -390,43 +390,29 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
           </div>
         </div>
 
-        {/* Cost breakdown */}
+        {/* Package total */}
         <div className="bg-white rounded-xl border border-amber-100 overflow-hidden">
-          <div className="px-4 py-3 border-b border-amber-50">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Estimated System Cost</p>
-          </div>
-          <div className="divide-y divide-gray-50">
-            <div className="flex justify-between items-center px-4 py-2.5 text-sm">
-              <span className="text-gray-600">Solar panels ({sizing.panelCount} × {PANEL_WATTS}W)</span>
-              <span className="font-semibold text-gray-800">PKR {sizing.panelCost.toLocaleString()}</span>
+          <div className="flex justify-between items-center px-4 py-4 bg-amber-50">
+            <div>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5">Complete Solar Package</p>
+              <p className="text-[11px] text-gray-400">
+                {sizing.panelCount} × {PANEL_WATTS}W panels · {sizing.invKW}kW inverter · wiring &amp; installation
+              </p>
             </div>
-            {cheapestInv && (
-              <div className="flex justify-between items-center px-4 py-2.5 text-sm">
-                <span className="text-gray-600">
-                  {cheapestInv.brand} {sizing.invKW}kW Inverter
-                </span>
-                <span className="font-semibold text-gray-800">
-                  PKR {cheapestInv.price.cash_floor.toLocaleString()}
-                </span>
-              </div>
-            )}
-            <div className="flex justify-between items-center px-4 py-2.5 text-sm">
-              <span className="text-gray-600">Wiring, Equipment &amp; Installation</span>
-              <span className="font-semibold text-gray-800">PKR {sizing.installCost.toLocaleString()}</span>
-            </div>
-            {totalWithInv && (
-              <div className="flex justify-between items-center px-4 py-3 bg-amber-50">
-                <span className="font-bold text-gray-800">Total (without battery)</span>
-                <div className="text-right">
-                  <p className="font-black text-gray-900">PKR {totalWithInv.toLocaleString()}</p>
+            <div className="text-right">
+              {totalWithInv ? (
+                <>
+                  <p className="text-2xl font-black text-gray-900">PKR {totalWithInv.toLocaleString()}</p>
                   {installPlan && (
                     <p className="text-[11px] text-brand-600 font-medium mt-0.5">
                       or PKR {installPlan.monthly.toLocaleString()}/mo · {installPlan.months} months
                     </p>
                   )}
-                </div>
-              </div>
-            )}
+                </>
+              ) : (
+                <p className="text-2xl font-black text-gray-900">PKR {sizing.totalMin.toLocaleString()}+</p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -533,7 +519,7 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
 
         {/* Disclaimer */}
         <p className="text-[10px] text-gray-400 leading-relaxed">
-          Estimates based on {PEAK_HRS}h peak sun (Karachi), {load.dailyHours}h/day typical usage, PKR {UNIT_RATE}/kWh grid rate, and PKR {(WIRING_PER_W + LABOR_PER_W)}/W wiring &amp; installation.
+          Estimates based on {PEAK_HRS}h peak sun (Karachi), {load.dailyHours}h/day typical usage, PKR {UNIT_RATE}/kWh grid rate, and PKR {(WIRING_PER_W + LABOR_PER_W)}/W for wiring, equipment &amp; installation (PKR {WIRING_PER_W}/W equipment + PKR {LABOR_PER_W}/W labor).
           Monthly units show this appliance's consumption, not total system generation.
           Actual sizing may vary. Use our{' '}
           <Link to="/solar-calculator" className="underline hover:text-brand-500">Solar Calculator</Link>{' '}
