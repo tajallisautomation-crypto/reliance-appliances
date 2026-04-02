@@ -1371,30 +1371,70 @@ function ImportTab({ onImported }: { onImported: () => void }) {
         </div>
       )}
 
-      {summary && (
-        <div className="mt-6 bg-green-50 rounded-2xl p-6 space-y-4">
-          <h4 className="font-bold text-gray-900">Import Complete</h4>
-          <p className="text-xs text-gray-500">
-            Existing products had <strong>prices &amp; installment plans updated only</strong> — names, specs, images and descriptions were preserved.
-            New products were fully enriched. All price changes were logged to history.
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <SummaryCard label="New Products"    value={summary.added}         color="text-green-700"  />
-            <SummaryCard label="Prices Updated"  value={summary.updated}       color="text-blue-700"   />
-            <SummaryCard label="Discontinued"    value={summary.discontinued}  color="text-red-600"    />
-            <SummaryCard label="Images Found"    value={summary.imagesFound}   color="text-purple-700" />
-            <SummaryCard label="Images Missing"  value={summary.imagesMissing} color={summary.imagesMissing > 0 ? 'text-amber-600' : 'text-gray-400'} />
-          </div>
-          {err && (
-            <div className="bg-red-50 rounded-lg p-3">
-              <p className="text-xs font-medium text-red-600 mb-1">Errors:</p>
-              <p className="text-xs text-red-500 whitespace-pre-line">{err}</p>
+      {summary && (() => {
+        // Separate taxonomy review items from hard errors
+        const reviewItems  = summary.errors.filter(e => e.startsWith('Review required:'));
+        const draftItems   = summary.errors.filter(e => e.startsWith('Draft (no price):'));
+        const hardErrors   = summary.errors.filter(e => !e.startsWith('Review required:') && !e.startsWith('Draft (no price):'));
+        return (
+          <div className="mt-6 bg-green-50 rounded-2xl p-6 space-y-4">
+            <h4 className="font-bold text-gray-900">Import Complete</h4>
+            <p className="text-xs text-gray-500">
+              Existing products had <strong>prices &amp; installment plans updated only</strong> — names, specs, images and descriptions were preserved.
+              New products were fully enriched. All price changes were logged to history.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <SummaryCard label="New Products"       value={summary.added}         color="text-green-700"  />
+              <SummaryCard label="Prices Updated"     value={summary.updated}       color="text-blue-700"   />
+              <SummaryCard label="Discontinued"       value={summary.discontinued}  color="text-red-600"    />
+              <SummaryCard label="Images Found"       value={summary.imagesFound}   color="text-purple-700" />
+              <SummaryCard label="Images Missing"     value={summary.imagesMissing} color={summary.imagesMissing > 0 ? 'text-amber-600' : 'text-gray-400'} />
+              <SummaryCard label="Taxonomy Review"    value={reviewItems.length}    color={reviewItems.length > 0 ? 'text-amber-600' : 'text-gray-400'} />
             </div>
-          )}
-          <button onClick={() => { setRows([]); setSummary(null); setErr(''); }}
-            className="text-sm text-gray-500 hover:text-gray-800 underline">Import another file</button>
-        </div>
-      )}
+
+            {/* Taxonomy review queue — these products are saved but NOT live */}
+            {reviewItems.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <p className="text-xs font-bold text-amber-800 mb-2">
+                  ⚠️ {reviewItems.length} product{reviewItems.length > 1 ? 's' : ''} queued for taxonomy review (not yet live)
+                </p>
+                <p className="text-xs text-amber-700 mb-2">
+                  These products have unrecognized categories. They are saved with <code>taxonomy_status = 'review'</code> and will not appear in the public catalog until you resolve their category mapping in <code>src/lib/taxonomy.ts</code> or approve them manually.
+                </p>
+                <ul className="space-y-1">
+                  {reviewItems.map((e, i) => (
+                    <li key={i} className="text-xs text-amber-700 font-mono bg-amber-100 rounded px-2 py-1">{e.replace('Review required: ', '')}</li>
+                  ))}
+                </ul>
+                <p className="text-xs text-amber-600 mt-2 font-semibold">
+                  To resolve: add the raw category string to <code>TAXONOMY_REGISTRY</code> aliases in <code>src/lib/taxonomy.ts</code>, then re-import or manually set <code>taxonomy_status = 'live'</code> in Supabase.
+                </p>
+              </div>
+            )}
+
+            {/* Draft products (no price) */}
+            {draftItems.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                <p className="text-xs font-bold text-blue-700 mb-1">ℹ️ {draftItems.length} draft product{draftItems.length > 1 ? 's' : ''} (no price — set price to publish)</p>
+                <ul className="space-y-0.5">
+                  {draftItems.map((e, i) => <li key={i} className="text-xs text-blue-600 font-mono">{e.replace('Draft (no price): ', '')}</li>)}
+                </ul>
+              </div>
+            )}
+
+            {/* Hard errors */}
+            {(hardErrors.length > 0 || err) && (
+              <div className="bg-red-50 rounded-lg p-3">
+                <p className="text-xs font-medium text-red-600 mb-1">Errors ({hardErrors.length}):</p>
+                <p className="text-xs text-red-500 whitespace-pre-line">{hardErrors.join('\n')}</p>
+                {err && <p className="text-xs text-red-500 mt-1">{err}</p>}
+              </div>
+            )}
+            <button onClick={() => { setRows([]); setSummary(null); setErr(''); }}
+              className="text-sm text-gray-500 hover:text-gray-800 underline">Import another file</button>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -5164,6 +5204,223 @@ function SettingsTab() {
 }
 
 
+// ── Compatibility Review Tab ──────────────────────────────────────────────────
+
+import { checkCompatibility, parseBatteryVoltage } from '@/lib/compatibility';
+
+function CompatibilityReviewTab({ products, onRefresh }: { products: Product[]; onRefresh: () => void }) {
+  const [saving, setSaving] = useState<string | null>(null);
+  const [saved,  setSaved]  = useState<Set<string>>(new Set());
+
+  // Separate products by system role based on normalized_category / category
+  const inverters = products.filter(p =>
+    p.normalized_category === 'Solar Inverters' ||
+    p.category.toLowerCase().includes('inverter') ||
+    p.category.toLowerCase().includes('solar converter')
+  );
+  const batteries = products.filter(p =>
+    p.normalized_category === 'Solar Batteries' ||
+    p.category.toLowerCase().includes('solar battery') ||
+    p.category.toLowerCase().includes('lifepo4')
+  );
+
+  // For each inverter, check compatibility status derived from specs
+  function getInverterKw(p: Product): number | null {
+    const specVals = Object.values(p.specs || {}).join(' ');
+    const m = specVals.match(/(\d+\.?\d*)\s*kw/i) || p.model.match(/(\d+\.?\d*)\s*kw/i) || p.model.match(/pv(\d{4,5})/i);
+    if (!m) return null;
+    const v = parseFloat(m[1]);
+    // PV model codes: PV8500 = 8.5kW, PV7000 = 7kW
+    if (p.model.toUpperCase().match(/PV\d{4,5}/)) return v / 1000;
+    return v;
+  }
+
+  function getBatteryVoltage(p: Product): number | null {
+    const specVals = Object.values(p.specs || {}).join(' ');
+    const m = specVals.match(/\b(24|48)\s*v/i);
+    if (m) return parseInt(m[1]);
+    return null;
+  }
+
+  async function saveField(id: string, field: string, value: unknown) {
+    setSaving(id);
+    try {
+      const { error } = await supabase.from('products').update({ [field]: value, updated_at: new Date().toISOString() }).eq('id', id);
+      if (!error) { setSaved(prev => new Set([...prev, id])); onRefresh(); }
+    } finally { setSaving(null); }
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5">
+        <h2 className="font-black text-gray-900 text-lg mb-1">⚡ Compatibility Review</h2>
+        <p className="text-sm text-gray-600">
+          Solar inverters and batteries must have <strong>inverter_power_kw</strong> and <strong>battery_voltage</strong> populated
+          before they can be paired or recommended. Products missing these fields are blocked from compatibility matching.
+        </p>
+        <div className="mt-3 grid sm:grid-cols-3 gap-3 text-xs text-center">
+          {[
+            { label: 'Solar Inverters', count: inverters.length, color: 'bg-amber-100 text-amber-800' },
+            { label: 'Solar Batteries', count: batteries.length, color: 'bg-blue-100 text-blue-800' },
+            { label: 'Unresolved (missing data)', count: [...inverters, ...batteries].filter(p => !getInverterKw(p) && !getBatteryVoltage(p)).length, color: 'bg-red-100 text-red-700' },
+          ].map(s => (
+            <div key={s.label} className={`rounded-xl px-4 py-3 font-bold ${s.color}`}>
+              <div className="text-2xl">{s.count}</div>
+              <div>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Inverter review table */}
+      <section>
+        <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+          <span className="text-lg">⚡</span> Inverters ({inverters.length})
+        </h3>
+        <div className="overflow-x-auto rounded-2xl border border-gray-100 shadow-sm">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-900 text-white text-left">
+                <th className="px-4 py-3 font-bold">Product</th>
+                <th className="px-4 py-3 font-bold">Detected kW</th>
+                <th className="px-4 py-3 font-bold">DB inverter_power_kw</th>
+                <th className="px-4 py-3 font-bold">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {inverters.map((p, i) => {
+                const detectedKw = getInverterKw(p);
+                const dbKw = (p as any).inverter_power_kw;
+                const isSaved = saved.has(p.id);
+                const result = checkCompatibility({ inverterPowerKw: dbKw ?? detectedKw, batteryVoltage: 48 });
+                return (
+                  <tr key={p.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-4 py-3">
+                      <div className="font-semibold text-gray-900 text-xs">{p.brand} {p.simplified_name || p.model}</div>
+                      <div className="text-gray-400 text-[10px]">{p.category}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {detectedKw !== null
+                        ? <span className="font-bold text-blue-700">{detectedKw} kW</span>
+                        : <span className="text-red-500 text-xs">Not detected</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {dbKw
+                          ? <span className="font-bold text-green-700">{dbKw} kW</span>
+                          : <span className="text-gray-400 text-xs italic">not set</span>}
+                        {detectedKw && !dbKw && (
+                          <button
+                            disabled={saving === p.id}
+                            onClick={() => saveField(p.id, 'inverter_power_kw', detectedKw)}
+                            className="text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded font-bold hover:bg-orange-600 disabled:opacity-40"
+                          >
+                            {saving === p.id ? '…' : isSaved ? '✓' : `Set ${detectedKw}kW`}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        result.status === 'compatible' ? 'bg-green-100 text-green-700' :
+                        result.status === 'missing_data_blocked' ? 'bg-red-100 text-red-700' :
+                        result.status === 'uncertain_manual_review' ? 'bg-amber-100 text-amber-700' :
+                        'bg-gray-100 text-gray-600'
+                      }`}>
+                        {result.status === 'missing_data_blocked' ? '⚠ Missing data' :
+                         result.status === 'uncertain_manual_review' ? '🔍 Review needed' :
+                         result.status === 'compatible' ? '✓ Data OK' : result.status}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+              {inverters.length === 0 && (
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400 text-sm">No solar inverters found in catalog.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* Battery review table */}
+      <section>
+        <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+          <span className="text-lg">🔋</span> Batteries ({batteries.length})
+        </h3>
+        <div className="overflow-x-auto rounded-2xl border border-gray-100 shadow-sm">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-900 text-white text-left">
+                <th className="px-4 py-3 font-bold">Product</th>
+                <th className="px-4 py-3 font-bold">Detected Voltage</th>
+                <th className="px-4 py-3 font-bold">DB battery_voltage</th>
+                <th className="px-4 py-3 font-bold">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {batteries.map((p, i) => {
+                const detectedV = getBatteryVoltage(p);
+                const dbV = (p as any).battery_voltage;
+                const isSaved = saved.has(p.id);
+                return (
+                  <tr key={p.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-4 py-3">
+                      <div className="font-semibold text-gray-900 text-xs">{p.brand} {p.simplified_name || p.model}</div>
+                      <div className="text-gray-400 text-[10px]">{p.category}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {detectedV !== null
+                        ? <span className="font-bold text-blue-700">{detectedV}V</span>
+                        : <span className="text-red-500 text-xs">Not detected</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {dbV
+                          ? <span className="font-bold text-green-700">{dbV}V</span>
+                          : <span className="text-gray-400 text-xs italic">not set</span>}
+                        {detectedV && !dbV && (
+                          <button
+                            disabled={saving === p.id}
+                            onClick={() => saveField(p.id, 'battery_voltage', detectedV)}
+                            className="text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded font-bold hover:bg-orange-600 disabled:opacity-40"
+                          >
+                            {saving === p.id ? '…' : isSaved ? '✓' : `Set ${detectedV}V`}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        dbV || detectedV ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      }`}>
+                        {dbV ? '✓ Data OK' : detectedV ? '⚠ Detected, not saved' : '⚠ Missing voltage data'}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+              {batteries.length === 0 && (
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400 text-sm">No solar batteries found in catalog.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-sm text-amber-800">
+        <strong>Rules enforced by the compatibility engine:</strong>
+        <ul className="mt-2 space-y-1 list-disc list-inside">
+          <li>24V batteries only with inverters below 3.7 kW</li>
+          <li>Inverters above 4.0 kW require 48V batteries</li>
+          <li>3.7–4.0 kW band is ambiguous — flagged for manual review unless an approved rule exists in <code className="text-xs bg-amber-100 px-1 rounded">compatibility.ts → APPROVED_EDGE_RULES</code></li>
+          <li>Missing data → blocked from recommendations, never guessed</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 // ── Main AdminPortal ──────────────────────────────────────────────────────────
 
 export default function AdminPortal() {
@@ -5192,8 +5449,8 @@ export default function AdminPortal() {
   const [deleteId, setDeleteId]   = useState<string | null>(null);
   const [deleting, setDeleting]   = useState(false);
   const [quickImg, setQuickImg]   = useState<Product | null>(null);
-  type AdminTab = 'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'settings' | 'schema' | 'audit' | 'catalog' | 'solar';
-  const VALID_TABS: AdminTab[] = ['products','images','import','tools','qc','reviews','leads','orders','enquiries','settings','schema','audit','catalog','solar'];
+  type AdminTab = 'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'settings' | 'schema' | 'audit' | 'catalog' | 'solar' | 'compatibility';
+  const VALID_TABS: AdminTab[] = ['products','images','import','tools','qc','reviews','leads','orders','enquiries','settings','schema','audit','catalog','solar','compatibility'];
   const tabFromHash = (): AdminTab => {
     const h = window.location.hash.slice(1) as AdminTab;
     return VALID_TABS.includes(h) ? h : 'products';
@@ -5466,7 +5723,8 @@ export default function AdminPortal() {
             { id: 'leads',     label: 'Partners',    group: 'crm' },
             { id: 'settings',  label: 'Settings',    group: 'config' },
             { id: 'schema',    label: 'Spec Schema', group: 'config' },
-            { id: 'audit',     label: 'Audit Log',   group: 'config' },
+            { id: 'audit',        label: 'Audit Log',        group: 'config' },
+            { id: 'compatibility', label: '⚡ Compatibility',  group: 'config' },
           ] as const).map((t, i, arr) => {
             const prevGroup = i > 0 ? arr[i - 1].group : t.group;
             return (
@@ -5510,6 +5768,8 @@ export default function AdminPortal() {
           <AuditLogTab />
         ) : tab === 'catalog' ? (
           <CatalogExportPanel products={products} />
+        ) : tab === 'compatibility' ? (
+          <CompatibilityReviewTab products={products} onRefresh={loadProducts} />
         ) : (
           <>
             {/* Toolbar */}

@@ -7,6 +7,12 @@ export default defineConfig({
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },
   },
+  test: {
+    globals: true,
+    environment: 'node',
+    // Mock supabase so unit tests don't require a real DB connection
+    setupFiles: ['./src/lib/__tests__/setup.ts'],
+  },
   build: {
     outDir: 'dist',
     sourcemap: false,

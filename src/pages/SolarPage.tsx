@@ -28,7 +28,7 @@ interface SolarPackage {
   frameLabel?:    string;
 }
 
-const PACKAGES: SolarPackage[] = [
+export const PACKAGES: SolarPackage[] = [
   {
     id: 'ups-3.6kw', name: '3.6kW UPS System', kw: '3.6kW',
     type: 'ups', badge: 'Backup Only', badgeColor: 'bg-gray-700', popular: false,
@@ -53,7 +53,7 @@ const PACKAGES: SolarPackage[] = [
       'Elevated Solar Frame (optional)',
     ],
     warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
-    total: 485000, frameDeduction: 224000, frameLabel: 'Elevated Solar Frame',
+    total: 485000, frameDeduction: 96000, frameLabel: 'Elevated Solar Frame',
   },
   {
     id: 'ups-5kw', name: '5kW UPS System', kw: '5kW',

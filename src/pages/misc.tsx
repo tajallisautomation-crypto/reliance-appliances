@@ -4,10 +4,11 @@ import { Link } from 'react-router-dom'
 import {
   Phone, MessageCircle, Building2, Award, Shield, ClipboardList,
   Wrench, Truck, CalendarCheck, CheckCircle, Star, Clock,
-  ThumbsUp, Headphones, Zap, Users, ChevronRight,
+  ThumbsUp, Headphones, Zap, Users, ChevronRight, AlertCircle,
 } from 'lucide-react'
 import SEO from '@/components/ui/SEO'
 import { getMaintenanceImages, type MediaItem } from '@/lib/gallery'
+import { SERVICES_CATALOG, requiresSiteConsultation, DELIVERY_POLICY } from '@/lib/services'
 
 // ── Services ─────────────────────────────────────────────────────────────────
 
@@ -131,6 +132,70 @@ export function Services() {
               </div>
             ))}
           </div>
+        </section>
+
+        {/* ── Service pricing table ── */}
+        <section>
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-black text-gray-900">Service Pricing</h2>
+            <p className="text-gray-500 mt-1 text-sm">Transparent pricing — no surprises. Materials are always itemised separately.</p>
+          </div>
+
+          {/* Installation policy notice */}
+          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-2xl px-5 py-4 flex gap-3">
+            <AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+            <div className="text-sm text-blue-800 leading-relaxed">
+              <strong>Installation Policy:</strong> Brand-provided free installations (e.g. Gree, Haier promotional offers) are performed by the brand's own team — Tajalli does not charge for these.
+              When <em>Tajalli's technicians</em> install, our installation charges apply.
+              Equipment, copper pipe, conduit, and other materials are <strong>always charged separately</strong> at cost.
+            </div>
+          </div>
+
+          {/* Delivery & installment policy */}
+          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 flex gap-3">
+            <Truck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-sm text-amber-800 leading-relaxed">
+              <strong>Delivery:</strong> {DELIVERY_POLICY.display}.&nbsp;
+              <strong>Installment sales</strong> require advance payment before verification.&nbsp;
+              {requiresSiteConsultation(1_000_001) && (
+                <span>Orders above <strong>PKR 1,000,000</strong> require a site consultation before finalisation.</span>
+              )}
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-2xl border border-gray-100 shadow-sm">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-900 text-white">
+                  <th className="text-left px-5 py-3 font-bold">Service</th>
+                  <th className="text-left px-5 py-3 font-bold">Applies To</th>
+                  <th className="text-left px-5 py-3 font-bold">Price</th>
+                  <th className="text-left px-5 py-3 font-bold hidden sm:table-cell">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {SERVICES_CATALOG.filter(s => s.price.type !== 'free' || s.category === 'installation').map((s, i) => (
+                  <tr key={s.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-5 py-3 font-semibold text-gray-900 align-top">{s.name}</td>
+                    <td className="px-5 py-3 text-gray-500 align-top">{s.appliesTo.join(', ')}</td>
+                    <td className="px-5 py-3 align-top">
+                      {s.installationProvider === 'brand_free' ? (
+                        <span className="inline-block bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full text-xs">Free (Brand)</span>
+                      ) : s.price.type === 'free' ? (
+                        <span className="inline-block bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full text-xs">Included</span>
+                      ) : (
+                        <span className="font-bold text-gray-900">{s.price.display}</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3 text-gray-400 text-xs hidden sm:table-cell align-top">{s.notes}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-gray-400 mt-3 text-center">
+            * All prices are for Karachi. Prices exclude materials unless stated. Subject to change without notice.
+          </p>
         </section>
 
         {/* Recent work photo strip */}

@@ -81,8 +81,21 @@ export interface Product {
   brand:           string;
   model:           string;
   simplified_name: string;
+  /** Raw supplier category — preserved verbatim, never overwritten */
   category:        string;
+  /** Alias for category — the original supplier value */
+  original_category: string;
   sub_category:    string;
+  /** Normalized canonical category (for browse, SEO, filters) */
+  normalized_category:    string;
+  normalized_subcategory: string;
+  category_family:        string;
+  comparison_group:       string;
+  frontend_browse_group:  string;
+  seo_category_slug:      string;
+  seo_subcategory_slug:   string;
+  /** 'live' | 'review' | 'quarantine' — gates public catalog visibility */
+  taxonomy_status: string;
   slug:            string;
   description:     string;
   specs:           Record<string, string>;
@@ -161,7 +174,10 @@ function rowToProduct(r: any): Product {
     : calcAllPlans(cashFloor, cc);
 
   const thumb = fixImageUrl(r.thumbnail_url || '') || '';
-  const gallery = Array.isArray(r.gallery_urls) ? r.gallery_urls.map((u: string) => fixImageUrl(u)).filter(Boolean) : [];
+  // Deduplicate gallery: remove duplicate URLs and ensure thumbnail is not repeated in gallery
+  const _rawGallery = Array.isArray(r.gallery_urls) ? r.gallery_urls.map((u: string) => fixImageUrl(u)).filter(Boolean) : [];
+  const _gallerySeen = new Set<string>(thumb ? [thumb] : []);
+  const gallery = _rawGallery.filter((u: string) => { if (_gallerySeen.has(u)) return false; _gallerySeen.add(u); return true; });
 
   return {
     id:              String(r.id            || ''),
@@ -169,7 +185,16 @@ function rowToProduct(r: any): Product {
     model:           String(r.model         || ''),
     simplified_name: String(r.simplified_name || ''),
     category:        String(r.category      || ''),
+    original_category: String(r.original_category || r.category || ''),
     sub_category:    String(r.sub_category  || ''),
+    normalized_category:    String(r.normalized_category    || ''),
+    normalized_subcategory: String(r.normalized_subcategory || ''),
+    category_family:        String(r.category_family        || ''),
+    comparison_group:       String(r.comparison_group       || ''),
+    frontend_browse_group:  String(r.frontend_browse_group  || ''),
+    seo_category_slug:      String(r.seo_category_slug      || ''),
+    seo_subcategory_slug:   String(r.seo_subcategory_slug   || ''),
+    taxonomy_status: String(r.taxonomy_status || 'live'),
     slug:            String(r.slug          || r.id || ''),
     description:     String(r.description   || ''),
     specs:           (typeof r.specs === 'object' && r.specs) ? r.specs : {},
@@ -234,6 +259,9 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
       // the displayed price from whichever column is populated.
       q = q.or('cash_floor.gt.0,retail_price.gt.0');
       q = q.neq('stock_status', 'Discontinued');          // hide discontinued
+      // Hide products in taxonomy review/quarantine — these have unresolved categories
+      // and must be reviewed by an admin before going live.
+      q = q.or('taxonomy_status.is.null,taxonomy_status.eq.live');
     }
     if (params?.brand)        q = q.ilike('brand', params.brand);
     if (params?.stock_status) q = q.eq('stock_status', params.stock_status);
@@ -367,6 +395,19 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
         'solar-panels':       ['solar panel'],
         'solar-pump':         ['solar water pump'],
         'solar-water-pumps':  ['solar water pump'],
+        // ── Solar inverter sub-type slugs (supplier raw category names) ──────
+        'hybrid-inverter':        ['hybrid inverter'],
+        'hybrid-inverters':       ['hybrid inverter'],
+        'solar-converter':        ['solar converter'],
+        'solar-converters':       ['solar converter'],
+        'on-grid-inverter':       ['on-grid inverter', 'on grid inverter'],
+        'on-grid-inverters':      ['on-grid inverter', 'on grid inverter'],
+        'off-grid-inverter':      ['off-grid inverter', 'off grid inverter'],
+        'off-grid-inverters':     ['off-grid inverter', 'off grid inverter'],
+        'pv-inverter':            ['pv inverter'],
+        'pv-inverters':           ['pv inverter'],
+        'string-inverter':        ['string inverter', 'grid inverter'],
+        'string-inverters':       ['string inverter', 'grid inverter'],
       };
       const terms = CAT_TERMS[params.category.toLowerCase()];
       if (terms) {
@@ -462,9 +503,30 @@ export async function getProduct(idOrSlug: string): Promise<Product | null> {
 /** Backward-compat alias */
 export const getProductBySlug = getProduct;
 
+// Maps canonical category IDs → DB ilike search terms for related-product queries.
+// This lets products with different supplier category strings (e.g. "Hybrid Inverter",
+// "Solar Converter", "Solar Inverter") appear as related products alongside each other.
+// All solar inverter types share the 'solar' canonical group so they cross-relate.
+const _CC_RELATED_TERMS: Record<string, string[]> = {
+  solar:           ['solar', 'hybrid inverter', 'solar converter', 'on-grid inverter', 'off-grid inverter', 'pv inverter'],
+  air_conditioner: ['air condition', 'ton air'],
+  refrigerator:    ['refrigerat'],
+  deep_freezer:    ['freezer'],
+  washing_machine: ['washing'],
+  television:      ['television', 'led', 'smart led', 'qled'],
+  microwave:       ['microwave'],
+  battery:         ['power solution', 'battery', 'tubular battery'],
+  ups:             ['power solution', 'ups'],
+  fan:             ['fan'],
+  water_dispenser: ['water dispenser'],
+  vacuum:          ['vacuum'],
+};
+
 /**
- * Returns similar products (same category, excluding current product).
- * Used for "You may also like" on the product detail page.
+ * Returns similar products (same canonical category, excluding current product).
+ * Uses normalized canonical-category terms so products with different supplier
+ * category strings (e.g. "Hybrid Inverter" and "Solar Inverter") are treated
+ * as related. Falls back to exact category match for unrecognized categories.
  */
 export async function getRelatedProducts(
   productId: string,
@@ -472,15 +534,26 @@ export async function getRelatedProducts(
   limit = 4
 ): Promise<Product[]> {
   try {
-    const { data, error } = await supabase
+    const cc = resolveCanonicalCategory('', '', category);
+    const terms = _CC_RELATED_TERMS[cc];
+
+    let q = supabase
       .from('products')
       .select('*')
-      .eq('category', category)
       .neq('id', productId)
       .eq('stock_status', 'In Stock')
       .order('featured', { ascending: false })
       .order('updated_at', { ascending: false })
       .limit(limit);
+
+    if (terms?.length) {
+      q = q.or(terms.map(t => `category.ilike.*${t}*`).join(','));
+    } else {
+      // Unknown canonical: fall back to exact category string match
+      q = q.eq('category', category);
+    }
+
+    const { data, error } = await q;
     if (error || !data) return [];
     return data.map(rowToProduct);
   } catch {
@@ -676,7 +749,11 @@ export function discountPct(cashPrice: number, retail: number): number {
 
 export interface ImportSummary {
   added: number; updated: number; discontinued: number;
-  imagesFound: number; imagesMissing: number; errors: string[];
+  imagesFound: number; imagesMissing: number;
+  /** All messages including warnings, review notices, and errors */
+  errors: string[];
+  /** Count of products queued for taxonomy review (not live) */
+  reviewCount: number;
 }
 
 export interface CsvImportRow {
@@ -1313,7 +1390,13 @@ const _CATEGORY_RULES: _CatRule[] = [
     keywords: ['television', 'smart tv', 'led tv', 'qled tv', 'oled tv', '4k tv', 'android tv', 'google tv'],
     modelRx: /^\d{2,3}[A-Z]{1,3}\d+/i },
   { id: 'solar',
-    keywords: ['solar panel', 'solar system', 'solar inverter', 'solar battery', 'solar energy', 'solar solution', 'solar kit'] },
+    keywords: [
+      'solar panel', 'solar system', 'solar inverter', 'solar battery', 'solar energy', 'solar solution', 'solar kit',
+      // Supplier-side category names for solar power-electronics (Ziewnic, Inverex, Solis, etc.)
+      'hybrid inverter', 'solar converter', 'on-grid inverter', 'off-grid inverter',
+      'on grid inverter', 'off grid inverter', 'pv inverter', 'grid inverter',
+      'string inverter', 'grid-tied inverter', 'grid tie inverter',
+    ] },
 
   // Catch-all qualifiers — checked last to avoid mismatching compound categories
   { id: 'fan',    keywords: ['fan'],    forbid: ['heater', 'microwave', 'cooler', 'dispenser', 'fryer'] },
@@ -1843,26 +1926,61 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
 
   // ── Solar Solutions ──
   else if (cc === 'solar') {
-    const kwM = m.match(/(\d+\.?\d*)\s*KW/);
-    const isHybrid  = /HYBRID/.test(m);
-    const isOnGrid  = /ON.GRID|ONGRID/.test(m);
-    const isBattery = /BATTERY|BATT/.test(m);
-    const isPanel   = /PANEL/.test(m);
-    if (kwM) {
-      const kw = parseFloat(kwM[1]);
-      specs['Wattage']                = kw + ' kW (' + Math.round(kw * 1000) + 'W)';
+    const cat  = category.toLowerCase();
+    const kwM  = m.match(/PV(\d{4,5})/i) ?? m.match(/(\d+\.?\d*)\s*KW/i);
+    const isHybrid    = /HYBRID/.test(m) || cat.includes('hybrid inverter');
+    const isOnGrid    = /ON.GRID|ONGRID/.test(m) || cat.includes('on-grid') || cat.includes('on grid');
+    const isOffGrid   = /OFF.GRID|OFFGRID/.test(m) || cat.includes('off-grid') || cat.includes('off grid');
+    const isConverter = cat.includes('solar converter') || /CONVERTER|PV\d{4,}/i.test(m);
+    const isBattery   = /BATTERY|BATT/.test(m);
+    const isPanel     = /PANEL/.test(m);
+    const isParallel  = /PARALLEL/.test(m);
+
+    // Extract kW — PV models encode watts (PV8500 = 8.5kW, PV7000 = 7kW, PV10000 = 10kW)
+    let kw = 0;
+    const pvM = m.match(/PV(\d{4,5})/i);
+    const kwDirect = m.match(/(\d+\.?\d*)\s*KW/i);
+    if (pvM)      { kw = parseInt(pvM[1]) / 1000; }
+    else if (kwDirect) { kw = parseFloat(kwDirect[1]); }
+
+    if (kw > 0) {
+      specs['Rated Power']            = kw + ' kW (' + Math.round(kw * 1000) + 'W)';
       specs['System Capacity']        = kw + ' kW';
-      specs['Estimated Daily Output'] = (kw * 4).toFixed(0) + '–' + (kw * 5).toFixed(0) + ' kWh/day (avg. Karachi sun)';
-      specs['Est. Annual Saving']     = 'Approx. PKR ' + Math.round(kw * 4 * 365 * 20).toLocaleString() + ' (at PKR 20/unit)';
+      if (!isConverter) {
+        specs['Estimated Daily Output'] = (kw * 4).toFixed(0) + '–' + (kw * 5).toFixed(0) + ' kWh/day (avg. Karachi sun)';
+        specs['Est. Annual Saving']     = 'Approx. PKR ' + Math.round(kw * 4 * 365 * 20).toLocaleString() + ' (at PKR 20/unit)';
+      }
     }
-    specs['Type']                      = isBattery ? 'Battery Storage' : isHybrid ? 'Hybrid (Grid-Tied + Battery)' : isOnGrid ? 'On-Grid (Grid-Tied)' : isPanel ? 'Solar Panel' : 'Hybrid Solar System';
-    specs['Efficiency']                = '≥ 21.5%';
-    specs['Panel Technology']          = 'Monocrystalline PERC';
-    specs['Works During Loadshedding'] = isHybrid || isBattery ? 'Yes — battery backup included' : 'No (grid required)';
-    specs['Inverter Type']             = isHybrid ? 'Hybrid MPPT Inverter' : 'Grid-Tie MPPT Inverter';
-    specs['Protection']                = 'Over-Voltage, Short Circuit, Over-Temperature';
-    specs['Installation']              = 'Included — by certified engineers';
-    specs['Power Supply']              = '220V / 50Hz single-phase output';
+
+    if (isConverter) {
+      // Solar Converter / Grid-Tie Inverter spec template
+      const subType = isOnGrid && !isOffGrid ? 'On-Grid (Grid-Tied)' : 'On/Off-Grid Hybrid';
+      specs['Type']                     = 'Solar Converter / ' + subType;
+      specs['Input Voltage (DC)']       = '120–500V DC (MPPT range)';
+      specs['Output Voltage (AC)']      = '220V / 50Hz';
+      specs['MPPT Channels']            = '2× Independent MPPT';
+      specs['Max PV Input']             = '1000W per MPPT channel';
+      specs['Panel Compatibility']      = 'TOPCon / HJT / HIMO10 / Mono-PERC';
+      specs['Battery Support']          = isOffGrid ? 'Yes — lead-acid & lithium compatible' : 'Optional (grid-priority mode)';
+      specs['Runs Without Battery']     = 'Yes — operates in grid-only mode';
+      specs['Waveform']                 = 'Pure Sine Wave';
+      specs['Efficiency']               = '≥ 98%';
+      specs['Protection']               = 'Over-Voltage, Short Circuit, Over-Temperature, Anti-Islanding';
+      if (isParallel) specs['Parallel Support'] = 'Yes — up to 6 units in parallel';
+      specs['Communication']            = 'Wi-Fi (optional dongle) / USB';
+      specs['Certifications']           = 'CE / UL / IEC 62109';
+      specs['Origin']                   = 'Made in Taiwan';
+      specs['Power Supply']             = '220V / 50Hz (output)';
+    } else {
+      specs['Type']                      = isBattery ? 'Battery Storage' : isHybrid ? 'Hybrid (Grid-Tied + Battery)' : isOnGrid ? 'On-Grid (Grid-Tied)' : isPanel ? 'Solar Panel' : 'Hybrid Solar System';
+      specs['Efficiency']                = '≥ 21.5%';
+      specs['Panel Technology']          = 'Monocrystalline PERC';
+      specs['Works During Loadshedding'] = isHybrid || isBattery ? 'Yes — battery backup included' : 'No (grid required)';
+      specs['Inverter Type']             = isHybrid ? 'Hybrid MPPT Inverter' : 'Grid-Tie MPPT Inverter';
+      specs['Protection']                = 'Over-Voltage, Short Circuit, Over-Temperature';
+      specs['Installation']              = 'Included — by certified engineers';
+      specs['Power Supply']              = '220V / 50Hz single-phase output';
+    }
   }
 
   // ── Deep Freezers ──
@@ -2681,10 +2799,21 @@ export function deriveSubCategory(brand: string, model: string, category: string
       return 'Smart TV';
     }
     case 'solar': {
+      const cat = category.toLowerCase();
+      // Check category string first — supplier may have explicit sub-type in category
+      if (cat.includes('solar converter') || cat.includes('grid-tie') || cat.includes('grid tie')
+          || cat.includes('string inverter'))                           return 'Grid-Tie / Solar Converter';
+      if (cat.includes('hybrid inverter') || cat.includes('hybrid pv')) return 'Hybrid Inverter';
+      if (cat.includes('off-grid') || cat.includes('off grid'))        return 'Off-Grid Inverter';
+      if (cat.includes('on-grid')  || cat.includes('on grid'))         return 'On-Grid Inverter';
+      if (cat.includes('solar panel') || cat.includes('pv panel'))     return 'Solar Panel';
+      if (cat.includes('solar battery') || cat.includes('lifepo'))     return 'Solar Battery';
+      // Fall back to model string
       if (/PANEL/.test(m))          return 'Solar Panel';
       if (/BATTERY|BATT/.test(m))   return 'Solar Battery';
       if (/HYBRID/.test(m))         return 'Hybrid Inverter';
       if (/ON.GRID|ONGRID/.test(m)) return 'On-Grid Inverter';
+      if (/CONVERTER|PV\d{4,}/i.test(m)) return 'Grid-Tie / Solar Converter';
       return 'Solar Inverter';
     }
     case 'deep_freezer': {
@@ -2992,7 +3121,40 @@ export function enrichProduct(brand: string, model: string, category: string): R
   const catDisplay    = cc !== 'unknown' ? (CANONICAL_DISPLAY[cc] ?? category) : category;
   const seo_desc      = `Buy the ${simplified_name} in Karachi at the best price. Available on easy installments at Reliance Appliances. ${warranty.split(',')[0]}. Call or WhatsApp now.`;
   const seo_keywords  = `${brand.toLowerCase()} ${catDisplay.toLowerCase()} karachi, ${simplified_name.toLowerCase()}, ${brand.toLowerCase()} ${model.toLowerCase()}, reliance appliances karachi, buy on installments karachi`;
-  return { simplified_name, warranty, sub_category, specs, tags, description, seo_title, seo_desc, seo_keywords, updated_at: new Date().toISOString() };
+
+  // Populate normalized taxonomy fields from taxonomy registry
+  // (import lazily to avoid circular deps — taxonomy.ts imports nothing from api.ts)
+  let taxonomyFields: Record<string, string> = {};
+  try {
+    // Dynamic import not available in sync context; use inline alias lookup instead.
+    // This mirrors the logic in taxonomy.ts normalizeTaxonomy() without importing it.
+    const _taxAliasMap: Record<string, Record<string, string>> = {
+      // solar inverter types
+      'hybrid inverter':      { normalized_category: 'Solar Inverters', normalized_subcategory: 'Hybrid Inverter',          category_family: 'Solar', comparison_group: 'solar_inverter', frontend_browse_group: 'solar-inverters', seo_category_slug: 'solar-inverters', seo_subcategory_slug: 'hybrid-inverters' },
+      'solar converter':      { normalized_category: 'Solar Inverters', normalized_subcategory: 'Grid-Tie / Solar Converter', category_family: 'Solar', comparison_group: 'solar_inverter', frontend_browse_group: 'solar-inverters', seo_category_slug: 'solar-inverters', seo_subcategory_slug: 'solar-converters' },
+      'on-grid inverter':     { normalized_category: 'Solar Inverters', normalized_subcategory: 'On-Grid Inverter',           category_family: 'Solar', comparison_group: 'solar_inverter', frontend_browse_group: 'solar-inverters', seo_category_slug: 'solar-inverters', seo_subcategory_slug: 'on-grid-inverters' },
+      'on grid inverter':     { normalized_category: 'Solar Inverters', normalized_subcategory: 'On-Grid Inverter',           category_family: 'Solar', comparison_group: 'solar_inverter', frontend_browse_group: 'solar-inverters', seo_category_slug: 'solar-inverters', seo_subcategory_slug: 'on-grid-inverters' },
+      'off-grid inverter':    { normalized_category: 'Solar Inverters', normalized_subcategory: 'Off-Grid Inverter',          category_family: 'Solar', comparison_group: 'solar_inverter', frontend_browse_group: 'solar-inverters', seo_category_slug: 'solar-inverters', seo_subcategory_slug: 'off-grid-inverters' },
+      'off grid inverter':    { normalized_category: 'Solar Inverters', normalized_subcategory: 'Off-Grid Inverter',          category_family: 'Solar', comparison_group: 'solar_inverter', frontend_browse_group: 'solar-inverters', seo_category_slug: 'solar-inverters', seo_subcategory_slug: 'off-grid-inverters' },
+      'pv inverter':          { normalized_category: 'Solar Inverters', normalized_subcategory: 'Solar Inverter',             category_family: 'Solar', comparison_group: 'solar_inverter', frontend_browse_group: 'solar-inverters', seo_category_slug: 'solar-inverters', seo_subcategory_slug: 'solar-inverters' },
+      'solar inverter':       { normalized_category: 'Solar Inverters', normalized_subcategory: 'Solar Inverter',             category_family: 'Solar', comparison_group: 'solar_inverter', frontend_browse_group: 'solar-inverters', seo_category_slug: 'solar-inverters', seo_subcategory_slug: 'solar-inverters' },
+      'solar panel':          { normalized_category: 'Solar Panels',    normalized_subcategory: 'Solar Panel',                category_family: 'Solar', comparison_group: 'solar_panel',    frontend_browse_group: 'solar-panels',    seo_category_slug: 'solar-panels',    seo_subcategory_slug: 'monocrystalline-solar-panels' },
+      'solar battery':        { normalized_category: 'Solar Batteries', normalized_subcategory: 'LiFePO4 Battery',            category_family: 'Solar', comparison_group: 'solar_battery',  frontend_browse_group: 'solar-batteries', seo_category_slug: 'solar-batteries', seo_subcategory_slug: 'lithium-solar-batteries' },
+      'solar system':         { normalized_category: 'Solar Systems',   normalized_subcategory: 'Complete Solar System',      category_family: 'Solar', comparison_group: 'solar_system',   frontend_browse_group: 'solar',           seo_category_slug: 'solar-solutions', seo_subcategory_slug: 'complete-solar-systems' },
+      'solar solution':       { normalized_category: 'Solar Systems',   normalized_subcategory: 'Complete Solar System',      category_family: 'Solar', comparison_group: 'solar_system',   frontend_browse_group: 'solar',           seo_category_slug: 'solar-solutions', seo_subcategory_slug: 'complete-solar-systems' },
+    };
+    const catL = category.toLowerCase().trim();
+    const match = _taxAliasMap[catL] ?? Object.entries(_taxAliasMap).find(([k]) => catL.includes(k))?.[1];
+    if (match) taxonomyFields = match;
+  } catch { /* taxonomy enrichment is best-effort — never block product insertion */ }
+
+  return {
+    simplified_name, warranty, sub_category, specs, tags, description,
+    seo_title, seo_desc, seo_keywords,
+    original_category: category,
+    ...taxonomyFields,
+    updated_at: new Date().toISOString(),
+  };
 }
 
 // ── CSV Import: image resolution ──────────────────────────────────────────────
@@ -3232,7 +3394,7 @@ export async function processCSVImport(
   onProgress: (msg: string) => void,
   opts: { rematchImages?: boolean } = {},
 ): Promise<ImportSummary> {
-  const summary: ImportSummary = { added: 0, updated: 0, discontinued: 0, imagesFound: 0, imagesMissing: 0, errors: [] };
+  const summary: ImportSummary = { added: 0, updated: 0, discontinued: 0, imagesFound: 0, imagesMissing: 0, errors: [], reviewCount: 0 };
   if (rows.length === 0) return summary;
 
   // Step 1 — Pre-fetch image maps per brand in parallel
@@ -3294,8 +3456,14 @@ export async function processCSVImport(
 
       const cashFloor = roundUp500(price);
       const rowCC = resolveCanonicalCategory(brand, model, category);
+      // Unknown taxonomy: flag for admin review. Product is still inserted but
+      // marked taxonomy_status='review' so it is excluded from the public catalog
+      // until an admin resolves the category. This prevents unresolved products
+      // from silently going live with incomplete specs.
+      const taxonomyStatus = rowCC === 'unknown' ? 'review' : 'live';
       if (rowCC === 'unknown') {
-        summary.errors.push(`Warning: Category "${category}" not recognized for ${brand} ${model} — specs may be incomplete`);
+        summary.errors.push(`Review required: Category "${category}" not in taxonomy registry for ${brand} ${model} — product queued for admin review (not live)`);
+        summary.reviewCount++;
       }
       const p2 = calcPlan(cashFloor, '2m'); const p3 = calcPlan(cashFloor, '3m');
       const p6 = calcPlan(cashFloor, '6m');
@@ -3339,6 +3507,9 @@ export async function processCSVImport(
           }
           const { error } = await supabase.from('products').upsert({
             id, slug: id, brand, model, category,
+            // Preserve original supplier category; taxonomy_status gates public visibility
+            original_category: category,
+            taxonomy_status: taxonomyStatus,
             retail_price: price, cash_floor: cashFloor,
             thumbnail_url, gallery_urls,
             ...enriched, ...installmentCols,
@@ -4151,10 +4322,20 @@ export async function saveSolarProposal(leadId: string, pdfBlob: Blob): Promise<
 
 // ── Fallback products (shown if Supabase unreachable) ────────────────────────
 
+const _FALLBACK_TAXONOMY_DEFAULTS = {
+  original_category: '', normalized_category: '', normalized_subcategory: '',
+  category_family: '', comparison_group: '', frontend_browse_group: '',
+  seo_category_slug: '', seo_subcategory_slug: '', taxonomy_status: 'live',
+};
+
 export const FALLBACK_PRODUCTS: Product[] = [
   {
+    ..._FALLBACK_TAXONOMY_DEFAULTS,
     id: 'fallback-1', brand: 'Haier', model: 'HSU-18HNF', simplified_name: 'Haier 1.5 Ton Inverter AC',
-    slug: 'haier-hsu-18hnf', category: 'Air Conditioners', sub_category: 'DC Inverter',
+    slug: 'haier-hsu-18hnf', category: 'Air Conditioners', original_category: 'Air Conditioners',
+    sub_category: 'DC Inverter', normalized_category: 'Air Conditioners', category_family: 'Cooling',
+    comparison_group: 'air_conditioner', frontend_browse_group: 'air-conditioners',
+    seo_category_slug: 'air-conditioners', seo_subcategory_slug: 'split-air-conditioners',
     description: '1.5 Ton DC Inverter AC.', specs: { BTU: '18000', Refrigerant: 'R32' },
     tags: 'ac,inverter,haier', colors: 'White', warranty: '5 years compressor, 1 year parts',
     price: { min: 148500, retail: 156000, cash_floor: 148500 },
@@ -4163,8 +4344,12 @@ export const FALLBACK_PRODUCTS: Product[] = [
     seo: { title: 'Haier 1.5 Ton Inverter AC Karachi', description: 'Buy Haier HSU-18HNF in Karachi.', keywords: 'haier ac karachi' },
   },
   {
+    ..._FALLBACK_TAXONOMY_DEFAULTS,
     id: 'fallback-2', brand: 'Dawlance', model: '9160 WB', simplified_name: 'Dawlance 14 Cu.Ft Refrigerator',
-    slug: 'dawlance-9160-wb', category: 'Refrigerators', sub_category: 'Double Door',
+    slug: 'dawlance-9160-wb', category: 'Refrigerators', original_category: 'Refrigerators',
+    sub_category: 'Double Door', normalized_category: 'Refrigerators', category_family: 'Refrigeration',
+    comparison_group: 'refrigerator', frontend_browse_group: 'refrigerators',
+    seo_category_slug: 'refrigerators', seo_subcategory_slug: 'double-door-refrigerators',
     description: 'Dawlance 14 Cu.Ft refrigerator.', specs: { Size: '14 Cu.Ft', Type: 'Defrost' },
     tags: 'fridge,dawlance', colors: 'White', warranty: '10 years compressor',
     price: { min: 121000, retail: 127000, cash_floor: 121000 },

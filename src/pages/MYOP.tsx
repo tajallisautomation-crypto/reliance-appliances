@@ -7,6 +7,8 @@ import {
 import { getProducts, formatPrice, calcPlan, type Product } from '@/lib/api'
 import SEO from '@/components/ui/SEO'
 import { waSales } from '@/lib/whatsapp'
+import { useMyopStore } from '@/store/myopStore'
+import { checkCompatibility, parseBatteryVoltage } from '@/lib/compatibility'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -268,10 +270,14 @@ function PackageSummary({
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export default function MYOPPage() {
-  const [activeTab,  setActiveTab]  = useState(TABS[0].id)
-  const [products,   setProducts]   = useState<Product[]>([])
-  const [loading,    setLoading]    = useState(false)
-  const [selected,   setSelected]   = useState<PackageItem[]>([])
+  // Persistent state — survives navigation, tab changes, and page refreshes
+  const store      = useMyopStore()
+  const activeTab  = store.activeTab
+  const selected   = store.items
+  const setActiveTab = store.setActiveTab
+
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading,  setLoading]  = useState(false)
 
   // Fetch products for the active tab
   const fetchTab = useCallback(async (tabId: string) => {
@@ -286,28 +292,21 @@ export default function MYOPPage() {
 
   useEffect(() => { fetchTab(activeTab) }, [activeTab, fetchTab])
 
-  const isSelected = (id: string) => selected.some(i => i.product.id === id)
+  const isSelected = (id: string) => store.hasItem(id)
 
-  const addItem = (product: Product) => {
-    setSelected(prev => {
-      const existing = prev.find(i => i.product.id === product.id)
-      if (existing) return prev.map(i => i.product.id === product.id ? { ...i, qty: i.qty + 1 } : i)
-      return [...prev, { product, qty: 1 }]
-    })
-  }
-
-  const removeItem = (id: string) => setSelected(prev => prev.filter(i => i.product.id !== id))
+  const addItem    = (product: Product) => store.addItem(product)
+  const removeItem = (id: string)       => store.removeItem(id)
 
   const changeQty = (id: string, qty: number) => {
     if (qty < 1) { removeItem(id); return }
-    setSelected(prev => prev.map(i => i.product.id === id ? { ...i, qty } : i))
+    store.updateQty(id, qty)
   }
 
   const handleSubmit = () => {
     document.getElementById('myop-wa-link')?.click()
   }
 
-  const totalItems = selected.reduce((n, i) => n + i.qty, 0)
+  const totalItems = store.itemCount()
   const qualifies  = totalItems >= DISCOUNT_THRESHOLD
 
   return (

@@ -6,15 +6,21 @@ import type { Product } from './api';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface IndexedProduct {
-  product:    Product;
-  tokens:     Set<string>;
-  modelNorm:  string;
-  nameLower:  string;
-  brandLower: string;
-  catLower:   string;
-  subCatLower:string;
-  searchBlob: string;   // full-text for substring search
-  price:      number;
+  product:         Product;
+  tokens:          Set<string>;
+  modelNorm:       string;
+  nameLower:       string;
+  brandLower:      string;
+  catLower:        string;
+  subCatLower:     string;
+  /** Normalized canonical category — more reliable for category-hint filtering */
+  normCatLower:    string;
+  /** Normalized subcategory */
+  normSubCatLower: string;
+  /** Normalized browse group (frontend_browse_group) */
+  browseGroupLower: string;
+  searchBlob:      string;   // full-text for substring search
+  price:           number;
 }
 
 export interface SearchIndex {
@@ -123,10 +129,14 @@ export function buildSearchIndex(products: Product[]): SearchIndex {
     // Name
     add(p.simplified_name);
 
-    // Category / sub-cat
+    // Category / sub-cat — both raw supplier and normalized canonical
     add(p.category, p.sub_category);
     addRaw(p.category); addRaw(p.sub_category);
     if (p.category) catsSet.add(p.category);
+    // Normalized fields (Layer 2 taxonomy) — power category-hint filtering
+    if (p.normalized_category)    { add(p.normalized_category);    addRaw(p.normalized_category); }
+    if (p.normalized_subcategory) { add(p.normalized_subcategory); addRaw(p.normalized_subcategory); }
+    if (p.frontend_browse_group)  { addRaw(p.frontend_browse_group); }
 
     // Tags
     if (p.tags) add(p.tags);
@@ -149,20 +159,25 @@ export function buildSearchIndex(products: Product[]): SearchIndex {
 
     const searchBlob = [
       p.brand, p.model, p.simplified_name, p.category,
-      p.sub_category, p.tags, p.description?.slice(0, 300) ?? '',
+      p.sub_category, p.normalized_category, p.normalized_subcategory,
+      p.frontend_browse_group,
+      p.tags, p.description?.slice(0, 300) ?? '',
       Object.values(p.specs ?? {}).join(' '),
     ].join(' ').toLowerCase();
 
     indexed.push({
-      product:     p,
+      product:          p,
       tokens,
-      modelNorm:   norm(p.model),
-      nameLower:   (p.simplified_name || '').toLowerCase(),
-      brandLower:  p.brand.toLowerCase(),
-      catLower:    p.category.toLowerCase(),
-      subCatLower: (p.sub_category || '').toLowerCase(),
+      modelNorm:        norm(p.model),
+      nameLower:        (p.simplified_name || '').toLowerCase(),
+      brandLower:       p.brand.toLowerCase(),
+      catLower:         p.category.toLowerCase(),
+      subCatLower:      (p.sub_category || '').toLowerCase(),
+      normCatLower:     (p.normalized_category    || '').toLowerCase(),
+      normSubCatLower:  (p.normalized_subcategory || '').toLowerCase(),
+      browseGroupLower: (p.frontend_browse_group  || '').toLowerCase(),
       searchBlob,
-      price:       p.price.cash_floor,
+      price:            p.price.cash_floor,
     });
   }
 
@@ -299,12 +314,20 @@ function scoreProduct(ip: IndexedProduct, pq: ParsedQuery): number {
   else if (terms.some(t => t.length >= 3 && ip.brandLower === t)){ score += 30; }
 
   // ── Category matching ─────────────────────────────────────────────────────
+  // Check both raw supplier category and normalized canonical taxonomy fields.
+  // Normalized fields are more reliable because they don't vary by supplier naming.
   if (pq.categoryHint) {
-    if (ip.catLower.includes(pq.categoryHint.toLowerCase())) { score += 50; }
-    if (ip.subCatLower.includes(pq.categoryHint.toLowerCase())) { score += 25; }
+    const hint = pq.categoryHint.toLowerCase();
+    if (ip.catLower.includes(hint))         { score += 50; }
+    if (ip.subCatLower.includes(hint))      { score += 25; }
+    if (ip.normCatLower.includes(hint))     { score += 45; }
+    if (ip.normSubCatLower.includes(hint))  { score += 20; }
+    if (ip.browseGroupLower.includes(hint)) { score += 15; }
   }
-  if (terms.some(t => t.length >= 4 && ip.catLower.includes(t)))    { score += 20; }
-  if (terms.some(t => t.length >= 4 && ip.subCatLower.includes(t))) { score += 10; }
+  if (terms.some(t => t.length >= 4 && ip.catLower.includes(t)))         { score += 20; }
+  if (terms.some(t => t.length >= 4 && ip.subCatLower.includes(t)))      { score += 10; }
+  if (terms.some(t => t.length >= 4 && ip.normCatLower.includes(t)))     { score += 18; }
+  if (terms.some(t => t.length >= 4 && ip.normSubCatLower.includes(t)))  { score += 8;  }
 
   // ── Token matching ────────────────────────────────────────────────────────
   for (const term of terms) {
@@ -355,10 +378,16 @@ export function search(
 
   // When the query maps to a specific category, restrict candidates to that category.
   // This prevents e.g. "led" or "refs" from returning ACs/TVs via token or fuzzy matches.
+  // Check both raw supplier category AND normalized taxonomy fields so products with
+  // unusual supplier category strings (e.g. "Hybrid Inverter" for Ziewnic) still match.
   if (pq.categoryHint) {
     const hint = pq.categoryHint.toLowerCase().replace(/s$/, ''); // strip trailing s for partial match
     const catCandidates = candidates.filter(ip =>
-      ip.catLower.includes(hint) || ip.subCatLower.includes(hint)
+      ip.catLower.includes(hint)         ||
+      ip.subCatLower.includes(hint)      ||
+      ip.normCatLower.includes(hint)     ||
+      ip.normSubCatLower.includes(hint)  ||
+      ip.browseGroupLower.includes(hint)
     );
     // Only restrict if at least some products match the category — avoids empty results
     if (catCandidates.length > 0) candidates = catCandidates;

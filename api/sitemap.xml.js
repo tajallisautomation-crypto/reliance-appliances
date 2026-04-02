@@ -31,13 +31,25 @@ const STATIC_PAGES = [
 ];
 
 const CATEGORY_SLUGS = [
+  // Air Conditioners
   '1-ton-air-conditioners', '1-5-ton-air-conditioners', '2-ton-air-conditioners',
+  // Refrigerators
   'small-refrigerators', 'medium-refrigerators', 'large-refrigerators',
+  'no-frost-refrigerators', 'side-by-side-refrigerators',
+  // Washing Machines
   'automatic-washing-machines', 'semi-automatic-washing-machines',
+  // Kitchen
   'kitchen-food-processors', 'kitchen-blenders-juicers',
   'kitchen-cooking-appliances', 'kitchen-breakfast-beverages',
+  // Small Appliances
   'personal-care-appliances', 'home-heating-appliances',
-  'freezers', 'water-dispensers', 'televisions', 'solar-solutions',
+  // Other major categories
+  'freezers', 'water-dispensers', 'televisions',
+  // Solar — top-level and sub-categories
+  'solar-solutions', 'solar-inverters', 'solar-batteries', 'solar-panels',
+  'hybrid-inverters', 'on-grid-inverters', 'off-grid-inverters',
+  // Miscellaneous
+  'fans', 'microwaves', 'hood-hobs',
 ];
 
 function escXml(s) {

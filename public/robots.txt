@@ -4,6 +4,14 @@ Disallow: /portal
 Disallow: /admin
 Disallow: /checkout
 Disallow: /cart
+# Block paginated/faceted filter URLs that create thin duplicate content
+Disallow: /products?page=
+Disallow: /search?
 
-# Sitemap
+# Allow crawlers to access all static assets needed for rendering
+Allow: /assets/
+Allow: /*.js$
+Allow: /*.css$
+
+# Sitemap — update to canonical domain once reliance.tajallis.com.pk → tajallis.com.pk
 Sitemap: https://reliance.tajallis.com.pk/api/sitemap.xml

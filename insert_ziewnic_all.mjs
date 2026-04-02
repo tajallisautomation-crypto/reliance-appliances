@@ -4,9 +4,10 @@
  * Prices rounded to nearest PKR 500.
  */
 import { createClient } from '@supabase/supabase-js';
+// Set SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables before running
 const sb = createClient(
-  'https://fdfjavyopbrfvwtjaerw.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkZmphdnlvcGJyZnZ3dGphZXJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDE3MDAsImV4cCI6MjA4ODIxNzcwMH0.fXwGFR_e3xZ4trEbkcH8UQ6_oWcIn92UUUvkGuFajto'
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
 );
 
 const markup = price => Math.round(price * 1.1 / 500) * 500;
