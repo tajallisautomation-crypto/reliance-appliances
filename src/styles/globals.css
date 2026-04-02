@@ -9,13 +9,53 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    /* Prevent layout shift from scrollbar appearing */
+    overflow-y: scroll;
+    /* Safe area for notched phones */
+    padding-top: env(safe-area-inset-top);
   }
   body {
     @apply text-gray-900 antialiased;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    /* Prevent horizontal scroll on mobile */
+    overflow-x: hidden;
+    /* Smooth momentum scrolling on iOS */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
   }
   * {
     box-sizing: border-box;
+    /* Reduce tap delay on all interactive elements */
+    touch-action: manipulation;
+  }
+  /* Prevent iOS from auto-zooming on inputs by enforcing 16px minimum */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+  /* Scale text back down visually while keeping 16px for iOS — only on small screens */
+  @media (max-width: 640px) {
+    input, textarea, select {
+      font-size: 16px !important;
+    }
+  }
+  /* Better tap highlight for buttons and links */
+  button, a, [role="button"] {
+    -webkit-tap-highlight-color: rgba(249, 115, 22, 0.08);
+    cursor: pointer;
+  }
+  /* Minimum touch target size */
+  button, a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  /* Exception: icon-only inline buttons shouldn't force layout */
+  button.inline-btn, a.inline-btn {
+    min-height: unset;
+    min-width: unset;
+  }
+  /* Safe area padding for sticky bottom bars */
+  .safe-bottom {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
   }
 }
 
@@ -34,6 +74,23 @@
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+
+  /* Horizontal scrollable row (categories, chips) — snaps on mobile */
+  .scroll-snap-x {
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .scroll-snap-x > * {
+    scroll-snap-align: start;
+  }
+
+  /* Cards lift on tap on mobile */
+  @media (max-width: 640px) {
+    .card-tap-active:active {
+      transform: scale(0.98);
+      transition: transform 0.1s ease;
+    }
   }
 }
 

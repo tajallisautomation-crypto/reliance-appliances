@@ -30,36 +30,41 @@ export default function Cart() {
   return (
     <>
       {/* Extra bottom padding on mobile so sticky bar doesn't overlap last item */}
-      <div className="max-w-5xl mx-auto px-4 py-10 pb-32 md:pb-10">
+      <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-10 pb-32 md:pb-10">
         <SEO title="Your Cart — Reliance Appliances" noIndex />
-        <h1 className="text-2xl font-black text-gray-900 mb-8">Your Cart ({items.length} item{items.length !== 1 ? 's' : ''})</h1>
-        <div className="grid md:grid-cols-3 gap-8">
-          <div className="md:col-span-2 space-y-4">
+        <h1 className="text-xl sm:text-2xl font-black text-gray-900 mb-5 sm:mb-8">
+          Your Cart <span className="text-gray-400 font-medium">({items.length} item{items.length !== 1 ? 's' : ''})</span>
+        </h1>
+        <div className="grid md:grid-cols-3 gap-5 sm:gap-8">
+          <div className="md:col-span-2 space-y-3 sm:space-y-4">
             {items.map(item => (
-              <div key={item.id} className="flex gap-4 bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-                <div className="w-24 h-24 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0">
+              <div key={item.id} className="flex gap-3 sm:gap-4 bg-white border border-gray-100 rounded-2xl p-3 sm:p-4 shadow-sm">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0">
                   <img src={item.thumbnail} alt={item.simplified_name || item.model}
                     onError={e => { (e.target as HTMLImageElement).src = '/placeholder-product.svg' }}
-                    className="w-full h-full object-contain p-2" />
+                    className="w-full h-full object-contain p-1.5 sm:p-2" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs text-brand-500 font-semibold">{item.brand}</div>
-                  <div className="font-semibold text-gray-800 text-sm leading-snug mb-1 line-clamp-2">{item.simplified_name || item.model}</div>
-                  <div className="text-xs text-gray-400 mb-2">{item.model}</div>
-                  <div className="font-bold text-gray-900">{fmtPKR(item.price.cash_floor * item.qty)}</div>
+                  <div className="text-[10px] text-brand-500 font-bold uppercase tracking-wide">{item.brand}</div>
+                  <div className="font-semibold text-gray-800 text-sm leading-snug mb-0.5 line-clamp-2">{item.simplified_name || item.model}</div>
+                  <div className="text-[11px] text-gray-400 mb-2 font-mono truncate">{item.model}</div>
+                  <div className="font-bold text-gray-900 text-sm">{fmtPKR(item.price.cash_floor * item.qty)}</div>
                   {item.qty > 1 && <div className="text-xs text-gray-400">{fmtPKR(item.price.cash_floor)} each</div>}
                 </div>
-                <div className="flex flex-col items-end gap-3">
-                  <button onClick={() => removeItem(item.id)} className="text-gray-300 hover:text-red-500 transition-colors p-1">
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                  <button onClick={() => removeItem(item.id)}
+                    className="w-9 h-9 flex items-center justify-center text-gray-300 hover:text-red-500 active:text-red-600 transition-colors rounded-lg">
                     <Trash2 className="w-4 h-4" />
                   </button>
-                  <div className="flex items-center gap-2 border border-gray-200 rounded-xl overflow-hidden">
-                    <button onClick={() => updateQty(item.id, item.qty - 1)} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100">
-                      <Minus className="w-3 h-3" />
+                  <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden">
+                    <button onClick={() => updateQty(item.id, item.qty - 1)}
+                      className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 transition-colors">
+                      <Minus className="w-3.5 h-3.5" />
                     </button>
-                    <span className="w-6 text-center text-sm font-semibold">{item.qty}</span>
-                    <button onClick={() => updateQty(item.id, item.qty + 1)} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100">
-                      <Plus className="w-3 h-3" />
+                    <span className="w-7 text-center text-sm font-bold">{item.qty}</span>
+                    <button onClick={() => updateQty(item.id, item.qty + 1)}
+                      className="w-9 h-9 flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 transition-colors">
+                      <Plus className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -101,23 +106,21 @@ export default function Cart() {
       </div>
 
       {/* Mobile sticky bottom bar — always visible, replaces scrolling to summary */}
-      <div className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-white border-t border-gray-200 px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
-        <div className="flex items-center justify-between mb-2.5">
-          <div>
-            <p className="text-xs text-gray-500">{items.reduce((t, i) => t + i.qty, 0)} item{items.reduce((t, i) => t + i.qty, 0) !== 1 ? 's' : ''} · Free delivery</p>
-            <p className="text-lg font-black text-gray-900">{fmtPKR(cartTotal)}</p>
-            {plan12 && <p className="text-xs text-gray-400">or {fmtPKR(plan12.monthly)}/mo × 12</p>}
+      <div className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-white border-t border-gray-200 px-4 pt-3 pb-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] safe-bottom">
+        <div className="flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] text-gray-500">{items.reduce((t, i) => t + i.qty, 0)} item{items.reduce((t, i) => t + i.qty, 0) !== 1 ? 's' : ''} · Free delivery</p>
+            <p className="text-base font-black text-gray-900 leading-tight">{fmtPKR(cartTotal)}</p>
+            {plan12 && <p className="text-[11px] text-gray-400">or {fmtPKR(plan12.monthly)}/mo × 12</p>}
           </div>
-          <div className="flex gap-2">
-            <a href={waLink}
-              className="flex items-center justify-center w-11 h-11 bg-green-500 hover:bg-green-600 text-white rounded-xl transition-colors">
-              <MessageCircle className="w-5 h-5" />
-            </a>
-            <Link to="/checkout"
-              className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white px-5 h-11 rounded-xl font-bold text-sm transition-colors">
-              Checkout <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
+          <a href={waLink}
+            className="flex items-center justify-center w-12 h-12 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white rounded-xl transition-colors shrink-0">
+            <MessageCircle className="w-5 h-5" />
+          </a>
+          <Link to="/checkout"
+            className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-white px-5 h-12 rounded-xl font-bold text-sm transition-colors shrink-0">
+            Checkout <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
       </div>
     </>

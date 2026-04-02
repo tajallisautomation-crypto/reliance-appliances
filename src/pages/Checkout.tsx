@@ -97,7 +97,7 @@ export default function Checkout() {
             <Upload className="w-4 h-4 text-amber-600 flex-shrink-0" />
             <p className="text-sm font-bold text-amber-900">Send your transfer proof</p>
           </div>
-          <p className="text-xs text-amber-700 mb-3">You selected <strong>{transferFile.name}</strong> — please send it via WhatsApp so we can apply your 1% discount.</p>
+          <p className="text-xs text-amber-700 mb-3">You selected <strong>{transferFile.name}</strong> — please send it via WhatsApp so we can confirm your transfer and proceed.</p>
           <a href={waSales(`Order ref: ${orderId} — attaching transfer proof`)} target="_blank" rel="noreferrer"
             className="inline-flex items-center gap-2 bg-green-500 text-white px-4 py-2.5 rounded-xl text-sm font-semibold w-full justify-center">
             💬 Send Screenshot on WhatsApp
@@ -184,12 +184,12 @@ export default function Checkout() {
           <div>
             <label className="text-sm font-medium text-gray-700 block mb-3">Payment Method</label>
             <div className="space-y-2">
-              <button onClick={() => setPlan('cash')} className={`w-full p-4 rounded-xl border-2 text-left ${plan==='cash'?'border-brand-500 bg-brand-50':'border-gray-200'}`}>
+              <button onClick={() => setPlan('cash')} className={`w-full p-4 rounded-xl border-2 text-left transition-colors ${plan==='cash'?'border-brand-500 bg-brand-50':'border-gray-200 hover:border-gray-300'}`}>
                 <div className="font-semibold text-gray-800">Cash on Delivery</div>
                 <div className="text-sm text-gray-500">Full amount: {fmtPKR(cartTotal)}</div>
               </button>
               {Object.entries(plans).map(([key, p]) => (
-                <button key={key} onClick={() => setPlan(key)} className={`w-full p-4 rounded-xl border-2 text-left ${plan===key?'border-brand-500 bg-brand-50':'border-gray-200'}`}>
+                <button key={key} onClick={() => setPlan(key)} className={`w-full p-4 rounded-xl border-2 text-left transition-colors ${plan===key?'border-brand-500 bg-brand-50':'border-gray-200 hover:border-gray-300'}`}>
                   <div className="font-semibold text-gray-800">{PLAN_LABELS[key] || key} Installment Plan</div>
                   <div className="text-sm text-gray-500">Advance: {fmtPKR(p.advance)} · Then {fmtPKR(p.monthly)}/mo × {p.monthlyPayments}</div>
                 </button>
@@ -197,14 +197,26 @@ export default function Checkout() {
             </div>
           </div>
 
-          {/* Bank transfer discount — optional */}
+          {/* Bank transfer / advance transfer section */}
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
             <div className="flex items-center gap-2 mb-3">
               <Banknote className="w-5 h-5 text-amber-600" />
-              <p className="font-bold text-amber-900 text-sm">Get 1% off with bank transfer</p>
-              <span className="ml-auto text-[10px] font-bold uppercase tracking-wider bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">Optional</span>
+              <p className="font-bold text-amber-900 text-sm">
+                {plan === 'cash' ? 'Get 1% off with bank transfer' : `Transfer advance to start verification`}
+              </p>
+              {plan === 'cash' && (
+                <span className="ml-auto text-[10px] font-bold uppercase tracking-wider bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">Optional</span>
+              )}
+              {plan !== 'cash' && selectedPlan && (
+                <span className="ml-auto text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">Required</span>
+              )}
             </div>
-            <p className="text-xs text-amber-700 mb-3">Skip this if paying cash on delivery. Transfer the advance or full amount to save 1%.</p>
+            <p className="text-xs text-amber-700 mb-3">
+              {plan === 'cash'
+                ? 'Transfer the full amount to save 1%. Skip this if paying cash on delivery.'
+                : `Transfer the advance of ${selectedPlan ? fmtPKR(selectedPlan.advance) : ''} before delivery. Verification and delivery scheduling starts only after the advance is received.`
+              }
+            </p>
             <div className="space-y-2">
               {BANK_DETAILS.map(b => (
                 <div key={b.bank} className="bg-white rounded-xl px-4 py-3 border border-amber-100">
@@ -296,7 +308,7 @@ export default function Checkout() {
     </div>
 
     {/* Mobile sticky bottom checkout bar */}
-    <div className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-white border-t border-gray-200 px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+    <div className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-white border-t border-gray-200 px-4 pt-3 pb-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] safe-bottom">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           {selectedPlan ? (

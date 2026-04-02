@@ -52,9 +52,9 @@ export default function Navbar() {
 
   return (
     <>
-      <header className={`sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-100/80 transition-shadow duration-200 overflow-x-hidden ${scrolled ? 'shadow-apple-lg' : ''}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-1 sm:gap-3 h-16">
+      <header className={`sticky top-0 z-30 bg-white/95 backdrop-blur-xl border-b border-gray-100/80 transition-shadow duration-200 overflow-x-hidden ${scrolled ? 'shadow-apple-lg' : ''}`}>
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-1 sm:gap-3 h-14 sm:h-16">
 
             {/* Logo — seamless SVG mark + wordmark, transparent background */}
             <Link to="/" className="flex items-center gap-1.5 sm:gap-2 shrink-0 mr-1 sm:mr-3 group" aria-label="Tajalli's — Home page">
@@ -141,24 +141,29 @@ export default function Navbar() {
 
         {/* Mobile menu */}
         {mobileOpen && (
-          <div className="lg:hidden border-t border-gray-100 bg-white px-4 py-3 space-y-1">
+          <div className="lg:hidden border-t border-gray-100 bg-white px-3 py-3 max-h-[80vh] overflow-y-auto no-scrollbar">
             <div className="mb-3">
-              <SearchBar placeholder="Search products…" />
+              <SearchBar placeholder="Search products…" autoFocus />
             </div>
-            {MOBILE_LINKS.map(([label, href]) => (
-              <Link key={href} to={href} onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  href === '/green-corridor'
-                    ? 'text-eco-700 hover:bg-eco-50'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}>
-                {href === '/green-corridor' && <Leaf className="w-4 h-4 text-eco-500" />}
-                {label}
-              </Link>
-            ))}
-            <div className="pt-2 border-t border-gray-100">
-              <a href="tel:+923702578788" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600">
-                <Phone className="h-4 w-4" /> +92 370 2578788
+            <div className="space-y-0.5">
+              {MOBILE_LINKS.map(([label, href]) => (
+                <Link key={href} to={href} onClick={() => setMobileOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-[15px] font-medium transition-colors min-h-[52px] ${
+                    isActive(href)
+                      ? 'bg-brand-50 text-brand-600 font-semibold'
+                      : href === '/green-corridor'
+                        ? 'text-eco-700 hover:bg-eco-50 active:bg-eco-100'
+                        : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'
+                  }`}>
+                  {href === '/green-corridor' && <Leaf className="w-4 h-4 text-eco-500 flex-shrink-0" />}
+                  {label}
+                </Link>
+              ))}
+            </div>
+            <div className="pt-3 mt-2 border-t border-gray-100 space-y-1">
+              <a href="tel:+923702578788"
+                className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-[15px] text-gray-600 font-medium hover:bg-gray-50 active:bg-gray-100 min-h-[52px]">
+                <Phone className="h-4 w-4 text-green-500 flex-shrink-0" /> +92 370 2578788
               </a>
             </div>
           </div>

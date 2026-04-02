@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSearchParams, useParams, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { Grid3X3, List, SlidersHorizontal, X, ChevronDown, ChevronUp } from 'lucide-react'
-import { getProducts, DEFAULT_CATEGORIES, formatPrice, type Product } from '../lib/api'
+import { getProducts, DEFAULT_CATEGORIES, type Product } from '../lib/api'
 import ProductCard from '../components/products/ProductCard'
 import SEO from '../components/ui/SEO'
 
@@ -460,32 +460,32 @@ export default function Products() {
       </Helmet>
 
       {/* ── Top bar ── */}
-      <div className="bg-white border-b sticky top-16 z-30 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3 flex-wrap">
+      <div className="bg-white border-b sticky top-14 sm:top-16 z-30 shadow-sm">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3">
 
           {/* Result count */}
-          <div className="text-sm text-gray-500 min-w-0">
+          <div className="text-xs sm:text-sm text-gray-500 min-w-0 shrink-0">
             <span className="text-gray-900 font-semibold">{loading ? '…' : filteredProducts.length}</span>
             {!loading && filteredProducts.length !== total && (
               <span className="text-gray-400"> of {total}</span>
             )}
-            <span className="ml-1">products</span>
+            <span className="ml-0.5 hidden sm:inline"> products</span>
             {activeCat && (
               <span className="ml-1 hidden sm:inline">
                 in <span className="text-brand-600 font-medium">{activeCat.icon} {activeCat.name}</span>
               </span>
             )}
             {search && (
-              <span className="ml-1">for "<span className="text-brand-600 font-medium">{search}</span>"</span>
+              <span className="ml-1 truncate max-w-[100px] hidden sm:inline">for "<span className="text-brand-600 font-medium">{search}</span>"</span>
             )}
           </div>
 
-          <div className="flex items-center gap-2 ml-auto flex-wrap">
-            {/* Group tabs — desktop */}
-            <div className="hidden lg:flex gap-1 overflow-x-auto">
+          {/* Scrollable category chips — mobile */}
+          <div className="flex-1 overflow-x-auto no-scrollbar lg:hidden">
+            <div className="flex gap-1.5 w-max">
               <button onClick={() => { goToCategory(''); setManualGroup(null) }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all
-                  ${!activeGroupId ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-brand-50'}`}>
+                className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all min-h-[36px]
+                  ${!activeGroupId ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 active:bg-brand-50'}`}>
                 All
               </button>
               {CATEGORY_GROUPS.map(g => {
@@ -493,53 +493,72 @@ export default function Products() {
                 return (
                   <button key={g.id}
                     onClick={() => {
-                      if (g.cats.length === 1) {
-                        setManualGroup(g.id); goToCategory(g.cats[0])
-                      } else {
-                        setManualGroup(isActive ? null : g.id)
-                        if (isActive) goToCategory('')
-                      }
+                      if (g.cats.length === 1) { setManualGroup(g.id); goToCategory(g.cats[0]) }
+                      else { setManualGroup(isActive ? null : g.id); if (isActive) goToCategory('') }
                     }}
-                    className={`px-2.5 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap flex items-center gap-1 transition-all
-                      ${isActive ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-brand-50'}`}>
+                    className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap flex items-center gap-1 transition-all min-h-[36px]
+                      ${isActive ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 active:bg-brand-50'}`}>
                     {g.icon} {g.label}
                   </button>
                 )
               })}
             </div>
+          </div>
 
-            <div className="flex items-center gap-2">
-              {/* Sort */}
-              <select value={sort} onChange={e => setFilter('sort', e.target.value)}
-                className="text-xs border border-gray-200 rounded-xl px-3 py-1.5 bg-white focus:outline-none focus:border-brand-400 cursor-pointer">
-                {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+          {/* Group tabs — desktop only */}
+          <div className="hidden lg:flex gap-1 overflow-x-auto">
+            <button onClick={() => { goToCategory(''); setManualGroup(null) }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all
+                ${!activeGroupId ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-brand-50'}`}>
+              All
+            </button>
+            {CATEGORY_GROUPS.map(g => {
+              const isActive = g.id === activeGroupId
+              return (
+                <button key={g.id}
+                  onClick={() => {
+                    if (g.cats.length === 1) { setManualGroup(g.id); goToCategory(g.cats[0]) }
+                    else { setManualGroup(isActive ? null : g.id); if (isActive) goToCategory('') }
+                  }}
+                  className={`px-2.5 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap flex items-center gap-1 transition-all
+                    ${isActive ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-brand-50'}`}>
+                  {g.icon} {g.label}
+                </button>
+              )
+            })}
+          </div>
 
-              {/* Filter toggle */}
-              <button onClick={() => setShowFilters(f => !f)}
-                className={`relative flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border transition-all
-                  ${showFilters ? 'bg-brand-500 text-white border-brand-500' : 'border-gray-200 text-gray-600 hover:border-brand-200'}`}>
-                <SlidersHorizontal className="w-3.5 h-3.5" />
-                Filters
-                {activeFilterCount > 0 && (
-                  <span className={`ml-0.5 w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center
-                    ${showFilters ? 'bg-white text-brand-500' : 'bg-brand-500 text-white'}`}>
-                    {activeFilterCount}
-                  </span>
-                )}
+          <div className="flex items-center gap-1.5 sm:gap-2 ml-auto shrink-0">
+            {/* Sort */}
+            <select value={sort} onChange={e => setFilter('sort', e.target.value)}
+              className="text-xs border border-gray-200 rounded-xl px-2 sm:px-3 py-1.5 bg-white focus:outline-none focus:border-brand-400 cursor-pointer min-h-[36px]">
+              {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+
+            {/* Filter toggle */}
+            <button onClick={() => setShowFilters(f => !f)}
+              className={`relative flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border transition-all min-h-[36px]
+                ${showFilters ? 'bg-brand-500 text-white border-brand-500' : 'border-gray-200 text-gray-600 hover:border-brand-200'}`}>
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Filters</span>
+              {activeFilterCount > 0 && (
+                <span className={`w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center
+                  ${showFilters ? 'bg-white text-brand-500' : 'bg-brand-500 text-white'}`}>
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+
+            {/* View toggle — hidden on mobile (always grid) */}
+            <div className="hidden sm:flex border border-gray-200 rounded-xl overflow-hidden">
+              <button onClick={() => setView('grid')}
+                className={`p-1.5 transition-colors ${view === 'grid' ? 'bg-brand-500 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                <Grid3X3 className="w-4 h-4" />
               </button>
-
-              {/* View toggle */}
-              <div className="flex border border-gray-200 rounded-xl overflow-hidden">
-                <button onClick={() => setView('grid')}
-                  className={`p-1.5 transition-colors ${view === 'grid' ? 'bg-brand-500 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
-                  <Grid3X3 className="w-4 h-4" />
-                </button>
-                <button onClick={() => setView('list')}
-                  className={`p-1.5 transition-colors ${view === 'list' ? 'bg-brand-500 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
-                  <List className="w-4 h-4" />
-                </button>
-              </div>
+              <button onClick={() => setView('list')}
+                className={`p-1.5 transition-colors ${view === 'list' ? 'bg-brand-500 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                <List className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>
@@ -709,11 +728,11 @@ export default function Products() {
       </div>
 
       {/* ── Product Grid ── */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
         {loading ? (
-          <div className={view === 'grid' ? 'grid sm:grid-cols-2 lg:grid-cols-4 gap-5' : 'space-y-4'}>
+          <div className={view === 'grid' ? 'grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5' : 'space-y-3'}>
             {Array.from({ length: 12 }).map((_, i) => (
-              <div key={i} className={`bg-gray-100 rounded-2xl animate-pulse ${view === 'grid' ? 'h-72' : 'h-28'}`} />
+              <div key={i} className={`bg-gray-100 rounded-2xl animate-pulse ${view === 'grid' ? 'h-60 sm:h-72' : 'h-24 sm:h-28'}`} />
             ))}
           </div>
         ) : fetchError ? (
@@ -737,8 +756,8 @@ export default function Products() {
         ) : (
           <>
             <div className={view === 'grid'
-              ? 'grid sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-5'
-              : 'space-y-4'}>
+              ? 'grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-5'
+              : 'space-y-3 sm:space-y-4'}>
               {filteredProducts.map(p => <ProductCard key={p.id} product={p} />)}
             </div>
             {filteredProducts.length >= 40 && (
@@ -777,8 +796,8 @@ function FilterSection({ label, expanded, onToggle, children }: {
 function Pill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button onClick={onClick}
-      className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all
-        ${active ? 'bg-brand-500 text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-700 hover:border-brand-200 hover:text-brand-600'}`}>
+      className={`px-3 py-2 rounded-xl text-xs font-medium transition-all min-h-[36px]
+        ${active ? 'bg-brand-500 text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-700 hover:border-brand-200 hover:text-brand-600 active:bg-gray-50'}`}>
       {children}
     </button>
   )

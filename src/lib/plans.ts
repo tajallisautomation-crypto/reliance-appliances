@@ -8,10 +8,10 @@ type PlanRatio = { markup: number; advRatio: number; installments: number };
 type PlanRatioMap = Record<'2m' | '3m' | '6m' | '12m', PlanRatio>;
 
 const _DEFAULT_PLANS: PlanRatioMap = {
-  '2m':  { markup: 1.10, advRatio: 0.50, installments: 1  },
-  '3m':  { markup: 1.15, advRatio: 0.45, installments: 2  },
-  '6m':  { markup: 1.25, advRatio: 0.40, installments: 5  },
-  '12m': { markup: 1.40, advRatio: 0.30, installments: 11 },
+  '2m':  { markup: 1.08, advRatio: 0.50, installments: 1  },
+  '3m':  { markup: 1.13, advRatio: 0.45, installments: 2  },
+  '6m':  { markup: 1.20, advRatio: 0.40, installments: 5  },
+  '12m': { markup: 1.35, advRatio: 0.30, installments: 11 },
 };
 
 // Runtime-overridable ratios (set by settingsStore after loading from Supabase)

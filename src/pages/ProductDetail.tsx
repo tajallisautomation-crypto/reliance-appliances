@@ -140,13 +140,22 @@ export default function ProductDetail() {
   );
 
   const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://tajallis.com.pk';
-  // Find the best matching DEFAULT_CATEGORIES entry for this product's DB category
-  // (DB may store "Televisions & LEDs" which differs from slug 'televisions')
+  // Resolve the canonical category slug for breadcrumb + structured data.
+  // Priority: 1) normalized seo_category_slug from taxonomy (most accurate)
+  //           2) DEFAULT_CATEGORIES slug match against raw DB category string
+  //           3) slugified raw category string as last resort
   const _rawCat = p.category.toLowerCase();
   const _catEntry = DEFAULT_CATEGORIES.find(c => c.slug === _rawCat.replace(/\s+/g, '-'))
                  || DEFAULT_CATEGORIES.find(c => _rawCat.includes(c.name.toLowerCase()))
                  || DEFAULT_CATEGORIES.find(c => _rawCat.includes(c.id));
-  const catSlug  = _catEntry?.slug ?? _rawCat.replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  const catSlug = p.seo_category_slug
+    || _catEntry?.slug
+    || _rawCat.replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+
+  // Human-readable category label for breadcrumb display
+  // Use normalized_category when available so the breadcrumb shows a clean name
+  // (e.g. "Solar Inverters" instead of "Hybrid Inverter")
+  const catLabel = p.normalized_category || p.category;
 
   // Product structured data — includes MPN, SKU, and spec-based additionalProperty
   const productSchema = {
@@ -189,7 +198,7 @@ export default function ProductDetail() {
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Home',     item: SITE_URL },
       { '@type': 'ListItem', position: 2, name: 'Products', item: `${SITE_URL}/products` },
-      { '@type': 'ListItem', position: 3, name: p.category, item: `${SITE_URL}/products/category/${catSlug}` },
+      { '@type': 'ListItem', position: 3, name: catLabel, item: `${SITE_URL}/products/category/${catSlug}` },
       { '@type': 'ListItem', position: 4, name: p.simplified_name || p.model },
     ],
   };
@@ -205,7 +214,7 @@ export default function ProductDetail() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-28 md:pb-8">
       <SEO path={`/products/${p.slug}`} title={p.seo.title} description={p.seo.description}
         keywords={p.seo.keywords} ogImage={p.thumbnail} type="product" />
 
@@ -215,16 +224,14 @@ export default function ProductDetail() {
       </Helmet>
 
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6 flex-wrap">
-        <Link to="/" className="hover:text-brand-600">Home</Link><span>/</span>
-        <Link to="/products" className="hover:text-brand-600">Products</Link><span>/</span>
-        <Link
-          to={`/products/category/${catSlug}`}
-          className="hover:text-brand-600">{p.category}</Link><span>/</span>
-        <span className="text-gray-900 font-medium truncate max-w-xs">{p.model}</span>
+      <nav className="flex items-center gap-1.5 text-xs sm:text-sm text-gray-500 mb-4 sm:mb-6 overflow-x-auto no-scrollbar whitespace-nowrap">
+        <Link to="/" className="hover:text-brand-600 shrink-0">Home</Link><span className="shrink-0">/</span>
+        <Link to="/products" className="hover:text-brand-600 shrink-0">Products</Link><span className="shrink-0">/</span>
+        <Link to={`/products/category/${catSlug}`} className="hover:text-brand-600 shrink-0">{catLabel}</Link><span className="shrink-0">/</span>
+        <span className="text-gray-900 font-medium truncate">{p.model}</span>
       </nav>
 
-      <div className="grid md:grid-cols-2 gap-10 lg:gap-16">
+      <div className="grid md:grid-cols-2 gap-6 sm:gap-10 lg:gap-16">
 
         {/* ── Images (sticky) ── */}
         <div className="md:sticky md:top-24 self-start">
@@ -250,10 +257,10 @@ export default function ProductDetail() {
             </div>
           </div>
           {allImages.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto pb-1">
+            <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
               {allImages.map((img, i) => (
                 <button key={i} onClick={() => setActiveImg(i)}
-                  className={`flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-all ${activeImg === i ? 'border-brand-500' : 'border-gray-100 hover:border-brand-200'}`}>
+                  className={`flex-shrink-0 w-16 h-16 sm:w-16 sm:h-16 rounded-xl overflow-hidden border-2 transition-all active:scale-95 ${activeImg === i ? 'border-brand-500' : 'border-gray-100 hover:border-brand-200'}`}>
                   <img src={img} alt="" className="w-full h-full object-contain p-1" />
                 </button>
               ))}
@@ -628,12 +635,12 @@ export default function ProductDetail() {
       </div>
 
       {/* ── TABBED CONTENT ────────────────────────────────────────── */}
-      <div className="mt-14">
-        {/* Tab bar */}
-        <div className="flex gap-1 border-b border-gray-100 mb-8 overflow-x-auto">
+      <div className="mt-8 sm:mt-14">
+        {/* Tab bar — scrollable on mobile */}
+        <div className="flex gap-0 border-b border-gray-100 mb-6 sm:mb-8 overflow-x-auto no-scrollbar">
           {TABS.map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-              className={`px-5 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-all -mb-px ${
+              className={`px-4 sm:px-5 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-all -mb-px min-h-[44px] ${
                 activeTab === tab.key
                   ? 'border-brand-500 text-brand-600'
                   : 'border-transparent text-gray-500 hover:text-gray-800'
@@ -647,7 +654,7 @@ export default function ProductDetail() {
         {activeTab === 'specs' && (
           <div className="animate-fade-in">
             {specEntries.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                 {specEntries.map(([key, val]) => (
                   <div key={key} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
                     <p className="text-xs text-gray-400 uppercase tracking-wide mb-0.5 capitalize">{key.replace(/_/g, ' ')}</p>
@@ -884,7 +891,7 @@ export default function ProductDetail() {
       {/* Related products — skeleton while loading, hidden if none found */}
       {(relatedLoading || related.length > 0) && (
         <div className="mt-14">
-          <h2 className="text-lg font-extrabold text-gray-900 mb-5">More {p.category.replace(/s$/, '')}s</h2>
+          <h2 className="text-lg font-extrabold text-gray-900 mb-5">More {catLabel.replace(/s$/, '')}s</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {relatedLoading
               ? Array.from({ length: 4 }).map((_, i) => (
@@ -909,6 +916,45 @@ export default function ProductDetail() {
           <ArrowLeft className="h-4 w-4" /> Back to Products
         </Link>
       </div>
+
+      {/* ── Mobile sticky CTA bar ── */}
+      {!isHighTicket && (
+        <div className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-white border-t border-gray-200 px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] safe-bottom">
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] text-gray-500 leading-none mb-0.5">
+                {plan === 'cash' ? 'Cash price' : PLAN_LABELS[plan] + ' from'}
+              </p>
+              <p className="text-lg font-black text-gray-900 leading-tight">
+                {plan === 'cash'
+                  ? `PKR ${formatPrice(p.price.cash_floor)}`
+                  : planData ? `PKR ${formatPrice(effectiveAdvance)} advance` : `PKR ${formatPrice(p.price.cash_floor)}`}
+              </p>
+              {plan !== 'cash' && planData && (
+                <p className="text-[10px] text-gray-400">then PKR {formatPrice(customMonthly)}/mo × {planData.monthlyPayments}</p>
+              )}
+            </div>
+            <a href={waUrl} target="_blank" rel="noreferrer"
+              className="flex items-center justify-center gap-2 bg-[#25d366] hover:bg-[#1ebe57] active:bg-[#1ebe57] text-white px-5 h-12 rounded-xl font-bold text-sm transition-colors shrink-0">
+              <MessageCircle className="w-4 h-4" />
+              {plan === 'cash' ? 'Enquire' : 'Get Quote'}
+            </a>
+            <button onClick={handleAdd} disabled={p.stock_status !== 'In Stock'}
+              className="flex items-center justify-center gap-1.5 bg-brand-500 hover:bg-brand-600 active:bg-brand-700 disabled:opacity-40 text-white px-4 h-12 rounded-xl font-bold text-sm transition-colors shrink-0">
+              <ShoppingCart className="w-4 h-4" />
+              Cart
+            </button>
+          </div>
+        </div>
+      )}
+      {isHighTicket && (
+        <div className="md:hidden fixed bottom-0 inset-x-0 z-20 bg-white border-t border-gray-200 px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] safe-bottom">
+          <a href={waConsultUrl} target="_blank" rel="noreferrer"
+            className="flex items-center justify-center gap-2 w-full bg-[#25d366] text-white h-12 rounded-xl font-bold text-sm">
+            <CalendarDays className="w-4 h-4" /> Book Free Consultation
+          </a>
+        </div>
+      )}
     </div>
   );
 }
