@@ -1,4 +1,10 @@
 {
+  "crons": [
+    {
+      "path":     "/api/catalog-refresh",
+      "schedule": "0 */6 * * *"
+    }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)",     "destination": "/index.html" }

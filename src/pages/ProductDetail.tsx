@@ -162,7 +162,7 @@ export default function ProductDetail() {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: p.simplified_name || p.model,
-    description: p.description,
+    description: p.description || p.seo.description || `${p.brand} ${p.model} — available at Reliance by Tajallis, Karachi.`,
     brand: { '@type': 'Brand', name: p.brand },
     model: p.model,
     sku: p.model,
@@ -187,6 +187,16 @@ export default function ProductDetail() {
         returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
         merchantReturnDays: 7,
         returnMethod: 'https://schema.org/ReturnInStore',
+      },
+      shippingDetails: {
+        '@type': 'OfferShippingDetails',
+        shippingRate: { '@type': 'MonetaryAmount', value: 0, currency: 'PKR' },
+        shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'PK', addressRegion: 'Sindh' },
+        deliveryTime: {
+          '@type': 'ShippingDeliveryTime',
+          handlingTime: { '@type': 'QuantitativeValue', minValue: 0, maxValue: 1, unitCode: 'DAY' },
+          transitTime:  { '@type': 'QuantitativeValue', minValue: 1, maxValue: 2, unitCode: 'DAY' },
+        },
       },
     },
   };

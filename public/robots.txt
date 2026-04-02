@@ -1,17 +1,22 @@
 User-agent: *
 Allow: /
+
+# Admin / private routes
 Disallow: /portal
 Disallow: /admin
 Disallow: /checkout
 Disallow: /cart
-# Block paginated/faceted filter URLs that create thin duplicate content
+
+# API endpoints — not indexable content (sitemap is declared separately below)
+Disallow: /api/
+
+# Block paginated / faceted filter URLs — thin duplicate content
 Disallow: /products?page=
 Disallow: /search?
 
-# Allow crawlers to access all static assets needed for rendering
+# Allow static assets required for client-side rendering
 Allow: /assets/
-Allow: /*.js$
-Allow: /*.css$
+Allow: /*.js
+Allow: /*.css
 
-# Sitemap — update to canonical domain once reliance.tajallis.com.pk → tajallis.com.pk
 Sitemap: https://reliance.tajallis.com.pk/api/sitemap.xml

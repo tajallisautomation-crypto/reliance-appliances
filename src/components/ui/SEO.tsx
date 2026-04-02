@@ -74,15 +74,17 @@ export default function SEO({ title, description, keywords, path = '/', ogImage,
       <link rel="canonical"             href={canonical} />
 
       {/* Open Graph */}
-      <meta property="og:site_name"    content={COMPANY} />
-      <meta property="og:locale"       content="en_PK" />
-      <meta property="og:title"        content={fullTitle} />
-      <meta property="og:description"  content={desc} />
-      <meta property="og:url"          content={canonical} />
-      <meta property="og:image"        content={image} />
-      <meta property="og:image:width"  content="1200" />
-      <meta property="og:image:height" content="630" />
-      <meta property="og:type"         content={type} />
+      <meta property="og:site_name"        content={COMPANY} />
+      <meta property="og:locale"           content="en_PK" />
+      <meta property="og:title"            content={fullTitle} />
+      <meta property="og:description"      content={desc} />
+      <meta property="og:url"              content={canonical} />
+      <meta property="og:image"            content={image} />
+      <meta property="og:image:secure_url" content={image} />
+      <meta property="og:image:width"      content="1200" />
+      <meta property="og:image:height"     content="630" />
+      <meta property="og:image:alt"        content={fullTitle} />
+      <meta property="og:type"             content={type} />
 
       {/* Twitter Card */}
       <meta name="twitter:card"        content="summary_large_image" />
@@ -90,6 +92,11 @@ export default function SEO({ title, description, keywords, path = '/', ogImage,
       <meta name="twitter:title"       content={fullTitle} />
       <meta name="twitter:description" content={desc} />
       <meta name="twitter:image"       content={image} />
+      <meta name="twitter:image:alt"   content={fullTitle} />
+
+      {/* Regional targeting — Pakistan, English */}
+      <link rel="alternate" hrefLang="en-PK" href={canonical} />
+      <link rel="alternate" hrefLang="x-default" href={canonical} />
 
       {/* Structured data */}
       <script type="application/ld+json">{JSON.stringify(ORG_SCHEMA)}</script>

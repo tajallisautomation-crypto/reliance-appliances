@@ -8,7 +8,52 @@ import { getProducts, formatPrice, calcPlan, type Product } from '@/lib/api'
 import SEO from '@/components/ui/SEO'
 import { waSales } from '@/lib/whatsapp'
 import { useMyopStore } from '@/store/myopStore'
-import { checkCompatibility, parseBatteryVoltage } from '@/lib/compatibility'
+import { checkCompatibility, parseBatteryVoltage, type CompatibilityResult } from '@/lib/compatibility'
+
+// ── Solar compatibility helpers ───────────────────────────────────────────────
+
+function isSolarInverter(p: Product): boolean {
+  const nc = (p.normalized_category || '').toLowerCase()
+  const oc = (p.original_category  || '').toLowerCase()
+  return nc.includes('inverter') || oc.includes('inverter')
+}
+
+function isSolarBattery(p: Product): boolean {
+  const nc = (p.normalized_category || '').toLowerCase()
+  const oc = (p.original_category  || '').toLowerCase()
+  return nc.includes('batter') || oc.includes('batter')
+}
+
+/** Parse inverter rated output power (kW) from product specs. Returns null if not found. */
+function parseInverterPowerKw(specs: Record<string, string>): number | null {
+  for (const [k, v] of Object.entries(specs)) {
+    const kl = k.toLowerCase().trim()
+    if ((kl.includes('output') || kl.includes('rated') || kl.includes('capacity')) && kl.includes('kw')) {
+      const m = String(v).match(/(\d+\.?\d*)/)
+      if (m) return parseFloat(m[1])
+    }
+  }
+  // Fallback: any key with 'power' containing a kW value
+  for (const [k, v] of Object.entries(specs)) {
+    if (k.toLowerCase().includes('power')) {
+      const m = String(v).match(/(\d+\.?\d*)\s*kw/i)
+      if (m) return parseFloat(m[1])
+    }
+  }
+  return null
+}
+
+/** Parse battery voltage from product specs. */
+function parseBatteryVoltageFromSpecs(specs: Record<string, string>): 24 | 48 | 'unknown' {
+  const VOLT_KEYS = ['battery voltage', 'voltage', 'system voltage', 'nominal voltage', 'dc voltage']
+  for (const [k, v] of Object.entries(specs)) {
+    const kl = k.toLowerCase().trim()
+    if (VOLT_KEYS.some(vk => kl === vk || kl.includes(vk))) {
+      return parseBatteryVoltage(v)
+    }
+  }
+  return 'unknown'
+}
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -66,16 +111,34 @@ function ProductTile({
   selected,
   onAdd,
   onRemove,
+  compatibilityResult,
 }: {
   product:  Product
   selected: boolean
   onAdd:    () => void
   onRemove: () => void
+  /** Set for solar batteries when an inverter is already in the package */
+  compatibilityResult?: CompatibilityResult
 }) {
+  const incompatible = compatibilityResult?.status === 'incompatible'
+  const needsReview  = compatibilityResult?.status === 'uncertain_manual_review'
+
   return (
     <div className={`relative bg-white rounded-2xl border-2 transition-all overflow-hidden group ${
-      selected ? 'border-orange-400 shadow-lg shadow-orange-50' : 'border-gray-100 hover:border-orange-200 hover:shadow-md'
+      incompatible ? 'border-red-200 opacity-60' :
+      selected     ? 'border-orange-400 shadow-lg shadow-orange-50'
+                   : 'border-gray-100 hover:border-orange-200 hover:shadow-md'
     }`}>
+      {incompatible && (
+        <div className="absolute top-0 left-0 right-0 z-10 bg-red-500 text-white text-[10px] font-bold text-center py-1 leading-tight">
+          ⚠ Incompatible with your inverter
+        </div>
+      )}
+      {needsReview && !incompatible && (
+        <div className="absolute top-0 left-0 right-0 z-10 bg-amber-400 text-gray-900 text-[10px] font-bold text-center py-1 leading-tight">
+          ⚠ Needs compatibility review
+        </div>
+      )}
       {selected && (
         <div className="absolute top-2 right-2 z-10">
           <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center shadow">
@@ -113,10 +176,16 @@ function ProductTile({
           </button>
         ) : (
           <button
-            onClick={onAdd}
-            className="w-full py-2 rounded-xl text-sm font-bold bg-gray-900 hover:bg-orange-500 text-white transition-colors"
+            onClick={incompatible ? undefined : onAdd}
+            disabled={incompatible}
+            title={incompatible ? compatibilityResult?.message : undefined}
+            className={`w-full py-2 rounded-xl text-sm font-bold transition-colors ${
+              incompatible
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-gray-900 hover:bg-orange-500 text-white'
+            }`}
           >
-            + Add to Package
+            {incompatible ? '✗ Incompatible' : '+ Add to Package'}
           </button>
         )}
       </div>
@@ -279,6 +348,20 @@ export default function MYOPPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading,  setLoading]  = useState(false)
 
+  // Solar compatibility: detect if user has an inverter in their package
+  const selectedInverterItem = selected.find(item => isSolarInverter(item.product))
+  const inverterPowerKw      = selectedInverterItem ? parseInverterPowerKw(selectedInverterItem.product.specs) : null
+  const inverterBrand        = selectedInverterItem?.product.brand ?? ''
+  const inverterModel        = selectedInverterItem?.product.model ?? ''
+
+  /** Returns a CompatibilityResult for battery products on the solar tab; null otherwise */
+  function getBatteryCompatibility(p: Product): CompatibilityResult | undefined {
+    if (activeTab !== 'solar' || !selectedInverterItem || inverterPowerKw === null) return undefined
+    if (!isSolarBattery(p)) return undefined
+    const bv = parseBatteryVoltageFromSpecs(p.specs)
+    return checkCompatibility({ inverterPowerKw, batteryVoltage: bv, inverterBrand, inverterModel })
+  }
+
   // Fetch products for the active tab
   const fetchTab = useCallback(async (tabId: string) => {
     setLoading(true)
@@ -404,17 +487,43 @@ export default function MYOPPage() {
                 </Link>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {products.map(product => (
-                  <ProductTile
-                    key={product.id}
-                    product={product}
-                    selected={isSelected(product.id)}
-                    onAdd={() => addItem(product)}
-                    onRemove={() => removeItem(product.id)}
-                  />
-                ))}
-              </div>
+              <>
+                {/* Compatibility banner: shown on solar tab when an inverter is selected */}
+                {activeTab === 'solar' && selectedInverterItem && (
+                  <div className={`mb-4 rounded-xl px-4 py-3 text-sm flex items-start gap-2 ${
+                    inverterPowerKw !== null
+                      ? 'bg-blue-50 border border-blue-200 text-blue-800'
+                      : 'bg-amber-50 border border-amber-200 text-amber-800'
+                  }`}>
+                    <span className="text-base leading-none mt-0.5">⚡</span>
+                    <div>
+                      {inverterPowerKw !== null ? (
+                        <>
+                          <strong>{selectedInverterItem.product.brand} {selectedInverterItem.product.model}</strong> ({inverterPowerKw} kW) is in your package.
+                          {' '}Incompatible batteries are marked and cannot be added.
+                        </>
+                      ) : (
+                        <>
+                          <strong>{selectedInverterItem.product.brand} {selectedInverterItem.product.model}</strong> is in your package,
+                          but its rated power is not on file — battery compatibility check is unavailable.
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {products.map(product => (
+                    <ProductTile
+                      key={product.id}
+                      product={product}
+                      selected={isSelected(product.id)}
+                      onAdd={() => addItem(product)}
+                      onRemove={() => removeItem(product.id)}
+                      compatibilityResult={getBatteryCompatibility(product)}
+                    />
+                  ))}
+                </div>
+              </>
             )}
           </div>
 
