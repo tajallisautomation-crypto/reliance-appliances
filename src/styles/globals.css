@@ -19,8 +19,7 @@
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     /* Prevent horizontal scroll on mobile */
     overflow-x: hidden;
-    /* Smooth momentum scrolling on iOS */
-    -webkit-overflow-scrolling: touch;
+    /* Prevent overscroll/bounce from propagating — momentum scrolling is default in iOS 13+ */
     overscroll-behavior-y: contain;
   }
   * {

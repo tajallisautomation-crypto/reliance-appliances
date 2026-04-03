@@ -79,15 +79,15 @@ export default function SearchBar({
     return idx;
   }, [index]);
 
-  // Click-outside closes dropdown
+  // Click-outside closes dropdown — use pointerdown so touch events are caught correctly on mobile
   useEffect(() => {
-    function handle(e: MouseEvent) {
+    function handle(e: PointerEvent) {
       if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
         setOpen(false); setActiveIdx(-1);
       }
     }
-    document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
+    document.addEventListener('pointerdown', handle);
+    return () => document.removeEventListener('pointerdown', handle);
   }, []);
 
   // Recompute suggestions whenever query or index changes
@@ -169,7 +169,7 @@ export default function SearchBar({
           {suggestions.map((s, i) => (
             <button
               key={`${s.type}-${s.text}`}
-              onMouseDown={e => { e.preventDefault(); setQuery(s.text); submit(s.text); }}
+              onClick={() => { setQuery(s.text); submit(s.text); }}
               onMouseEnter={() => setActiveIdx(i)}
               className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
                 i === activeIdx ? 'bg-brand-50' : 'hover:bg-gray-50'
@@ -186,7 +186,7 @@ export default function SearchBar({
 
           {/* Search all hint */}
           <button
-            onMouseDown={e => { e.preventDefault(); submit(query); }}
+            onClick={() => submit(query)}
             className="w-full flex items-center gap-3 px-4 py-3 text-left bg-gray-50 border-t border-gray-100 hover:bg-brand-50 transition-colors"
           >
             <Search className="w-3.5 h-3.5 text-brand-500 shrink-0" />
