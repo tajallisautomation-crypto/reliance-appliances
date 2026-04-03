@@ -9,18 +9,24 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    /* Prevent layout shift from scrollbar appearing */
+    /* Prevent layout shift from scrollbar appearing (desktop) */
     overflow-y: scroll;
+    /* Prevent horizontal scroll — must be on html (the scroll container),
+       NOT on body. Setting overflow on body creates a Block Formatting Context
+       that iOS Safari treats as a competing scroll target; combined with
+       overscroll-behavior-y: contain on body it swallows the pan gesture and
+       the page never scrolls. Keeping both properties on html avoids this. */
+    overflow-x: hidden;
+    /* Prevent overscroll/bounce from propagating */
+    overscroll-behavior-y: contain;
     /* Safe area for notched phones */
     padding-top: env(safe-area-inset-top);
   }
   body {
     @apply text-gray-900 antialiased;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
-    /* Prevent horizontal scroll on mobile */
-    overflow-x: hidden;
-    /* Prevent overscroll/bounce from propagating — momentum scrolling is default in iOS 13+ */
-    overscroll-behavior-y: contain;
+    /* No overflow properties here — body must not become a scroll container.
+       All overflow behaviour is handled by html above. */
   }
   * {
     box-sizing: border-box;
