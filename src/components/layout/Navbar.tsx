@@ -105,23 +105,20 @@ export default function Navbar() {
                     </Link>
                     {productsOpen && (
                       <div
-                        className="absolute top-full left-0 mt-1 bg-white shadow-apple-xl rounded-2xl border border-gray-100 p-3 z-50 min-w-[320px] grid grid-cols-2 gap-1.5"
+                        className="fixed top-14 sm:top-16 inset-x-0 z-50 bg-white border-b border-gray-100 shadow-lg"
                         onMouseEnter={openProducts}
                         onMouseLeave={closeProducts}
                       >
-                        {CATEGORY_NAV.map(cat => (
-                          <Link key={cat.id} to={`/products?group=${cat.id}`}
-                            onClick={() => setProductsOpen(false)}
-                            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-brand-50 transition-colors group">
-                            <span className="text-xl leading-none">{cat.icon}</span>
-                            <span className="text-sm font-medium text-gray-700 group-hover:text-brand-600 leading-tight">{cat.label}</span>
-                          </Link>
-                        ))}
-                        <Link to="/products"
-                          onClick={() => setProductsOpen(false)}
-                          className="col-span-2 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold text-brand-600 hover:text-brand-700 border-t border-gray-100 mt-1 pt-2.5">
-                          View all products →
-                        </Link>
+                        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-4 grid grid-cols-3 lg:grid-cols-6 gap-2">
+                          {CATEGORY_NAV.map(cat => (
+                            <Link key={cat.id} to={`/products?group=${cat.id}`}
+                              onClick={() => setProductsOpen(false)}
+                              className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl hover:bg-brand-50 transition-colors text-center group">
+                              <span className="text-2xl leading-none">{cat.icon}</span>
+                              <span className="text-xs font-semibold text-gray-600 group-hover:text-brand-600 leading-tight">{cat.label}</span>
+                            </Link>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
