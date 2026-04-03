@@ -24,7 +24,12 @@
   }
   * {
     box-sizing: border-box;
-    /* Reduce tap delay on all interactive elements */
+  }
+  /* Reduce tap delay — scoped to interactive elements only.
+     Applying touch-action: manipulation to ALL elements (*) causes iOS Safari
+     to consume scroll gestures on non-scrollable divs instead of chaining them
+     up to the page scroll container, breaking body-level scrolling on mobile. */
+  button, a, [role="button"], label, input, select, textarea, summary {
     touch-action: manipulation;
   }
   /* Prevent iOS from auto-zooming on inputs by enforcing 16px minimum */
