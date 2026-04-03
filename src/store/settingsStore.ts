@@ -29,7 +29,7 @@ export interface SiteSettings {
 }
 
 export const SETTING_DEFAULTS: SiteSettings = {
-  consultationThreshold: 200_000,
+  consultationThreshold: 1_000_000, // Governance: only products > PKR 1,000,000 require site consultation
   announcementText:      '',
   announcementEnabled:   false,
   offerBanners:          DEFAULT_BANNERS,

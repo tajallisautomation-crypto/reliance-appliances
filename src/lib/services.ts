@@ -250,6 +250,51 @@ export function requiresSiteConsultation(totalPrice: number): boolean {
 }
 
 /**
+ * SERVICE APPLICABILITY MATRIX
+ *
+ * GOVERNANCE RULE (permanent, enforced 2026-04-03):
+ *   - Do NOT show installation messaging for products that do not require installation.
+ *   - Refrigerators and deep freezers are delivered and placed — not installed.
+ *   - Televisions are placed/wall-mounted, not installed in the electrical sense.
+ *   - ACs, washing machines, solar systems DO require installation.
+ *   - Small appliances (kettles, blenders, trimmers, etc.) require no installation.
+ *   - Do NOT apply a one-size-fits-all installation message across all categories.
+ *
+ * Usage: call requiresInstallation(normalized_category) before showing install CTAs.
+ */
+const _INSTALLATION_REQUIRED_CATEGORIES = new Set([
+  'air conditioners',
+  'washing machines',
+  'solar systems',
+  'solar inverters',
+  'solar panels',
+]);
+
+/**
+ * Returns true only for product categories that require professional installation.
+ * Refrigerators, TVs, small appliances, and similar products return false.
+ */
+export function requiresInstallation(normalizedCategory: string): boolean {
+  return _INSTALLATION_REQUIRED_CATEGORIES.has(normalizedCategory.toLowerCase());
+}
+
+/**
+ * CROSS-SELL PRODUCT RECOMMENDATIONS BY CATEGORY
+ *
+ * GOVERNANCE RULE (permanent, enforced 2026-04-03):
+ *   - Refrigerators do NOT require installation. Show stand as a cross-sell product instead.
+ *   - The refrigerator stand (PKR 3,000) is a stocked product — NOT a service.
+ *   - This table drives "often bought with" / "recommended add-on" UI blocks on PDPs.
+ *   - Cross-sells must be contextually relevant: do not show random products.
+ *   - Each entry is a product slug to look up from the catalog — not a service entry.
+ *
+ * Key: normalized_category (lowercase). Value: array of product slugs to surface as add-ons.
+ */
+export const CROSS_SELL_SLUGS: Record<string, string[]> = {
+  'refrigerators': ['refrigerator-stand'], // PKR 3,000 — stocked product, not a service
+};
+
+/**
  * Returns the delivery window policy description.
  * Rule: delivery is 48 hours after advance payment AND verification succeeds.
  */

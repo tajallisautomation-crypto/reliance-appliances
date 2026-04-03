@@ -53,7 +53,9 @@ export const PACKAGES: SolarPackage[] = [
       'Elevated Solar Frame (optional)',
     ],
     warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
-    total: 485000, frameDeduction: 96000, frameLabel: 'Elevated Solar Frame',
+    // Pricing: PKR 490,000 without elevated frame | PKR 586,000 with elevated frame
+    // frameDeduction = 96,000 → displayPrice without frame = 586,000 − 96,000 = 490,000
+    total: 586000, frameDeduction: 96000, frameLabel: 'Elevated Solar Frame',
   },
   {
     id: 'ups-5kw', name: '5kW UPS System', kw: '5kW',

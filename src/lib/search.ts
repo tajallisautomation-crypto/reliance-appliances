@@ -21,6 +21,12 @@ export interface IndexedProduct {
   browseGroupLower: string;
   searchBlob:      string;   // full-text for substring search
   price:           number;
+  /**
+   * Parsed capacity in tons (for ACs) or kWh (for batteries/solar).
+   * Enables capacity-aware scoring so "1.5 ton" strictly outranks "1 ton" for that query.
+   * Governance: derived from structured specs fields only — never from raw text guessing.
+   */
+  capacityTon?: number;
 }
 
 export interface SearchIndex {
@@ -51,6 +57,8 @@ export interface ParsedQuery {
   isModelLike:   boolean;
   brandHint?:    string;
   categoryHint?: string;
+  /** Capacity in tons parsed from query — e.g. "1.5 ton" → 1.5. Enables strict capacity scoring. */
+  capacityTonHint?: number;
   // admin-only
   missingImages?: boolean;
   missingName?:   boolean;
@@ -165,6 +173,15 @@ export function buildSearchIndex(products: Product[]): SearchIndex {
       Object.values(p.specs ?? {}).join(' '),
     ].join(' ').toLowerCase();
 
+    // ── Capacity parsing (ACs: tons; solar/batteries: kWh) ──────────────────────
+    // Governance: read from structured specs only. Never guess from raw text.
+    let capacityTon: number | undefined;
+    if (p.specs) {
+      const tonSpec = p.specs['Tonnage'] || p.specs['tonnage'] || '';
+      const tonMatch = String(tonSpec).match(/^([\d.]+)\s*[Tt]on/);
+      if (tonMatch) capacityTon = parseFloat(tonMatch[1]);
+    }
+
     indexed.push({
       product:          p,
       tokens,
@@ -178,6 +195,7 @@ export function buildSearchIndex(products: Product[]): SearchIndex {
       browseGroupLower: (p.frontend_browse_group  || '').toLowerCase(),
       searchBlob,
       price:            p.price.cash_floor,
+      capacityTon,
     });
   }
 
@@ -254,7 +272,15 @@ export function parseQuery(raw: string): ParsedQuery {
     }
   }
 
-  return { raw, clean: working, terms, priceMax, priceMin, isModelLike, brandHint, categoryHint, missingImages, missingName, missingDesc };
+  // Capacity hint — detect "1.5 ton", "1 ton", "2 ton", "1.5ton", "15 ton" etc.
+  let capacityTonHint: number | undefined;
+  const capMatch = working.match(/\b([\d.]+)\s*ton\b/i);
+  if (capMatch) {
+    const v = parseFloat(capMatch[1]);
+    if (v >= 0.5 && v <= 5) capacityTonHint = v; // sanity range — ignore nonsense values
+  }
+
+  return { raw, clean: working, terms, priceMax, priceMin, isModelLike, brandHint, categoryHint, capacityTonHint, missingImages, missingName, missingDesc };
 }
 
 // ── Edit distance (Levenshtein) ───────────────────────────────────────────────
@@ -328,6 +354,16 @@ function scoreProduct(ip: IndexedProduct, pq: ParsedQuery): number {
   if (terms.some(t => t.length >= 4 && ip.subCatLower.includes(t)))      { score += 10; }
   if (terms.some(t => t.length >= 4 && ip.normCatLower.includes(t)))     { score += 18; }
   if (terms.some(t => t.length >= 4 && ip.normSubCatLower.includes(t)))  { score += 8;  }
+
+  // ── Capacity matching (first-class: "1.5 ton" must beat "1 ton" for that query) ─
+  // Governance: exact ton match = +80 bonus; wrong capacity = −40 penalty when a hint is present.
+  // This prevents "2 ton" ACs appearing above "1.5 ton" ACs for a "1.5 ton" query.
+  if (pq.capacityTonHint !== undefined && ip.capacityTon !== undefined) {
+    const diff = Math.abs(ip.capacityTon - pq.capacityTonHint);
+    if (diff === 0)           { score += 80; }   // exact capacity match
+    else if (diff <= 0.2)     { score += 20; }   // very close (e.g. 1.5 vs 1.4)
+    else                      { score -= 40; }   // wrong capacity — demote
+  }
 
   // ── Token matching ────────────────────────────────────────────────────────
   for (const term of terms) {

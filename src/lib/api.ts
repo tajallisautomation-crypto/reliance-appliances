@@ -561,6 +561,48 @@ export async function getRelatedProducts(
   }
 }
 
+/**
+ * Returns alternative products in the same category within a ±40% price band,
+ * ordered by featured then by proximity to the reference price.
+ * Used on PDP to show "Consider these alternatives".
+ */
+export async function getAlternativeProducts(
+  productId: string,
+  category: string,
+  price: number,
+  limit = 4
+): Promise<Product[]> {
+  try {
+    const cc = resolveCanonicalCategory('', '', category);
+    const terms = _CC_RELATED_TERMS[cc];
+    const minP = Math.round(price * 0.60);
+    const maxP = Math.round(price * 1.50);
+
+    let q = supabase
+      .from('products')
+      .select('*')
+      .neq('id', productId)
+      .eq('stock_status', 'In Stock')
+      .gte('retail_price', minP)
+      .lte('retail_price', maxP)
+      .order('featured', { ascending: false })
+      .order('updated_at', { ascending: false })
+      .limit(limit);
+
+    if (terms?.length) {
+      q = q.or(terms.map(t => `category.ilike.*${t}*`).join(','));
+    } else {
+      q = q.eq('category', category);
+    }
+
+    const { data, error } = await q;
+    if (error || !data) return [];
+    return data.map(rowToProduct);
+  } catch {
+    return [];
+  }
+}
+
 export async function getCategories(): Promise<{ categories: Category[] }> {
   try {
     const { data, error } = await supabase.from('products').select('category').order('category');
@@ -1451,6 +1493,7 @@ const _DW_PREFIX_MAP: Record<string, string> = {
   DWHJ: 'juicer',          // Hand Juicer
   DWHP: 'water_heater',    // Water Heating Product (geyser)
   DWHS: 'hair_straightener',// Hair Straightener
+  DWMC: 'trimmer',          // Male Clipper / Hair Trimmer
   DWMX: 'blender',         // Mixer
   DWRM: 'heater',          // Room heater
   DWSI: 'iron',            // Steam Iron
@@ -1459,11 +1502,51 @@ const _DW_PREFIX_MAP: Record<string, string> = {
   DWVF: 'vacuum',          // Vacuum cleaner
 };
 
+/**
+ * Authoritative model-type override table.
+ *
+ * GOVERNANCE RULE (permanent, enforced 2026-04-03):
+ *   - Entries here take precedence over ALL heuristics: prefix maps, keyword rules, model regex.
+ *   - Only add entries with verified manufacturer evidence or physical product confirmation.
+ *   - Never remove an entry without a documented reason.
+ *   - Key = model string lowercased, spaces→hyphens, non-alphanumeric-except-hyphens stripped.
+ *   - Prevents recurrence of catalog errors that heuristics cannot catch.
+ *   - When a future price-list import would re-classify a product incorrectly, this table wins.
+ */
+const _MODEL_TYPE_OVERRIDES: Record<string, string> = {
+  // ── Westpoint corrections ─────────────────────────────────────────────────────────────────────
+  // WF-1098: Verified = Professional Chopper. Was incorrectly entered as "Room Humidifier".
+  'wf-1098':    'chopper',
+  // WF-143: Verified = Induction Cooker. Was incorrectly entered as "Meat Mincer".
+  'wf-143':     'induction',
+
+  // ── Dawlance model-specific corrections ──────────────────────────────────────────────────────
+  // DWHP-3021: Hot Plate. DWHP prefix → water_heater by default, but 3021 is a hot plate.
+  'dwhp-3021':  'hot_plate',
+  // DWMC-8030: Hair Trimmer. DWMC was missing from prefix map; now added, but explicit override
+  // here prevents misclassification via any remaining heuristic path.
+  'dwmc-8030':  'trimmer',
+  // DWMC-9030: Dawlance Zeus Hair Trimmer. Same as above.
+  'dwmc-9030':  'trimmer',
+  // DWHB-81762: Hand Blender. DWHB prefix already maps correctly; explicit for documentation.
+  'dwhb-81762': 'hand_blender',
+  // DWHJ-8002: Hard Fruit Juicer. DWHJ prefix already maps to juicer; explicit for documentation.
+  'dwhj-8002':  'juicer',
+  // DWT-4220: Toaster. DWT (3-char prefix) is NOT in the prefix map and is INCORRECTLY caught
+  // by the washing_machine modelRx pattern (^DWT). Override is REQUIRED to prevent misclassification.
+  'dwt-4220':   'toaster',
+};
+
 export function resolveCanonicalCategory(brand: string, model: string, category: string): string {
   const cat = category.toLowerCase().trim();
   const m   = model.toUpperCase().trim();
   const ml  = model.toLowerCase().trim();
   const b   = brand.toLowerCase().trim();
+
+  // ── Authoritative model-type overrides: verified mappings take precedence over ALL heuristics ──
+  // Key format: model string lowercased, spaces→hyphens, non-alphanumeric except hyphens stripped
+  const _overrideKey = ml.replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  if (_MODEL_TYPE_OVERRIDES[_overrideKey]) return _MODEL_TYPE_OVERRIDES[_overrideKey];
 
   // Built-in ovens are sometimes filed under "Hood & Hobs" in the CSV — detect via model
   if (/BUILT[-\s]*IN[-\s]*OVEN|BAKING\s*OVEN/i.test(m)) return 'oven';
@@ -1495,6 +1578,21 @@ export function resolveCanonicalCategory(brand: string, model: string, category:
   return 'unknown';
 }
 
+/**
+ * Returns true ONLY if the model name explicitly contains "T3" as a standalone token.
+ *
+ * GOVERNANCE RULE (permanent, enforced 2026-04-03):
+ *   - This is the SOLE criterion for marking an AC as true T3 tropical-rated.
+ *   - "T3 conditioned" ≠ T3 rated. Do not infer T3 from operating temperature specs.
+ *   - Do not copy T3 flag from other products during enrichment or batch updates.
+ *   - Do not infer T3 from brand, series name, or description text.
+ *   - Only models where the manufacturer's model string itself contains "T3" qualify.
+ *   - Any enrichment pipeline setting T3 specs must call this function — never set inline.
+ */
+export function isTrueT3(modelName: string): boolean {
+  return /\bT3\b/.test(modelName.toUpperCase());
+}
+
 export const CANONICAL_DISPLAY: Record<string, string> = {
   air_conditioner:  'Air Conditioner',
   refrigerator:     'Refrigerator',
@@ -1515,6 +1613,8 @@ export const CANONICAL_DISPLAY: Record<string, string> = {
   juicer:           'Juicer',
   food_processor:   'Food Processor',
   chopper:          'Food Chopper',
+  trimmer:          'Hair Trimmer',
+  hot_plate:        'Hot Plate',
   rice_cooker:      'Rice Cooker',
   induction:        'Induction Cooker',
   iron:             'Electric Iron',
@@ -1660,7 +1760,7 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
     }
     const isInv = /HNF|PITH|CITH|FAIRY|LOMO|UFLY|ULTRA|INVERTER|\bINV\b|\bDC\b|LF\b|LFW|HFT|HFP|HPM|RFP/.test(m);
     const isHC  = /HFC|HFAB|HFTEX|HPU|PRIMA|GALLANT|HEAT|H&C/.test(m);
-    const isT3  = /\bT3\b/i.test(m);
+    const isT3  = isTrueT3(m); // Governance: only model-name "T3" qualifies — see isTrueT3()
     specs['Type']             = isHC ? 'Split AC (Heat & Cool)' : 'Split Air Conditioner';
     specs['Inverter']         = isInv ? 'Yes' : 'No';
     specs['Compressor']       = isInv ? 'DC Inverter (Variable Speed)' : 'Conventional Rotary';
@@ -2212,7 +2312,7 @@ const _WP_NAMES: Record<string, [string, string]> = {
   '1153': ['Westpoint Garment Steamer WF-1153',                     'Garment Steamer'],
   '1156': ['Westpoint Room Humidifier WF-1156',                     'Humidifier'],
   '1097': ['Westpoint Chopper WF-1097',                             'Chopper'],
-  '1098': ['Westpoint Room Humidifier WF-1098',                     'Humidifier'],
+  '1098': ['Westpoint Professional Chopper WF-1098',                'Chopper'],      // CORRECTED 2026-04-03: was 'Humidifier' — verified as Chopper
   '1090': ['Westpoint Professional Chopper WF-1090',               'Chopper'],
   '1102': ['Westpoint Room Humidifier WF-1102',                     'Humidifier'],
   '1186': ['Westpoint Hard Juicer WF-1186',                         'Juicer'],
@@ -2232,7 +2332,7 @@ const _WP_NAMES: Record<string, [string, string]> = {
   '738':  ['Westpoint Juicer WF-738',                               'Juicer'],
   '929':  ['Westpoint Citrus Juicer WF-929',                        'Juicer'],
   '301':  ['Westpoint Meat Mincer WF-301',                          'Meat Mincer'],
-  '143':  ['Westpoint Meat Mincer WF-143',                          'Meat Mincer'],
+  '143':  ['Westpoint Induction Cooker WF-143',                     'Induction Cooker'], // CORRECTED 2026-04-03: was 'Meat Mincer' — verified as Induction Cooker
   '142':  ['Westpoint Meat Mincer WF-142',                          'Meat Mincer'],
   '152':  ['Westpoint Meat Mincer WF-152',                          'Meat Mincer'],
   '6307': ['Westpoint Fan Heater WF-6307',                          'Fan Heater'],

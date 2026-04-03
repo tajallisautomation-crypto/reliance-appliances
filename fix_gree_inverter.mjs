@@ -25,6 +25,8 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL      = 'https://fdfjavyopbrfvwtjaerw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkZmphdnlvcGJyZnZ3dGphZXJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDE3MDAsImV4cCI6MjA4ODIxNzcwMH0.fXwGFR_e3xZ4trEbkcH8UQ6_oWcIn92UUUvkGuFajto';
+const ADMIN_EMAIL       = process.env.ADMIN_EMAIL    || 'tajallisautomation@gmail.com';
+const ADMIN_PASSWORD    = process.env.ADMIN_PASSWORD || 'Hammad123!';
 const DRY_RUN           = process.argv.includes('--dry-run');
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -45,6 +47,13 @@ function ensureInverterTag(existing) {
 
 async function main() {
   console.log(`\n🔧 Gree Inverter Fix — ${DRY_RUN ? 'DRY RUN' : 'LIVE'}\n`);
+
+  // Auth required for RLS-protected upserts
+  if (!DRY_RUN) {
+    const { error: authErr } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD });
+    if (authErr) { console.error('Auth error:', authErr.message); process.exit(1); }
+    console.log('✓ Authenticated\n');
+  }
 
   // Fetch all Gree ACs
   const { data: products, error } = await supabase
@@ -122,16 +131,16 @@ async function main() {
     return;
   }
 
-  const { error: uErr } = await supabase
-    .from('products')
-    .upsert(toUpdate, { onConflict: 'id' });
-
-  if (uErr) {
-    console.error('Upsert error:', uErr.message);
-    process.exit(1);
+  // Use .update().eq('id') rather than upsert to avoid NOT NULL constraint
+  // failures on unspecified columns.
+  let written = 0;
+  for (const { id, ...fields } of toUpdate) {
+    const { error: uErr } = await supabase.from('products').update(fields).eq('id', id);
+    if (uErr) { console.error(`Update error for ${id}:`, uErr.message); }
+    else       { written++; }
   }
 
-  console.log(`\n✅ Done. Updated ${toUpdate.length} Gree inverter products.`);
+  console.log(`\n✅ Done. Updated ${written} / ${toUpdate.length} Gree inverter products.`);
 }
 
 main().catch(err => { console.error(err); process.exit(1); });

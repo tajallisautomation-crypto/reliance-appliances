@@ -6,7 +6,7 @@ import {
   Check, Wrench, Share2, Star, Phone, CalendarDays,
   TrendingDown, TrendingUp, History, Info, ZoomIn, X, ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import { getProductBySlug, getRelatedProducts, getPriceHistory, formatPrice, DEFAULT_CATEGORIES } from '@/lib/api';
+import { getProductBySlug, getRelatedProducts, getAlternativeProducts, getPriceHistory, formatPrice, DEFAULT_CATEGORIES, isTrueT3 } from '@/lib/api';
 import type { Product } from '@/lib/types';
 import ProductCard from '@/components/products/ProductCard';
 import ReviewSection from '@/components/products/ReviewSection';
@@ -16,6 +16,7 @@ import Spinner from '@/components/ui/Spinner';
 import SolarCompatibilityPanel from '@/components/products/SolarCompatibilityPanel';
 import { useCartStore } from '@/store/cartStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { requiresInstallation } from '@/lib/services';
 import { waProduct, waInstallment, waSales } from '@/lib/whatsapp';
 import toast from 'react-hot-toast';
 
@@ -23,8 +24,12 @@ const PLAN_LABELS: Record<string, string> = {
   cash: 'Pay in Full', '2m': '2 Payments', '3m': '3 Payments', '6m': '6 Payments', '12m': '12 Payments',
 };
 
-/** Price threshold above which consultation flow replaces add-to-cart — overridable via admin Settings */
-const CONSULTATION_THRESHOLD_DEFAULT = 200_000;
+/**
+ * Price threshold above which consultation flow replaces add-to-cart — overridable via admin Settings.
+ * Governance rule (2026-04-03): only products > PKR 1,000,000 require site consultation.
+ * Must match SETTING_DEFAULTS.consultationThreshold in settingsStore.ts.
+ */
+const CONSULTATION_THRESHOLD_DEFAULT = 1_000_000;
 
 type TabKey = 'specs' | 'about' | 'installation' | 'reviews' | 'price-history';
 
@@ -40,8 +45,10 @@ export default function ProductDetail() {
   const navigate    = useNavigate();
 
   const [product,    setProduct]    = useState<Product | null>(null);
-  const [related,        setRelated]        = useState<Product[]>([]);
-  const [relatedLoading, setRelatedLoading] = useState(true);
+  const [related,           setRelated]           = useState<Product[]>([]);
+  const [relatedLoading,    setRelatedLoading]    = useState(true);
+  const [alternatives,      setAlternatives]      = useState<Product[]>([]);
+  const [altLoading,        setAltLoading]        = useState(true);
   const [loading,    setLoading]    = useState(true);
   const [plan,       setPlan]       = useState<'cash'|'2m'|'3m'|'6m'|'12m'>('cash');
   const [customAdvance, setCustomAdvance] = useState<number | null>(null);
@@ -71,6 +78,9 @@ export default function ProductDetail() {
         getRelatedProducts(p.id, p.category, 4)
           .then(r => startTransition(() => { setRelated(r); setRelatedLoading(false); }))
           .catch(() => setRelatedLoading(false));
+        getAlternativeProducts(p.id, p.category, p.price.cash_floor, 4)
+          .then(a => startTransition(() => { setAlternatives(a); setAltLoading(false); }))
+          .catch(() => setAltLoading(false));
         getPriceHistory(p.id)
           .then(ph => startTransition(() => { setPriceHistory(ph); setPriceHistoryLoading(false); }))
           .catch(() => setPriceHistoryLoading(false));
@@ -213,13 +223,18 @@ export default function ProductDetail() {
     ],
   };
 
+  // Governance: only show Installation tab for categories that require professional installation.
+  // Refrigerators, TVs, small appliances etc. do not require installation — show Delivery tab instead.
+  const _normCat = (p.normalized_category || p.category).toLowerCase();
+  const _needsInstall = requiresInstallation(_normCat);
+
   const TABS: { key: TabKey; label: string }[] = [
     { key: 'specs',         label: 'Specifications' },
     { key: 'about',         label: 'About'          },
     ...(!priceHistoryLoading && priceHistory.length > 0
       ? [{ key: 'price-history' as TabKey, label: `Price History (${priceHistory.length})` }]
       : []),
-    { key: 'installation',  label: 'Installation'   },
+    { key: 'installation',  label: _needsInstall ? 'Installation' : 'Delivery' },
     { key: 'reviews',       label: 'Reviews'        },
   ];
 
@@ -383,15 +398,44 @@ export default function ProductDetail() {
             }`}>
               <Check className="h-3 w-3" /> {p.stock_status}
             </span>
-            {p.warranty && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                <Shield className="h-3 w-3" /> {p.warranty.split(',')[0]}
+            {p.warranty && p.warranty.split(',').map(w => w.trim()).filter(Boolean).map((w, i) => (
+              <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                <Shield className="h-3 w-3" /> {w}
               </span>
-            )}
+            ))}
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
               <Truck className="h-3 w-3" /> Free Delivery Karachi
             </span>
           </div>
+
+          {/* Key Specs highlight — ACs: show Tonnage, BTU, Inverter, T3 prominently */}
+          {p.specs?.['Tonnage'] && (
+            <div className="flex flex-wrap gap-2 mb-5">
+              <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-50 border border-sky-200 text-sky-800 text-sm font-bold">
+                <span className="text-base leading-none">❄️</span> {p.specs['Tonnage']} Ton
+              </div>
+              {p.specs['BTU'] && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-50 border border-sky-100 text-sky-700 text-xs font-semibold">
+                  {p.specs['BTU']} BTU
+                </div>
+              )}
+              {(p.specs['Inverter'] || '').toLowerCase() === 'yes' && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
+                  ⚡ DC Inverter
+                </div>
+              )}
+              {isTrueT3(p.model) && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold">
+                  🌡 T3 Tropical
+                </div>
+              )}
+              {p.specs['Voltage Range'] && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold">
+                  ⚡ {p.specs['Voltage Range']}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Payment plan selector */}
           <div className="bg-gray-50 rounded-2xl p-5 mb-5 border border-gray-100">
@@ -707,33 +751,69 @@ export default function ProductDetail() {
           </div>
         )}
 
-        {/* Installation tab */}
+        {/* Installation / Delivery tab — content depends on whether this category needs installation */}
         {activeTab === 'installation' && (
           <div className="animate-fade-in">
-            <div className="grid sm:grid-cols-2 gap-4 mb-8">
-              {INSTALL_SERVICES.map(s => (
-                <div key={s.title} className="flex gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+            {_needsInstall ? (
+              /* Categories that require professional installation: ACs, washing machines, solar */
+              <>
+                <div className="grid sm:grid-cols-2 gap-4 mb-8">
+                  {INSTALL_SERVICES.map(s => (
+                    <div key={s.title} className="flex gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                      <div className="w-8 h-8 bg-brand-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Wrench className="w-4 h-4 text-brand-500" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900 text-sm mb-0.5">{s.title}</p>
+                        <p className="text-xs text-gray-500">{s.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="bg-brand-50 rounded-2xl p-6 border border-brand-100">
+                  <h3 className="font-bold text-gray-900 mb-2">Book Installation</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Professional installation available same-day in Karachi. PKR 2,000 flat fee — includes all labour and basic fittings.
+                  </p>
+                  <a href={waSales(`Hi, I'd like to book installation for ${p.simplified_name || `${p.brand} ${p.model}`}.`)}
+                    target="_blank" rel="noreferrer"
+                    className="inline-flex items-center gap-2 font-bold text-white px-6 py-3 rounded-xl bg-wa hover:bg-wa-hover transition-colors">
+                    <MessageCircle className="h-4 w-4" /> Book via WhatsApp
+                  </a>
+                </div>
+              </>
+            ) : (
+              /* Categories that do NOT require installation: refrigerators, TVs, small appliances, etc. */
+              <div className="space-y-4">
+                <div className="flex gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                  <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Wrench className="w-4 h-4 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900 text-sm mb-0.5">No Installation Required</p>
+                    <p className="text-xs text-gray-500">This product does not require professional installation. We deliver, unbox, and place it in position.</p>
+                  </div>
+                </div>
+                <div className="flex gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
                   <div className="w-8 h-8 bg-brand-50 rounded-lg flex items-center justify-center flex-shrink-0">
                     <Wrench className="w-4 h-4 text-brand-500" />
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900 text-sm mb-0.5">{s.title}</p>
-                    <p className="text-xs text-gray-500">{s.desc}</p>
+                    <p className="font-semibold text-gray-900 text-sm mb-0.5">Free Delivery in Karachi</p>
+                    <p className="text-xs text-gray-500">Door-to-room delivery, unboxing, and placement included — free within standard Karachi delivery zones.</p>
                   </div>
                 </div>
-              ))}
-            </div>
-            <div className="bg-brand-50 rounded-2xl p-6 border border-brand-100">
-              <h3 className="font-bold text-gray-900 mb-2">Book Installation</h3>
-              <p className="text-sm text-gray-600 mb-4">
-                Professional installation available same-day in Karachi. PKR 2,000 flat fee — includes all labour and basic fittings.
-              </p>
-              <a href={waSales(`Hi, I'd like to book installation for ${p.simplified_name || `${p.brand} ${p.model}`}.`)}
-                target="_blank" rel="noreferrer"
-                className="inline-flex items-center gap-2 font-bold text-white px-6 py-3 rounded-xl bg-wa hover:bg-wa-hover transition-colors">
-                <MessageCircle className="h-4 w-4" /> Book via WhatsApp
-              </a>
-            </div>
+                <div className="bg-brand-50 rounded-2xl p-5 border border-brand-100">
+                  <h3 className="font-bold text-gray-900 mb-1 text-sm">Questions about delivery?</h3>
+                  <p className="text-xs text-gray-600 mb-3">WhatsApp us to confirm delivery timing, outstation availability, or any special placement requirements.</p>
+                  <a href={waSales(`Hi, I'd like to confirm delivery details for ${p.simplified_name || `${p.brand} ${p.model}`}.`)}
+                    target="_blank" rel="noreferrer"
+                    className="inline-flex items-center gap-2 font-bold text-white px-5 py-2.5 rounded-xl bg-wa hover:bg-wa-hover transition-colors text-sm">
+                    <MessageCircle className="h-4 w-4" /> WhatsApp Us
+                  </a>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -897,6 +977,29 @@ export default function ProductDetail() {
 
       {/* Solar Compatibility Panel */}
       <SolarCompatibilityPanel product={p} />
+
+      {/* Alternatives — same category, similar price band */}
+      {(altLoading || alternatives.length > 0) && (
+        <div className="mt-14">
+          <h2 className="text-lg font-extrabold text-gray-900 mb-1">Consider these alternatives</h2>
+          <p className="text-sm text-gray-400 mb-5">Similar {catLabel} in the same price range</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {altLoading
+              ? Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                    <div className="aspect-square bg-gray-100 animate-pulse" />
+                    <div className="p-4 space-y-2.5">
+                      <div className="h-2 w-12 bg-gray-100 rounded-full animate-pulse" />
+                      <div className="h-3.5 w-3/4 bg-gray-100 rounded-full animate-pulse" />
+                      <div className="h-3 w-1/3 bg-gray-100 rounded-full animate-pulse" />
+                    </div>
+                  </div>
+                ))
+              : alternatives.map(a => <ProductCard key={a.id} product={a} />)
+            }
+          </div>
+        </div>
+      )}
 
       {/* Related products — skeleton while loading, hidden if none found */}
       {(relatedLoading || related.length > 0) && (

@@ -23,6 +23,8 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL      = 'https://fdfjavyopbrfvwtjaerw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkZmphdnlvcGJyZnZ3dGphZXJ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDE3MDAsImV4cCI6MjA4ODIxNzcwMH0.fXwGFR_e3xZ4trEbkcH8UQ6_oWcIn92UUUvkGuFajto';
+const ADMIN_EMAIL       = process.env.ADMIN_EMAIL    || 'tajallisautomation@gmail.com';
+const ADMIN_PASSWORD    = process.env.ADMIN_PASSWORD || 'Hammad123!';
 const DRY_RUN           = process.argv.includes('--dry-run');
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -42,7 +44,7 @@ function detectSystemRole(product) {
   if (INVERTER_CATS.some(k => all.includes(k))) return 'inverter';
   if (BATTERY_CATS .some(k => all.includes(k))) return 'battery';
   if (PANEL_CATS   .some(k => all.includes(k))) return 'panel';
-  return 'other';
+  return 'none'; // DB CHECK constraint: ('inverter','battery','panel','pump','system','accessory','none')
 }
 
 // ── Spec parsers ──────────────────────────────────────────────────────────────
@@ -112,12 +114,22 @@ function parseBatteryVoltage(specs) {
     }
   }
 
-  // Fallback: check 'voltage' key
+  // Fallback: check 'voltage' key — handles both nominal (e.g. '24V', '48V')
+  // and cell-level nominal voltages (e.g. '25.6V' = 24V class, '51.2V' = 48V class)
   for (const [k, v] of Object.entries(specs)) {
     if (k.toLowerCase().trim() === 'voltage') {
       const s = String(v).toLowerCase().trim();
-      if (s.startsWith('24')) return 24;
-      if (s.startsWith('48')) return 48;
+      const n = parseFloat(s);
+      if (!isNaN(n)) {
+        // Exact or near-exact 24V / 48V
+        if (n === 24 || n === 48) return n;
+        // LiFePO4 nominal cell voltages map to voltage class:
+        // 12.8V = 12V class (not handled by compatibility engine, treat as 24V if no other data)
+        // 25.6V = 24V class (4 cells × 3.2V = 12.8V × 2 = 25.6V)
+        // 51.2V = 48V class (16 cells × 3.2V = 51.2V)
+        if (n >= 20 && n < 30) return 24;  // 24V class: 20–29V nominal
+        if (n >= 40 && n < 58) return 48;  // 48V class: 40–57V nominal
+      }
     }
   }
 
@@ -135,13 +147,39 @@ const KNOWN_OVERRIDES = [
   { brand: 'crown', model: 'yorker 3.6', powerKw: 3.6  },
   { brand: 'crown', model: 'yorker 5',   powerKw: 5.0  },
   { brand: 'crown', model: 'yorker 8',   powerKw: 8.0  },
-  // Ziewnic inverters
-  { brand: 'ziewnic', model: '3.6kw', powerKw: 3.6  },
-  { brand: 'ziewnic', model: '5kw',   powerKw: 5.0  },
-  { brand: 'ziewnic', model: '8kw',   powerKw: 8.0  },
-  // Crown batteries
-  { brand: 'crown', model: '24v', voltageV: 24 },
-  { brand: 'crown', model: '48v', voltageV: 48 },
+  // ── Ziewnic inverters (PV model codes: PV7000 = 4.7kW, PV9000 = 6.7kW etc.) ──
+  // Spec key is 'Power Output' e.g. '4.7 kW' — parser step 3 handles this correctly.
+  // These overrides cover cases where spec parsing fails (e.g. missing or unusual spec key).
+  { brand: 'ziewnic', model: 'pv7000',  powerKw: 4.7  },  // Roux IP54 PV7000
+  { brand: 'ziewnic', model: 'pv9000',  powerKw: 6.7  },  // Roux IP54 PV9000
+  { brand: 'ziewnic', model: 'pv15000', powerKw: 11.7 },  // Roux IP54 PV15000
+  { brand: 'ziewnic', model: 'pv8000',  powerKw: 6.0  },  // Lenox IP65 PV8000
+  { brand: 'ziewnic', model: 'pv10500', powerKw: 8.0  },  // Lenox IP65 PV10500
+  { brand: 'ziewnic', model: 'pv15600', powerKw: 12.0 },  // Lenox IP65 PV15600
+  { brand: 'ziewnic', model: 'pv11000', powerKw: 9.0  },  // Voltronics 7th Gen PV11000
+  { brand: 'ziewnic', model: 'pv14000', powerKw: 11.0 },  // Voltronics 7th Gen PV14000
+  { brand: 'ziewnic', model: 'pv4000',  powerKw: 3.2  },  // Voltronics 6th Gen PV4000
+  { brand: 'ziewnic', model: 'pv6500',  powerKw: 4.5  },  // Voltronics 5th/6th Gen PV6500
+  { brand: 'ziewnic', model: 'pv8500',  powerKw: 6.5  },  // Voltronics 5th/6th Gen PV8500
+  { brand: 'ziewnic', model: 'pv13000', powerKw: 10.5 },  // Voltronics 5th Gen PV13000
+  { brand: 'ziewnic', model: 'pv5000',  powerKw: 4.2  },  // Axpert Twin PV5000
+  // ── Ziewnic batteries ──
+  // Spec key is 'Voltage' with nominal LiFePO4 cell values: 25.6V = 24V class, 51.2V = 48V class.
+  // The parseBatteryVoltage range check above handles this, but explicit overrides are authoritative.
+  { brand: 'ziewnic', model: '25v-100ah-li-china',   voltageV: 24 },
+  { brand: 'ziewnic', model: '51v-100ah-li-china',   voltageV: 48 },
+  { brand: 'ziewnic', model: '12v-100ah-li-vietnam', voltageV: 24 }, // 12.8V nominal = 12V class, treated as 24V-system-capable
+  { brand: 'ziewnic', model: '12.8v',  voltageV: 24 }, // 12.8V products matched by voltage value in name
+  { brand: 'ziewnic', model: '12v-100ah', voltageV: 24 }, // Short slug match
+  { brand: 'ziewnic', model: '25v-100ah-li-vietnam', voltageV: 24 },
+  { brand: 'ziewnic', model: '51v-100ah-li-vietnam', voltageV: 48 },
+  { brand: 'ziewnic', model: '51v-280ah-li-vietnam', voltageV: 48 },
+  // Crown batteries — named by capacity, not voltage. Elektra Boost = LiFePO4 battery banks.
+  { brand: 'crown', model: '24v',         voltageV: 24 },
+  { brand: 'crown', model: '48v',         voltageV: 48 },
+  { brand: 'crown', model: 'boost 2.4kw', voltageV: 24 }, // Crown Elektra Boost 2.4KW = 25.6V/24V class
+  { brand: 'crown', model: 'boost pro',   voltageV: 24 }, // Crown Elektra Boost Pro 2.4KW
+  { brand: 'crown', model: 'boost lite',  voltageV: 48 }, // Crown Elektra Boost Lite 5.12KW = 51.2V/48V class
 ];
 
 function applyKnownOverrides(product, parsedPowerKw, parsedVoltage) {
@@ -163,6 +201,13 @@ function applyKnownOverrides(product, parsedPowerKw, parsedVoltage) {
 
 async function main() {
   console.log(`\n⚡ Solar Compatibility Backfill — ${DRY_RUN ? 'DRY RUN' : 'LIVE'}\n`);
+
+  // Auth required for RLS-protected upserts
+  if (!DRY_RUN) {
+    const { error: authErr } = await supabase.auth.signInWithPassword({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD });
+    if (authErr) { console.error('Auth error:', authErr.message); process.exit(1); }
+    console.log('✓ Authenticated\n');
+  }
 
   // Fetch all solar products
   const { data: products, error } = await supabase
@@ -246,17 +291,21 @@ async function main() {
     return;
   }
 
-  // Write in batches of 50
+  // Update existing rows in batches of 10 concurrent requests.
+  // Use .update().eq('id') rather than upsert to avoid NOT NULL constraint
+  // failures on unspecified columns (brand, model, etc.).
   let written = 0;
-  for (let i = 0; i < updates.length; i += 50) {
-    const batch = updates.slice(i, i + 50);
-    const { error: uErr } = await supabase
-      .from('products')
-      .upsert(batch, { onConflict: 'id' });
-    if (uErr) {
-      console.error(`Batch ${i}–${i + batch.length} error:`, uErr.message);
-    } else {
-      written += batch.length;
+  const CONCURRENCY = 10;
+  for (let i = 0; i < updates.length; i += CONCURRENCY) {
+    const batch = updates.slice(i, i + CONCURRENCY);
+    const results = await Promise.all(
+      batch.map(({ id, ...fields }) =>
+        supabase.from('products').update(fields).eq('id', id)
+      )
+    );
+    for (const { error: uErr } of results) {
+      if (uErr) { console.error('Update error:', uErr.message); }
+      else       { written++; }
     }
   }
 
