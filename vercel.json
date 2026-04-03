@@ -7,7 +7,7 @@
   "crons": [
     {
       "path":     "/api/catalog-refresh",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 2 * * *"
     }
   ],
   "rewrites": [
