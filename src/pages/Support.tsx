@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { MessageCircle, Phone, Mail, AlertCircle, Package, Wrench, Truck, HelpCircle, CheckCircle2 } from 'lucide-react'
 import SEO from '@/components/ui/SEO'
 import { waSales } from '@/lib/whatsapp'
+import { submitEnquiry } from '@/lib/api'
 
 const ISSUE_TYPES = [
   { value: 'product-defect',   label: 'Product Defect / Malfunction', icon: Wrench },
@@ -15,6 +16,8 @@ const ISSUE_TYPES = [
 
 export default function Support() {
   const [submitted, setSubmitted] = useState(false)
+  const [loading,   setLoading]   = useState(false)
+  const [err,       setErr]       = useState('')
   const [form, setForm] = useState({
     name: '', phone: '', orderRef: '', product: '',
     issueType: '', urgency: 'normal', description: '',
@@ -38,11 +41,24 @@ export default function Support() {
     )
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const msg = buildWhatsAppMessage()
-    window.open(`https://wa.me/923702578788?text=${msg}`, '_blank')
-    setSubmitted(true)
+    setLoading(true); setErr('')
+    try {
+      await submitEnquiry({
+        name: form.name, phone: form.phone,
+        order_ref: form.orderRef || null,
+        product: form.product || null,
+        issue_type: form.issueType,
+        urgency: form.urgency,
+        description: form.description,
+      })
+      setSubmitted(true)
+    } catch {
+      setErr('Could not submit. Please try again or contact us directly.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (submitted) {
@@ -52,18 +68,18 @@ export default function Support() {
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
             <CheckCircle2 className="w-8 h-8 text-green-600" />
           </div>
-          <h2 className="text-2xl font-black text-gray-900 mb-2">Request Sent!</h2>
+          <h2 className="text-2xl font-black text-gray-900 mb-2">Request Received</h2>
           <p className="text-gray-500 mb-6">
-            Your complaint has been forwarded to our support team via WhatsApp. We'll get back to you within <strong>2–4 hours</strong> during business hours.
+            Our support team will contact you within <strong>2–4 hours</strong> during business hours. JazakAllah.
           </p>
           <div className="space-y-3">
-            <a href={`https://wa.me/923702578788`} target="_blank" rel="noreferrer"
-              className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
-              <MessageCircle className="w-4 h-4" /> Open WhatsApp Chat
-            </a>
-            <Link to="/" className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl font-bold border border-gray-200 text-gray-700 hover:bg-gray-50">
+            <Link to="/" className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl font-bold bg-brand-500 text-white hover:bg-brand-600 transition-colors">
               Back to Home
             </Link>
+            <a href={waSales()} target="_blank" rel="noreferrer"
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl font-bold border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors">
+              <MessageCircle className="w-4 h-4 text-[#25D366]" /> Chat on WhatsApp instead
+            </a>
           </div>
           <button onClick={() => setSubmitted(false)} className="mt-4 text-sm text-gray-400 hover:text-gray-600">
             Submit another request
@@ -199,19 +215,19 @@ export default function Support() {
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-400 resize-none" />
               </div>
 
-              <div className="bg-blue-50 rounded-2xl px-5 py-4 text-sm text-blue-700">
-                <strong>How this works:</strong> Submitting this form will open WhatsApp with your request pre-filled. Our support team will respond on the same chat thread — no account needed.
-              </div>
+              {err && (
+                <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-sm text-red-700">{err}</div>
+              )}
 
-              <button type="submit"
-                className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-white text-base shadow-lg active:scale-[0.98] bg-wa hover:bg-wa-hover transition-colors">
-                <MessageCircle className="w-5 h-5" />
-                Send via WhatsApp
+              <button type="submit" disabled={loading}
+                className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-white text-base shadow-lg active:scale-[0.98] bg-brand-500 hover:bg-brand-600 disabled:opacity-60 transition-colors">
+                <CheckCircle2 className="w-5 h-5" />
+                {loading ? 'Submitting…' : 'Submit Request'}
               </button>
 
               <p className="text-center text-xs text-gray-400">
-                By submitting you agree to be contacted by our team via WhatsApp.
-                <Link to="/policy/privacy" className="ml-1 text-brand-500 hover:underline">Privacy Policy</Link>
+                Our team will contact you within 2–4 hours. Prefer instant chat?{' '}
+                <a href={waSales()} target="_blank" rel="noreferrer" className="text-[#25D366] hover:underline">WhatsApp us directly</a>.
               </p>
             </form>
           </div>

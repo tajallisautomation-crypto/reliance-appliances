@@ -5,12 +5,13 @@ import {
   CheckCircle, Shield, ArrowRight, Phone, User, MapPin,
 } from 'lucide-react'
 import { submitSolarLead } from '../lib/api'
+import { WA_ADMIN } from '../lib/config'
+
 
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const UNIT_PRICE   = 62    // PKR/unit — 2026 Karachi average tariff
 const PEAK_SUN_HRS = 4.5   // Karachi daily peak sun hours
-const WA_NUMBER    = '923354266238'
 
 // ── Calculation Logic ──────────────────────────────────────────────────────────
 function calcSystem(bill: number, backupHours: number) {
@@ -84,7 +85,7 @@ function OffGridCalculator() {
   }
 
   const waHref = result && bill
-    ? `https://wa.me/${WA_NUMBER}?text=${buildWaMessage(parseInt(bill.replace(/,/g, '')), parseInt(backup), result)}`
+    ? `https://wa.me/${WA_ADMIN}?text=${buildWaMessage(parseInt(bill.replace(/,/g, '')), parseInt(backup), result)}`
     : '#'
 
   return (
@@ -232,35 +233,9 @@ function LeadForm() {
         backup_hours: backup, system_kw: result.systemKw,
         battery_kwh: result.batteryKwh, est_savings: result.estSavings,
       })
-      // Also open WhatsApp with the pre-filled inquiry
-      const lines = [
-        `*Off-Grid Solar Consultation Request* ☀️`, ``,
-        `*Name:* ${form.name.trim()}`,
-        `*Phone:* ${form.phone.trim()}`,
-        `*Monthly Bill:* PKR ${bill.toLocaleString()}`,
-        `*Night Backup Needed:* ${backup} Hours`, ``,
-        `*Calculated System:*`,
-        `• ${result.systemKw}kW — ${result.panels} × 545W panels`,
-        `• Battery: ${result.batteryKwh}kWh (${result.batteryAh48}Ah @ 48V)`,
-        `• Est. Monthly Savings: PKR ${result.estSavings.toLocaleString()}`, ``,
-        `Please call me for a free consultation. JazakAllah.`,
-      ]
-      window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(lines.join('\n'))}`, '_blank')
       setDone(true)
     } catch (e: any) {
-      // DB error — still open WhatsApp so the lead isn't lost
-      const backup = parseInt(form.backup)
-      const result = calcSystem(bill, backup)
-      const lines = [
-        `*Off-Grid Solar Consultation Request* ☀️`, ``,
-        `*Name:* ${form.name.trim()}`, `*Phone:* ${form.phone.trim()}`,
-        `*Monthly Bill:* PKR ${bill.toLocaleString()}`,
-        `*Night Backup Needed:* ${backup} Hours`, ``,
-        `*System:* ${result.systemKw}kW — Battery: ${result.batteryKwh}kWh`,
-        `Please call me. JazakAllah.`,
-      ]
-      window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(lines.join('\n'))}`, '_blank')
-      setDone(true)
+      setErr('Could not submit. Please try again or contact us on WhatsApp.')
     } finally {
       setLoading(false)
     }
@@ -268,12 +243,17 @@ function LeadForm() {
 
   if (done) {
     return (
-      <div className="text-center py-10 space-y-3">
+      <div className="text-center py-10 space-y-4">
         <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto">
           <CheckCircle className="w-8 h-8 text-green-400" />
         </div>
-        <div className="text-white font-bold text-lg">Request Sent</div>
-        <div className="text-gray-400 text-sm">WhatsApp opened with your details. Our solar expert will reply within 2 hours.</div>
+        <div className="text-white font-bold text-lg">Request Received</div>
+        <div className="text-gray-400 text-sm">Our solar expert will call you within 2 hours. JazakAllah.</div>
+        <a href={`https://wa.me/${WA_ADMIN}?text=${encodeURIComponent('Assalam-o-Alaikum, I just submitted an off-grid solar inquiry on the website. Please call me.')}`}
+          target="_blank" rel="noreferrer"
+          className="inline-flex items-center gap-2 text-[#25D366] text-sm hover:underline">
+          <MessageCircle className="w-4 h-4" /> Chat on WhatsApp instead
+        </a>
       </div>
     )
   }
@@ -564,7 +544,7 @@ export default function OffGridSolar() {
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <a
-              href={`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent('Assalam-o-Alaikum, I want to inquire about an off-grid solar system.')}`}
+              href={`https://wa.me/${WA_ADMIN}?text=${encodeURIComponent('Assalam-o-Alaikum, I want to inquire about an off-grid solar system.')}`}
               target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2.5 bg-[#25D366] hover:bg-[#20bc5a] text-white font-bold px-8 py-4 rounded-2xl transition-all text-sm"
             >

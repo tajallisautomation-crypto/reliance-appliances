@@ -62,7 +62,8 @@ export default function ProductDetail() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const dragRef = useRef<{ dragging: boolean; startX: number; startY: number; panX: number; panY: number }>({ dragging: false, startX: 0, startY: 0, panX: 0, panY: 0 });
 
-  const addItem = useCartStore(s => s.addItem);
+  const addItem         = useCartStore(s => s.addItem);
+  const setSelectedPlan = useCartStore(s => s.setSelectedPlan);
   const consultationThreshold = useSettingsStore(s => s.consultationThreshold) ?? CONSULTATION_THRESHOLD_DEFAULT;
 
   useEffect(() => {
@@ -129,7 +130,11 @@ export default function ProductDetail() {
     : 0;
   const isHighTicket = p.price.cash_floor >= consultationThreshold;
 
-  const handleAdd = () => { addItem(p); toast.success(`${p.brand} ${p.model} added to cart!`); };
+  const handleAdd = () => {
+    addItem(p);
+    setSelectedPlan(plan);
+    toast.success(`${p.brand} ${p.model} added to cart!`);
+  };
 
   const handleShare = async () => {
     const url = `${window.location.origin}/products/${p.slug}`;
@@ -162,10 +167,21 @@ export default function ProductDetail() {
     || _catEntry?.slug
     || _rawCat.replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
 
-  // Human-readable category label for breadcrumb display
-  // Use normalized_category when available so the breadcrumb shows a clean name
-  // (e.g. "Solar Inverters" instead of "Hybrid Inverter")
-  const catLabel = p.normalized_category || p.category;
+  // Human-readable category label for breadcrumb and related-product headings.
+  // Priority: normalized_category (cleanest) → DEFAULT_CATEGORIES name match →
+  //           canonical-category display name → raw p.category as last resort.
+  const _CC_DISPLAY: Record<string, string> = {
+    air_conditioner: 'Air Conditioners', refrigerator: 'Refrigerators',
+    deep_freezer: 'Freezers', washing_machine: 'Washing Machines',
+    television: 'Televisions', solar: 'Solar Products', battery: 'Solar Batteries',
+    solar_inverter: 'Solar Inverters', solar_panel: 'Solar Panels',
+    vacuum: 'Vacuum Cleaners', water_dispenser: 'Water Dispensers',
+    microwave: 'Microwaves', air_fryer: 'Air Fryers', blender: 'Kitchen Appliances',
+    fan: 'Fans', iron: 'Small Appliances', kettle: 'Kitchen Appliances',
+  };
+  const catLabel = p.normalized_category
+    || _catEntry?.name
+    || _CC_DISPLAY[p.category.toLowerCase().replace(/\s+/g, '_')] || p.category;
 
   // Product structured data — includes MPN, SKU, and spec-based additionalProperty
   const productSchema = {
@@ -1004,7 +1020,7 @@ export default function ProductDetail() {
       {/* Related products — skeleton while loading, hidden if none found */}
       {(relatedLoading || related.length > 0) && (
         <div className="mt-14">
-          <h2 className="text-lg font-extrabold text-gray-900 mb-5">More {catLabel.replace(/s$/, '')}s</h2>
+          <h2 className="text-lg font-extrabold text-gray-900 mb-5">More {catLabel.endsWith('s') ? catLabel : catLabel + 's'}</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {relatedLoading
               ? Array.from({ length: 4 }).map((_, i) => (

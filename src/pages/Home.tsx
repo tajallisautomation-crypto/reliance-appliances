@@ -1,43 +1,40 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  ArrowRight, Sun, Calculator, ShieldCheck, Truck, CreditCard, Headphones,
-  ChevronRight, Zap, Leaf, MessageCircle, Image,
+  ArrowRight, Calculator, ShieldCheck, Truck, CreditCard, Headphones,
+  ChevronRight, Zap, Leaf, Image,
 } from 'lucide-react'
 import { getProducts, getProductCount, type Product, formatPrice } from '../lib/api'
 
-// Shop-by-category groups — mirror the Products page CATEGORY_GROUPS exactly
+// Shop-by-category — canonical ?category= routing matching Navbar and Footer
 const HOME_CATEGORIES = [
-  { id: 'cooling', name: 'Cooling & Refrigeration', icon: '❄️', group: 'cooling' },
-  { id: 'laundry', name: 'Laundry',                 icon: '🫧', group: 'laundry' },
-  { id: 'kitchen', name: 'Kitchen & Cooking',        icon: '🍳', group: 'kitchen' },
-  { id: 'tv',      name: 'Televisions',              icon: '📺', group: 'tv'      },
-  { id: 'solar',   name: 'Solar & Energy',           icon: '☀️', group: 'solar'   },
-  { id: 'home',    name: 'Home & Comfort',           icon: '🏠', group: 'home'    },
+  { id: 'air-conditioners',   name: 'Air Conditioners',   icon: '❄️', to: '/products?category=air-conditioners'   },
+  { id: 'refrigerators',      name: 'Refrigerators',      icon: '🧊', to: '/products?category=refrigerators'      },
+  { id: 'washing-machines',   name: 'Washing Machines',   icon: '👕', to: '/products?category=washing-machines'   },
+  { id: 'freezers',           name: 'Freezers',           icon: '🥶', to: '/products?category=freezers'           },
+  { id: 'televisions',        name: 'Televisions',        icon: '📺', to: '/products?category=televisions'        },
+  { id: 'solar',              name: 'Solar & Energy',     icon: '☀️', to: '/solar'                                },
+  { id: 'kitchen-appliances', name: 'Kitchen & Cooking',  icon: '🍳', to: '/products?category=kitchen-appliances' },
+  { id: 'fans',               name: 'Fans',               icon: '💨', to: '/products?category=fans'               },
+  { id: 'water-dispensers',   name: 'Water Dispensers',   icon: '💧', to: '/products?category=water-dispensers'   },
+  { id: 'small-appliances',   name: 'Small Appliances',   icon: '🔌', to: '/products?category=small-appliances'   },
 ]
 import { calcPlan } from '../lib/plans'
 import ProductCard from '../components/products/ProductCard'
-import AnimatedCounter from '../components/ui/AnimatedCounter'
 import SEO from '../components/ui/SEO'
-import { waSales } from '../lib/whatsapp'
 import OfferBannerSlider from '../components/OfferBannerSlider'
 import { getInstallationImages, type MediaItem } from '../lib/gallery'
 
+// Brand list — preferred brands (Haier, Crown, Westpoint) listed first for merchandising visibility
 const BRANDS = [
-  { name: 'Haier',     slug: 'haier',     color: '#e31837', desc: "World's #1 home appliance brand" },
-  { name: 'Dawlance',  slug: 'dawlance',  color: '#003087', desc: "Pakistan's most trusted brand" },
-  { name: 'Gree',      slug: 'gree',      color: '#00843d', desc: 'Energy-efficient inverter ACs' },
-  { name: 'EcoStar',   slug: 'ecostar',   color: '#0070c0', desc: 'Smart TVs & air conditioners' },
-  { name: 'Crown',     slug: 'crown',     color: '#1a1a2e', desc: 'Premium solar solutions' },
-  { name: 'Westpoint', slug: 'westpoint', color: '#2563eb', desc: 'Quality kitchen & home appliances' },
+  { name: 'Haier',     slug: 'haier',     color: '#e31837', desc: "World's #1 home appliance brand",     featured: true  },
+  { name: 'Crown',     slug: 'crown',     color: '#1a1a2e', desc: 'Premium solar & home solutions',      featured: true  },
+  { name: 'Westpoint', slug: 'westpoint', color: '#2563eb', desc: 'Quality kitchen & home appliances',   featured: true  },
+  { name: 'Dawlance',  slug: 'dawlance',  color: '#003087', desc: "Pakistan's most trusted refrigerators", featured: false },
+  { name: 'Gree',      slug: 'gree',      color: '#00843d', desc: 'Energy-efficient inverter ACs',       featured: false },
+  { name: 'EcoStar',   slug: 'ecostar',   color: '#0070c0', desc: 'Smart TVs & air conditioners',        featured: false },
 ]
 
-const WHY_RELIANCE = [
-  { icon: ShieldCheck, title: 'Authentic Products',   desc: 'Every product 100% genuine with official warranty.',          bg: '#dbeafe', fg: '#1d4ed8' },
-  { icon: CreditCard,  title: 'Easy Installments',    desc: '2–12 month plans, no bank account required.',                bg: '#dcfce7', fg: '#15803d' },
-  { icon: Truck,       title: 'Home Delivery',        desc: 'Fast delivery & professional installation service.',          bg: '#ffedd5', fg: '#c2410c' },
-  { icon: Headphones,  title: 'After-Sale Support',   desc: 'Dedicated service team, follow-up & warranty claims.',       bg: '#f3e8ff', fg: '#7e22ce' },
-]
 
 const PLAN_OPTIONS = [
   { key: '2m'  as const, label: '2 Payments'  },
@@ -62,10 +59,18 @@ export default function Home() {
   const [samplePrice,    setSamplePrice]   = useState(150000)
   const [galleryStrip,   setGalleryStrip]  = useState<MediaItem[]>([])
 
+  // Preferred brands surfaced first in homepage featured section
+  const PREFERRED_BRANDS = ['haier', 'crown', 'westpoint']
+
   useEffect(() => {
     getProducts({ featured: 'true' }).then(d => {
-      setHeroProduct(d.products[0] ?? null)
-      setFeatured(d.products.slice(0, 8))
+      const all = d.products
+      // Sort: preferred brands first, then rest — preserving featured ordering within each group
+      const preferred = all.filter(p => PREFERRED_BRANDS.includes(p.brand.toLowerCase()))
+      const others    = all.filter(p => !PREFERRED_BRANDS.includes(p.brand.toLowerCase()))
+      const sorted    = [...preferred, ...others]
+      setHeroProduct(sorted[0] ?? null)
+      setFeatured(sorted.slice(0, 8))
       setLoading(false)
     }).catch(() => setLoading(false))
     getProductCount().then(setTotalProducts)
@@ -114,6 +119,12 @@ export default function Home() {
                 <Zap className="w-4 h-4" /> Solar Solutions
               </Link>
             </div>
+            <div className="flex flex-wrap gap-x-6 gap-y-2 mt-6 text-sm text-gray-500">
+              <span><strong className="text-gray-900 font-bold">11</strong> Years in Business</span>
+              <span><strong className="text-gray-900 font-bold">14,400+</strong> Clients</span>
+              <span><strong className="text-gray-900 font-bold">75%</strong> Return Rate</span>
+              <span><strong className="text-gray-900 font-bold">24,000+</strong> Orders</span>
+            </div>
           </div>
 
           {/* Right: hero visual */}
@@ -143,34 +154,17 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── TRUST STRIP ──────────────────────────────────────────── */}
-      <section className="bg-gray-950 py-14">
-        <div className="max-w-7xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-          {[
-            { target: 11,    suffix: ' Years', label: 'In Business' },
-            { target: 14400, suffix: '+',      label: 'Clients Served' },
-            { target: 75,    suffix: '%',      label: 'Returning Customers' },
-            { target: 24000, suffix: '+',      label: 'Orders Fulfilled' },
-          ].map(item => (
-            <div key={item.label}>
-              <p className="text-4xl md:text-5xl font-black text-brand-400 mb-1">
-                <AnimatedCounter target={item.target} suffix={item.suffix} />
-              </p>
-              <p className="text-gray-500 text-sm">{item.label}</p>
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* ── CATEGORY GRID ────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-5">Shop by Category</p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Shop by Category</p>
+        {/* Mobile: 3-col compact icon grid | Tablet+: 5-col | Desktop: all 10 */}
+        <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-10 gap-2 sm:gap-3">
           {HOME_CATEGORIES.map(cat => (
-            <Link key={cat.id} to={`/products?group=${cat.group}`}
-              className="group flex items-center gap-3 sm:flex-col sm:gap-2 py-4 px-5 sm:py-5 sm:px-3 rounded-2xl bg-gray-50 hover:bg-brand-50 border border-transparent hover:border-brand-200 transition-all duration-200 text-left sm:text-center">
-              <span className="text-3xl sm:text-2xl group-hover:scale-110 transition-transform duration-200 leading-none shrink-0">{cat.icon}</span>
-              <span className="text-sm sm:text-[11px] font-semibold text-gray-700 group-hover:text-brand-700 leading-tight">{cat.name}</span>
+            <Link key={cat.id} to={cat.to}
+              className="group flex flex-col items-center gap-1.5 py-3.5 px-1 rounded-2xl bg-gray-50 hover:bg-brand-50 border border-transparent hover:border-brand-200 transition-all duration-200 text-center min-w-0">
+              <span className="text-2xl group-hover:scale-110 transition-transform duration-200 leading-none">{cat.icon}</span>
+              <span className="text-[10px] sm:text-[11px] font-semibold text-gray-600 group-hover:text-brand-700 leading-tight line-clamp-2 w-full text-center">{cat.name}</span>
             </Link>
           ))}
         </div>
@@ -339,13 +333,17 @@ export default function Home() {
               )}
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3 justify-center flex-wrap">
               <Link to="/solar-calculator"
                 className="inline-flex items-center justify-center gap-2 bg-eco-500 hover:bg-eco-600 text-white font-bold px-8 py-4 rounded-2xl transition-colors shadow-eco">
                 <Calculator className="w-4 h-4" /> Calculate Your Savings
               </Link>
+              <Link to="/solar"
+                className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-gray-600 text-gray-200 font-medium px-8 py-4 rounded-2xl transition-colors">
+                View Solar Products <ChevronRight className="w-4 h-4" />
+              </Link>
               <Link to="/green-corridor"
-                className="inline-flex items-center justify-center gap-2 border border-gray-700 text-gray-300 hover:bg-gray-800 font-medium px-8 py-4 rounded-2xl transition-colors">
+                className="inline-flex items-center justify-center gap-2 border border-gray-700 text-gray-400 hover:bg-gray-800 font-medium px-6 py-4 rounded-2xl transition-colors text-sm">
                 Explore Green Corridor <ChevronRight className="w-4 h-4" />
               </Link>
             </div>
@@ -353,40 +351,40 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── SOLAR CTA ────────────────────────────────────────────── */}
-      <section className="bg-gradient-to-r from-amber-500 via-brand-500 to-yellow-400 mx-4 md:mx-8 rounded-3xl overflow-hidden my-4">
-        <div className="max-w-5xl mx-auto px-6 py-12 md:py-14 flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="text-white">
-            <div className="flex items-center gap-2 text-amber-100 text-sm font-medium mb-3"><Sun className="w-4 h-4" /> Solar Solutions</div>
-            <h2 className="text-3xl md:text-4xl font-black mb-3">How much solar do you need?</h2>
-            <p className="text-amber-100 text-lg max-w-lg">Add your appliances, get an instant solar system recommendation with customised pricing.</p>
-          </div>
-          <div className="flex flex-col gap-3 flex-shrink-0">
-            <Link to="/solar-calculator"
-              className="inline-flex items-center gap-2 bg-white text-brand-600 font-bold px-8 py-4 rounded-2xl hover:bg-brand-50 shadow-lg">
-              <Calculator className="w-5 h-5" /> Solar Calculator
-            </Link>
-            <Link to="/solar"
-              className="inline-flex items-center gap-2 border border-white/50 text-white font-medium px-8 py-3 rounded-2xl hover:bg-white/10 justify-center">
-              View Solar Products
-            </Link>
-          </div>
-        </div>
-      </section>
 
       {/* ── BRANDS ───────────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 pb-10 pt-6">
-        <h2 className="text-2xl font-black text-gray-900 mb-6 text-center">Brands We Carry</h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          {BRANDS.map(b => (
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-black text-gray-900">Brands We Carry</h2>
+          <Link to="/products" className="text-sm text-brand-600 font-semibold flex items-center gap-1 hover:text-brand-700">
+            All Products <ChevronRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+        {/* Featured brands (Haier, Crown, Westpoint) shown prominently on top row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-3">
+          {BRANDS.filter(b => b.featured).map(b => (
             <Link key={b.slug} to={`/products?brand=${b.slug}`}
-              className="group flex items-center gap-4 bg-white border border-gray-100 hover:border-brand-300 hover:shadow-apple-lg rounded-2xl p-5 transition-all">
+              className="group flex items-center gap-4 bg-white border-2 border-gray-100 hover:border-brand-300 hover:shadow-apple-lg rounded-2xl p-5 transition-all">
               <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-black text-xl flex-shrink-0" style={{ backgroundColor: b.color }}>{b.name[0]}</div>
               <div>
                 <div className="font-bold text-gray-800 group-hover:text-brand-700">{b.name}</div>
                 <div className="text-xs text-gray-500">{b.desc}</div>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-brand-500 ml-auto" />
+            </Link>
+          ))}
+        </div>
+        {/* Other brands */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {BRANDS.filter(b => !b.featured).map(b => (
+            <Link key={b.slug} to={`/products?brand=${b.slug}`}
+              className="group flex items-center gap-3 bg-gray-50 border border-gray-100 hover:border-brand-200 hover:bg-white hover:shadow-sm rounded-xl p-4 transition-all">
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-black text-base flex-shrink-0" style={{ backgroundColor: b.color }}>{b.name[0]}</div>
+              <div>
+                <div className="text-sm font-bold text-gray-700 group-hover:text-brand-700">{b.name}</div>
+                <div className="text-xs text-gray-400">{b.desc}</div>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-brand-400 ml-auto" />
             </Link>
           ))}
         </div>
@@ -413,23 +411,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── WHY RELIANCE ─────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 py-14">
-        <div className="text-center mb-10">
-          <h2 className="text-2xl md:text-3xl font-black text-gray-900">Why Choose Reliance?</h2>
-        </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {WHY_RELIANCE.map(item => (
-            <div key={item.title} className="text-center p-6">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: item.bg }}>
-                <item.icon className="w-7 h-7" style={{ color: item.fg }} />
-              </div>
-              <h3 className="font-bold text-gray-800 mb-2">{item.title}</h3>
-              <p className="text-sm text-gray-500">{item.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* ── PROOF OF WORK ────────────────────────────────────────── */}
       {galleryStrip.length > 0 && (
@@ -467,14 +448,29 @@ export default function Home() {
           <p className="text-gray-400 mb-8 text-lg">
             ACs, fridges, washing machines, solar &amp; more — {totalProducts > 0 ? totalProducts : '400+'} products on easy installments. Delivered to your door in Karachi.
           </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8 text-left sm:text-center">
+            {[
+              { icon: ShieldCheck, label: 'Authentic Products', sub: '100% genuine, full warranty' },
+              { icon: CreditCard,  label: 'Easy Installments',  sub: '2–12 months, no bank needed' },
+              { icon: Truck,       label: 'Home Delivery',      sub: 'Fast delivery & installation' },
+              { icon: Headphones,  label: 'After-Sale Support', sub: 'Dedicated team, warranty claims' },
+            ].map(({ icon: Icon, label, sub }) => (
+              <div key={label} className="flex sm:flex-col items-start sm:items-center gap-3 sm:gap-2 bg-white/5 rounded-2xl p-4">
+                <Icon className="w-5 h-5 text-brand-400 shrink-0" />
+                <div>
+                  <p className="text-sm font-bold text-white">{label}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{sub}</p>
+                </div>
+              </div>
+            ))}
+          </div>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/products" className="bg-brand-500 hover:bg-brand-600 text-white font-bold px-8 py-4 rounded-2xl transition-colors">
               Shop All Products
             </Link>
-            <a href={waSales()} target="_blank" rel="noreferrer"
-              className="bg-green-500 hover:bg-green-600 text-white font-bold px-8 py-4 rounded-2xl flex items-center gap-2 justify-center transition-colors">
-              <MessageCircle className="w-4 h-4" /> WhatsApp Us
-            </a>
+            <Link to="/installments" className="border border-gray-600 text-gray-300 hover:bg-gray-800 font-bold px-8 py-4 rounded-2xl transition-colors">
+              View Installment Plans
+            </Link>
           </div>
         </div>
       </section>

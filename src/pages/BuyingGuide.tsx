@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Wind, Refrigerator, Shirt, ChevronRight, CheckCircle, AlertCircle, Info } from 'lucide-react'
 import SEO from '@/components/ui/SEO'
+import { waSales } from '@/lib/whatsapp'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared UI atoms
@@ -112,56 +113,61 @@ function ACCalculator() {
     const l = parseFloat(length), w = parseFloat(width)
     if (!l || !w || l <= 0 || w <= 0) return
 
-    // Base: 25 BTU per sq.ft (Pakistan standard for T3 climate)
-    let btu = l * w * 25
-    const factors: string[] = [`Base: ${l}×${w} = ${l * w} sq.ft × 25 BTU`]
+    // Base: 65 BTU per sq.ft — Pakistan T3 hot climate standard
+    // (Pakistani industry rule of thumb: ~1 ton per 175–200 sq.ft standard room)
+    const sqft = l * w
+    let btu = sqft * 65
+    const factors: string[] = [`Base: ${l}×${w} = ${sqft} sq.ft × 65 BTU/sq.ft (Pakistan T3 tropical standard)`]
 
     // Floor adjustment
     if (floor === 'top') {
       btu *= 1.18
-      factors.push('Top floor / roof: +18% (direct heat transfer)')
+      factors.push('Top floor / roof: +18% (direct solar heat through slab)')
     } else if (floor === 'ground') {
       btu *= 0.95
-      factors.push('Ground floor: −5% (cooler slab)')
+      factors.push('Ground floor: −5% (cooler slab, shaded walls)')
     }
 
     // Sun exposure
     if (sun === 'direct') {
       btu *= 1.15
-      factors.push('Direct sun exposure: +15%')
+      factors.push('Direct sun (south/west facing): +15%')
     } else if (sun === 'partial') {
       btu *= 1.07
       factors.push('Partial sun: +7%')
     }
 
-    // Insulation
+    // Insulation / ceiling type
     if (insul === 'poor') {
-      btu *= 1.15
-      factors.push('Poor insulation (tin/asbestos roof): +15%')
+      btu *= 1.20
+      factors.push('Poor insulation (tin/asbestos roof): +20% (high radiant heat)')
     } else if (insul === 'good') {
-      btu *= 0.95
-      factors.push('Well insulated (double ceiling, cavity walls): −5%')
+      btu *= 0.92
+      factors.push('Well insulated (false ceiling, cavity walls): −8%')
     }
 
-    // People (base assumes 2; every extra adds 600 BTU)
+    // People (base assumes 2; every extra adds 600 BTU body heat)
     const extra = Math.max(0, parseInt(people || '2') - 2)
     if (extra > 0) {
       btu += extra * 600
-      factors.push(`${extra} extra person${extra > 1 ? 's' : ''}: +${extra * 600} BTU`)
+      factors.push(`${extra} extra person${extra > 1 ? 's' : ''}: +${extra * 600} BTU (body heat)`)
     }
 
     btu = Math.round(btu)
 
-    // Map to standard tonnage
+    // Map to standard Pakistani AC sizes — always size conservatively (round up)
+    // 1 ton = 12,000 BTU | 1.5 ton = 18,000 | 2 ton = 24,000 | 3 ton = 36,000
     let ton: string, tonLabel: string, categorySlug: string
-    if (btu <= 10500) {
-      ton = '0.75–1'; tonLabel = '1 Ton'; categorySlug = '1-ton-air-conditioners'
-    } else if (btu <= 14500) {
+    if (btu <= 13000) {
       ton = '1'; tonLabel = '1 Ton'; categorySlug = '1-ton-air-conditioners'
-    } else if (btu <= 20000) {
+    } else if (btu <= 19500) {
       ton = '1.5'; tonLabel = '1.5 Ton'; categorySlug = '1-5-ton-air-conditioners'
-    } else {
+    } else if (btu <= 26000) {
       ton = '2'; tonLabel = '2 Ton'; categorySlug = '2-ton-air-conditioners'
+    } else if (btu <= 38000) {
+      ton = '3'; tonLabel = '3 Ton'; categorySlug = 'air-conditioners'
+    } else {
+      ton = '3+'; tonLabel = '3 Ton+'; categorySlug = 'air-conditioners'
     }
 
     setResult({ btu, ton, tonLabel, categorySlug, factors })
@@ -263,9 +269,9 @@ function ACCalculator() {
             </div>
 
             <Tip>
-              Always choose inverter over non-inverter in Pakistan — they consume 40–60% less
-              electricity and handle voltage fluctuations better. If in doubt between two sizes,
-              go one step up.
+              {result.ton === '3' || result.ton === '3+'
+                ? 'For large halls and open areas, consider a 3-ton or cassette AC. Contact our team — we can recommend the right unit and multi-split options for your space.'
+                : 'Always choose inverter over non-inverter in Pakistan — they consume 40–60% less electricity and handle voltage fluctuations better. When in doubt between two sizes, go one step up for better comfort.'}
             </Tip>
 
             <Link
@@ -305,48 +311,54 @@ function RefrigeratorCalculator() {
     const m = parseInt(members || '4')
     const reasons: string[] = []
 
-    // 2 Cu.Ft per person is the Pakistan household baseline
-    let cf = m * 2
-    reasons.push(`${m} family members × 2 Cu.Ft = ${cf} Cu.Ft base`)
+    // Haier-aligned baseline: 2.5 Cu.Ft per person
+    // Haier guidance: 2–3 persons → 7–10 cu.ft | 3–4 → 11–14 | 4–6 → 15–18 | 6+ → 18+
+    let cf = m * 2.5
+    reasons.push(`${m} family members × 2.5 Cu.Ft = ${cf} Cu.Ft base (Haier-aligned)`)
 
     if (cooking === 'heavy') {
-      cf += 3
-      reasons.push('Heavy/daily cooking: +3 Cu.Ft (fresh produce, leftovers)')
+      cf += 2.5
+      reasons.push('Heavy/daily cooking: +2.5 Cu.Ft (fresh produce, daily leftovers)')
     } else if (cooking === 'light') {
-      cf -= 2
-      reasons.push('Light cooking / eating out often: −2 Cu.Ft')
+      cf -= 1.5
+      reasons.push('Light cooking / eating out often: −1.5 Cu.Ft')
     }
 
     if (shopping === 'fortnightly') {
-      cf += 4
-      reasons.push('Fortnightly grocery shopping: +4 Cu.Ft (bulk storage)')
+      cf += 3
+      reasons.push('Fortnightly bulk shopping: +3 Cu.Ft (extra storage)')
     } else if (shopping === 'weekly') {
-      cf += 2
-      reasons.push('Weekly grocery shopping: +2 Cu.Ft')
+      cf += 1.5
+      reasons.push('Weekly grocery shopping: +1.5 Cu.Ft')
     }
 
     if (meat === 'yes') {
-      cf += 4
-      reasons.push('Long-term meat / fish storage: +4 Cu.Ft (dedicated freezer zone)')
+      cf += 3
+      reasons.push('Long-term meat / fish storage: +3 Cu.Ft (dedicated freezer zone)')
     }
 
-    // Minimum is what the calculation gives; add 20% buffer for comfort
-    const minCF  = Math.max(6, Math.round(cf))
-    const recCF  = Math.max(8, Math.round(cf * 1.2))
+    // Use a 10% buffer (not 20%) to stay close to Haier guidance ranges
+    const minCF = Math.max(7, Math.round(cf))
+    const recCF = Math.max(8, Math.round(cf * 1.1))
+    // Liter equivalent: 1 cu.ft ≈ 28.3L
+    const recL  = Math.round(recCF * 28.3 / 10) * 10
 
     let sizeLabel: string, categorySlug: string, type: string
-    if (recCF <= 12) {
-      sizeLabel = 'Small (up to 12 Cu.Ft)'; categorySlug = 'small-refrigerators'
-      type = 'Single-door or small double-door'
-    } else if (recCF <= 17) {
-      sizeLabel = 'Medium (13–17 Cu.Ft)'; categorySlug = 'medium-refrigerators'
-      type = 'Double-door or mid-size'
+    if (recCF <= 10) {
+      sizeLabel = 'Small (7–10 Cu.Ft / up to 280L)'; categorySlug = 'refrigerators'
+      type = 'Single-door or compact double-door'
+    } else if (recCF <= 14) {
+      sizeLabel = 'Medium (11–14 Cu.Ft / 280–400L)'; categorySlug = 'refrigerators'
+      type = 'Double-door (e.g. Haier HRF-306, HRF-336)'
+    } else if (recCF <= 18) {
+      sizeLabel = 'Large (15–18 Cu.Ft / 400–510L)'; categorySlug = 'refrigerators'
+      type = 'Large double-door (e.g. Haier HRF-398, HRF-438)'
     } else {
-      sizeLabel = 'Large (18 Cu.Ft+)'; categorySlug = 'large-refrigerators'
-      type = 'Large double-door or side-by-side'
+      sizeLabel = 'Extra Large (18 Cu.Ft+ / 510L+)'; categorySlug = 'refrigerators'
+      type = 'Large double-door or side-by-side (joint family)'
     }
 
-    setResult({ minCF, recCF, sizeLabel, categorySlug, reasons, type })
+    setResult({ minCF, recCF: recCF, sizeLabel, categorySlug, reasons, type: `${type} (~${recL}L)` })
   }
 
   return (
@@ -411,18 +423,23 @@ function RefrigeratorCalculator() {
             <div className="grid grid-cols-2 gap-3">
               <ResultCard
                 icon={<CheckCircle className="w-4 h-4" />}
-                label="Recommended Size"
+                label="Recommended Capacity"
                 value={result.recCF + ' Cu.Ft'}
-                sub={result.sizeLabel}
+                sub={`Min: ${result.minCF} cu.ft · ${result.sizeLabel.split('(')[1]?.replace(')', '') || ''}`}
                 color="green"
               />
               <ResultCard
                 icon={<Refrigerator className="w-4 h-4" />}
-                label="Type"
-                value={result.type}
-                sub={`Minimum: ${result.minCF} Cu.Ft`}
+                label="Best Type"
+                value={result.sizeLabel.split(' (')[0]}
+                sub={`Min: ${result.minCF} Cu.Ft`}
                 color="green"
               />
+            </div>
+
+            <div className="bg-teal-50 border border-teal-100 rounded-xl px-4 py-3">
+              <p className="text-xs font-semibold text-teal-700">Recommended model type:</p>
+              <p className="text-sm text-teal-800 font-medium mt-0.5">{result.type}</p>
             </div>
 
             <div className="bg-gray-50 rounded-xl p-3 space-y-1">
@@ -436,16 +453,16 @@ function RefrigeratorCalculator() {
             </div>
 
             <Tip>
-              In Karachi, load-shedding and frequent power cuts mean a larger fridge pays off —
-              more thermal mass keeps food cold longer during outages. Inverter compressors
-              also reduce electricity cost significantly on large units.
+              In Karachi, inverter refrigerators save 30–50% electricity vs non-inverter.
+              Glass Door (GD) models keep food visible without opening — reducing cooling loss.
+              Haier EP / IP / IF series are popular glass-door inverter options.
             </Tip>
 
             <Link
-              to={`/products/category/${result.categorySlug}`}
+              to={`/products?category=refrigerators`}
               className="flex items-center justify-center gap-2 w-full bg-teal-500 hover:bg-teal-600 text-white rounded-xl py-3 font-bold text-sm transition-all"
             >
-              Browse {result.sizeLabel} Refrigerators <ChevronRight className="w-4 h-4" />
+              Browse Refrigerators <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
         )}
@@ -510,13 +527,19 @@ function ShirtCalculator() {
     let type: string, categorySlug: string, typeNote: string
     if (prefer === 'front') {
       type = 'Front-Load Fully Automatic'; categorySlug = 'automatic-washing-machines'
-      typeNote = 'Front-load uses 40% less water and gives better wash quality for fine fabrics'
+      typeNote = 'Front-load uses 40% less water and gives better wash quality for delicate and fine fabrics'
     } else if (prefer === 'semi') {
       type = 'Semi-Automatic (Twin Tub)'; categorySlug = 'semi-automatic-washing-machines'
-      typeNote = 'Semi-automatic gives more control and works well during load-shedding (lower power draw)'
+      typeNote = 'Semi-auto gives more control and works during load-shedding (lower power draw, flexible water use)'
+    } else if (prefer === 'washer') {
+      type = 'Washer Only (Semi-Auto Motor)'; categorySlug = 'semi-automatic-washing-machines'
+      typeNote = 'A standalone washer motor suits households that already have a spinner or hand-dry. Budget-friendly and low on power.'
+    } else if (prefer === 'spinner') {
+      type = 'Spinner / Dryer Only'; categorySlug = 'semi-automatic-washing-machines'
+      typeNote = 'A standalone spinner spins water out of hand-washed or semi-auto washed clothes quickly — great as a companion unit.'
     } else {
       type = 'Top-Load Fully Automatic'; categorySlug = 'automatic-washing-machines'
-      typeNote = 'Top-load automatic is easiest to use and fastest wash cycle — good for large families'
+      typeNote = 'Top-load automatic is the easiest to use with the fastest wash cycle — best for large families'
     }
 
     setResult({ kgLoad: kgPerWash, recKg, type, categorySlug, reasons, typeNote })
@@ -566,9 +589,11 @@ function ShirtCalculator() {
           <div>
             <Label>Preferred Machine Type</Label>
             <Select value={prefer} onChange={setPrefer} options={[
-              { value: 'auto',  label: 'Top-Load Automatic' },
-              { value: 'front', label: 'Front-Load Automatic' },
-              { value: 'semi',  label: 'Semi-Automatic (Twin Tub)' },
+              { value: 'auto',    label: 'Top-Load Automatic (Full Auto)' },
+              { value: 'front',   label: 'Front-Load Automatic (Full Auto)' },
+              { value: 'semi',    label: 'Semi-Automatic (Twin Tub)' },
+              { value: 'washer',  label: 'Washer Only (Semi-Auto Motor)' },
+              { value: 'spinner', label: 'Spinner / Dryer Only' },
             ]} />
           </div>
         </div>
@@ -593,7 +618,7 @@ function ShirtCalculator() {
               <ResultCard
                 icon={<Shirt className="w-4 h-4" />}
                 label="Best Type For You"
-                value={result.type.split(' ')[0] + '-Load'}
+                value={result.type.includes('Automatic') ? result.type.split(' ')[0] + '-Load Auto' : result.type.split(' ')[0]}
                 sub={result.type}
                 color="purple"
               />
@@ -676,8 +701,8 @@ export default function BuyingGuide() {
             Free consultation — no obligation.
           </p>
           <a
-            href="https://wa.me/923702578788?text=Hi%2C%20I%20need%20help%20choosing%20the%20right%20appliance%20for%20my%20home."
-            target="_blank" rel="noopener noreferrer"
+            href={waSales('Hi, I need help choosing the right appliance for my home.')}
+            target="_blank" rel="noreferrer"
             className="inline-flex items-center gap-2 bg-white text-brand-600 font-bold px-6 py-3 rounded-xl hover:bg-brand-50 transition-colors"
           >
             Chat on WhatsApp <ChevronRight className="w-4 h-4" />

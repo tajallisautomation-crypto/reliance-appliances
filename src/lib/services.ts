@@ -190,6 +190,62 @@ export const SERVICES_CATALOG: ServiceEntry[] = [
     notes: 'Free for customers purchasing a Tajalli solar package. For standalone consultation without purchase commitment, contact us.',
   },
 
+  // ── Televisions ──────────────────────────────────────────────────────────────
+
+  {
+    id: 'tv-wall-mount',
+    name: 'TV Wall Mounting',
+    description: 'Professional TV wall mount installation. Includes bracket selection guidance, stud/masonry drilling, cable management, and level alignment.',
+    category: 'installation',
+    appliesTo: ['Televisions'],
+    price: { type: 'range', min: 2000, max: 4000, display: 'PKR 2,000 – 4,000 (bracket not included)' },
+    installationProvider: 'tajalli_charged',
+    consultationRequired: false,
+    notes: 'Wall mounting bracket sold separately. Price varies by wall type and TV size.',
+  },
+
+  // ── Microwave / Kitchen Appliances ───────────────────────────────────────────
+
+  {
+    id: 'microwave-repair',
+    name: 'Microwave Oven Repair',
+    description: 'Diagnostics and repair for all microwave types — magnetron, turntable motor, control board, and door switch issues.',
+    category: 'repair',
+    appliesTo: ['Microwaves', 'Kitchen Appliances'],
+    price: { type: 'range', min: 2000, max: 6000, display: 'PKR 2,000 – 6,000 (labour only; parts extra)' },
+    installationProvider: 'tajalli_charged',
+    consultationRequired: false,
+    notes: 'Parts charged separately at cost. Major component failures (magnetron) quoted before work starts.',
+  },
+
+  // ── Water Heaters / Geysers ───────────────────────────────────────────────────
+
+  {
+    id: 'geyser-install',
+    name: 'Water Heater (Geyser) Installation',
+    description: 'Electric or gas geyser installation including wall mounting, water connection, and safety pressure valve fitment.',
+    category: 'installation',
+    appliesTo: ['Water Heaters'],
+    price: { type: 'range', min: 2500, max: 5000, display: 'PKR 2,500 – 5,000' },
+    installationProvider: 'tajalli_charged',
+    consultationRequired: false,
+    notes: 'Plumbing extension work priced separately. Gas connection requires certified gas technician.',
+  },
+
+  // ── Annual Maintenance Contracts (AMC) ───────────────────────────────────────
+
+  {
+    id: 'amc-home',
+    name: 'Annual Maintenance Contract — Home',
+    description: 'Comprehensive AMC covering all appliances in your home. 2 preventive maintenance visits per appliance per year, priority breakdown response, 20% discount on parts, and a dedicated technician who knows your setup.',
+    category: 'maintenance',
+    appliesTo: ['Air Conditioners', 'Refrigerators', 'Washing Machines', 'Solar Systems'],
+    price: { type: 'range', min: 15000, max: 45000, display: 'PKR 15,000 – 45,000 / year (based on appliance count)' },
+    installationProvider: 'tajalli_charged',
+    consultationRequired: true,
+    notes: 'Quote provided after home visit. Covers up to 5 appliances in base plan. Additional appliances added per unit.',
+  },
+
   // ── General / Cross-Category ─────────────────────────────────────────────────
 
   {

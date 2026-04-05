@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -19,6 +19,7 @@ export default function OfferBannerSlider() {
 
   const [idx, setIdx]       = useState(0);
   const [paused, setPaused] = useState(false);
+  const touchStartX = useRef<number | null>(null);
 
   const next = useCallback(() => setIdx(i => (i + 1) % slides.length), [slides.length]);
   const prev = ()                => setIdx(i => (i - 1 + slides.length) % slides.length);
@@ -41,14 +42,28 @@ export default function OfferBannerSlider() {
       className="relative overflow-hidden"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
+      onTouchStart={e => { touchStartX.current = e.touches[0].clientX; }}
+      onTouchEnd={e => {
+        if (touchStartX.current === null || slides.length <= 1) return;
+        const delta = e.changedTouches[0].clientX - touchStartX.current;
+        if (Math.abs(delta) > 50) delta < 0 ? next() : prev();
+        touchStartX.current = null;
+      }}
     >
       <div className={`bg-gradient-to-r ${theme.grad} relative`}>
 
-        {/* Decorative bubbles */}
+        {/* Subtle decorative layer — refined grid + soft shapes */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
-          <div className={`absolute -right-12 -top-12 w-72 h-72 rounded-full ${theme.circle}`} />
-          <div className={`absolute right-36 -bottom-20 w-52 h-52 rounded-full ${theme.circle}`} />
-          <div className={`absolute right-72 top-2 w-16 h-16 rounded-full ${theme.circle}`} />
+          {/* Micro grid texture */}
+          <div className="absolute inset-0 opacity-[0.06]"
+            style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.6) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.6) 1px,transparent 1px)', backgroundSize: '28px 28px' }} />
+          {/* Right-side soft glow */}
+          <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full bg-white/5 blur-2xl" />
+          <div className="absolute right-12 bottom-0 w-40 h-40 rounded-full bg-white/5 blur-xl" />
+          {/* Small accent dots */}
+          <div className="absolute right-20 top-4 w-2 h-2 rounded-full bg-white/20" />
+          <div className="absolute right-28 top-8 w-1 h-1 rounded-full bg-white/30" />
+          <div className="absolute right-14 top-10 w-1.5 h-1.5 rounded-full bg-white/15" />
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10 relative">

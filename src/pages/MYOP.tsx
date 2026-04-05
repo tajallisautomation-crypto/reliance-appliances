@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom'
 import {
   Package, CheckCircle, MessageCircle, Trash2, Tag,
   ChevronDown, ChevronUp, Info, ShoppingBag, Sparkles,
+  ClipboardCheck, AlertCircle, X,
 } from 'lucide-react'
-import { getProducts, formatPrice, calcPlan, type Product } from '@/lib/api'
+import { getProducts, formatPrice, calcPlan, submitOrder, type Product } from '@/lib/api'
 import SEO from '@/components/ui/SEO'
 import { waSales } from '@/lib/whatsapp'
 import { useMyopStore } from '@/store/myopStore'
@@ -78,6 +79,98 @@ interface PackageItem {
   qty:     number
 }
 
+// ── Spec extraction ───────────────────────────────────────────────────────────
+
+/**
+ * Given a product and the active BYOP tab, extracts up to 3 decision-relevant specs.
+ * Priority lists are ordered from most to least important for each category.
+ */
+function getKeySpecs(product: Product, tabId: string): string[] {
+  const specs = product.specs || {}
+  const nc    = (product.normalized_category || '').toLowerCase()
+
+  // Normalize spec lookup — case-insensitive key search
+  const get = (...keys: string[]): string | undefined => {
+    for (const key of keys) {
+      for (const [k, v] of Object.entries(specs)) {
+        if (k.toLowerCase().trim() === key.toLowerCase().trim() && v) return String(v)
+      }
+    }
+    return undefined
+  }
+  // Partial key match fallback
+  const getPartial = (...terms: string[]): string | undefined => {
+    for (const term of terms) {
+      for (const [k, v] of Object.entries(specs)) {
+        if (k.toLowerCase().includes(term.toLowerCase()) && v) return String(v)
+      }
+    }
+    return undefined
+  }
+
+  const result: string[] = []
+
+  if (tabId === 'ac' || nc.includes('air condition')) {
+    const cap     = get('Tonnage', 'Capacity', 'Cooling Capacity') ?? getPartial('ton', 'btu')
+    const type    = get('Type', 'Technology') ?? getPartial('inverter', 'non-inverter')
+    const rating  = get('Energy Rating', 'Energy Star', 'EER') ?? getPartial('energy', 'rating', 'star')
+    if (cap)    result.push(cap)
+    if (type)   result.push(type)
+    if (rating) result.push(rating)
+
+  } else if (tabId === 'fridge' || nc.includes('refrigerator')) {
+    const cap   = get('Capacity', 'Volume', 'Gross Capacity', 'Net Capacity') ?? getPartial('litre', 'cu.ft', 'liter', 'capacity')
+    const type  = get('Type', 'Defrost', 'Configuration') ?? getPartial('frost', 'no-frost', 'direct cool')
+    const doors = get('Doors', 'Door') ?? getPartial('door')
+    if (cap)   result.push(cap)
+    if (type)  result.push(type)
+    if (doors) result.push(doors)
+
+  } else if (tabId === 'washing' || nc.includes('washing')) {
+    const cap  = get('Capacity', 'Load Capacity', 'Drum Capacity') ?? getPartial('kg', 'capacity')
+    const type = get('Type', 'Configuration', 'Loading') ?? getPartial('front', 'top', 'automatic', 'semi')
+    const spin = get('Spin Speed', 'RPM') ?? getPartial('rpm', 'spin')
+    if (cap)  result.push(cap)
+    if (type) result.push(type)
+    if (spin) result.push(spin)
+
+  } else if (tabId === 'tv' || nc.includes('television')) {
+    const size = get('Screen Size', 'Display Size', 'Size') ?? getPartial('inch', '"', 'size')
+    const res  = get('Resolution', 'Display Resolution') ?? getPartial('4k', 'fhd', 'hd', 'uhd', 'qled')
+    const tech = get('Display Technology', 'Panel Type', 'Smart') ?? getPartial('qled', 'led', 'smart', 'google', 'android')
+    if (size) result.push(size)
+    if (res)  result.push(res)
+    if (tech) result.push(tech)
+
+  } else if (tabId === 'solar') {
+    const power = get('Rated Power', 'Output Power', 'Capacity', 'Power Output') ?? getPartial('kw', 'watt', 'power')
+    const type  = get('Type', 'System Type') ?? getPartial('hybrid', 'off-grid', 'lithium', 'lifepo')
+    const volt  = get('Battery Voltage', 'Voltage', 'System Voltage') ?? getPartial('48v', '24v', 'voltage')
+    if (power) result.push(power)
+    if (type)  result.push(type)
+    if (volt)  result.push(volt)
+
+  } else if (tabId === 'kitchen' || nc.includes('kitchen')) {
+    const power = get('Power', 'Wattage', 'Input Power') ?? getPartial('watt', 'power', 'w')
+    const cap   = get('Capacity', 'Volume') ?? getPartial('litre', 'liter', 'capacity', 'cup', 'slice')
+    const feat  = get('Functions', 'Feature', 'Type') ?? getPartial('function', 'mode', 'grill', 'convection')
+    if (power) result.push(power)
+    if (cap)   result.push(cap)
+    if (feat)  result.push(feat)
+
+  } else {
+    // Generic fallback for small appliances
+    const power = get('Power', 'Wattage', 'Input Power') ?? getPartial('watt', 'power')
+    const cap   = get('Capacity', 'Volume') ?? getPartial('litre', 'liter', 'capacity')
+    const type  = get('Type', 'Technology') ?? getPartial('type', 'cord', 'cordless')
+    if (power) result.push(power)
+    if (cap)   result.push(cap)
+    if (type)  result.push(type)
+  }
+
+  return result.filter(Boolean).slice(0, 3)
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function buildWAMessage(items: PackageItem[], subtotal: number, discount: number, total: number): string {
@@ -112,23 +205,27 @@ function ProductTile({
   onAdd,
   onRemove,
   compatibilityResult,
+  tabId,
 }: {
   product:  Product
   selected: boolean
   onAdd:    () => void
   onRemove: () => void
-  /** Set for solar batteries when an inverter is already in the package */
   compatibilityResult?: CompatibilityResult
+  tabId: string
 }) {
   const incompatible = compatibilityResult?.status === 'incompatible'
   const needsReview  = compatibilityResult?.status === 'uncertain_manual_review'
+  const keySpecs     = getKeySpecs(product, tabId)
+  const hasModelLine = Boolean(product.simplified_name && product.model && product.simplified_name !== product.model)
 
   return (
-    <div className={`relative bg-white rounded-2xl border-2 transition-all overflow-hidden group ${
+    <div className={`relative bg-white rounded-2xl border-2 transition-all overflow-hidden group flex flex-col ${
       incompatible ? 'border-red-200 opacity-60' :
       selected     ? 'border-orange-400 shadow-lg shadow-orange-50'
                    : 'border-gray-100 hover:border-orange-200 hover:shadow-md'
     }`}>
+      {/* Compatibility overlays */}
       {incompatible && (
         <div className="absolute top-0 left-0 right-0 z-10 bg-red-500 text-white text-[10px] font-bold text-center py-1 leading-tight">
           ⚠ Incompatible with your inverter
@@ -146,12 +243,14 @@ function ProductTile({
           </div>
         </div>
       )}
-      <div className="aspect-square bg-gray-50 overflow-hidden">
+
+      {/* Image — reduced aspect to leave more room for specs */}
+      <div className="aspect-[4/3] bg-gray-50 overflow-hidden shrink-0">
         {product.thumbnail ? (
           <img
             src={product.thumbnail}
             alt={product.simplified_name || product.model}
-            className="w-full h-full object-contain p-3 group-hover:scale-105 transition-transform duration-200"
+            className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-200"
             onError={e => { (e.currentTarget as HTMLImageElement).src = '/placeholder-product.svg' }}
             loading="lazy"
           />
@@ -159,32 +258,46 @@ function ProductTile({
           <div className="w-full h-full flex items-center justify-center text-3xl">📦</div>
         )}
       </div>
-      <div className="p-3">
-        <p className="text-xs font-semibold text-orange-500 mb-0.5">{product.brand}</p>
-        <p className="text-sm font-bold text-gray-900 leading-tight line-clamp-2 mb-2">
+
+      {/* Info */}
+      <div className="p-3 flex flex-col flex-1">
+        {/* Brand + model */}
+        <p className="text-[10px] font-bold text-orange-500 uppercase tracking-wider mb-0.5">{product.brand}</p>
+        <p className="text-sm font-bold text-gray-900 leading-tight line-clamp-2 mb-0.5">
           {product.simplified_name || product.model}
         </p>
-        <p className="text-base font-black text-gray-900 mb-3">
+        {hasModelLine && (
+          <p className="text-[10px] text-gray-400 font-mono mb-1.5 truncate">{product.model}</p>
+        )}
+
+        {/* Key specs */}
+        {keySpecs.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-2">
+            {keySpecs.map((spec, i) => (
+              <span key={i} className="inline-block bg-gray-50 border border-gray-100 text-gray-600 text-[10px] font-medium px-1.5 py-0.5 rounded-md leading-tight">
+                {spec}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Price */}
+        <p className="text-sm font-black text-gray-900 mb-2 mt-auto">
           PKR {formatPrice(product.price.cash_floor)}
         </p>
+
+        {/* Action */}
         {selected ? (
-          <button
-            onClick={onRemove}
-            className="w-full py-2 rounded-xl text-sm font-bold border-2 border-red-200 text-red-500 hover:bg-red-50 transition-colors flex items-center justify-center gap-1"
-          >
-            <Trash2 className="w-3.5 h-3.5" /> Remove
+          <button onClick={onRemove}
+            className="w-full py-2 rounded-xl text-xs font-bold border-2 border-red-200 text-red-500 hover:bg-red-50 transition-colors flex items-center justify-center gap-1">
+            <Trash2 className="w-3 h-3" /> Remove
           </button>
         ) : (
-          <button
-            onClick={incompatible ? undefined : onAdd}
-            disabled={incompatible}
+          <button onClick={incompatible ? undefined : onAdd} disabled={incompatible}
             title={incompatible ? compatibilityResult?.message : undefined}
-            className={`w-full py-2 rounded-xl text-sm font-bold transition-colors ${
-              incompatible
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-gray-900 hover:bg-orange-500 text-white'
-            }`}
-          >
+            className={`w-full py-2 rounded-xl text-xs font-bold transition-colors ${
+              incompatible ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-900 hover:bg-orange-500 text-white'
+            }`}>
             {incompatible ? '✗ Incompatible' : '+ Add to Package'}
           </button>
         )}
@@ -193,26 +306,66 @@ function ProductTile({
   )
 }
 
+type OrderView = 'summary' | 'form' | 'done'
+
 function PackageSummary({
   items,
   onRemove,
   onQtyChange,
-  onSubmit,
 }: {
   items:       PackageItem[]
   onRemove:    (id: string) => void
   onQtyChange: (id: string, qty: number) => void
-  onSubmit:    () => void
 }) {
-  const [expanded, setExpanded] = useState(true)
-  const totalItems  = items.reduce((n, i) => n + i.qty, 0)
-  const subtotal    = items.reduce((n, i) => n + i.product.price.cash_floor * i.qty, 0)
-  const qualifies   = totalItems >= DISCOUNT_THRESHOLD
-  const discount    = qualifies ? Math.round(subtotal * DISCOUNT_PCT) : 0
-  const total       = subtotal - discount
-  const plan3m      = total > 0 ? calcPlan(total, '3m') : null
+  const [expanded,   setExpanded]   = useState(true)
+  const [view,       setView]       = useState<OrderView>('summary')
+  const [form,       setForm]       = useState({ name: '', phone: '', city: '', notes: '' })
+  const [loading,    setLoading]    = useState(false)
+  const [orderId,    setOrderId]    = useState('')
+  const [submitErr,  setSubmitErr]  = useState('')
 
-  const waMsg = buildWAMessage(items, subtotal, discount, total)
+  const totalItems = items.reduce((n, i) => n + i.qty, 0)
+  const subtotal   = items.reduce((n, i) => n + i.product.price.cash_floor * i.qty, 0)
+  const qualifies  = totalItems >= DISCOUNT_THRESHOLD
+  const discount   = qualifies ? Math.round(subtotal * DISCOUNT_PCT) : 0
+  const total      = subtotal - discount
+  const plan3m     = total > 0 ? calcPlan(total, '3m') : null
+  const waMsg      = buildWAMessage(items, subtotal, discount, total)
+
+  const phoneValid = /^(\+92|0)3\d{9}$/.test(form.phone.trim())
+  const canSubmit  = !loading && form.name.trim() && phoneValid && form.city.trim()
+
+  const handleOnlineOrder = async () => {
+    if (!canSubmit) return
+    setLoading(true)
+    setSubmitErr('')
+    try {
+      const result = await submitOrder({
+        customer_name:    form.name.trim(),
+        customer_phone:   form.phone.trim(),
+        customer_address: form.city.trim(),
+        customer_email:   '',
+        products: items.map(i => ({
+          id: i.product.id, model: i.product.model,
+          brand: i.product.brand, qty: i.qty,
+          price: i.product.price.cash_floor,
+        })),
+        total_amount:     total,
+        payment_method:   'myop',
+        installment_plan: '',
+        advance_paid:     0,
+        monthly_amount:   0,
+        notes: form.notes || '',
+      })
+      if (result.error) throw new Error(result.error)
+      setOrderId(result.id ? `PKG-${result.id.toString().slice(0, 8).toUpperCase()}` : 'PKG-' + Date.now())
+      setView('done')
+    } catch {
+      setSubmitErr('Could not submit. Try WhatsApp instead.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="bg-white rounded-3xl border-2 border-gray-100 shadow-xl overflow-hidden sticky top-20">
@@ -222,115 +375,163 @@ function PackageSummary({
           <ShoppingBag className="w-5 h-5 text-white" />
           <span className="font-black text-white">Your Package</span>
           {totalItems > 0 && (
-            <span className="bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-              {totalItems}
-            </span>
+            <span className="bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{totalItems}</span>
           )}
         </div>
-        <button onClick={() => setExpanded(v => !v)} className="text-gray-400 hover:text-white transition-colors">
-          {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-        </button>
+        <div className="flex items-center gap-2">
+          {view !== 'summary' && (
+            <button onClick={() => { setView('summary'); setSubmitErr('') }} className="text-gray-400 hover:text-white transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+          <button onClick={() => setExpanded(v => !v)} className="text-gray-400 hover:text-white transition-colors">
+            {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+        </div>
       </div>
 
-      {/* Discount progress */}
-      {totalItems < DISCOUNT_THRESHOLD && (
+      {/* Discount banner */}
+      {view === 'summary' && totalItems > 0 && totalItems < DISCOUNT_THRESHOLD && (
         <div className="px-5 py-3 bg-amber-50 border-b border-amber-100 flex items-center gap-2">
           <Tag className="w-4 h-4 text-amber-500 shrink-0" />
           <p className="text-xs text-amber-800">
-            Add <strong>{DISCOUNT_THRESHOLD - totalItems} more item{DISCOUNT_THRESHOLD - totalItems === 1 ? '' : 's'}</strong> to unlock <strong>5% discount</strong>
+            Add <strong>{DISCOUNT_THRESHOLD - totalItems} more</strong> to unlock <strong>5% off</strong>
           </p>
         </div>
       )}
-      {qualifies && (
+      {view === 'summary' && qualifies && (
         <div className="px-5 py-3 bg-green-50 border-b border-green-100 flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-green-500 shrink-0" />
           <p className="text-xs text-green-800 font-semibold">5% package discount applied! 🎉</p>
         </div>
       )}
 
-      {expanded && (
-        <div className="px-5 py-4 max-h-64 overflow-y-auto space-y-3">
-          {items.length === 0 ? (
-            <div className="text-center py-6">
-              <Package className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-              <p className="text-sm text-gray-400">No items added yet</p>
-              <p className="text-xs text-gray-400 mt-1">Browse products and add to your package</p>
-            </div>
-          ) : items.map(item => (
-            <div key={item.product.id} className="flex items-start gap-3">
-              <img
-                src={item.product.thumbnail || '/placeholder-product.svg'}
-                alt={item.product.simplified_name || item.product.model}
-                className="w-12 h-12 rounded-xl object-contain bg-gray-50 border border-gray-100 shrink-0"
-                onError={e => { (e.currentTarget as HTMLImageElement).src = '/placeholder-product.svg' }}
-              />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-orange-500 font-semibold">{item.product.brand}</p>
-                <p className="text-xs font-bold text-gray-900 leading-tight truncate">
-                  {item.product.simplified_name || item.product.model}
-                </p>
-                <div className="flex items-center justify-between mt-1">
-                  <div className="flex items-center gap-1 border border-gray-200 rounded-lg">
-                    <button
-                      onClick={() => onQtyChange(item.product.id, item.qty - 1)}
-                      className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-700 text-xs font-bold"
-                    >−</button>
-                    <span className="text-xs font-bold text-gray-700 w-5 text-center">{item.qty}</span>
-                    <button
-                      onClick={() => onQtyChange(item.product.id, item.qty + 1)}
-                      className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-700 text-xs font-bold"
-                    >+</button>
-                  </div>
-                  <p className="text-xs font-black text-gray-900">
-                    PKR {formatPrice(item.product.price.cash_floor * item.qty)}
-                  </p>
-                </div>
-              </div>
-              <button onClick={() => onRemove(item.product.id)} className="text-gray-300 hover:text-red-500 transition-colors mt-1">
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
+      {/* ── DONE STATE ── */}
+      {view === 'done' && (
+        <div className="px-5 py-6 text-center">
+          <CheckCircle className="w-10 h-10 text-green-500 mx-auto mb-3" />
+          <p className="font-black text-gray-900 mb-1">Order Received!</p>
+          <p className="text-xs text-gray-500 mb-1">Ref: <strong>{orderId}</strong></p>
+          <p className="text-xs text-gray-400 mb-4">We'll call within a few hours to confirm.</p>
+          <a href={waSales(`Hi, I just placed a package order online. Ref: ${orderId}`)}
+            target="_blank" rel="noreferrer"
+            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-[#25D366] hover:bg-[#1da84e] text-white text-xs font-semibold transition-colors">
+            <MessageCircle className="w-3.5 h-3.5" /> Track on WhatsApp (optional)
+          </a>
         </div>
       )}
 
-      {/* Totals */}
-      {items.length > 0 && (
-        <div className="px-5 pb-5 border-t border-gray-100 pt-4 space-y-2">
-          <div className="flex justify-between text-sm text-gray-500">
-            <span>Subtotal</span>
-            <span>PKR {formatPrice(subtotal)}</span>
+      {/* ── FORM STATE ── */}
+      {view === 'form' && (
+        <div className="px-5 py-4">
+          <p className="text-xs text-gray-500 mb-4">Enter your details — we'll call to confirm and arrange delivery.</p>
+          <div className="space-y-3">
+            <input type="text" placeholder="Full Name *"
+              value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400 transition-colors" />
+            <div>
+              <input type="tel" placeholder="Mobile Number * (03XX-XXXXXXX)"
+                value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none transition-colors ${form.phone && !phoneValid ? 'border-red-300' : 'border-gray-200 focus:border-orange-400'}`} />
+              {form.phone && !phoneValid && <p className="text-xs text-red-500 mt-1">Enter a valid Pakistani mobile number</p>}
+            </div>
+            <input type="text" placeholder="City / Area *"
+              value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400 transition-colors" />
+            <textarea placeholder="Notes (optional)" rows={2}
+              value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400 transition-colors resize-none" />
           </div>
-          {qualifies && (
-            <div className="flex justify-between text-sm text-green-600 font-semibold">
-              <span>5% Discount</span>
-              <span>− PKR {formatPrice(discount)}</span>
+          {submitErr && (
+            <div className="mt-3 flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+              <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-red-700">{submitErr}</p>
             </div>
           )}
-          <div className="flex justify-between font-black text-gray-900 text-base border-t border-gray-100 pt-2">
-            <span>Total</span>
-            <span>PKR {formatPrice(total)}</span>
+          <div className="mt-4 space-y-2">
+            <button onClick={handleOnlineOrder} disabled={!canSubmit}
+              className="w-full py-3 rounded-xl font-black text-white text-sm bg-orange-500 hover:bg-orange-600 disabled:opacity-40 transition-colors">
+              {loading ? 'Submitting…' : 'Confirm Order'}
+            </button>
+            <a href={waSales(waMsg)} target="_blank" rel="noreferrer"
+              className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl border border-gray-200 text-gray-500 text-xs font-medium hover:bg-gray-50 transition-colors">
+              <MessageCircle className="w-3.5 h-3.5 text-[#25D366]" /> Place via WhatsApp instead
+            </a>
           </div>
-          {plan3m && (
-            <p className="text-xs text-gray-400 text-right">
-              or PKR {formatPrice(plan3m.advance)} advance + PKR {formatPrice(plan3m.monthly)}/mo × 2
-            </p>
+        </div>
+      )}
+
+      {/* ── SUMMARY STATE ── */}
+      {view === 'summary' && (
+        <>
+          {expanded && (
+            <div className="px-5 py-4 max-h-64 overflow-y-auto space-y-3">
+              {items.length === 0 ? (
+                <div className="text-center py-6">
+                  <Package className="w-10 h-10 text-gray-200 mx-auto mb-2" />
+                  <p className="text-sm text-gray-400">No items added yet</p>
+                  <p className="text-xs text-gray-400 mt-1">Browse products and add to your package</p>
+                </div>
+              ) : items.map(item => (
+                <div key={item.product.id} className="flex items-start gap-3">
+                  <img src={item.product.thumbnail || '/placeholder-product.svg'}
+                    alt={item.product.simplified_name || item.product.model}
+                    className="w-12 h-12 rounded-xl object-contain bg-gray-50 border border-gray-100 shrink-0"
+                    onError={e => { (e.currentTarget as HTMLImageElement).src = '/placeholder-product.svg' }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-orange-500 font-semibold">{item.product.brand}</p>
+                    <p className="text-xs font-bold text-gray-900 leading-tight truncate">
+                      {item.product.simplified_name || item.product.model}
+                    </p>
+                    <div className="flex items-center justify-between mt-1">
+                      <div className="flex items-center gap-1 border border-gray-200 rounded-lg">
+                        <button onClick={() => onQtyChange(item.product.id, item.qty - 1)}
+                          className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-700 text-xs font-bold">−</button>
+                        <span className="text-xs font-bold text-gray-700 w-5 text-center">{item.qty}</span>
+                        <button onClick={() => onQtyChange(item.product.id, item.qty + 1)}
+                          className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-700 text-xs font-bold">+</button>
+                      </div>
+                      <p className="text-xs font-black text-gray-900">PKR {formatPrice(item.product.price.cash_floor * item.qty)}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => onRemove(item.product.id)} className="text-gray-300 hover:text-red-500 transition-colors mt-1">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
           )}
 
-          <button
-            onClick={onSubmit}
-            disabled={items.length === 0}
-            className="w-full mt-3 py-3.5 rounded-2xl font-black text-white bg-wa hover:bg-wa-hover transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            <MessageCircle className="w-4 h-4" /> Get This Package on WhatsApp
-          </button>
-          <p className="text-xs text-gray-400 text-center">
-            We'll confirm availability and payment options within 1 hour.
-          </p>
+          {items.length > 0 && (
+            <div className="px-5 pb-5 border-t border-gray-100 pt-4 space-y-2">
+              <div className="flex justify-between text-sm text-gray-500">
+                <span>Subtotal</span><span>PKR {formatPrice(subtotal)}</span>
+              </div>
+              {qualifies && (
+                <div className="flex justify-between text-sm text-green-600 font-semibold">
+                  <span>5% Discount</span><span>− PKR {formatPrice(discount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-black text-gray-900 text-base border-t border-gray-100 pt-2">
+                <span>Total</span><span>PKR {formatPrice(total)}</span>
+              </div>
+              {/* Note: installments not applicable to MYOP discounted packages */}
+              <p className="text-xs text-amber-600 font-medium text-right">Cash price — installments not available on discounted packages</p>
 
-          {/* Hidden WA anchor — triggered by onSubmit */}
-          <a id="myop-wa-link" href={waSales(waMsg)} target="_blank" rel="noreferrer" className="hidden" />
-        </div>
+              {/* Primary: website order */}
+              <button onClick={() => setView('form')}
+                className="w-full mt-3 py-3.5 rounded-2xl font-black text-white bg-orange-500 hover:bg-orange-600 transition-colors flex items-center justify-center gap-2">
+                <ClipboardCheck className="w-4 h-4" /> Place Order Online
+              </button>
+              {/* Secondary: WhatsApp */}
+              <a href={waSales(waMsg)} target="_blank" rel="noreferrer"
+                className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-2xl border border-gray-200 text-gray-500 text-xs font-medium hover:bg-gray-50 transition-colors">
+                <MessageCircle className="w-3.5 h-3.5 text-[#25D366]" /> Order via WhatsApp instead
+              </a>
+              <p className="text-xs text-gray-400 text-center">We'll call to confirm availability within 1 hour.</p>
+            </div>
+          )}
+        </>
       )}
     </div>
   )
@@ -385,10 +586,6 @@ export default function MYOPPage() {
     store.updateQty(id, qty)
   }
 
-  const handleSubmit = () => {
-    document.getElementById('myop-wa-link')?.click()
-  }
-
   const totalItems = store.itemCount()
   const qualifies  = totalItems >= DISCOUNT_THRESHOLD
 
@@ -431,7 +628,7 @@ export default function MYOPPage() {
           {[
             { step: '01', text: 'Browse & add products from any category' },
             { step: '02', text: 'Add 3+ items to unlock your 5% discount' },
-            { step: '03', text: 'WhatsApp us — we confirm and deliver' },
+            { step: '03', text: 'Place your order online or via WhatsApp — we confirm and deliver' },
           ].map(s => (
             <div key={s.step} className="flex flex-col items-center gap-1">
               <span className="text-xs font-black text-orange-500">{s.step}</span>
@@ -516,6 +713,7 @@ export default function MYOPPage() {
                     <ProductTile
                       key={product.id}
                       product={product}
+                      tabId={activeTab}
                       selected={isSelected(product.id)}
                       onAdd={() => addItem(product)}
                       onRemove={() => removeItem(product.id)}
@@ -528,19 +726,18 @@ export default function MYOPPage() {
           </div>
 
           {/* ── Right: Package summary (desktop sticky) ── */}
-          <div className="lg:w-80 shrink-0">
+          <div id="myop-summary" className="lg:w-80 shrink-0">
             <PackageSummary
               items={selected}
               onRemove={removeItem}
               onQtyChange={changeQty}
-              onSubmit={handleSubmit}
             />
 
             {/* Info box */}
             <div className="mt-4 bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 flex gap-2">
               <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
               <p className="text-xs text-blue-700 leading-relaxed">
-                Prices shown are cash prices. Installment plans are available on all package totals — ask us on WhatsApp.
+                Prices shown are cash prices. Installment plans (2–12 months) are available — select your preferred plan when placing your order.
               </p>
             </div>
           </div>
@@ -562,10 +759,10 @@ export default function MYOPPage() {
             </p>
           </div>
           <button
-            onClick={handleSubmit}
-            className="bg-wa hover:bg-wa-hover text-white font-bold px-5 py-3 rounded-xl flex items-center gap-2 text-sm whitespace-nowrap transition-colors"
+            onClick={() => document.getElementById('myop-summary')?.scrollIntoView({ behavior: 'smooth' })}
+            className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-3 rounded-xl flex items-center gap-2 text-sm whitespace-nowrap transition-colors"
           >
-            <MessageCircle className="w-4 h-4" /> Get Package
+            <ShoppingBag className="w-4 h-4" /> View Summary
           </button>
         </div>
       )}

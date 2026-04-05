@@ -15,7 +15,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Sun, Zap, TrendingUp, Plus, Trash2, ChevronDown, ChevronUp,
          CheckCircle, Award, RefreshCw, ArrowRight, Star, Info } from 'lucide-react'
-import { getProducts, fmtPKR, roundTo100 as r100, calcAllPlans } from '../lib/api'
+import { getProducts, fmtPKR, roundTo100 as r100, calcAllPlans, submitSolarLead } from '../lib/api'
+
 import type { Product, InstallmentPlan } from '../lib/api'
 
 // ── Appliance list ─────────────────────────────────────────────────────────────
@@ -195,6 +196,9 @@ function bestBatteryBank(batteries: Product[], targetKWh: number): BatteryBank |
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function SolarCalculator() {
+  // Input mode: 'load' = add appliances | 'direct' = user specifies kW directly
+  const [inputMode,   setInputMode] = useState<'load'|'direct'>('load')
+  const [directKW,    setDirectKW]  = useState('5')
   const [mode,        setMode]      = useState<'solar'|'ups'>('solar')
   const [step,        setStep]      = useState<1|2|3|4>(1)
   const [items,       setItems]     = useState<Item[]>([])
@@ -207,6 +211,7 @@ export default function SolarCalculator() {
   const [openCat,     setOpenCat]   = useState<string|null>('Cooling')
   const [contact,     setContact]   = useState({name:'',phone:'',email:''})
   const [submitted,   setSubmitted] = useState(false)
+  const [submitErr,   setSubmitErr] = useState('')
   const [custom,      setCustom]    = useState({name:'',watts:'',qty:'1',hours:'4'})
   const [solarProds,  setSolarProds] = useState<SolarProducts>({ panels:[], inverters:[], batteries:[] })
   const [billMode,    setBillMode]  = useState(false)
@@ -267,7 +272,8 @@ export default function SolarCalculator() {
   , [items])
 
   const calc = async () => {
-    if (!effectiveDailyU && !items.length && mode === 'solar') return
+    if (inputMode !== 'direct' && !effectiveDailyU && !items.length && mode === 'solar') return
+    if (inputMode === 'direct' && mode === 'solar' && !(parseFloat(directKW) > 0)) return
     if (!totalW && mode === 'ups') return
     setLoading(true)
     try {
@@ -301,9 +307,10 @@ export default function SolarCalculator() {
       }
 
       // ── Solar mode ─────────────────────────────────────────────────────────
-      // Size the system: add 25% safety margin, divide by peak sun hours
-      const rawKW  = refU * 1.25 / peakHrs
-      const sysKW  = Math.ceil(rawKW * 10) / 10   // round up to 1 decimal
+      // Direct mode: user specified system size; load mode: calculate from usage
+      const sysKW = inputMode === 'direct'
+        ? Math.max(0.5, parseFloat(directKW) || 5)
+        : Math.ceil(refU * 1.25 / peakHrs * 10) / 10
 
       // Panels
       const panelCount  = activeType === 'ups-only' ? 0 : Math.ceil(sysKW * 1000 / PANEL_WATTS)
@@ -357,16 +364,38 @@ export default function SolarCalculator() {
     } finally { setLoading(false) }
   }
 
-  const submit = () => {
+  const phoneValid = /^(\+92|0)3\d{9}$/.test(contact.phone.trim())
+
+  const submit = async () => {
     if (!contact.name || !contact.phone || !quote) return
-    const msg = encodeURIComponent(
-      `*Solar Quote Request* ☀️\n\nName: ${contact.name}\nPhone: ${contact.phone}${contact.email ? '\nEmail: ' + contact.email : ''}\n\n` +
-      `System: ${quote.systemKW}kW ${sysType}\nLoad: ${totalW}W\nPanels: ${quote.panels}\n` +
-      `Est. Cost: ${fmtPKR(quote.costs.total)}\nMonthly Saving: ${fmtPKR(quote.savings.monthlySaving)}\n\nPlease send me a detailed proposal.`
-    )
-    window.open(`https://wa.me/923702578788?text=${msg}`, '_blank')
-    setSubmitted(true)
+    setLoading(true)
+    setSubmitErr('')
+    try {
+      await submitSolarLead({
+        name:          contact.name.trim(),
+        phone:         contact.phone.trim(),
+        email:         contact.email.trim() || undefined,
+        system_kw:     quote.systemKW,
+        system_type:   quote.type,
+        total_load_w:  totalW,
+        est_cost:      quote.costs.total,
+        monthly_saving:quote.savings.monthlySaving,
+        notes:         `Mode: ${mode} | Panels: ${quote.panels} | Battery: ${quote.batteryKWh}kWh`,
+      } as any)
+      setSubmitted(true)
+    } catch {
+      setSubmitErr('Could not submit. Please try WhatsApp below.')
+    } finally {
+      setLoading(false)
+    }
   }
+
+  // WhatsApp lead URL (secondary fallback)
+  const waLeadMsg = quote ? encodeURIComponent(
+    `*Solar Quote Request* ☀️\n\nName: ${contact.name || '—'}\nPhone: ${contact.phone || '—'}\n\n` +
+    `System: ${quote.systemKW}kW ${sysType}\nLoad: ${totalW}W\nPanels: ${quote.panels}\n` +
+    `Est. Cost: ${fmtPKR(quote.costs.total)}\nMonthly Saving: ${fmtPKR(quote.savings.monthlySaving)}\n\nPlease send me a detailed proposal.`
+  ) : ''
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
@@ -425,21 +454,76 @@ export default function SolarCalculator() {
 
         {/* ── Step 1: Appliances ──────────────────────────────────────────────── */}
         {step === 1 && (
-          <div className="grid lg:grid-cols-5 gap-6">
-            <div className="lg:col-span-3 space-y-3">
-              {/* Bill mode toggle */}
+          <div className={inputMode === 'direct' ? 'max-w-xl mx-auto space-y-4' : 'grid lg:grid-cols-5 gap-6'}>
+            <div className={inputMode === 'direct' ? '' : 'lg:col-span-3 space-y-3'}>
+              {/* Input mode selector */}
               <div className="bg-white rounded-2xl border border-orange-100 p-4 shadow-sm">
-                <div className="flex items-center gap-3 mb-3">
-                  <button onClick={() => setBillMode(false)}
-                    className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${!billMode ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                <div className="flex items-center gap-2 mb-3">
+                  <button onClick={() => { setInputMode('load'); setBillMode(false); }}
+                    className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${inputMode === 'load' && !billMode ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
                     Add Appliances
                   </button>
-                  <button onClick={() => setBillMode(true)}
-                    className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${billMode ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                    Use Electricity Bill
+                  <button onClick={() => { setInputMode('load'); setBillMode(true); }}
+                    className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${inputMode === 'load' && billMode ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                    Electricity Bill
+                  </button>
+                  <button onClick={() => { setInputMode('direct'); setBillMode(false); }}
+                    className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${inputMode === 'direct' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                    I know my size
                   </button>
                 </div>
-                {billMode && (
+
+                {/* Direct size mode */}
+                {inputMode === 'direct' && (
+                  <div className="space-y-4 pt-1">
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 block mb-1">System Size (kW)</label>
+                      <input type="number" min={0.5} max={30} step={0.5} value={directKW}
+                        onChange={e => setDirectKW(e.target.value)}
+                        placeholder="e.g. 5"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-lg font-bold text-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-400"/>
+                      <p className="text-xs text-gray-400 mt-1">Enter the kW size of the system you want.</p>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 block mb-2">System Type</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {([
+                          { val:'on-grid',  label:'On-Grid',       desc:'No battery. Lowest cost.',  icon:'⚡' },
+                          { val:'hybrid',   label:'Hybrid',        desc:'Battery backup + grid tie.',  icon:'🔋' },
+                          { val:'off-grid', label:'Off-Grid',      desc:'Fully independent.',          icon:'☀️' },
+                          { val:'ups-only', label:'UPS / Battery', desc:'No panels — backup only.',   icon:'🔌' },
+                        ] as const).map(s => (
+                          <button key={s.val} onClick={() => setSysType(s.val)}
+                            className={`p-3 rounded-xl border-2 text-center transition-all
+                              ${sysType === s.val ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-orange-300'}`}>
+                            <div className="text-lg mb-0.5">{s.icon}</div>
+                            <div className="font-semibold text-xs">{s.label}</div>
+                            <div className="text-[10px] text-gray-500">{s.desc}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {(sysType === 'on-grid' || sysType === 'hybrid') && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex gap-2.5">
+                        <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5"/>
+                        <p className="text-xs text-blue-800">
+                          <span className="font-semibold">KE Net Metering</span> requires a minimum of <span className="font-semibold">10kW</span>. Systems under 10kW reduce consumption but cannot export to the grid.
+                        </p>
+                      </div>
+                    )}
+
+                    <button onClick={async () => { await calc() }}
+                      disabled={loading || !(parseFloat(directKW) > 0)}
+                      className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl py-3 font-semibold shadow-lg disabled:opacity-50 text-sm">
+                      {loading ? 'Calculating…' : `Get Quote for ${directKW || '—'}kW System`}
+                    </button>
+                  </div>
+                )}
+
+                {/* Bill mode */}
+                {inputMode === 'load' && billMode && (
                   <div className="space-y-3">
                     <div>
                       <label className="text-xs font-medium text-gray-600 block mb-1">Monthly Bill Amount (PKR)</label>
@@ -460,9 +544,11 @@ export default function SolarCalculator() {
                 )}
               </div>
 
-              <h2 className="text-base font-bold text-gray-800">
-                {billMode ? 'Optionally add appliances for upgrade recommendations' : 'Select Your Appliances'}
-              </h2>
+              {inputMode === 'load' && (
+              <>
+                <h2 className="text-base font-bold text-gray-800">
+                  {billMode ? 'Optionally add appliances for upgrade recommendations' : 'Select Your Appliances'}
+                </h2>
 
               {CATEGORIES.map(cat => {
                 const apps = APPLIANCES.filter(a => a.category === cat)
@@ -528,10 +614,12 @@ export default function SolarCalculator() {
                   </button>
                 </div>
               </div>
+              </>
+              )}
             </div>
 
-            {/* Load summary sidebar */}
-            <div className="lg:col-span-2">
+            {/* Load summary sidebar — only in load mode */}
+            {inputMode === 'load' && <div className="lg:col-span-2">
               <div className="sticky top-4">
                 <h2 className="text-base font-bold text-gray-800 mb-3">Your Load</h2>
                 <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-4 space-y-3 max-h-96 overflow-y-auto">
@@ -603,7 +691,7 @@ export default function SolarCalculator() {
                   </div>
                 )}
               </div>
-            </div>
+            </div>}
           </div>
         )}
 
@@ -998,15 +1086,24 @@ export default function SolarCalculator() {
                 <div className="grid md:grid-cols-3 gap-3">
                   <input className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400"
                     placeholder="Your name *" value={contact.name} onChange={e => setContact(p => ({...p,name:e.target.value}))}/>
-                  <input className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400"
-                    placeholder="Phone number *" value={contact.phone} onChange={e => setContact(p => ({...p,phone:e.target.value}))}/>
+                  <div>
+                    <input className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none transition-colors ${contact.phone && !phoneValid ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-orange-400'}`}
+                      placeholder="Mobile number * (03XX-XXXXXXX)" value={contact.phone} onChange={e => setContact(p => ({...p,phone:e.target.value}))}/>
+                    {contact.phone && !phoneValid && <p className="text-xs text-red-500 mt-1">Enter a valid Pakistani mobile number</p>}
+                  </div>
                   <input className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400"
                     placeholder="Email (optional)" value={contact.email} onChange={e => setContact(p => ({...p,email:e.target.value}))}/>
                 </div>
+                {submitErr && (
+                  <div className="mt-3 flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+                    <Info className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5"/>
+                    <p className="text-xs text-red-700">{submitErr}</p>
+                  </div>
+                )}
                 <div className="grid md:grid-cols-2 gap-3 mt-3">
-                  <button onClick={submit} disabled={!contact.name || !contact.phone}
+                  <button onClick={submit} disabled={loading || !contact.name || !phoneValid}
                     className="bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl py-3 font-semibold disabled:opacity-50 hover:shadow-lg transition-all text-sm">
-                    Request Detailed Quote
+                    {loading ? 'Sending…' : 'Request Detailed Quote'}
                   </button>
                   {mode === 'solar' && (
                     <button onClick={() => { setStep(4) }}
@@ -1015,12 +1112,19 @@ export default function SolarCalculator() {
                     </button>
                   )}
                 </div>
+                {/* WhatsApp as secondary option */}
+                {waLeadMsg && (
+                  <a href={`https://wa.me/923702578788?text=${waLeadMsg}`} target="_blank" rel="noreferrer"
+                    className="flex items-center justify-center gap-1.5 w-full mt-2 py-2.5 rounded-xl border border-gray-200 text-gray-500 text-xs font-medium hover:bg-gray-50 transition-colors">
+                    Or request via WhatsApp instead
+                  </a>
+                )}
               </div>
             ) : (
               <div className="bg-green-50 border border-green-200 rounded-2xl p-6 text-center">
                 <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3"/>
-                <h3 className="font-bold text-green-800">Quote Sent!</h3>
-                <p className="text-green-700 text-sm mt-1">Our solar expert will contact you within 2 hours.</p>
+                <h3 className="font-bold text-green-800">Request Received!</h3>
+                <p className="text-green-700 text-sm mt-1">Our solar expert will call you within 2 hours. JazakAllah.</p>
               </div>
             )}
 
