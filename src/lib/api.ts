@@ -790,8 +790,17 @@ export function discountPct(cashPrice: number, retail: number): number {
 // ── CSV Import: interfaces ────────────────────────────────────────────────────
 
 export interface ImportSummary {
-  added: number; updated: number; discontinued: number;
-  imagesFound: number; imagesMissing: number;
+  added: number;
+  updated: number;
+  /** Always 0. Auto-discontinuation is permanently disabled.
+   *  Products are only discontinued by explicit admin action in the product editor.
+   *  Field kept for backward compat so existing UI references compile. */
+  discontinued: number;
+  /** Count of DB products for the imported brands that were NOT in this CSV.
+   *  Reported for visibility only — no action is taken on them. */
+  notInCsv: number;
+  imagesFound: number;
+  imagesMissing: number;
   /** All messages including warnings, review notices, and errors */
   errors: string[];
   /** Count of products queued for taxonomy review (not live) */
@@ -3494,7 +3503,7 @@ export async function processCSVImport(
   onProgress: (msg: string) => void,
   opts: { rematchImages?: boolean } = {},
 ): Promise<ImportSummary> {
-  const summary: ImportSummary = { added: 0, updated: 0, discontinued: 0, imagesFound: 0, imagesMissing: 0, errors: [], reviewCount: 0 };
+  const summary: ImportSummary = { added: 0, updated: 0, discontinued: 0, notInCsv: 0, imagesFound: 0, imagesMissing: 0, errors: [], reviewCount: 0 };
   if (rows.length === 0) return summary;
 
   // Step 1 — Pre-fetch image maps per brand in parallel
@@ -3577,10 +3586,12 @@ export async function processCSVImport(
 
       try {
         if (isUpdate) {
-          // Existing product: price + installments only — leave enriched fields untouched
+          // Existing product: price + installments only.
+          // GOVERNANCE RULE: never touch stock_status — admin manages product status manually.
+          // NEVER touch enriched fields (name, specs, description, images, category, tags).
           const updatePatch: Record<string, unknown> = {
             retail_price: price, cash_floor: cashFloor, ...installmentCols,
-            missing_count: 0, stock_status: 'In Stock', updated_at: new Date().toISOString(),
+            missing_count: 0, updated_at: new Date().toISOString(),
           };
           if (opts.rematchImages) {
             const fileMap = brandImageCache.get(brand.toLowerCase()) ?? new Map();
@@ -3630,38 +3641,24 @@ export async function processCSVImport(
     }
   }
 
-  // Step 5 — Discontinuation pass
-  onProgress('Checking for discontinued products…');
-  const toDiscontinue: string[] = [];
-  const toIncrement:   string[] = [];
-
+  // Step 5 — Report products not in this CSV (reporting only — NO mutations).
+  //
+  // GOVERNANCE RULE: A missing row in a price-list CSV is NEVER a discontinuation signal.
+  // Products are only discontinued when explicitly set by the admin in the product editor.
+  // This step reports which products were absent from this upload so the admin is informed,
+  // but it does not increment missing_count, change stock_status, or touch any product data.
+  onProgress('Reporting products not in this upload…');
+  const notInCsvNames: string[] = [];
   for (const dbRow of existingRows ?? []) {
     const dbKey = `${(dbRow.brand || '').toLowerCase()}::${normalizeModelForDedupe(dbRow.model || '')}`;
-    if (csvKeys.has(dbKey)) continue; // present in CSV → reset already done above
-
-    const newCount = (dbRow.missing_count ?? 0) + 1;
-    if (newCount >= 2 && dbRow.stock_status !== 'Discontinued') toDiscontinue.push(dbRow.id);
-    else if (dbRow.stock_status !== 'Discontinued')             toIncrement.push(dbRow.id);
+    if (csvKeys.has(dbKey)) continue;
+    notInCsvNames.push(`${dbRow.brand} ${dbRow.model}`);
   }
-
-  if (toIncrement.length > 0) {
-    // Try RPC first (requires SQL migration), fallback to individual updates
-    const { error: rpcErr } = await supabase.rpc('increment_missing_count', { product_ids: toIncrement });
-    if (rpcErr) {
-      // Fallback: individual increments
-      await Promise.all(toIncrement.map(async id => {
-        const row = existingRows?.find(r => r.id === id);
-        if (row) await supabase.from('products').update({ missing_count: (row.missing_count ?? 0) + 1 }).eq('id', id);
-      }));
-    }
-  }
-
-  if (toDiscontinue.length > 0) {
-    for (let i = 0; i < toDiscontinue.length; i += BATCH) {
-      const slice = toDiscontinue.slice(i, i + BATCH);
-      const { error } = await supabase.from('products').update({ stock_status: 'Discontinued', missing_count: 2 }).in('id', slice);
-      if (!error) summary.discontinued += slice.length;
-    }
+  summary.notInCsv = notInCsvNames.length;
+  if (notInCsvNames.length > 0) {
+    const preview = notInCsvNames.slice(0, 8).join(', ');
+    const more    = notInCsvNames.length > 8 ? ` … and ${notInCsvNames.length - 8} more` : '';
+    summary.errors.push(`Not in this CSV (no action taken — ${notInCsvNames.length} products): ${preview}${more}`);
   }
 
   clearCache();

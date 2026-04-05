@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Sun, ArrowRight, Calculator, CheckCircle2, MessageCircle, Shield } from 'lucide-react'
-import { getProducts, type Product, formatPrice } from '../lib/api'
+import { Sun, ArrowRight, Calculator, CheckCircle2, MessageCircle, Shield, CalendarCheck } from 'lucide-react'
+import { getProducts, getProduct, type Product, formatPrice } from '../lib/api'
 import ProductCard from '../components/products/ProductCard'
 import { wa } from '../lib/whatsapp'
 import { WA_SALES } from '../lib/config'
+import BookingModal, { type BookingContext } from '../components/BookingModal'
 
 const SOLAR_BENEFITS = [
   { icon:'☀️', title:'25 Year Performance Warranty', desc:'Panels guaranteed at 80% output for 25 years.' },
@@ -13,68 +14,103 @@ const SOLAR_BENEFITS = [
   { icon:'🌿', title:'Net Metering', desc:'Sell excess power back to the grid and earn credits (KE requires 10kW+ for Net Metering).' },
 ]
 
+// ── Component option types ────────────────────────────────────────────────────
+
+interface ComponentOption {
+  label:  string;
+  brand:  'Crown' | 'Ziewnic';
+  /** DB slug for Crown — used to look up fetched price */
+  slug?:  string;
+  /** Hardcoded retail price for Ziewnic (Crown price comes from DB) */
+  price?: number;
+}
+
+// ── Crown component definitions (prices fetched from DB at runtime) ──────────
+
+const CROWN_INV_36:  ComponentOption = { label: 'Crown Yorker 3.6kW Inverter',    brand: 'Crown', slug: 'crown-yorker-3-6kw'               }
+const CROWN_INV_5:   ComponentOption = { label: 'Crown Yorker 5kW Inverter',       brand: 'Crown', slug: 'crown-yorker-5kw'                 }
+const CROWN_INV_8:   ComponentOption = { label: 'Crown 8kW Hybrid Inverter',       brand: 'Crown', slug: 'crown-nexus-8kw'                  }
+const CROWN_BAT_24:  ComponentOption = { label: 'Crown 2.4kWh LiFePO4 Battery',   brand: 'Crown', slug: 'crown-elektra-boost-pro-2-4kw'    }
+const CROWN_BAT_512: ComponentOption = { label: 'Crown 5.12kWh LiFePO4 Battery',  brand: 'Crown', slug: 'crown-elektra-boost-pro-5-12kw'   }
+
+// ── Ziewnic component definitions (Ziewnic Jan 2026 catalog + 15% Reliance margin, rounded) ─
+
+function zn(label: string, catalogPrice: number): ComponentOption {
+  return { label, brand: 'Ziewnic', price: Math.round(catalogPrice * 1.15 / 1000) * 1000 }
+}
+
+const ZN_INV_MINI35:  ComponentOption = zn('Ziewnic RouX Mini 3.5kW',     85_000)   //  98,000
+const ZN_INV_MAX35:   ComponentOption = zn('Ziewnic MAX 3.5kW',           95_000)   // 110,000
+const ZN_INV_LITE42:  ComponentOption = zn('Ziewnic RouX Lite 4.2kW',    115_000)   // 133,000
+const ZN_INV_MAX55:   ComponentOption = zn('Ziewnic MAX 5.5kW',          110_000)   // 127,000
+const ZN_INV_LITE59:  ComponentOption = zn('Ziewnic RouX Lite 5.9kW',    135_000)   // 156,000
+const ZN_INV_ROUX67:  ComponentOption = zn('Ziewnic RouX 6.7kW',         167_000)   // 193,000
+const ZN_INV_ULTRA85: ComponentOption = zn('Ziewnic RouX Ultra 8.5kW',   250_000)   // 288,000
+
+const ZN_BAT_LW256:  ComponentOption = zn('Ziewnic LI-WALL 2.0 2.56kWh',  134_000)  // 154,000
+const ZN_BAT_LW512:  ComponentOption = zn('Ziewnic LI-WALL 2.0 5.12kWh',  223_000)  // 257,000
+const ZN_BAT_ZB256:  ComponentOption = zn('Ziewnic Z Box European 2.56kWh',163_000)  // 188,000
+const ZN_BAT_ZB512:  ComponentOption = zn('Ziewnic Z Box European 5.12kWh',250_000)  // 288,000
+
+// ── Package definitions ───────────────────────────────────────────────────────
+
 interface SolarPackage {
-  id:             string;
-  name:           string;
-  kw:             string;
-  type:           'ups' | 'solar';
-  badge:          string;
-  badgeColor:     string;
-  popular:        boolean;
-  includes:       string[];
-  warranties:     string[];
-  total:          number;
-  frameDeduction: number;   // 0 if no frame option
-  frameLabel?:    string;
+  id:              string;
+  name:            string;
+  kw:              string;
+  type:            'ups' | 'solar';
+  badge:           string;
+  badgeColor:      string;
+  popular:         boolean;
+  includes:        string[];   // non-component line items (panels, wiring, etc.)
+  warranties:      string[];
+  /** Total with default Crown components and (for solar) with elevated frame.
+   *  Used only to back-calculate overhead once Crown prices are fetched. */
+  total:           number;
+  frameDeduction:  number;
+  frameLabel?:     string;
+  inverterOptions: ComponentOption[];   // [0] = Crown default
+  batteryOptions:  ComponentOption[];   // [0] = Crown default
 }
 
 export const PACKAGES: SolarPackage[] = [
   {
     id: 'ups-3.6kw', name: '3.6kW UPS System', kw: '3.6kW',
     type: 'ups', badge: 'Backup Only', badgeColor: 'bg-gray-700', popular: false,
-    includes: [
-      'Crown Yorker 3.6kW Inverter',
-      'Crown 2.4kW LiFePO4 Battery',
-      'All wiring & electrical equipment',
-      'Professional installation & transport',
-    ],
+    includes: ['All wiring & electrical equipment', 'Professional installation & transport'],
     warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
     total: 285000, frameDeduction: 0,
+    inverterOptions: [CROWN_INV_36, ZN_INV_MINI35, ZN_INV_MAX35, ZN_INV_LITE42],
+    batteryOptions:  [CROWN_BAT_24, ZN_BAT_LW256, ZN_BAT_ZB256, CROWN_BAT_512, ZN_BAT_LW512],
   },
   {
     id: 'solar-3.6kw', name: '3.6kW Solar System', kw: '3.6kW',
     type: 'solar', badge: 'Solar + Backup', badgeColor: 'bg-amber-500', popular: false,
     includes: [
-      'Crown Yorker 3.6kW Inverter',
-      'Crown 2.4kW LiFePO4 Battery',
       'Crown Bi-Facial 620W Solar Plates ×6',
       'All wiring & electrical equipment',
       'Professional installation & transport',
       'Elevated Solar Frame (optional)',
     ],
     warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
-    // Pricing: PKR 490,000 without elevated frame | PKR 586,000 with elevated frame
-    // frameDeduction = 96,000 → displayPrice without frame = 586,000 − 96,000 = 490,000
-    total: 586000, frameDeduction: 96000, frameLabel: 'Elevated Solar Frame',
+    // PKR 480,000 without frame | PKR 576,000 with frame
+    total: 576000, frameDeduction: 96000, frameLabel: 'Elevated Solar Frame',
+    inverterOptions: [CROWN_INV_36, ZN_INV_MINI35, ZN_INV_MAX35, ZN_INV_LITE42],
+    batteryOptions:  [CROWN_BAT_24, ZN_BAT_LW256, ZN_BAT_ZB256, CROWN_BAT_512, ZN_BAT_LW512],
   },
   {
     id: 'ups-5kw', name: '5kW UPS System', kw: '5kW',
     type: 'ups', badge: 'Backup Only', badgeColor: 'bg-gray-700', popular: false,
-    includes: [
-      'Crown 5kW Inverter',
-      'Crown 5.12kW LiFePO4 Battery',
-      'All wiring & electrical equipment',
-      'Professional installation & transport',
-    ],
+    includes: ['All wiring & electrical equipment', 'Professional installation & transport'],
     warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
     total: 475000, frameDeduction: 0,
+    inverterOptions: [CROWN_INV_5, ZN_INV_MAX55, ZN_INV_LITE59, ZN_INV_ROUX67, CROWN_INV_36, CROWN_INV_8],
+    batteryOptions:  [CROWN_BAT_512, ZN_BAT_LW512, ZN_BAT_ZB512, CROWN_BAT_24, ZN_BAT_LW256],
   },
   {
     id: 'solar-5kw', name: '5kW Solar System', kw: '5kW',
     type: 'solar', badge: 'Most Popular', badgeColor: 'bg-orange-500', popular: true,
     includes: [
-      'Crown 5kW Inverter',
-      'Crown 5.12kW LiFePO4 Battery',
       'Crown Bi-Facial 620W Solar Plates ×8',
       'All wiring & electrical equipment',
       'Professional installation & transport',
@@ -82,13 +118,13 @@ export const PACKAGES: SolarPackage[] = [
     ],
     warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
     total: 875000, frameDeduction: 140000, frameLabel: 'Elevated Solar Frame',
+    inverterOptions: [CROWN_INV_5, ZN_INV_MAX55, ZN_INV_LITE59, ZN_INV_ROUX67, CROWN_INV_36, CROWN_INV_8],
+    batteryOptions:  [CROWN_BAT_512, ZN_BAT_LW512, ZN_BAT_ZB512, CROWN_BAT_24, ZN_BAT_LW256],
   },
   {
     id: 'solar-8kw', name: '8kW Solar System', kw: '8kW',
     type: 'solar', badge: 'Maximum Power', badgeColor: 'bg-blue-600', popular: false,
     includes: [
-      'Crown 8kW Hybrid Inverter',
-      'Crown 5.12kW LiFePO4 Battery',
       'Crown Bi-Facial 620W Solar Plates ×14',
       'All wiring & electrical equipment',
       'Professional installation & transport',
@@ -96,28 +132,145 @@ export const PACKAGES: SolarPackage[] = [
     ],
     warranties: ['5-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
     total: 1364000, frameDeduction: 224000, frameLabel: 'Elevated Solar Frame',
+    inverterOptions: [CROWN_INV_8, ZN_INV_ULTRA85, ZN_INV_ROUX67, CROWN_INV_5],
+    batteryOptions:  [CROWN_BAT_512, ZN_BAT_LW512, ZN_BAT_ZB512],
   },
 ]
 
-function buildWAMsg(pkg: SolarPackage, withFrame: boolean) {
-  const price = withFrame ? pkg.total : pkg.total - pkg.frameDeduction
+// ── Price helpers ─────────────────────────────────────────────────────────────
+
+/** Resolve the retail price for an option, using fetched Crown prices when needed. */
+function optionPrice(opt: ComponentOption, crownPrices: Record<string, number>): number {
+  if (opt.brand === 'Ziewnic') return opt.price ?? 0
+  return crownPrices[opt.slug ?? ''] ?? 0
+}
+
+/** Overhead = wiring + panels (if solar) + labor + transport for this package tier.
+ *  Computed once per package after Crown prices arrive:
+ *    overhead = pkg.total(no-frame) - defaultInverterPrice - defaultBatteryPrice */
+function computeOverhead(pkg: SolarPackage, crownPrices: Record<string, number>): number {
+  const baseTotal = pkg.total - pkg.frameDeduction
+  const invPrice  = optionPrice(pkg.inverterOptions[0], crownPrices)
+  const batPrice  = optionPrice(pkg.batteryOptions[0],  crownPrices)
+  return baseTotal - invPrice - batPrice
+}
+
+// ── WA message ────────────────────────────────────────────────────────────────
+
+function buildWAMsg(
+  pkg:      SolarPackage,
+  withFrame: boolean,
+  invOpt:   ComponentOption,
+  batOpt:   ComponentOption,
+  total:    number,
+): string {
+  const isCustom = invOpt.label !== pkg.inverterOptions[0].label || batOpt.label !== pkg.batteryOptions[0].label
   return (
     `Hello! I'm interested in the *${pkg.name}* package.\n\n` +
-    `💰 Total: *PKR ${price.toLocaleString()}*\n` +
+    `🔌 Inverter: ${invOpt.label}\n` +
+    `🔋 Battery: ${batOpt.label}\n` +
     (pkg.frameDeduction > 0 ? `🏗️ Elevated Frame: ${withFrame ? 'Included' : 'Not required'}\n` : '') +
-    `\nCould you confirm availability and share more details? I may also want to customise the package.`
+    `💰 Total: *PKR ${total.toLocaleString()}*\n` +
+    (isCustom ? `\n⚠️ Custom configuration — please confirm final price.\n` : '') +
+    `\nCould you confirm availability and share details?`
   )
 }
 
-function PackageCard({ pkg }: { pkg: SolarPackage }) {
-  const [withFrame, setWithFrame] = useState(pkg.frameDeduction > 0)
-  const displayPrice = withFrame ? pkg.total : pkg.total - pkg.frameDeduction
+// ── ComponentSelector ─────────────────────────────────────────────────────────
+
+function ComponentSelector({
+  label, options, value, crownPrices, onChange,
+}: {
+  label:       string;
+  options:     ComponentOption[];
+  value:       string;
+  crownPrices: Record<string, number>;
+  onChange:    (v: string) => void;
+}) {
+  const pricesLoaded = options.every(o => o.brand === 'Ziewnic' || (crownPrices[o.slug ?? ''] ?? 0) > 0)
+
+  return (
+    <div className="mb-3">
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">{label}</p>
+      <div className="flex flex-col gap-1.5">
+        {options.map(opt => {
+          const price  = optionPrice(opt, crownPrices)
+          const active = value === opt.label
+          return (
+            <button
+              key={opt.label}
+              type="button"
+              onClick={() => onChange(opt.label)}
+              className={`w-full text-left px-3 py-2 rounded-xl border text-sm transition-colors ${
+                active
+                  ? 'border-orange-400 bg-orange-50 text-orange-900 font-semibold'
+                  : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <span className={`inline-block w-3 h-3 rounded-full border-2 mr-2 align-middle shrink-0 ${
+                active ? 'border-orange-500 bg-orange-500' : 'border-gray-300'
+              }`} />
+              <span className="flex-1">{opt.label}</span>
+              {pricesLoaded && price > 0 && (
+                <span className={`ml-1 text-xs ${active ? 'text-orange-700' : 'text-gray-400'}`}>
+                  PKR {formatPrice(price)}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── PackageCard ───────────────────────────────────────────────────────────────
+
+function PackageCard({
+  pkg, crownPrices, onBook,
+}: {
+  pkg:         SolarPackage;
+  crownPrices: Record<string, number>;
+  onBook:      (ctx: BookingContext) => void;
+}) {
+  const [withFrame,       setWithFrame]       = useState(pkg.frameDeduction > 0)
+  const [selectedInvLabel, setInvLabel]       = useState(pkg.inverterOptions[0].label)
+  const [selectedBatLabel, setBatLabel]       = useState(pkg.batteryOptions[0].label)
+
+  const invOpt = pkg.inverterOptions.find(o => o.label === selectedInvLabel) ?? pkg.inverterOptions[0]
+  const batOpt = pkg.batteryOptions.find(o => o.label === selectedBatLabel) ?? pkg.batteryOptions[0]
+
+  const overhead = computeOverhead(pkg, crownPrices)
+  const pricesReady = overhead > 0   // true once Crown prices have loaded
+
+  const invPrice     = optionPrice(invOpt, crownPrices)
+  const batPrice     = optionPrice(batOpt, crownPrices)
+  const frameAdd     = withFrame ? pkg.frameDeduction : 0
+  // Use dynamic price when Crown prices are loaded; fall back to static pkg.total
+  const displayPrice = pricesReady
+    ? invPrice + batPrice + overhead + frameAdd
+    : (withFrame ? pkg.total : pkg.total - pkg.frameDeduction)
+
+  const isDefault    = invOpt.label === pkg.inverterOptions[0].label && batOpt.label === pkg.batteryOptions[0].label
+  const allIncludes  = [invOpt.label, batOpt.label, ...pkg.includes]
+
+  const handleBook = () => {
+    onBook({
+      packageName:    pkg.name,
+      estimatedPrice: displayPrice,
+      notes: [
+        `Inverter: ${invOpt.label}`,
+        `Battery: ${batOpt.label}`,
+        pkg.frameDeduction > 0 ? `Elevated frame: ${withFrame ? 'Yes' : 'No'}` : '',
+        !isDefault ? 'Custom config — price subject to confirmation' : '',
+      ].filter(Boolean).join(' | '),
+    })
+  }
 
   return (
     <div className={`relative bg-white rounded-3xl border-2 flex flex-col overflow-hidden shadow-sm ${
       pkg.popular ? 'border-orange-400 shadow-orange-100 shadow-lg' : 'border-gray-100'
     }`}>
-      {/* Popular ribbon */}
       {pkg.popular && (
         <div className="bg-orange-500 text-white text-xs font-bold text-center py-1.5 tracking-wide">
           ⭐ MOST POPULAR CHOICE
@@ -136,11 +289,17 @@ function PackageCard({ pkg }: { pkg: SolarPackage }) {
           <div className="text-3xl">{pkg.type === 'solar' ? '☀️' : '🔋'}</div>
         </div>
 
+        {/* Component selectors */}
+        <ComponentSelector label="Inverter" options={pkg.inverterOptions} value={selectedInvLabel}
+          crownPrices={crownPrices} onChange={setInvLabel} />
+        <ComponentSelector label="Battery"  options={pkg.batteryOptions}  value={selectedBatLabel}
+          crownPrices={crownPrices} onChange={setBatLabel} />
+
         {/* What's included */}
         <div className="mb-4">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">What's Included</p>
           <ul className="space-y-1.5">
-            {pkg.includes.map(item => (
+            {allIncludes.map(item => (
               <li key={item} className="flex items-start gap-2 text-sm text-gray-600">
                 <CheckCircle2 className="w-3.5 h-3.5 text-green-500 mt-0.5 shrink-0" />
                 {item}
@@ -177,27 +336,33 @@ function PackageCard({ pkg }: { pkg: SolarPackage }) {
           </label>
         )}
 
-        {/* Price */}
+        {/* Price + CTAs */}
         <div className="mt-auto">
           <div className="text-center mb-4">
             <p className="text-xs text-gray-400 mb-0.5">Total Package Price</p>
-            <p className="text-3xl font-black text-gray-900">PKR {formatPrice(displayPrice)}</p>
-            <p className="text-xs text-gray-400 mt-1">
-              All-inclusive · labor · transport · equipment
-            </p>
+            {pricesReady ? (
+              <p className="text-3xl font-black text-gray-900">PKR {formatPrice(displayPrice)}</p>
+            ) : (
+              <div className="h-9 bg-gray-100 rounded-xl animate-pulse mx-auto w-48 mt-1" />
+            )}
+            <p className="text-xs text-gray-400 mt-1">All-inclusive · labor · transport · equipment</p>
+            {!isDefault && pricesReady && (
+              <p className="text-xs text-orange-600 mt-1 font-medium">
+                Custom config — price subject to confirmation
+              </p>
+            )}
           </div>
 
-          {/* CTAs */}
           <div className="space-y-2">
-            <a href={wa(WA_SALES, buildWAMsg(pkg, withFrame))} target="_blank" rel="noreferrer"
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-white text-sm bg-wa hover:bg-wa-hover transition-colors">
-              <MessageCircle className="w-4 h-4" /> Get Quote on WhatsApp
-            </a>
-            <a href={wa(WA_SALES,
-              `Hello! I'd like to *customise* a ${pkg.kw} solar/UPS package. I may want to adjust the inverter, battery capacity, or number of plates. Could you help me build a custom quote?`
-            )} target="_blank" rel="noreferrer"
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-medium text-gray-700 text-sm border border-gray-200 hover:bg-gray-50 transition-colors">
-              ✏️ Customise This Package
+            <button
+              onClick={handleBook}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-white text-sm bg-gray-900 hover:bg-orange-500 transition-colors">
+              <CalendarCheck className="w-4 h-4" /> Book This Package
+            </button>
+            <a href={wa(WA_SALES, buildWAMsg(pkg, withFrame, invOpt, batOpt, displayPrice))}
+              target="_blank" rel="noreferrer"
+              className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-2xl border border-gray-200 text-gray-500 text-xs font-medium hover:bg-gray-50 transition-colors">
+              <MessageCircle className="w-3.5 h-3.5 text-[#25D366]" /> Questions? Ask on WhatsApp
             </a>
           </div>
         </div>
@@ -206,13 +371,44 @@ function PackageCard({ pkg }: { pkg: SolarPackage }) {
   )
 }
 
+// ── Main page ─────────────────────────────────────────────────────────────────
+
+/** All Crown component slugs we need to fetch (deduped). */
+const CROWN_SLUGS_TO_FETCH = Array.from(new Set(
+  PACKAGES.flatMap(pkg => [
+    ...pkg.inverterOptions.filter(o => o.brand === 'Crown').map(o => o.slug!),
+    ...pkg.batteryOptions.filter(o => o.brand === 'Crown').map(o => o.slug!),
+  ])
+))
+
 export default function SolarPage() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading]   = useState(true)
-  useEffect(() => { getProducts({ category: 'solar' }).then(d => { setProducts(d.products); setLoading(false) }) }, [])
+  const [products,       setProducts]       = useState<Product[]>([])
+  const [loading,        setLoading]        = useState(true)
+  const [bookingOpen,    setBookingOpen]    = useState(false)
+  const [bookingContext, setBookingContext] = useState<BookingContext>({ packageName: 'Solar Package' })
+  const [crownPrices,    setCrownPrices]   = useState<Record<string, number>>({})
+
+  const openBooking = (ctx: BookingContext) => { setBookingContext(ctx); setBookingOpen(true) }
+
+  // Fetch Crown component prices from DB
+  useEffect(() => {
+    Promise.all(CROWN_SLUGS_TO_FETCH.map(slug => getProduct(slug))).then(results => {
+      const map: Record<string, number> = {}
+      results.forEach((product, i) => {
+        if (product) map[CROWN_SLUGS_TO_FETCH[i]] = product.price.cash_floor
+      })
+      setCrownPrices(map)
+    })
+  }, [])
+
+  useEffect(() => {
+    getProducts({ category: 'solar' }).then(d => { setProducts(d.products); setLoading(false) })
+  }, [])
 
   return (
     <div className="min-h-screen bg-white">
+      <BookingModal open={bookingOpen} onClose={() => setBookingOpen(false)} context={bookingContext} />
+
       {/* Hero */}
       <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-yellow-400 text-white py-20 px-4">
         <div className="max-w-5xl mx-auto text-center">
@@ -252,25 +448,28 @@ export default function SolarPage() {
             </div>
             <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-3">Solar & UPS Packages</h2>
             <p className="text-gray-500 max-w-xl mx-auto">
-              All-inclusive prices — inverter, battery, panels, wiring, labor &amp; transport. Top-quality Crown components with industry-leading <strong>replacement</strong> warranties.
+              All-inclusive prices — inverter, battery, panels, wiring, labor &amp; transport.
+              Choose Crown or Ziewnic components to suit your budget.
             </p>
           </div>
 
           {/* Customisation note */}
           <div className="max-w-2xl mx-auto mb-10 bg-white border border-blue-100 rounded-2xl px-5 py-4 text-sm text-blue-700 text-center shadow-sm">
-            <strong>Every package is customisable.</strong> Want a different inverter size, more battery capacity, or fewer panels? WhatsApp us and we'll build a quote tailored to your needs.
+            <strong>Mix Crown and Ziewnic components freely.</strong> Select your inverter and battery below —
+            the price updates live. Custom configurations are confirmed on WhatsApp before booking.
           </div>
 
-          {/* Package cards grid */}
+          {/* Package cards */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
-            {PACKAGES.map(pkg => <PackageCard key={pkg.id} pkg={pkg} />)}
+            {PACKAGES.map(pkg => (
+              <PackageCard key={pkg.id} pkg={pkg} crownPrices={crownPrices} onBook={openBooking} />
+            ))}
           </div>
 
-          {/* Bottom disclaimer */}
           <p className="text-center text-xs text-gray-400 mt-8">
             Prices include all components, electrical equipment, labor &amp; transport within Karachi.
-            Elevated frame can be removed to reduce the total — toggle above each package to see the adjusted price.
-            All components are genuine Crown products with replacement (not repair) warranties.
+            Crown warranties are replacement (not repair) warranties.
+            Ziewnic prices are based on official Jan 2026 price list.
           </p>
         </div>
       </div>
@@ -302,15 +501,21 @@ export default function SolarPage() {
       <div id="products" className="max-w-7xl mx-auto px-4 pb-14">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Solar Products</h2>
         {loading ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">{Array.from({length:8}).map((_,i)=><div key={i} className="bg-gray-100 rounded-2xl h-72 animate-pulse"/>)}</div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {Array.from({length:8}).map((_,i) => <div key={i} className="bg-gray-100 rounded-2xl h-72 animate-pulse"/>)}
+          </div>
         ) : products.length === 0 ? (
           <div className="text-center py-16 text-gray-400">
             <Sun className="w-12 h-12 mx-auto mb-3 opacity-30" />
             <p>Solar products coming soon.</p>
-            <a href={wa(WA_SALES, 'Hello! I need a solar quote.')} className="mt-4 inline-block bg-green-500 text-white px-6 py-2.5 rounded-xl font-medium">WhatsApp for Solar Quote</a>
+            <a href={wa(WA_SALES, 'Hello! I need a solar quote.')} className="mt-4 inline-block bg-green-500 text-white px-6 py-2.5 rounded-xl font-medium">
+              WhatsApp for Solar Quote
+            </a>
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">{products.map(p=><ProductCard key={p.id} product={p}/>)}</div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {products.map(p => <ProductCard key={p.id} product={p}/>)}
+          </div>
         )}
       </div>
     </div>

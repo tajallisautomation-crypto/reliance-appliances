@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Phone, Search, CheckCircle, Clock, Package, MessageCircle, ShieldCheck, Wrench, CreditCard, Upload, FileText, X } from 'lucide-react'
 import SEO from '@/components/ui/SEO'
 import { supabase } from '@/lib/supabase'
-import { waSales } from '@/lib/whatsapp'
+import { waSales, openWhatsApp } from '@/lib/whatsapp'
 
 interface OrderResult {
   id: string
@@ -30,7 +30,7 @@ function buildWaMsg(type: string) {
     installment: 'Hi Reliance! I have a question about my installment plan.',
     order:       'Hi Reliance! I would like an update on my order.',
   }
-  return `https://wa.me/923702578788?text=${encodeURIComponent(msgs[type] || 'Hi Reliance!')}`
+  return waSales(msgs[type] || 'Hi Reliance!')
 }
 
 export default function Portal() {
@@ -168,7 +168,7 @@ export default function Portal() {
                           <span className="text-xs text-gray-400">Total · {order.payment_method}</span>
                           <p className="font-bold text-brand-600">{fmtPKR(order.total_amount)}</p>
                         </div>
-                        <a href={`https://wa.me/923702578788?text=${encodeURIComponent(`Hi! I'm enquiring about my order. Customer: ${order.customer_name}, Phone: ${order.customer_phone}`)}`}
+                        <a href={waSales(`Hi! I'm enquiring about my order. Customer: ${order.customer_name}, Phone: ${order.customer_phone}`)}
                           target="_blank" rel="noreferrer"
                           className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold px-4 py-2 rounded-xl">
                           <MessageCircle className="w-3.5 h-3.5" /> Ask about this order
@@ -272,7 +272,7 @@ export default function Portal() {
                   const msg = encodeURIComponent(
                     `Hi Reliance! I'd like to submit documents for an installment application.\n\nName: ${docName}\nPhone: ${docPhone}\nFiles: ${fileNames}\n\nI'll send the files in this chat.`
                   )
-                  window.open(`https://wa.me/923702578788?text=${msg}`, '_blank')
+                  openWhatsApp(`https://wa.me/923702578788?text=${msg}`)
                   setDocSent(true)
                 }}
                 className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white py-3.5 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2">

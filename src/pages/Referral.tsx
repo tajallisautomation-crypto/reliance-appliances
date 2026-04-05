@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Gift, Share2, CheckCircle, Users, TrendingUp, Copy, MessageCircle } from 'lucide-react'
 import SEO from '../components/ui/SEO'
+import { waSales } from '../lib/whatsapp'
 
 const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://tajallis.com.pk'
 
@@ -153,7 +154,7 @@ export default function ReferralPage() {
 
               <p className="text-xs text-gray-400 text-center">
                 Commission is tracked manually. WhatsApp us at{' '}
-                <a href="https://wa.me/923702578788" className="text-orange-500 hover:underline">+92 370 2578788</a> to confirm and collect your earnings.
+                <a href={waSales()} target="_blank" rel="noreferrer" className="text-orange-500 hover:underline">+92 370 2578788</a> to confirm and collect your earnings.
               </p>
             </div>
           )}
@@ -183,7 +184,7 @@ export default function ReferralPage() {
         {/* CTA */}
         <section className="text-center">
           <p className="text-gray-500 text-sm mb-4">Questions about the referral programme?</p>
-          <a href="https://wa.me/923702578788?text=Hi%2C%20I%27d%20like%20to%20know%20more%20about%20the%20referral%20programme"
+          <a href={waSales('Hi, I\'d like to know more about the referral programme')} target="_blank" rel="noreferrer"
             className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
             💬 Ask on WhatsApp
           </a>

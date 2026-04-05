@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Trash2, Plus, Minus, ShoppingCart, ArrowRight, MessageCircle } from 'lucide-react'
 import { useCartStore } from '../store/cartStore'
 import { fmtPKR, fixImageUrl, calcAllPlans } from '../lib/api'
+import { waOrder } from '../lib/whatsapp'
 import SEO from '../components/ui/SEO'
 
 export default function Cart() {
@@ -21,11 +22,11 @@ export default function Cart() {
     </div>
   )
 
-  const waLink = `https://wa.me/923702578788?text=${encodeURIComponent(
+  const waLink = waOrder(
     'Hi! I want to order:\n' +
     items.map(i => `• ${i.qty}× ${i.simplified_name || i.model} — ${fmtPKR((i.price?.cash_floor || 0) * i.qty)}`).join('\n') +
     `\n\nTotal: ${fmtPKR(cartTotal)}`
-  )}`
+  )
 
   return (
     <>

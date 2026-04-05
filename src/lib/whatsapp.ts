@@ -27,6 +27,16 @@ import { appendRef } from './referral';
 export const wa = (phone: string, msg: string) =>
   `https://wa.me/${phone}?text=${encodeURIComponent(appendRef(msg))}`;
 
+// ── Safe opener — falls back gracefully if popup blocked ────────────
+export function openWhatsApp(url: string): void {
+  try {
+    const w = window.open(url, '_blank', 'noopener,noreferrer')
+    if (!w) window.location.href = url
+  } catch {
+    window.location.href = url
+  }
+}
+
 export const waSales = (msg?: string) => wa(WA_SALES, msg || TEMPLATES.greeting_en);
 export const waAdmin = (msg?: string) => wa(WA_ADMIN, msg || TEMPLATES.greeting_en);
 

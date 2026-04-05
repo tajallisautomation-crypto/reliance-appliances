@@ -9,6 +9,7 @@ import {
 import SEO from '@/components/ui/SEO'
 import { getMaintenanceImages, type MediaItem } from '@/lib/gallery'
 import { SERVICES_CATALOG, requiresSiteConsultation, DELIVERY_POLICY } from '@/lib/services'
+import { waSales, waAdmin } from '@/lib/whatsapp'
 
 // ── Services ─────────────────────────────────────────────────────────────────
 
@@ -86,7 +87,7 @@ export function Services() {
             and a 90-day workmanship guarantee — every time.
           </p>
           <div className="flex flex-wrap gap-4 justify-center mt-8">
-            <a href="https://wa.me/923702578788?text=Hi%2C%20I%27d%20like%20to%20book%20a%20service"
+            <a href={waSales('Hi, I\'d like to book a service')} target="_blank" rel="noreferrer"
               className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
               <MessageCircle className="w-4 h-4" /> Book on WhatsApp
             </a>
@@ -283,7 +284,7 @@ export function Services() {
               </ul>
             </div>
             <div className="md:w-56">
-              <a href="https://wa.me/923702578788?text=Hi%2C%20I%27d%20like%20to%20know%20about%20the%20Annual%20Maintenance%20Contract"
+              <a href={waSales('Hi, I\'d like to know about the Annual Maintenance Contract')} target="_blank" rel="noreferrer"
                 className="block w-full text-center py-3.5 rounded-xl font-bold text-white bg-orange-500 hover:bg-orange-600 transition-colors">
                 Get AMC Quote
               </a>
@@ -299,7 +300,7 @@ export function Services() {
             WhatsApp us with your appliance and the issue — we'll confirm a slot within 1 hour.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="https://wa.me/923702578788?text=Hi%2C%20I%27d%20like%20to%20book%20a%20service%20visit"
+            <a href={waSales('Hi, I\'d like to book a service visit')} target="_blank" rel="noreferrer"
               className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
               <MessageCircle className="w-4 h-4" /> Book on WhatsApp
             </a>
@@ -376,7 +377,7 @@ export function Corporate() {
             for businesses that expect more than a standard retailer can offer.
           </p>
           <div className="flex flex-wrap gap-4 justify-center mt-8">
-            <a href="https://wa.me/923354266238?text=Hi%2C%20I%27d%20like%20a%20corporate%20quote"
+            <a href={waAdmin('Hi, I\'d like a corporate quote')} target="_blank" rel="noreferrer"
               className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
               <MessageCircle className="w-4 h-4" /> WhatsApp Corporate Team
             </a>
@@ -465,7 +466,7 @@ export function Corporate() {
             Tell us your requirements and your account manager will send a complete proposal within 24 hours.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="https://wa.me/923354266238?text=Hi%2C%20I%27d%20like%20a%20corporate%20appliance%20quote%20for%20my%20business"
+            <a href={waAdmin('Hi, I\'d like a corporate appliance quote for my business')} target="_blank" rel="noreferrer"
               className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
               <MessageCircle className="w-4 h-4" /> WhatsApp Corporate Team
             </a>

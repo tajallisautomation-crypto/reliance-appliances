@@ -1323,7 +1323,7 @@ function ImportTab({ onImported }: { onImported: () => void }) {
         <div className="text-xs text-gray-500 space-y-1">
           <p><strong>Valid Category values:</strong></p>
           <p className="text-gray-400">{VALID_CATEGORIES.join(' · ')}</p>
-          <p className="mt-2 text-amber-600">Products absent from 2 consecutive imports will be marked <strong>Discontinued</strong>.</p>
+          <p className="mt-2 text-blue-600">Products not in this upload are <strong>not changed</strong> — they stay visible in listings until you manually disable them.</p>
         </div>
       </div>
 
@@ -1380,16 +1380,17 @@ function ImportTab({ onImported }: { onImported: () => void }) {
           <div className="mt-6 bg-green-50 rounded-2xl p-6 space-y-4">
             <h4 className="font-bold text-gray-900">Import Complete</h4>
             <p className="text-xs text-gray-500">
-              Existing products had <strong>prices &amp; installment plans updated only</strong> — names, specs, images and descriptions were preserved.
+              Existing products had <strong>prices &amp; installment plans updated only</strong> — names, specs, images, descriptions, and status were preserved.
               New products were fully enriched. All price changes were logged to history.
+              Products absent from this upload were <strong>not changed</strong> — they remain active until you disable them manually.
             </p>
             <div className="grid grid-cols-2 gap-3">
-              <SummaryCard label="New Products"       value={summary.added}         color="text-green-700"  />
-              <SummaryCard label="Prices Updated"     value={summary.updated}       color="text-blue-700"   />
-              <SummaryCard label="Discontinued"       value={summary.discontinued}  color="text-red-600"    />
-              <SummaryCard label="Images Found"       value={summary.imagesFound}   color="text-purple-700" />
-              <SummaryCard label="Images Missing"     value={summary.imagesMissing} color={summary.imagesMissing > 0 ? 'text-amber-600' : 'text-gray-400'} />
-              <SummaryCard label="Taxonomy Review"    value={reviewItems.length}    color={reviewItems.length > 0 ? 'text-amber-600' : 'text-gray-400'} />
+              <SummaryCard label="New Products"       value={summary.added}              color="text-green-700"  />
+              <SummaryCard label="Prices Updated"     value={summary.updated}            color="text-blue-700"   />
+              <SummaryCard label="Not in CSV"         value={summary.notInCsv ?? 0}      color="text-gray-500"   />
+              <SummaryCard label="Images Found"       value={summary.imagesFound}        color="text-purple-700" />
+              <SummaryCard label="Images Missing"     value={summary.imagesMissing}      color={summary.imagesMissing > 0 ? 'text-amber-600' : 'text-gray-400'} />
+              <SummaryCard label="Taxonomy Review"    value={reviewItems.length}         color={reviewItems.length > 0 ? 'text-amber-600' : 'text-gray-400'} />
             </div>
 
             {/* Taxonomy review queue — these products are saved but NOT live */}

@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Phone, Mail, MapPin, MessageCircle, Leaf, Facebook } from 'lucide-react';
-import { waSales } from '@/lib/whatsapp';
+import { Phone, Mail, MapPin, Leaf, Facebook } from 'lucide-react';
 
 export default function Footer() {
   const year = new Date().getFullYear();
@@ -21,10 +20,6 @@ export default function Footer() {
             Karachi's most trusted appliance partner since 2015. Serving 14,400+ clients — homes, offices & businesses — with genuine products and real after-sales support.
           </p>
           <div className="flex gap-2">
-            <a href={waSales()} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white bg-green-500 hover:bg-green-600 transition-colors">
-              <MessageCircle className="h-4 w-4" /> WhatsApp
-            </a>
             <a href="https://www.facebook.com/tajallishomecollection/" target="_blank" rel="noreferrer"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors">
               <Facebook className="h-4 w-4" /> Facebook
@@ -36,10 +31,17 @@ export default function Footer() {
         <div>
           <h3 className="font-bold text-sm uppercase tracking-wider text-gray-300 mb-3">Products</h3>
           <ul className="space-y-2">
-            {['Air Conditioners','Refrigerators','Freezers','Washing Machines','Televisions','Solar Solutions','Kitchen Appliances'].map(c => (
-              <li key={c}>
-                <Link to={`/products/category/${c.toLowerCase().replace(/\s+/g,'-')}`}
-                  className="text-sm text-gray-400 hover:text-white transition-colors">{c}</Link>
+            {[
+              { label: 'Air Conditioners',   to: '/products?category=air-conditioners'   },
+              { label: 'Refrigerators',      to: '/products?category=refrigerators'      },
+              { label: 'Freezers',           to: '/products?category=freezers'           },
+              { label: 'Washing Machines',   to: '/products?category=washing-machines'   },
+              { label: 'Televisions',        to: '/products?category=televisions'        },
+              { label: 'Solar Solutions',    to: '/solar'                                },
+              { label: 'Kitchen Appliances', to: '/products?category=kitchen-appliances' },
+            ].map(({ label, to }) => (
+              <li key={label}>
+                <Link to={to} className="text-sm text-gray-400 hover:text-white transition-colors">{label}</Link>
               </li>
             ))}
           </ul>

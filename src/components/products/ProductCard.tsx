@@ -14,8 +14,11 @@ export default function ProductCard({ product: p }: Props) {
   const addItem  = useCartStore(s => s.addItem);
   const [added, setAdded] = useState(false);
 
+  const isAvailable = p.stock_status === 'In Stock';
+
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault();
+    if (!isAvailable) return;
     addItem(p);
     setAdded(true);
     toast.success(`${p.brand} ${p.model} added to cart`);
@@ -73,12 +76,14 @@ export default function ProductCard({ product: p }: Props) {
 
         {/* Quick actions — always visible on mobile, hover-reveal on desktop */}
         <div className="absolute bottom-2 right-2 flex gap-1.5 sm:translate-y-2 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100 transition-all duration-200">
-          <button onClick={handleAdd} aria-label={`Add ${p.model} to cart`}
-            className={`w-10 h-10 rounded-full shadow-apple-lg flex items-center justify-center transition-all duration-200 ${added ? 'bg-emerald-500 text-white scale-110' : 'bg-white text-brand-500 active:bg-brand-500 active:text-white hover:bg-brand-500 hover:text-white'}`}>
-            {added
-              ? <CheckCircle className="w-4 h-4" />
-              : <ShoppingCart className="w-4 h-4" />}
-          </button>
+          {isAvailable && (
+            <button onClick={handleAdd} aria-label={`Add ${p.model} to cart`}
+              className={`w-10 h-10 rounded-full shadow-apple-lg flex items-center justify-center transition-all duration-200 ${added ? 'bg-emerald-500 text-white scale-110' : 'bg-white text-brand-500 active:bg-brand-500 active:text-white hover:bg-brand-500 hover:text-white'}`}>
+              {added
+                ? <CheckCircle className="w-4 h-4" />
+                : <ShoppingCart className="w-4 h-4" />}
+            </button>
+          )}
           <CompareButton product={p} variant="icon" />
           <a href={waProduct(p.brand, p.model)} target="_blank" rel="noreferrer"
             aria-label={`Enquire about ${p.model}`} onClick={e => e.stopPropagation()}

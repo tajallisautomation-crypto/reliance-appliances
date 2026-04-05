@@ -22,7 +22,20 @@ const BUDGET_RANGES = [
   { label: 'Above 2 Lac',    min: 200000,  max: 9999999 },
 ]
 
-// Broad category groups — each group contains one or more DEFAULT_CATEGORIES ids
+// Primary browse categories — maps to normalized_category slugs in getProducts CAT_TERMS
+const PRIMARY_BROWSE_CATS = [
+  { id: 'air-conditioners',   label: 'Air Conditioners',   icon: '❄️' },
+  { id: 'refrigerators',      label: 'Refrigerators',      icon: '🧊' },
+  { id: 'freezers',           label: 'Freezers',           icon: '🥶' },
+  { id: 'washing-machines',   label: 'Washing Machines',   icon: '👕' },
+  { id: 'televisions',        label: 'Televisions',        icon: '📺' },
+  { id: 'solar',              label: 'Solar',              icon: '☀️' },
+  { id: 'kitchen-appliances', label: 'Kitchen Appliances', icon: '🍳' },
+  { id: 'water-dispensers',   label: 'Water Dispensers',   icon: '💧' },
+  { id: 'small-appliances',   label: 'Small Appliances',   icon: '🔌' },
+] as const
+
+// Legacy group → category mapping kept for backward compat with old ?group= URLs
 const CATEGORY_GROUPS = [
   { id: 'cooling', label: 'Cooling & Refrigeration', icon: '❄️', cats: ['ac', 'fridge', 'fridge-nofrost', 'fridge-sbs', 'fridge-french', 'freezer'] },
   { id: 'laundry', label: 'Laundry',            icon: '🫧', cats: ['washing', 'frontload'] },

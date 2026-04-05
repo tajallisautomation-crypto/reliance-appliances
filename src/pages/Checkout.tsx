@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useCartStore } from '../store/cartStore'
 import { fmtPKR, calcAllPlans, submitOrder } from '../lib/api'
 import { waSales } from '../lib/whatsapp'
-import { CheckCircle, AlertCircle, Copy, Banknote, Upload, ArrowRight } from 'lucide-react'
+import { CheckCircle, AlertCircle, Copy, Banknote, ArrowRight } from 'lucide-react'
 import SEO from '../components/ui/SEO'
 
 const PLAN_LABELS: Record<string, string> = {
@@ -24,15 +24,14 @@ const BANK_DETAILS = [
 ]
 
 export default function Checkout() {
-  const { items, total, clearCart } = useCartStore()
+  const { items, total, clearCart, selectedPlan: storedPlan } = useCartStore()
   const cartTotal = total()
-  const [plan, setPlan] = useState('cash')
+  const [plan, setPlan] = useState<string>(storedPlan ?? 'cash')
   const [form, setForm] = useState({ name:'', phone:'', email:'', address:'', city:'', notes:'' })
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [orderId, setOrderId] = useState('')
   const [error, setError] = useState('')
-  const [transferFile, setTransferFile] = useState<File | null>(null)
   const [copiedBank, setCopiedBank] = useState('')
   const plans = calcAllPlans(cartTotal)
   const selectedPlan = plan !== 'cash' ? plans[plan] : null
@@ -91,19 +90,6 @@ export default function Checkout() {
       <h2 className="text-2xl font-bold text-gray-800">Order Placed!</h2>
       <p className="text-gray-500">Reference: <strong>{orderId}</strong></p>
       <p className="text-sm text-gray-400">Our team will call you shortly to confirm.</p>
-      {transferFile && (
-        <div className="w-full bg-amber-50 border border-amber-200 rounded-2xl p-4 text-left">
-          <div className="flex items-center gap-2 mb-2">
-            <Upload className="w-4 h-4 text-amber-600 flex-shrink-0" />
-            <p className="text-sm font-bold text-amber-900">Send your transfer proof</p>
-          </div>
-          <p className="text-xs text-amber-700 mb-3">You selected <strong>{transferFile.name}</strong> — please send it via WhatsApp so we can confirm your transfer and proceed.</p>
-          <a href={waSales(`Order ref: ${orderId} — attaching transfer proof`)} target="_blank" rel="noreferrer"
-            className="inline-flex items-center gap-2 bg-green-500 text-white px-4 py-2.5 rounded-xl text-sm font-semibold w-full justify-center">
-            💬 Send Screenshot on WhatsApp
-          </a>
-        </div>
-      )}
       <a href={waSales(`Order ref: ${orderId}`)} target="_blank" rel="noreferrer"
         className="bg-green-500 text-white px-8 py-3 rounded-xl font-semibold w-full">
         💬 Track on WhatsApp
@@ -250,17 +236,9 @@ export default function Checkout() {
                 </div>
               ))}
             </div>
-            <div className="mt-4">
-              <label className="text-xs font-medium text-amber-800 block mb-1.5">
-                Attach transfer screenshot <span className="font-normal text-amber-600">(max 5 MB — jpg, png, pdf)</span>
-              </label>
-              <input
-                type="file" accept="image/*,application/pdf"
-                onChange={e => setTransferFile(e.target.files?.[0] || null)}
-                className="w-full text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-amber-100 file:text-amber-700 file:font-medium hover:file:bg-amber-200 cursor-pointer"
-              />
-              {transferFile && <p className="text-xs text-green-600 mt-1">✓ {transferFile.name}</p>}
-              <p className="text-xs text-amber-600 mt-1.5">Or send the screenshot via WhatsApp to <strong>+92 370 2578788</strong>.</p>
+            <div className="mt-4 bg-amber-100/60 rounded-xl p-3">
+              <p className="text-xs font-medium text-amber-800 mb-1">Send your transfer screenshot</p>
+              <p className="text-xs text-amber-700">After placing your order, send your transfer proof via WhatsApp to <strong>+92 370 2578788</strong> with your order reference. We'll verify and schedule delivery.</p>
             </div>
           </div>
         </div>

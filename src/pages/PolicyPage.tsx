@@ -1,5 +1,6 @@
 import { useParams, Link, Navigate } from 'react-router-dom'
 import SEO from '@/components/ui/SEO'
+import { waSales } from '@/lib/whatsapp'
 
 type PolicyType = 'privacy' | 'terms' | 'warranty' | 'refund'
 
@@ -177,7 +178,7 @@ export default function PolicyPage() {
           <h3 className="font-bold text-gray-900 mb-2">Questions about this policy?</h3>
           <p className="text-sm text-gray-600 mb-4">We're always happy to clarify. Reach out to us directly.</p>
           <div className="flex flex-wrap gap-3">
-            <a href="https://wa.me/923702578788" target="_blank" rel="noreferrer"
+            <a href={waSales()} target="_blank" rel="noreferrer"
               className="inline-flex items-center gap-2 bg-green-500 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-green-600">
               💬 WhatsApp Us
             </a>

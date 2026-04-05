@@ -17,12 +17,15 @@ const NAV_LINKS = [
 ];
 
 const CATEGORY_NAV = [
-  { id: 'cooling', label: 'Cooling & Refrigeration', icon: '❄️' },
-  { id: 'laundry', label: 'Laundry',                 icon: '🫧' },
-  { id: 'kitchen', label: 'Kitchen & Cooking',       icon: '🍳' },
-  { id: 'tv',      label: 'Televisions',             icon: '📺' },
-  { id: 'solar',   label: 'Solar & Energy',          icon: '☀️' },
-  { id: 'home',    label: 'Home & Comfort',          icon: '🏠' },
+  { href: '/products?category=air-conditioners',  label: 'Air Conditioners',   icon: '❄️' },
+  { href: '/products?category=refrigerators',     label: 'Refrigerators',      icon: '🧊' },
+  { href: '/products?category=freezers',          label: 'Freezers',           icon: '🥶' },
+  { href: '/products?category=washing-machines',  label: 'Washing Machines',   icon: '👕' },
+  { href: '/products?category=televisions',       label: 'Televisions',        icon: '📺' },
+  { href: '/solar',                               label: 'Solar',              icon: '☀️' },
+  { href: '/products?category=kitchen-appliances',label: 'Kitchen Appliances', icon: '🍳' },
+  { href: '/products?category=water-dispensers',  label: 'Water Dispensers',   icon: '💧' },
+  { href: '/products?category=small-appliances',  label: 'Small Appliances',   icon: '🔌' },
 ];
 
 const MOBILE_LINKS = [
@@ -109,9 +112,9 @@ export default function Navbar() {
                         onMouseEnter={openProducts}
                         onMouseLeave={closeProducts}
                       >
-                        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-4 grid grid-cols-3 lg:grid-cols-6 gap-2">
+                        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-4 grid grid-cols-3 lg:grid-cols-9 gap-2">
                           {CATEGORY_NAV.map(cat => (
-                            <Link key={cat.id} to={`/products?group=${cat.id}`}
+                            <Link key={cat.href} to={cat.href}
                               onClick={() => setProductsOpen(false)}
                               className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl hover:bg-brand-50 transition-colors text-center group">
                               <span className="text-2xl leading-none">{cat.icon}</span>
