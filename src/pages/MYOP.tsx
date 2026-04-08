@@ -175,7 +175,7 @@ function getKeySpecs(product: Product, tabId: string): string[] {
 
 function buildWAMessage(items: PackageItem[], subtotal: number, discount: number, total: number): string {
   const lines: string[] = [
-    '*My Custom Package — Reliance by Tajallis* 📦',
+    '*My Custom Package — Tajalli's* 📦',
     '',
     ...items.map((item, i) => {
       const name = item.product.simplified_name || item.product.model
@@ -592,7 +592,7 @@ export default function MYOPPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <SEO
-        title="Build Your Own Package — Reliance by Tajallis"
+        title="Build Your Own Package — Tajalli's"
         description="Mix and match appliances and solar products. Get 5% off when you pick 3 or more products. Easy installments available."
         keywords="home appliance package karachi, bundle deals appliances pakistan, custom appliance package"
       />

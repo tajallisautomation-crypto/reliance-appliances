@@ -246,6 +246,36 @@ export const SERVICES_CATALOG: ServiceEntry[] = [
     notes: 'Quote provided after home visit. Covers up to 5 appliances in base plan. Additional appliances added per unit.',
   },
 
+  // ── Diagnosis / Technician Visit ─────────────────────────────────────────────
+  //
+  // Repair services (AC, fridge, freezer, dispenser, washing machine, generator,
+  // solar inverter, UPS, microwave, LED TV) require on-site diagnosis FIRST.
+  // The repair quote is communicated AFTER the technician assesses the unit.
+  // If the customer declines the repair after diagnosis, the visit fee applies.
+
+  {
+    id: 'repair-visit-standard',
+    name: 'Technician Visit / Diagnosis (Standard)',
+    description: 'For all repair categories (AC, refrigerator, freezer, dispenser, washing machine, generator, solar inverter, UPS, microwave, LED TV): the technician visits, diagnoses the fault, and provides a repair quote. The actual repair price is only communicated after diagnosis. If the customer declines the repair after diagnosis, this visit charge is retained. Visit charges are collected at the start of the visit.',
+    category: 'repair',
+    appliesTo: ['Air Conditioners', 'Refrigerators', 'Deep Freezers', 'Water Dispensers', 'Washing Machines', 'Solar Inverters', 'Microwaves', 'Televisions'],
+    price: { type: 'fixed', amount: 2000, display: 'PKR 2,000 (collected at visit; retained if customer declines repair)' },
+    installationProvider: 'tajalli_charged',
+    consultationRequired: false,
+    notes: 'Standard visit: within 48 hours. Visit fee is separate from repair labour — if repair proceeds, visit fee may be deducted from total at technician\'s discretion.',
+  },
+  {
+    id: 'repair-visit-urgent',
+    name: 'Urgent Same-Day Visit / Diagnosis',
+    description: 'Same-day technician visit for urgent repairs. Applies all repair categories. Same diagnosis-first policy — repair price communicated after assessment.',
+    category: 'repair',
+    appliesTo: ['Air Conditioners', 'Refrigerators', 'Deep Freezers', 'Water Dispensers', 'Washing Machines', 'Solar Inverters', 'Microwaves', 'Televisions'],
+    price: { type: 'fixed', amount: 3000, display: 'PKR 3,000 (same-day; collected in advance or at start of visit)' },
+    installationProvider: 'tajalli_charged',
+    consultationRequired: false,
+    notes: 'Urgent visits are subject to technician availability. Request via WhatsApp by 12pm for same-day confirmation.',
+  },
+
   // ── General / Cross-Category ─────────────────────────────────────────────────
 
   {

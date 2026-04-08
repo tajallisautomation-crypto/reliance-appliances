@@ -7,7 +7,7 @@ type PolicyType = 'privacy' | 'terms' | 'warranty' | 'refund'
 const POLICIES: Record<PolicyType, { title: string; description: string; content: Array<{ heading: string; body: string }> }> = {
   privacy: {
     title: 'Privacy Policy',
-    description: 'How Reliance by Tajallis collects, uses, and protects your personal data.',
+    description: 'How Tajalli's collects, uses, and protects your personal data.',
     content: [
       {
         heading: 'Information We Collect',
@@ -37,11 +37,11 @@ const POLICIES: Record<PolicyType, { title: string; description: string; content
   },
   terms: {
     title: 'Terms & Conditions',
-    description: 'Terms and conditions for using the Reliance by Tajallis website and purchasing our products.',
+    description: 'Terms and conditions for using the Tajalli's website and purchasing our products.',
     content: [
       {
         heading: 'Acceptance of Terms',
-        body: `By browsing our website or placing an order with Reliance by Tajallis, you agree to be bound by these terms and conditions. If you do not agree, please do not use our services.`,
+        body: `By browsing our website or placing an order with Tajalli's, you agree to be bound by these terms and conditions. If you do not agree, please do not use our services.`,
       },
       {
         heading: 'Products & Pricing',
@@ -53,25 +53,25 @@ const POLICIES: Record<PolicyType, { title: string; description: string; content
       },
       {
         heading: 'Delivery',
-        body: `We deliver within Karachi and to selected cities. Delivery timelines are estimates and may vary. Reliance by Tajallis is not liable for delays caused by factors outside our control (weather, courier issues, etc.). A delivery fee may apply for locations outside Karachi.`,
+        body: `We deliver within Karachi and to selected cities. Delivery timelines are estimates and may vary. Tajalli's is not liable for delays caused by factors outside our control (weather, courier issues, etc.). A delivery fee may apply for locations outside Karachi.`,
       },
       {
         heading: 'Installment Plans',
-        body: `Installment plans are offered directly by Reliance by Tajallis — not through a bank. Plan terms (advance %, monthly amounts, duration) are as agreed at the time of order. Late or missed payments may result in recovery action and affect future purchases.`,
+        body: `Installment plans are offered directly by Tajalli's — not through a bank. Plan terms (advance %, monthly amounts, duration) are as agreed at the time of order. Late or missed payments may result in recovery action and affect future purchases.`,
       },
       {
         heading: 'Limitation of Liability',
-        body: `Reliance by Tajallis is not liable for any indirect, incidental, or consequential damages arising from the use of products purchased from us, beyond the manufacturer's warranty terms. Our liability is limited to the purchase price of the product.`,
+        body: `Tajalli's is not liable for any indirect, incidental, or consequential damages arising from the use of products purchased from us, beyond the manufacturer's warranty terms. Our liability is limited to the purchase price of the product.`,
       },
     ],
   },
   warranty: {
     title: 'Warranty Policy',
-    description: 'Understanding your warranty coverage when you buy from Reliance by Tajallis.',
+    description: 'Understanding your warranty coverage when you buy from Tajalli's.',
     content: [
       {
         heading: 'Official Brand Warranty',
-        body: `All products sold by Reliance by Tajallis come with the official manufacturer's warranty. Warranty periods vary by brand and product category — for example, Haier AC compressors carry a 5-year warranty, while Dawlance refrigerator compressors carry a 10-year warranty. The specific warranty for each product is displayed on the product page.`,
+        body: `All products sold by Tajalli's come with the official manufacturer's warranty. Warranty periods vary by brand and product category — for example, Haier AC compressors carry a 5-year warranty, while Dawlance refrigerator compressors carry a 10-year warranty. The specific warranty for each product is displayed on the product page.`,
       },
       {
         heading: 'What Is Covered',
@@ -93,7 +93,7 @@ const POLICIES: Record<PolicyType, { title: string; description: string; content
   },
   refund: {
     title: 'Refund & Return Policy',
-    description: 'Our policy on returns, exchanges, and refunds for products purchased from Reliance by Tajallis.',
+    description: 'Our policy on returns, exchanges, and refunds for products purchased from Tajalli's.',
     content: [
       {
         heading: 'Eligibility for Return',
@@ -131,7 +131,7 @@ export default function PolicyPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <SEO title={`${policy.title} — Reliance by Tajallis`} description={policy.description} />
+      <SEO title={`${policy.title} — Tajalli's`} description={policy.description} />
 
       {/* Header */}
       <div className="bg-gray-50 border-b">

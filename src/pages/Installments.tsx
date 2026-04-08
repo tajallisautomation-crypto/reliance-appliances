@@ -19,7 +19,7 @@ const FAQS = [
   },
   {
     q: 'Is the advance refundable if my application is rejected?',
-    a: 'Yes — fully. If verification is unsuccessful, the advance is returned to you with no deductions. Refunds are processed within 3 working days.',
+    a: 'Partially, subject to conditions. If your application is not approved and no forgery or misrepresentation was found, your advance is refunded in full. However, if all referred applications are rejected, a 10% service charge is deducted from the advance to cover processing and verification costs. Refunds are processed within 3–5 working days of the final decision.',
   },
   {
     q: 'What happens if I miss a monthly payment?',
@@ -83,7 +83,7 @@ export default function InstallmentsPage() {
   return (
     <div className="min-h-screen bg-white">
       <SEO
-        title="Easy Installment Plans — Reliance Appliances Karachi"
+        title="Easy Installment Plans — Tajalli's Home & Commercial Solutions Karachi"
         description="Buy home appliances on 2, 3, 6, or 12-payment installment plans. No bank account required. Document requirements, process, and calculator."
       />
 
@@ -291,6 +291,17 @@ export default function InstallmentsPage() {
                 <p className="text-red-700">
                   Approval is not guaranteed. Missing or falsified documents result in immediate cancellation.
                   All installment agreements are legally binding.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 bg-green-50 border border-green-100 rounded-2xl p-5">
+              <span className="text-xl flex-shrink-0 mt-0.5">☀️</span>
+              <div className="text-sm">
+                <p className="font-bold text-green-900 mb-1">Solar System Installments — Special Policy</p>
+                <p className="text-green-800">
+                  Solar systems require a <strong>minimum 40% advance</strong> at the time of document submission.
+                  Systems priced above <strong>PKR 700,000</strong> or with a capacity above <strong>5kW</strong> are available on <strong>cash payment only</strong> — installment plans do not apply.
+                  Contact us on WhatsApp for a custom quote or site assessment.
                 </p>
               </div>
             </div>

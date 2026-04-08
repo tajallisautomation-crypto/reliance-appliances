@@ -49,8 +49,8 @@ export default function Contact() {
   return (
     <div className="min-h-screen bg-white">
       <SEO
-        title="Contact Us — Reliance by Tajallis Karachi"
-        description="Get in touch with Reliance by Tajallis. Call, WhatsApp, or send us a message. We're here to help with product enquiries, orders, and after-sale support."
+        title="Contact Us — Tajalli's Karachi"
+        description="Get in touch with Tajalli's. Call, WhatsApp, or send us a message. We're here to help with product enquiries, orders, and after-sale support."
         keywords="contact reliance appliances karachi, appliance store phone number, whatsapp appliances pakistan"
       />
 

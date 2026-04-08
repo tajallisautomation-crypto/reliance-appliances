@@ -188,7 +188,7 @@ export default function ProductDetail() {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: p.simplified_name || p.model,
-    description: p.description || p.seo.description || `${p.brand} ${p.model} — available at Reliance by Tajallis, Karachi.`,
+    description: p.description || p.seo.description || `${p.brand} ${p.model} — available at Tajalli's, Karachi.`,
     brand: { '@type': 'Brand', name: p.brand },
     model: p.model,
     sku: p.model,
@@ -206,7 +206,7 @@ export default function ProductDetail() {
         ? 'https://schema.org/InStock'
         : 'https://schema.org/OutOfStock',
       url: `${SITE_URL}/products/${p.slug}`,
-      seller: { '@type': 'Organization', name: 'Reliance by Tajallis', url: SITE_URL },
+      seller: { '@type': 'Organization', name: 'Tajalli's', url: SITE_URL },
       priceValidUntil: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
       hasMerchantReturnPolicy: {
         '@type': 'MerchantReturnPolicy',
@@ -578,9 +578,21 @@ export default function ProductDetail() {
                           const isFrontLoad = tags.includes('front-load') || p.sub_category === 'Front Load';
                           const isSemiAuto  = p.category === 'Semi-Automatic Washing Machines';
                           const isHighValue = planData.total >= 100_000;
-                          if (!isFrontLoad && !isSemiAuto && !isHighValue) return null;
+                          const isSolar     = _normCat.includes('solar') || p.category.toLowerCase().includes('solar');
+                          const isSolarCashOnly = isSolar && planData.total >= 700_000;
+                          if (!isFrontLoad && !isSemiAuto && !isHighValue && !isSolar) return null;
                           return (
                             <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-1.5">
+                              {isSolar && (
+                                <p className="text-xs text-amber-800 font-semibold">
+                                  ☀️ Solar products on installments require a minimum 40% advance payment.
+                                </p>
+                              )}
+                              {isSolarCashOnly && (
+                                <p className="text-xs text-red-700 font-semibold">
+                                  ⚠️ Systems above PKR 700,000 are cash payment only — installment plans are not available.
+                                </p>
+                              )}
                               {isFrontLoad && (
                                 <p className="text-xs text-amber-800 font-semibold">
                                   📋 PDCs (Post-Dated Cheques) are mandatory for all front-load washing machines.
@@ -596,9 +608,11 @@ export default function ProductDetail() {
                                   📋 PDCs are required for orders above PKR 1 Lac.
                                 </p>
                               )}
-                              <p className="text-xs text-amber-700">
-                                PDC requirement is waived if an existing Reliance customer acts as guarantor.
-                              </p>
+                              {!isSolar && (
+                                <p className="text-xs text-amber-700">
+                                  PDC requirement is waived if an existing Reliance customer acts as guarantor.
+                                </p>
+                              )}
                             </div>
                           );
                         })()}

@@ -212,7 +212,7 @@ export default function GreenCorridor() {
     <div className="min-h-screen bg-white">
       <SEO
         path="/green-corridor"
-        title="Green Corridor — Solar, Inverter ACs & Battery Storage | Reliance by Tajallis"
+        title="Green Corridor — Solar, Inverter ACs & Battery Storage"
         description="Cut your electricity bill by up to 85%. Complete solar systems, inverter ACs and battery storage on easy installments. Free site assessment in Karachi."
         keywords="solar system karachi, inverter ac karachi, battery storage karachi, solar installation karachi, green energy karachi"
       />
@@ -395,6 +395,9 @@ export default function GreenCorridor() {
                 <p className="text-xl font-black text-gray-900">PKR {formatPrice(plan3m.advance)} advance</p>
                 <span className="text-gray-400 text-sm">then PKR {formatPrice(plan3m.monthly)}/mo × 2</span>
               </div>
+              <p className="text-[11px] text-amber-700 mt-2 font-medium">
+                ⚠ Solar packages on installments require a minimum 40% advance payment. Verification starts after advance is received. Systems above 5kW or PKR 700,000 are cash only.
+              </p>
             </div>
           </div>
 
@@ -557,9 +560,16 @@ export default function GreenCorridor() {
                     {/* Price */}
                     <div className="mb-4 mt-auto">
                       <p className="text-3xl font-black text-gray-900">PKR {formatPrice(pkg.price)}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        or PKR {formatPrice(plan3mPkg.advance)} advance + PKR {formatPrice(plan3mPkg.monthly)}/mo × 2
-                      </p>
+                      {pkg.price <= 700_000 ? (
+                        <p className="text-xs text-gray-500 mt-1">
+                          or PKR {formatPrice(plan3mPkg.advance)} advance + PKR {formatPrice(plan3mPkg.monthly)}/mo × 2
+                          <span className="block text-amber-600 font-medium mt-0.5">Min. 40% advance required</span>
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Cash payment only <span className="text-gray-400">(above PKR 700,000 limit)</span>
+                        </p>
+                      )}
                     </div>
 
                     {/* CTAs */}

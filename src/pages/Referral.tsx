@@ -38,7 +38,7 @@ export default function ReferralPage() {
   // commission, referral programme, or incentive. The ?ref= code is tracked
   // silently on the buyer's end when they click the link.
   const shareMessage = referralLink
-    ? `Yaar, mujhe Reliance by Tajallis se kafi achi service mili hai — genuine products, easy installments aur free delivery. Ek baar check karo:\n\n${referralLink}`
+    ? `Yaar, mujhe Tajalli's se kafi achi service mili hai — genuine products, easy installments aur free delivery. Ek baar check karo:\n\n${referralLink}`
     : ''
 
   const waShareUrl = shareMessage
@@ -48,8 +48,8 @@ export default function ReferralPage() {
   return (
     <div className="min-h-screen bg-white">
       <SEO
-        title="Refer & Earn — Reliance by Tajallis"
-        description="Earn 2% commission on every sale you refer to Reliance by Tajallis. Share your link, earn rewards."
+        title="Refer & Earn — Tajalli's"
+        description="Earn 2% commission on every sale you refer to Tajalli's. Share your link, earn rewards."
       />
 
       {/* Hero */}

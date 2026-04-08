@@ -78,8 +78,8 @@ export default function Portal() {
   return (
     <div className="min-h-screen bg-gray-50">
       <SEO
-        title="Customer Portal — Reliance by Tajallis"
-        description="Track your Reliance by Tajallis orders, request service, or get help with your installment plan. No account needed — just your phone number."
+        title="Customer Portal — Tajalli's"
+        description="Track your Tajalli's orders, request service, or get help with your installment plan. No account needed — just your phone number."
         noIndex
       />
 

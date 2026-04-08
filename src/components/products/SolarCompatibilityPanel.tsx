@@ -5,13 +5,13 @@ import { getProducts, formatPrice } from '@/lib/api'
 import { calcPlan } from '@/lib/plans'
 import type { Product } from '@/lib/types'
 
-// ── Constants (aligned with SolarCalculator.tsx pre-fed values) ────────────────
-const PANEL_WATTS   = 620        // W per panel
+// ── Constants (keep aligned with SolarCalculator.tsx) ─────────────────────────
+const PANEL_WATTS   = 620        // W per panel — Crown Bi-Facial 620W (matches GreenCorridor packages)
 const PANEL_PRICE   = 30_000     // PKR per panel
 const PEAK_HRS      = 5          // avg daily peak sun hours (Karachi)
 const UNIT_RATE     = 70         // PKR / kWh — grid rate
 const WIRING_PER_W  = 12         // Rs/W — wiring & equipment
-const LABOR_PER_W   = 7          // Rs/W — installation labor (PKR 7,000/kW)
+const LABOR_PER_W   = 5          // Rs/W — installation labor (PKR 5,000/kW — aligned with SolarCalculator)
 
 // ── Wattage estimation ─────────────────────────────────────────────────────────
 
@@ -37,12 +37,20 @@ function estimateLoad(product: Product): ApplianceLoad | null {
 
   const isInverter = name.includes('inverter')
 
-  function specWatts(...patterns: RegExp[]): number | null {
+  /**
+   * Read a wattage spec value and clamp it to a realistic range.
+   * This prevents absurd solar calculations if a product has a spec entered
+   * in wrong units (e.g., milliwatts instead of watts, or kW instead of W).
+   * min/max are the expected wattage bounds for this appliance category.
+   */
+  function specWatts(min: number, max: number, ...patterns: RegExp[]): number | null {
     for (const pat of patterns) {
       const entry = Object.entries(specs).find(([k]) => pat.test(k))
       if (entry) {
         const v = parseFloat(String(entry[1]).replace(/[^\d.]/g, ''))
-        if (v > 0) return v
+        // Only use the spec value if it falls within a realistic range.
+        // Out-of-range values mean the spec is in wrong units or was entered incorrectly.
+        if (v >= min && v <= max) return v
       }
     }
     return null
@@ -52,7 +60,8 @@ function estimateLoad(product: Product): ApplianceLoad | null {
   if (cat.includes('air condition') || cat.includes('ton air')) {
     const tonM = name.match(/(\d+(?:\.\d+)?)\s*ton/)
     const ton  = tonM ? parseFloat(tonM[1]) : 1.5
-    const fromSpec = specWatts(/running\s*wattage/i, /power\s*consumption/i, /input\s*power/i)
+    // Sanity bounds: AC running wattage 200W (0.5 ton inv) – 5200W (4 ton std)
+    const fromSpec = specWatts(200, 5200, /running\s*wattage/i, /power\s*consumption/i, /input\s*power/i)
     const wattsByTon: Record<string, [number, number]> = {
       '1':   [700,  1200], '1.0': [700,  1200],
       '1.2': [800,  1300],
@@ -70,7 +79,8 @@ function estimateLoad(product: Product): ApplianceLoad | null {
 
   // ── Refrigerators ─────────────────────────────────────────────────
   if (cat.includes('refrigerat') || cat.includes('fridge') || cat.includes('minibar')) {
-    const fromSpec = specWatts(/running\s*wattage/i, /power\s*consumption/i, /rated\s*power/i)
+    // Sanity bounds: fridge 20W (small inverter) – 400W (large non-inverter)
+    const fromSpec = specWatts(20, 400, /running\s*wattage/i, /power\s*consumption/i, /rated\s*power/i)
     const cuFtV = Object.values(specs).find(v => /cu\.?\s*ft/i.test(String(v)))
     const cuFt  = cuFtV ? parseFloat(String(cuFtV)) : 14
     const fallback = isInverter ? 65 : cuFt > 22 ? 220 : cuFt > 16 ? 175 : cuFt > 10 ? 140 : 95
@@ -83,7 +93,8 @@ function estimateLoad(product: Product): ApplianceLoad | null {
 
   // ── Freezers ──────────────────────────────────────────────────────
   if (cat.includes('freezer')) {
-    const fromSpec = specWatts(/running\s*wattage/i, /power\s*consumption/i)
+    // Sanity bounds: freezer 30W (small inverter) – 300W (large chest)
+    const fromSpec = specWatts(30, 300, /running\s*wattage/i, /power\s*consumption/i)
     const vert  = name.includes('vertical') || cat.includes('vertical')
     return {
       watts: fromSpec ?? (isInverter ? 70 : vert ? 125 : 155), dailyHours: 24,
@@ -96,7 +107,8 @@ function estimateLoad(product: Product): ApplianceLoad | null {
   if (cat.includes('washing') || cat.includes('washer')) {
     const fl   = cat.includes('front') || name.includes('front')
     const semi = cat.includes('semi') || name.includes('semi')
-    const fromSpec = specWatts(/rated\s*power/i, /power\s*consumption/i, /wattage/i)
+    // Sanity bounds: WM 100W (spinner) – 3000W (front-load)
+    const fromSpec = specWatts(100, 3000, /rated\s*power/i, /power\s*consumption/i, /wattage/i)
     return {
       watts: fromSpec ?? (fl ? 2000 : semi ? 400 : 500), dailyHours: 1.5,
       label: `${fl ? 'Front-Load' : semi ? 'Semi-Auto' : 'Top-Load'} Washing Machine`,
@@ -108,20 +120,23 @@ function estimateLoad(product: Product): ApplianceLoad | null {
   if (cat.includes('television') || cat.includes(' led') || cat.includes('qled') || cat.includes('smart tv')) {
     const inchM = name.match(/(\d{2,3})["""'']/) || name.match(/(\d{2,3})\s*(?:inch|")/i)
     const inch  = inchM ? parseInt(inchM[1]) : 43
-    const fromSpec = specWatts(/power\s*consumption/i, /rated\s*power/i, /wattage/i)
+    // Sanity bounds: LED TV 10W (small) – 400W (85"+)
+    const fromSpec = specWatts(10, 400, /power\s*consumption/i, /rated\s*power/i, /wattage/i)
     const fallback = inch >= 85 ? 190 : inch >= 75 ? 155 : inch >= 65 ? 120 : inch >= 55 ? 90 : inch >= 43 ? 65 : 40
     return { watts: fromSpec ?? fallback, dailyHours: 6, label: `${inch}" Smart TV`, isInverter: false, tonOrSize: String(inch) }
   }
 
   // ── Microwave Ovens ───────────────────────────────────────────────
   if (cat.includes('microwave')) {
-    const watts = specWatts(/^power$/i, /wattage/i, /output\s*power/i) ?? 1200
+    // Sanity bounds: microwave 600W – 2500W
+    const watts = specWatts(600, 2500, /^power$/i, /wattage/i, /output\s*power/i) ?? 1200
     return { watts, dailyHours: 0.5, label: 'Microwave Oven', isInverter: false, tonOrSize: '' }
   }
 
   // ── Fans ──────────────────────────────────────────────────────────
   if (cat.includes('fan') && !cat.includes('kitchen')) {
-    const fromSpec = specWatts(/wattage/i, /power/i)
+    // Sanity bounds: fan 5W (inverter) – 150W (industrial)
+    const fromSpec = specWatts(5, 150, /wattage/i, /power/i)
     return {
       watts: fromSpec ?? (isInverter ? 28 : 75), dailyHours: 12,
       label: `${isInverter ? 'Inverter ' : ''}Ceiling Fan`,
@@ -131,7 +146,8 @@ function estimateLoad(product: Product): ApplianceLoad | null {
 
   // ── Water Dispensers ──────────────────────────────────────────────
   if (cat.includes('water dispenser')) {
-    const watts = specWatts(/wattage/i, /power/i) ?? 100
+    // Sanity bounds: dispenser 30W – 200W
+    const watts = specWatts(30, 200, /wattage/i, /power/i) ?? 100
     return { watts, dailyHours: 24, label: 'Water Dispenser', isInverter: false, tonOrSize: '' }
   }
 
@@ -160,7 +176,11 @@ function calcSizing(load: ApplianceLoad): SolarSizing {
   const sizedKW   = Math.max(1, Math.ceil(neededKW * 2) / 2)
   const panelCount  = Math.ceil(sizedKW * 1000 / PANEL_WATTS)
   const actualKW    = (panelCount * PANEL_WATTS) / 1000
-  const invKW = actualKW <= 3 ? 3 : actualKW <= 5 ? 5 : actualKW <= 8 ? 8 : actualKW <= 12 ? 12 : 15
+  // Standard inverter sizes: 3, 5, 8, 12, 15 kW.
+  // Use ≤3.5 and ≤5.5 thresholds — a 5kW inverter handles up to ~5.5kW of panels
+  // (10% oversizing is common practice). Without this, a 5.58kW array incorrectly
+  // jumps to an 8kW inverter recommendation.
+  const invKW = actualKW <= 3.5 ? 3 : actualKW <= 5.5 ? 5 : actualKW <= 8.5 ? 8 : actualKW <= 12.5 ? 12 : 15
   const monthlyUnits   = Math.round(dailyKWh * 30)
   const monthlySavings = r100(monthlyUnits * UNIT_RATE)
   const panelCost   = panelCount * PANEL_PRICE
@@ -271,6 +291,8 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
       : null
 
   // ── Installment ────────────────────────────────────────────────────
+  // Solar packages require a minimum 40% down payment (business rule).
+  // Systems above 5kW or PKR 700,000 are cash-only.
   const installBase = totalWithBat ?? totalNoBat ?? sizing.totalMin
   const canInstall  = installBase <= 700_000 && sizing.actualKW <= 5
   const installPlan = canInstall
@@ -398,9 +420,15 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
                     PKR {(totalWithBat ?? totalNoBat)!.toLocaleString()}
                   </p>
                   {installPlan && (
-                    <p className="text-[11px] text-brand-600 font-medium mt-0.5">
-                      or PKR {installPlan.monthly.toLocaleString()}/mo · {installPlan.months} months
-                    </p>
+                    <>
+                      <p className="text-[11px] text-brand-600 font-medium mt-0.5">
+                        or PKR {installPlan.monthly.toLocaleString()}/mo · {installPlan.months} months
+                      </p>
+                      <p className="text-[10px] text-amber-700 mt-0.5">Min. 40% advance required for solar installments</p>
+                    </>
+                  )}
+                  {!canInstall && installBase > 0 && (
+                    <p className="text-[11px] text-gray-500 mt-0.5">Cash only (system {sizing.actualKW > 5 ? 'above 5kW' : 'above PKR 700,000'})</p>
                   )}
                 </>
               ) : (

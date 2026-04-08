@@ -30,7 +30,7 @@ export default function Support() {
   function buildWhatsAppMessage() {
     const issue = ISSUE_TYPES.find(t => t.value === form.issueType)?.label || form.issueType
     return encodeURIComponent(
-      `*Support Request — Reliance by Tajallis*\n\n` +
+      `*Support Request — Tajalli's*\n\n` +
       `*Name:* ${form.name}\n` +
       `*Phone:* ${form.phone}\n` +
       (form.orderRef ? `*Order Ref:* ${form.orderRef}\n` : '') +
@@ -92,8 +92,8 @@ export default function Support() {
   return (
     <div className="min-h-screen bg-gray-50">
       <SEO
-        title="Customer Support — Reliance by Tajallis Karachi"
-        description="Submit a complaint, warranty claim, or support request to Reliance by Tajallis. Fast response via WhatsApp within 2–4 hours."
+        title="Customer Support — Tajalli's Karachi"
+        description="Submit a complaint, warranty claim, or support request to Tajalli's. Fast response via WhatsApp within 2–4 hours."
         keywords="reliance appliances support, complaint, warranty claim karachi, after sale service"
         path="/support"
       />

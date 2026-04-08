@@ -109,7 +109,7 @@ export default function Dashboard() {
             <BarChart2 className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-xl font-black text-gray-900">Admin Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-1">Reliance by Tajallis</p>
+          <p className="text-sm text-gray-500 mt-1">Tajalli's</p>
         </div>
         <div className="space-y-4">
           <input type="password" value={passInput} onChange={e => setPass(e.target.value)}

@@ -430,7 +430,7 @@ export default function Products() {
   const seoTitle = activeCat
     ? `${activeCat.name} — Buy in Karachi on Installments`
     : search
-    ? `Search: "${search}" — Reliance by Tajallis`
+    ? `Search: "${search}" — Tajalli's`
     : 'All Products — Home Appliances Karachi'
 
   const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://tajallis.com.pk'

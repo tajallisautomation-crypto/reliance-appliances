@@ -29,8 +29,8 @@ export default function About() {
   return (
     <div className="min-h-screen bg-white">
       <SEO
-        title="About Us — Reliance by Tajallis Karachi"
-        description="Learn about Reliance by Tajallis — Karachi's trusted appliance partner since 2015. 14,400+ clients served, 24,000+ orders fulfilled, genuine products & real after-sale support."
+        title="About Us — Karachi's Trusted Appliance Partner"
+        description="Learn about Tajalli's Home And Commercial Solutions — Karachi's trusted appliance partner since 2015. 14,400+ clients served, 24,000+ orders fulfilled, genuine products & real after-sale support."
         keywords="about reliance appliances karachi, home appliances karachi, trusted appliance store pakistan"
       />
 
@@ -44,7 +44,7 @@ export default function About() {
             Karachi's Most Trusted<br />Appliance Partner
           </h1>
           <p className="text-lg text-blue-100 max-w-2xl mx-auto">
-            Since 2015, Reliance by Tajallis has been the trusted appliance partner for homes,
+            Since 2015, Tajalli's has been the trusted appliance partner for homes,
             offices, and businesses across Karachi — genuine products, flexible terms, real support.
           </p>
         </div>
@@ -70,7 +70,7 @@ export default function About() {
             <h2 className="text-3xl font-black text-gray-900 mb-4">Built on Trust, Grown by Service</h2>
             <div className="space-y-4 text-gray-600 leading-relaxed">
               <p>
-                Reliance by Tajallis was founded with a simple belief: every Pakistani family deserves
+                Tajalli's was founded with a simple belief: every Pakistani family deserves
                 access to quality appliances at fair prices — without the runaround of grey-market
                 products or opaque pricing.
               </p>

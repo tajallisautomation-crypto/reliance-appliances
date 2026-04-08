@@ -151,7 +151,7 @@ export default function SearchBar({
           onChange={e => { setQuery(e.target.value); setActiveIdx(-1); }}
           onFocus={() => { ensureIndex(); if (suggestions.length > 0) setOpen(true); }}
           onKeyDown={handleKey}
-          className={`pl-9 pr-8 py-2 w-full rounded-full bg-white border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent ${inputClass}`}
+          className={`pl-9 pr-8 py-2 w-full rounded-full bg-white border border-gray-200 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent ${inputClass}`}
         />
         {query && (
           <button

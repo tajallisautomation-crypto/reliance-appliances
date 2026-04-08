@@ -38,7 +38,7 @@ export default function Checkout() {
 
   if (items.length === 0 && !done) return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 text-center px-4">
-      <SEO title="Checkout — Reliance by Tajallis" noIndex />
+      <SEO title="Checkout" noIndex />
       <div className="text-5xl">🛒</div>
       <h2 className="text-xl font-bold text-gray-700">Your cart is empty</h2>
       <Link to="/products" className="bg-brand-500 text-white px-6 py-2.5 rounded-xl font-medium">Browse Products</Link>
@@ -85,7 +85,7 @@ export default function Checkout() {
 
   if (done) return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center gap-5 px-4 text-center max-w-sm mx-auto py-16">
-      <SEO title="Order Confirmed — Reliance by Tajallis" noIndex />
+      <SEO title="Order Confirmed" noIndex />
       <CheckCircle className="w-16 h-16 text-green-500" />
       <h2 className="text-2xl font-bold text-gray-800">Order Placed!</h2>
       <p className="text-gray-500">Reference: <strong>{orderId}</strong></p>
@@ -102,7 +102,7 @@ export default function Checkout() {
     <>
     {/* Extra bottom padding on mobile so sticky bar doesn't cover the Place Order button */}
     <div className="max-w-4xl mx-auto px-4 py-10 pb-32 md:pb-10">
-      <SEO title="Checkout — Reliance by Tajallis" noIndex />
+      <SEO title="Checkout" noIndex />
       <h1 className="text-2xl font-black text-gray-900 mb-8">Checkout</h1>
       <div className="grid md:grid-cols-2 gap-8">
         <div className="space-y-5">

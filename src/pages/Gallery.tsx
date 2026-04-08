@@ -195,8 +195,8 @@ export default function Gallery() {
   return (
     <div className="min-h-screen bg-white">
       <SEO
-        title="Our Work Gallery — Reliance by Tajallis Karachi"
-        description="Real installations and maintenance jobs by Reliance by Tajallis — ACs, refrigerators, solar systems, and more across Karachi homes and businesses."
+        title="Our Work Gallery — Tajalli's Karachi"
+        description="Real installations and maintenance jobs by Tajalli's — ACs, refrigerators, solar systems, and more across Karachi homes and businesses."
         keywords="ac installation karachi, home appliance service karachi, solar installation karachi"
       />
 

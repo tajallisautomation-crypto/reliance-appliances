@@ -434,7 +434,7 @@ export function buildPrintHTML(cat: CatalogCategory, grouped: Map<string, Produc
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8">
-<title>${cat.label} — Reliance by Tajallis</title>
+<title>${cat.label} — Tajalli's</title>
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
   body { font-family:Arial,Helvetica,sans-serif; font-size:11px; color:#1a1a1a; max-width:1050px; margin:0 auto; padding:20px; }

@@ -142,8 +142,21 @@ export function Services() {
             <p className="text-gray-500 mt-1 text-sm">Transparent pricing — no surprises. Materials are always itemised separately.</p>
           </div>
 
+          {/* Repair diagnosis / visit-charge policy */}
+          <div className="mb-4 bg-orange-50 border border-orange-200 rounded-2xl px-5 py-4 flex gap-3">
+            <Wrench className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
+            <div className="text-sm text-orange-900 leading-relaxed space-y-1">
+              <p><strong>Repair Policy — Diagnosis First:</strong> All repair services (AC, refrigerator, freezer, dispenser, washing machine, solar inverter, UPS, microwave, LED TV) require an on-site technician visit for diagnosis. The repair quote is only provided <em>after</em> the technician assesses the unit.</p>
+              <ul className="list-disc pl-4 space-y-0.5 text-orange-800">
+                <li><strong>Standard visit:</strong> PKR 2,000 — within 48 hours. Collected at start of visit.</li>
+                <li><strong>Urgent same-day visit:</strong> PKR 3,000 — collected in advance. Request by 12pm.</li>
+                <li>If you <strong>decline</strong> the repair after diagnosis, the visit charge is retained. No refund on visit fees.</li>
+              </ul>
+            </div>
+          </div>
+
           {/* Installation policy notice */}
-          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-2xl px-5 py-4 flex gap-3">
+          <div className="mb-4 bg-blue-50 border border-blue-200 rounded-2xl px-5 py-4 flex gap-3">
             <AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
             <div className="text-sm text-blue-800 leading-relaxed">
               <strong>Installation Policy:</strong> Brand-provided free installations (e.g. Gree, Haier promotional offers) are performed by the brand's own team — Tajalli does not charge for these.

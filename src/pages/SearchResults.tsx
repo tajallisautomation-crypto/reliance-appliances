@@ -120,8 +120,8 @@ export default function SearchResults() {
   return (
     <div className="min-h-screen bg-gray-50">
       <SEO
-        title={rawQuery ? `"${rawQuery}" — Search Results | Reliance by Tajallis` : 'Search Products — Reliance by Tajallis'}
-        description="Search Reliance by Tajallis for air conditioners, refrigerators, washing machines, and more. Filter by brand, category, and price."
+        title={rawQuery ? `"${rawQuery}" — Search Results | Tajalli's` : 'Search Products — Tajalli's'}
+        description="Search Tajalli's for air conditioners, refrigerators, washing machines, and more. Filter by brand, category, and price."
         noIndex
       />
       {/* ── Search header ── */}

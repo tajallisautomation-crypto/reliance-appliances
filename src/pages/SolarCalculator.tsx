@@ -1,5 +1,5 @@
 /**
- * Solar Calculator — Reliance by Tajallis
+ * Solar Calculator — Tajalli's Home And Commercial Solutions
  *
  * Pricing rules:
  *   Solar — wiring & equipment: Rs.12/W | labor: Rs.5/W | elevated frame: Rs.28/W (optional)
@@ -84,8 +84,8 @@ const UPGRADE_SUGGESTIONS: Record<string, { label: string; savingsW: number; cat
 
 // ── Pricing constants ──────────────────────────────────────────────────────────
 
-const PANEL_WATTS        = 575       // standard panel wattage
-const PANEL_PRICE_PER_W  = 45        // PKR per watt (575W panel = PKR 25,875)
+const PANEL_WATTS        = 620       // Crown Bi-Facial 620W — matches GreenCorridor packages & SolarCompatibilityPanel
+const PANEL_PRICE_PER_W  = 48        // PKR per watt (620W panel ≈ PKR 29,760 ≈ PKR 30,000)
 const UNIT_RATE          = 70        // PKR per kWh — hardcoded Karachi average
 const WIRING_PER_W       = 12        // Rs/W — solar wiring & equipment
 const LABOR_PER_W        = 5         // Rs/W — solar installation labor
@@ -93,6 +93,10 @@ const ELEVATED_FRAME_W   = 28        // Rs/W — elevated frame surcharge
 const UPS_WIRING_PER_W   = 9         // Rs/W — UPS wiring & equipment
 const UPS_LABOR_PER_W    = 3         // Rs/W — UPS labor
 const BATTERY_PER_KWH    = 65000     // PKR per kWh of battery
+// Net metering: K-Electric only allows grid tie-in for 10kW+ systems.
+// Requires application + approved metering hardware. One-time charge.
+const NET_METERING_MIN_KW = 10
+const NET_METERING_COST   = 250_000  // PKR — metering hardware + DISCO application fee
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -216,6 +220,7 @@ export default function SolarCalculator() {
   const [solarProds,  setSolarProds] = useState<SolarProducts>({ panels:[], inverters:[], batteries:[] })
   const [billMode,    setBillMode]  = useState(false)
   const [billAmount,  setBillAmount]= useState('')
+  const [netMetering, setNetMetering] = useState(false)  // only valid when sysKW > 10
 
   // Load solar products from Supabase on mount
   useEffect(() => {
@@ -319,8 +324,9 @@ export default function SolarCalculator() {
         ? panProduct.price.cash_floor * panelCount
         : r100(panelCount * PANEL_WATTS * PANEL_PRICE_PER_W)
 
-      // Inverter
-      const invKW      = activeType === 'ups-only' ? sysKW : (sysKW <= 3 ? 3 : sysKW <= 5 ? 5 : sysKW <= 8 ? 8 : sysKW <= 12 ? 12 : 15)
+      // Inverter — use same ±0.5kW band thresholds as SolarCompatibilityPanel to avoid
+      // over-specifying (e.g. 5.58kW array should recommend 5kW, not 8kW inverter).
+      const invKW      = activeType === 'ups-only' ? sysKW : (sysKW <= 3.5 ? 3 : sysKW <= 5.5 ? 5 : sysKW <= 8.5 ? 8 : sysKW <= 12.5 ? 12 : 15)
       const invProduct = bestInverter(solarProds.inverters, invKW)
       const invCost    = invProduct ? invProduct.price.cash_floor : r100(invKW * 15000)
 
@@ -339,7 +345,11 @@ export default function SolarCalculator() {
         : r100(effectiveW * (WIRING_PER_W + LABOR_PER_W))
       const frameCost  = elevFrame ? r100(effectiveW * ELEVATED_FRAME_W) : 0
 
-      const total = r100(panelCost + invCost + batCost + wiringCost + frameCost)
+      // Net metering: only eligible if system is ≥10kW AND user opted in.
+      // Adds PKR 250,000 for K-Electric metering hardware + DISCO application.
+      const nmCost = (netMetering && sysKW >= NET_METERING_MIN_KW) ? NET_METERING_COST : 0
+
+      const total = r100(panelCost + invCost + batCost + wiringCost + frameCost + nmCost)
 
       // Savings (skip for UPS-only)
       const monthlyUnits = activeType === 'ups-only' ? 0 : +(refU * 30).toFixed(0)
@@ -799,16 +809,45 @@ export default function SolarCalculator() {
               </div>
             )}
 
-            {/* KE Net Metering info — only relevant for grid-tied systems */}
-            {(sysType === 'on-grid' || sysType === 'hybrid') && (
-              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex gap-3">
-                <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5"/>
-                <div className="text-xs text-blue-800">
-                  <span className="font-semibold">KE Net Metering: </span>
-                  K-Electric (KE) only approves Net Metering for systems of <span className="font-semibold">10kW or above</span>. Systems under 10kW will not qualify — you can still use solar to offset your own consumption, but you cannot sell surplus electricity back to the grid.
+            {/* Net Metering — only for grid-tied systems; eligibility requires ≥10kW */}
+            {(sysType === 'on-grid' || sysType === 'hybrid') && (() => {
+              const estKW = inputMode === 'direct'
+                ? (parseFloat(directKW) || 0)
+                : +(effectiveDailyU * 1.25 / peakHrs).toFixed(1)
+              const eligible = estKW >= NET_METERING_MIN_KW
+              return (
+                <div className={`rounded-2xl p-4 border ${eligible ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+                  <div className="flex items-start gap-3">
+                    <Info className={`w-4 h-4 shrink-0 mt-0.5 ${eligible ? 'text-blue-500' : 'text-gray-400'}`} />
+                    <div className="flex-1">
+                      <p className={`text-xs font-semibold mb-0.5 ${eligible ? 'text-blue-800' : 'text-gray-600'}`}>
+                        K-Electric Net Metering
+                      </p>
+                      {eligible ? (
+                        <>
+                          <p className="text-xs text-blue-700 mb-3">
+                            Your estimated system size ({estKW}kW) qualifies for K-Electric Net Metering.
+                            Add the connection to sell surplus electricity back to the grid. One-time charge: <strong>PKR 250,000</strong>.
+                          </p>
+                          <label className="flex items-center gap-2.5 cursor-pointer">
+                            <input type="checkbox" checked={netMetering}
+                              onChange={e => setNetMetering(e.target.checked)}
+                              className="w-4 h-4 accent-blue-600 rounded" />
+                            <span className="text-xs font-semibold text-blue-800">
+                              Include Net Metering connection (+PKR 250,000)
+                            </span>
+                          </label>
+                        </>
+                      ) : (
+                        <p className="text-xs text-gray-500">
+                          Net metering requires a minimum <strong>10kW</strong> system. Your estimated size is {estKW > 0 ? `${estKW}kW` : 'not yet calculated'}. You can still use solar to offset your own bill — surplus is wasted rather than sold back.
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              )
+            })()}
 
             {/* Summary */}
             <div className="bg-gradient-to-r from-orange-100 to-amber-100 rounded-2xl p-5">
@@ -946,6 +985,7 @@ export default function SolarCalculator() {
                   quote.batteryKWh > 0 && { label: quote.batBank && quote.batBank.qty > 1 ? `${quote.batBank.qty}× Battery Units (${quote.batteryKWh.toFixed(1)} kWh)` : `${quote.batteryKWh} kWh Battery`, val: quote.costs.battery },
                   { label: `Wiring, Equipment & Installation`, val: quote.costs.wiring },
                   quote.costs.frame > 0 && { label: 'Elevated Frame', val: quote.costs.frame },
+                  netMetering && quote.systemKW >= NET_METERING_MIN_KW && { label: 'K-Electric Net Metering Connection', val: NET_METERING_COST },
                 ].filter(Boolean).map((row: any, i) => (
                   <div key={i} className="flex justify-between items-center py-1.5 border-b border-gray-50">
                     <span className="text-gray-600 text-sm">{row.label}</span>
