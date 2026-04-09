@@ -45,6 +45,84 @@ const CATEGORY_GROUPS = [
   { id: 'home',    label: 'Home & Comfort',     icon: '🏠', cats: ['fan', 'water', 'small', 'care'] },
 ] as const
 
+// ── Deep subcategories — pre-set spec filter combinations accessible via ?sub= ─
+// Each entry maps a specKey (e.g. 'ac') to an array of browsable subcategories.
+// Clicking a subcategory pill sets ?sub=<slug> and pre-applies the matching filters.
+const DEEP_SUBCATEGORIES: Record<string, Array<{
+  slug: string; label: string; icon: string; filters: Record<string, string>
+}>> = {
+  ac: [
+    { slug: '1-ton-inverter',       label: '1 Ton Inverter',        icon: '❄️',  filters: { tonnage: '1t',   actech: 'inverter'     } },
+    { slug: '1-ton-non-inverter',   label: '1 Ton Non-Inverter',    icon: '❄️',  filters: { tonnage: '1t',   actech: 'non-inverter' } },
+    { slug: '1-5-ton-inverter',     label: '1.5 Ton Inverter',      icon: '❄️',  filters: { tonnage: '1.5t', actech: 'inverter'     } },
+    { slug: '1-5-ton-non-inverter', label: '1.5 Ton Non-Inverter',  icon: '❄️',  filters: { tonnage: '1.5t', actech: 'non-inverter' } },
+    { slug: '2-ton-inverter',       label: '2 Ton Inverter',        icon: '❄️',  filters: { tonnage: '2t',   actech: 'inverter'     } },
+    { slug: 'floor-standing-ac',    label: 'Floor Standing',        icon: '🏢',  filters: { actype: 'floor'                        } },
+    { slug: 'heat-and-cool',        label: 'Heat & Cool',           icon: '🌡️',  filters: { acfeatures: 'heat'                     } },
+    { slug: 'smart-wifi-ac',        label: 'Smart / WiFi',          icon: '📱',  filters: { acfeatures: 'wifi'                     } },
+  ],
+  fridge: [
+    { slug: 'compact-fridge',   label: 'Compact (≤10 Cu.Ft)',   icon: '🧊', filters: { fridgesize: 'small'    } },
+    { slug: 'medium-fridge',    label: 'Medium (11–16 Cu.Ft)',  icon: '🧊', filters: { fridgesize: 'medium'   } },
+    { slug: 'large-fridge',     label: 'Large (17+ Cu.Ft)',     icon: '🧊', filters: { fridgesize: 'large'    } },
+    { slug: 'inverter-fridge',  label: 'Inverter Compressor',   icon: '⚡', filters: { fridgetech: 'inverter' } },
+    { slug: 'no-frost-fridge',  label: 'No-Frost / Frost-Free', icon: '❄️', filters: { fridgetech: 'nofrost'  } },
+    { slug: 'double-door',      label: 'Double Door',           icon: '🚪', filters: { fridgetype: 'double'   } },
+  ],
+  freezer: [
+    { slug: 'chest-freezer',    label: 'Chest Freezers',    icon: '📦', filters: { freezertype: 'chest'    } },
+    { slug: 'upright-freezer',  label: 'Upright Freezers',  icon: '🥶', filters: { freezertype: 'upright'  } },
+    { slug: 'inverter-freezer', label: 'Inverter Freezers', icon: '⚡', filters: { freezertech: 'inverter' } },
+    { slug: 'no-frost-freezer', label: 'No-Frost',          icon: '❄️', filters: { freezertech: 'nofrost'  } },
+  ],
+  washing: [
+    { slug: 'front-load',     label: 'Front Load Auto', icon: '🌀', filters: { washtype: 'front' } },
+    { slug: 'top-load',       label: 'Top Load Auto',   icon: '👕', filters: { washtype: 'top'   } },
+    { slug: 'semi-automatic', label: 'Semi-Automatic',  icon: '🔄', filters: { washtype: 'semi'  } },
+    { slug: 'large-capacity', label: '15 kg+ (Blanket)',icon: '🛏️', filters: { washcap: 'xl'     } },
+    { slug: 'inverter-wm',    label: 'Inverter Motor',  icon: '⚡', filters: { washinverter: 'inverter' } },
+  ],
+  tv: [
+    { slug: '32-inch-tv',   label: '32" LED TV',    icon: '📺', filters: { tvsize: '32' } },
+    { slug: '43-inch-tv',   label: '43" LED TV',    icon: '📺', filters: { tvsize: '43' } },
+    { slug: '55-inch-tv',   label: '50"–55" LED TV',icon: '📺', filters: { tvsize: '50' } },
+    { slug: '65-inch-tv',   label: '65"–75" LED TV',icon: '🖥️', filters: { tvsize: '65' } },
+    { slug: '85-inch-plus', label: '85"+ Ultra',    icon: '🎬', filters: { tvsize: '85' } },
+    { slug: 'qled-tv',      label: 'QLED',          icon: '✨', filters: { tvtech: 'qled' } },
+    { slug: 'oled-tv',      label: 'OLED',          icon: '💎', filters: { tvtech: 'oled' } },
+  ],
+  kitchen: [
+    { slug: 'air-fryers',          label: 'Air Fryers',           icon: '🌪️', filters: { kitchentype: 'airfryer'   } },
+    { slug: 'blenders-juicers',    label: 'Blenders & Juicers',   icon: '🥤', filters: { kitchentype: 'blenders'   } },
+    { slug: 'food-processors',     label: 'Food Processors',      icon: '🔪', filters: { kitchentype: 'processors' } },
+    { slug: 'cooking-ovens',       label: 'Cooking & Ovens',      icon: '🍳', filters: { kitchentype: 'cooking'    } },
+    { slug: 'breakfast-beverages', label: 'Breakfast & Beverages',icon: '☕', filters: { kitchentype: 'breakfast'  } },
+  ],
+  small: [
+    { slug: 'fans',      label: 'Fans & Air Coolers', icon: '💨', filters: { smalltype: 'fan'    } },
+    { slug: 'irons',     label: 'Irons & Steamers',   icon: '👔', filters: { smalltype: 'iron'   } },
+    { slug: 'heaters',   label: 'Heaters',             icon: '🔥', filters: { smalltype: 'heater' } },
+    { slug: 'kettles',   label: 'Kettles',             icon: '🫖', filters: { smalltype: 'kettle' } },
+    { slug: 'vacuums',   label: 'Vacuum Cleaners',     icon: '🧹', filters: { smalltype: 'vacuum' } },
+    { slug: 'hair-care', label: 'Hair Care',           icon: '💇', filters: { smalltype: 'hair'   } },
+  ],
+  solar: [
+    { slug: 'on-grid',  label: 'On-Grid',   icon: '🔌', filters: { solartype: 'ongrid'  } },
+    { slug: 'off-grid', label: 'Off-Grid',  icon: '🔋', filters: { solartype: 'offgrid' } },
+    { slug: 'hybrid',   label: 'Hybrid',    icon: '⚡', filters: { solartype: 'hybrid'  } },
+    { slug: 'up-to-3kw',label: 'Up to 3 kW',icon: '☀️', filters: { solarkw: '3kw'  } },
+    { slug: '3-5kw',    label: '3–5 kW',    icon: '☀️', filters: { solarkw: '5kw'  } },
+    { slug: '6-10kw',   label: '6–10 kW',   icon: '☀️', filters: { solarkw: '10kw' } },
+    { slug: 'above-10kw',label: 'Above 10 kW',icon: '☀️',filters: { solarkw: 'big'  } },
+  ],
+  water: [
+    { slug: 'compressor-dispenser', label: 'Compressor Cooling', icon: '❄️', filters: { watertype: 'compressor' } },
+    { slug: 'hot-cold-dispenser',   label: 'Hot & Cold',         icon: '♨️', filters: { watertype: 'hot'        } },
+    { slug: 'floor-dispenser',      label: 'Floor Standing',     icon: '🏢', filters: { watertype: 'floor'      } },
+    { slug: 'tabletop-dispenser',   label: 'Table Top / Mini',   icon: '🪣', filters: { watertype: 'table'      } },
+  ],
+}
+
 // Category-specific spec filters — applied client-side
 type SpecFilter = { key: string; label: string; options: { value: string; label: string; match: (p: Product) => boolean }[] }
 
@@ -330,6 +408,9 @@ export default function Products() {
   const activeCat = DEFAULT_CATEGORIES.find(c => c.id === category || c.slug === category)
   const specKey   = getSpecKey(activeCat?.id || category)
   const catSpecFilters = SPEC_FILTERS[specKey] || []
+  const subSlug       = sp.get('sub') || ''
+  const catDeepSubs   = DEEP_SUBCATEGORIES[specKey] || []
+  const activeDeepSub = catDeepSubs.find(s => s.slug === subSlug) ?? null
 
   // Derive the active group from the selected sub-category, or from the manually selected group
   const activeGroupId   = activeCat
@@ -364,6 +445,14 @@ export default function Products() {
 
   // Reset client-side filters when category changes
   useEffect(() => { setSpecFilters({}); setBudgetIdx(null); setInStockOnly(false) }, [category])
+
+  // Apply deep subcategory preset when ?sub= param changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!subSlug) return
+    const match = catDeepSubs.find(s => s.slug === subSlug)
+    if (match) setSpecFilters(match.filters)
+  }, [subSlug])
 
   const brands = useMemo(
     () => [...new Set(products.map(p => p.brand).filter(Boolean))].sort(),
@@ -401,6 +490,15 @@ export default function Products() {
     if (cat) { navigate(`/products/category/${cat.slug}`); return }
     const next = new URLSearchParams(sp)
     next.set('category', catId)
+    setSp(next)
+  }
+
+  function goToSubcat(slug: string) {
+    const match = slug ? catDeepSubs.find(s => s.slug === slug) : null
+    setSpecFilters(match ? match.filters : {})
+    setBudgetIdx(null)
+    const next = new URLSearchParams(sp)
+    if (slug) next.set('sub', slug); else next.delete('sub')
     setSp(next)
   }
 
@@ -603,6 +701,33 @@ export default function Products() {
           </div>
         )}
 
+        {/* ── Deep subcategory strip — shown when a specific category is active and has subcategories ── */}
+        {catDeepSubs.length > 0 && category && (
+          <div className="border-t bg-orange-50/40 px-3 sm:px-4 py-2 overflow-x-auto no-scrollbar">
+            <div className="max-w-7xl mx-auto flex gap-1.5 w-max sm:w-auto sm:flex-wrap items-center">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider shrink-0 mr-1 hidden sm:inline">Type:</span>
+              <button
+                onClick={() => goToSubcat('')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                  !subSlug ? 'bg-brand-500 text-white' : 'text-brand-700 hover:bg-brand-100'
+                }`}>
+                All
+              </button>
+              {catDeepSubs.map(sub => (
+                <button key={sub.slug}
+                  onClick={() => goToSubcat(sub.slug)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap flex items-center gap-1 transition-all ${
+                    subSlug === sub.slug
+                      ? 'bg-brand-500 text-white'
+                      : 'text-brand-700 hover:bg-brand-100 bg-white/60 border border-brand-100'
+                  }`}>
+                  <span>{sub.icon}</span> {sub.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ── Filter Panel ── */}
         {showFilters && (
           <div className="border-t bg-gray-50">
@@ -715,6 +840,7 @@ export default function Products() {
                 <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-200">
                   <span className="text-xs text-gray-400 font-medium">Active:</span>
                   {activeCat && <FilterChip label={`${activeCat.icon} ${activeCat.name}`} onRemove={() => goToCategory('', true)} />}
+                  {activeDeepSub && <FilterChip label={`${activeDeepSub.icon} ${activeDeepSub.label}`} onRemove={() => goToSubcat('')} />}
                   {brand && <FilterChip label={`Brand: ${brand}`} onRemove={() => setFilter('brand', '')} />}
                   {budgetIdx !== null && <FilterChip label={`Budget: ${BUDGET_RANGES[budgetIdx].label}`} onRemove={() => setBudgetIdx(null)} />}
                   {inStockOnly && <FilterChip label="In Stock" onRemove={() => setInStockOnly(false)} />}
