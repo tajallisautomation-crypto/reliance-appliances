@@ -7,7 +7,7 @@ type PolicyType = 'privacy' | 'terms' | 'warranty' | 'refund'
 const POLICIES: Record<PolicyType, { title: string; description: string; content: Array<{ heading: string; body: string }> }> = {
   privacy: {
     title: 'Privacy Policy',
-    description: 'How Tajalli's collects, uses, and protects your personal data.',
+    description: "How Tajalli's collects, uses, and protects your personal data.",
     content: [
       {
         heading: 'Information We Collect',
@@ -37,7 +37,7 @@ const POLICIES: Record<PolicyType, { title: string; description: string; content
   },
   terms: {
     title: 'Terms & Conditions',
-    description: 'Terms and conditions for using the Tajalli's website and purchasing our products.',
+    description: "Terms and conditions for using the Tajalli's website and purchasing our products.",
     content: [
       {
         heading: 'Acceptance of Terms',
@@ -67,7 +67,7 @@ const POLICIES: Record<PolicyType, { title: string; description: string; content
   },
   warranty: {
     title: 'Warranty Policy',
-    description: 'Understanding your warranty coverage when you buy from Tajalli's.',
+    description: "Understanding your warranty coverage when you buy from Tajalli's.",
     content: [
       {
         heading: 'Official Brand Warranty',
@@ -93,7 +93,7 @@ const POLICIES: Record<PolicyType, { title: string; description: string; content
   },
   refund: {
     title: 'Refund & Return Policy',
-    description: 'Our policy on returns, exchanges, and refunds for products purchased from Tajalli's.',
+    description: "Our policy on returns, exchanges, and refunds for products purchased from Tajalli's.",
     content: [
       {
         heading: 'Eligibility for Return',

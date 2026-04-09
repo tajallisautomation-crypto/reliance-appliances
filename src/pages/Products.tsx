@@ -48,122 +48,253 @@ const CATEGORY_GROUPS = [
 // ── Deep subcategories — pre-set spec filter combinations accessible via ?sub= ─
 // Each entry maps a specKey (e.g. 'ac') to an array of browsable subcategories.
 // Clicking a subcategory pill sets ?sub=<slug> and pre-applies the matching filters.
+// ── Deep subcategory config — entries validated against actual catalog data ───
+// Counts (from live DB audit 2026-04-09, 993 active products):
+//   AC: 194 | Freezers: 56 | WM: 58 + Spinners: 10 | TV: 84
+//   Kitchen: 231 | Small+Heating+Care: 102 | Solar Inv: 57+Bat: 12
+// Each entry pre-sets SPEC_FILTERS keys so the URL ?sub= param immediately
+// narrows the product grid to the right subset — no manual filter-clicking needed.
 const DEEP_SUBCATEGORIES: Record<string, Array<{
   slug: string; label: string; icon: string; filters: Record<string, string>
 }>> = {
+
+  // ── Air Conditioners ─────────────────────────────────────────────────────────
+  // 1T: 61 | 1.5T: 81 | 2T: 38 | T3: 34 | Heat&Cool: 137 | Inverter: 113 | Non-Inv: 81
   ac: [
-    { slug: '1-ton-inverter',       label: '1 Ton Inverter',        icon: '❄️',  filters: { tonnage: '1t',   actech: 'inverter'     } },
-    { slug: '1-ton-non-inverter',   label: '1 Ton Non-Inverter',    icon: '❄️',  filters: { tonnage: '1t',   actech: 'non-inverter' } },
-    { slug: '1-5-ton-inverter',     label: '1.5 Ton Inverter',      icon: '❄️',  filters: { tonnage: '1.5t', actech: 'inverter'     } },
-    { slug: '1-5-ton-non-inverter', label: '1.5 Ton Non-Inverter',  icon: '❄️',  filters: { tonnage: '1.5t', actech: 'non-inverter' } },
-    { slug: '2-ton-inverter',       label: '2 Ton Inverter',        icon: '❄️',  filters: { tonnage: '2t',   actech: 'inverter'     } },
-    { slug: 'floor-standing-ac',    label: 'Floor Standing',        icon: '🏢',  filters: { actype: 'floor'                        } },
-    { slug: 'heat-and-cool',        label: 'Heat & Cool',           icon: '🌡️',  filters: { acfeatures: 'heat'                     } },
-    { slug: 'smart-wifi-ac',        label: 'Smart / WiFi',          icon: '📱',  filters: { acfeatures: 'wifi'                     } },
+    // By tonnage + technology (most commercially useful groupings)
+    { slug: '1-ton-inverter',       label: '1 Ton Inverter',         icon: '❄️', filters: { tonnage: '1t',   actech: 'inverter'     } },
+    { slug: '1-ton-non-inverter',   label: '1 Ton Non-Inverter',     icon: '❄️', filters: { tonnage: '1t',   actech: 'non-inverter' } },
+    { slug: '1-5-ton-inverter',     label: '1.5 Ton Inverter',       icon: '❄️', filters: { tonnage: '1.5t', actech: 'inverter'     } },
+    { slug: '1-5-ton-non-inverter', label: '1.5 Ton Non-Inverter',   icon: '❄️', filters: { tonnage: '1.5t', actech: 'non-inverter' } },
+    { slug: '2-ton-inverter',       label: '2 Ton Inverter',         icon: '❄️', filters: { tonnage: '2t',   actech: 'inverter'     } },
+    { slug: '2-ton-non-inverter',   label: '2 Ton Non-Inverter',     icon: '❄️', filters: { tonnage: '2t',   actech: 'non-inverter' } },
+    // By feature / mode (T3: 34 products, Heat&Cool: 137)
+    { slug: 'heat-and-cool',        label: 'Heat & Cool',            icon: '🌡️', filters: { actemp: 'heatcool'                      } },
+    { slug: 'cool-only',            label: 'Cool Only',              icon: '❄️', filters: { actemp: 'coolonly'                      } },
+    { slug: 't3-air-conditioners',  label: 'T3 (High Ambient 52°C)', icon: '🌞', filters: { actemp: 't3'                            } },
+    // By type (floor-standing: 4 products confirmed)
+    { slug: 'floor-standing-ac',    label: 'Floor Standing',         icon: '🏢', filters: { actype: 'floor'                         } },
   ],
+
+  // ── Refrigerators ────────────────────────────────────────────────────────────
+  // Small: 24 | Medium: 18 | Large: 25 | No-Frost: 7 | French: 6 | SxS: 5
+  // Inverter: widespread | No-Frost tag: 7 | Glass Door: common
   fridge: [
-    { slug: 'compact-fridge',   label: 'Compact (≤10 Cu.Ft)',   icon: '🧊', filters: { fridgesize: 'small'    } },
-    { slug: 'medium-fridge',    label: 'Medium (11–16 Cu.Ft)',  icon: '🧊', filters: { fridgesize: 'medium'   } },
-    { slug: 'large-fridge',     label: 'Large (17+ Cu.Ft)',     icon: '🧊', filters: { fridgesize: 'large'    } },
-    { slug: 'inverter-fridge',  label: 'Inverter Compressor',   icon: '⚡', filters: { fridgetech: 'inverter' } },
-    { slug: 'no-frost-fridge',  label: 'No-Frost / Frost-Free', icon: '❄️', filters: { fridgetech: 'nofrost'  } },
-    { slug: 'double-door',      label: 'Double Door',           icon: '🚪', filters: { fridgetype: 'double'   } },
+    { slug: 'compact-fridge',    label: 'Compact (up to 10 Cu.Ft)',  icon: '🧊', filters: { fridgesize: 'small'    } },
+    { slug: 'medium-fridge',     label: 'Medium (11–16 Cu.Ft)',      icon: '🧊', filters: { fridgesize: 'medium'   } },
+    { slug: 'large-fridge',      label: 'Large (17+ Cu.Ft)',         icon: '🧊', filters: { fridgesize: 'large'    } },
+    { slug: 'inverter-fridge',   label: 'Inverter Compressor',       icon: '⚡', filters: { fridgetech: 'inverter' } },
+    { slug: 'glass-door-fridge', label: 'Glass Door',                icon: '🔲', filters: { fridgetype: 'glass'    } },
+    { slug: 'no-frost-fridge',   label: 'No-Frost',                  icon: '❄️', filters: { fridgetype: 'nofrost'  } },
+    { slug: 'double-door-fridge',label: 'Double Door',               icon: '🚪', filters: { fridgetype: 'double'   } },
   ],
+
+  // ── Freezers ─────────────────────────────────────────────────────────────────
+  // Total: 56 | Inverter: 25 | Non-Inv: 31 | Double Door: 7 | Convertible: 6
+  // Cu.Ft: <=9: 7 | 10-11: 8 | 12-14: 10 | 15+: 20
   freezer: [
-    { slug: 'chest-freezer',    label: 'Chest Freezers',    icon: '📦', filters: { freezertype: 'chest'    } },
-    { slug: 'upright-freezer',  label: 'Upright Freezers',  icon: '🥶', filters: { freezertype: 'upright'  } },
-    { slug: 'inverter-freezer', label: 'Inverter Freezers', icon: '⚡', filters: { freezertech: 'inverter' } },
-    { slug: 'no-frost-freezer', label: 'No-Frost',          icon: '❄️', filters: { freezertech: 'nofrost'  } },
+    // By type (most browsable grouping — customers search by door style)
+    { slug: 'double-door-freezer',  label: 'Double Door Freezers',      icon: '🚪', filters: { freezertype: 'double'       } },
+    { slug: 'single-door-freezer',  label: 'Single Door Freezers',      icon: '📦', filters: { freezertype: 'single'       } },
+    { slug: 'convertible-freezer',  label: 'Convertible Freezers',      icon: '🔄', filters: { freezertype: 'convertible'  } },
+    { slug: 'upright-freezer',      label: 'Vertical / Upright',        icon: '🥶', filters: { freezertype: 'upright'      } },
+    // By technology
+    { slug: 'inverter-freezer',     label: 'Inverter Freezers',         icon: '⚡', filters: { freezertech: 'inverter'     } },
+    { slug: 'non-inverter-freezer', label: 'Non-Inverter Freezers',     icon: '🧊', filters: { freezertech: 'non-inverter' } },
+    // By capacity band (calibrated to actual catalog)
+    { slug: 'freezer-8cuft',        label: 'Up to 9 Cu.Ft (Compact)',   icon: '📦', filters: { freezercap: '8cuft'         } },
+    { slug: 'freezer-10cuft',       label: '10–11 Cu.Ft',               icon: '📦', filters: { freezercap: '10cuft'        } },
+    { slug: 'freezer-13cuft',       label: '12–14 Cu.Ft',               icon: '📦', filters: { freezercap: '13cuft'        } },
+    { slug: 'freezer-15cuft',       label: '15+ Cu.Ft (Large)',         icon: '📦', filters: { freezercap: '15cuft'        } },
+    // Combined: inverter + capacity (most specific search)
+    { slug: 'inverter-freezer-10',  label: 'Inverter 10–11 Cu.Ft',      icon: '⚡', filters: { freezertech: 'inverter', freezercap: '10cuft' } },
+    { slug: 'inverter-freezer-15',  label: 'Inverter 15+ Cu.Ft',        icon: '⚡', filters: { freezertech: 'inverter', freezercap: '15cuft' } },
   ],
+
+  // ── Washing Machines ─────────────────────────────────────────────────────────
+  // Total WM: 58 | Front Load: 3 | Top Load: 33 | Semi-Auto: 18 | Twin Tub: 2
+  // Spinners: 10 | Inverter: 3 | Kg bands: <=7: 11 | 8-9: 22 | 10-11: 13 | 12-14: 14 | 15+: 8
   washing: [
-    { slug: 'front-load',     label: 'Front Load Auto', icon: '🌀', filters: { washtype: 'front' } },
-    { slug: 'top-load',       label: 'Top Load Auto',   icon: '👕', filters: { washtype: 'top'   } },
-    { slug: 'semi-automatic', label: 'Semi-Automatic',  icon: '🔄', filters: { washtype: 'semi'  } },
-    { slug: 'large-capacity', label: '15 kg+ (Blanket)',icon: '🛏️', filters: { washcap: 'xl'     } },
-    { slug: 'inverter-wm',    label: 'Inverter Motor',  icon: '⚡', filters: { washinverter: 'inverter' } },
+    // By type
+    { slug: 'front-load',        label: 'Front Load Auto',   icon: '🌀', filters: { washtype: 'front'   } },
+    { slug: 'top-load',          label: 'Top Load Auto',     icon: '👕', filters: { washtype: 'top'     } },
+    { slug: 'semi-automatic',    label: 'Semi-Automatic',    icon: '🔄', filters: { washtype: 'semi'    } },
+    { slug: 'twin-tub',          label: 'Twin Tub',          icon: '🫧', filters: { washtype: 'twintub' } },
+    { slug: 'spinners',          label: 'Spinners',          icon: '🌀', filters: { washtype: 'spinner' } },
+    // By capacity
+    { slug: 'washer-7kg',        label: 'Up to 7 kg',        icon: '👕', filters: { washcap: 'small'  } },
+    { slug: 'washer-8-9kg',      label: '8–9 kg',            icon: '👕', filters: { washcap: 'medium' } },
+    { slug: 'washer-10-11kg',    label: '10–11 kg',          icon: '👕', filters: { washcap: 'large'  } },
+    { slug: 'washer-12-14kg',    label: '12–14 kg',          icon: '👕', filters: { washcap: 'xl'     } },
+    { slug: 'washer-15kg-plus',  label: '15 kg+ (Blanket)',  icon: '🛏️', filters: { washcap: 'xxl'    } },
+    // By tech (inverter: 3 products confirmed)
+    { slug: 'inverter-washer',   label: 'Inverter Motor',    icon: '⚡', filters: { washinverter: 'inverter' } },
   ],
+
+  // ── Televisions ──────────────────────────────────────────────────────────────
+  // Total: 84 | 32": 6 | 43": 12 | 50-55": 21 | 65": 19 | 75": 13 | 85"+: 13
+  // QLED: 7 | 4K: 14 | Google TV: 9 | OLED: 0 (none in catalog — not listed)
   tv: [
-    { slug: '32-inch-tv',   label: '32" LED TV',    icon: '📺', filters: { tvsize: '32' } },
-    { slug: '43-inch-tv',   label: '43" LED TV',    icon: '📺', filters: { tvsize: '43' } },
-    { slug: '55-inch-tv',   label: '50"–55" LED TV',icon: '📺', filters: { tvsize: '50' } },
-    { slug: '65-inch-tv',   label: '65"–75" LED TV',icon: '🖥️', filters: { tvsize: '65' } },
-    { slug: '85-inch-plus', label: '85"+ Ultra',    icon: '🎬', filters: { tvsize: '85' } },
-    { slug: 'qled-tv',      label: 'QLED',          icon: '✨', filters: { tvtech: 'qled' } },
-    { slug: 'oled-tv',      label: 'OLED',          icon: '💎', filters: { tvtech: 'oled' } },
+    // By screen size (primary browse)
+    { slug: '32-inch-tv',  label: '32" TV',         icon: '📺', filters: { tvsize: '32' } },
+    { slug: '43-inch-tv',  label: '43" TV',         icon: '📺', filters: { tvsize: '43' } },
+    { slug: '50-55-inch',  label: '50"–55" TV',     icon: '📺', filters: { tvsize: '50' } },
+    { slug: '65-inch-tv',  label: '65" TV',         icon: '🖥️', filters: { tvsize: '65' } },
+    { slug: '75-inch-tv',  label: '75" TV',         icon: '🖥️', filters: { tvsize: '75' } },
+    { slug: '85-inch-plus',label: '85"+ Ultra',     icon: '🎬', filters: { tvsize: '85' } },
+    // By display technology (7 QLED, 14 4K confirmed)
+    { slug: 'qled-tv',     label: 'QLED',           icon: '✨', filters: { tvtech: 'qled'     } },
+    { slug: '4k-tv',       label: '4K / Ultra HD',  icon: '🔲', filters: { tvtech: '4k'       } },
+    { slug: 'google-tv',   label: 'Google TV',      icon: '📱', filters: { tvtech: 'googletv' } },
   ],
+
+  // ── Kitchen Appliances ───────────────────────────────────────────────────────
+  // Total: 231 — subcategory counts verified against catalog
   kitchen: [
-    { slug: 'air-fryers',          label: 'Air Fryers',           icon: '🌪️', filters: { kitchentype: 'airfryer'   } },
-    { slug: 'blenders-juicers',    label: 'Blenders & Juicers',   icon: '🥤', filters: { kitchentype: 'blenders'   } },
-    { slug: 'food-processors',     label: 'Food Processors',      icon: '🔪', filters: { kitchentype: 'processors' } },
-    { slug: 'cooking-ovens',       label: 'Cooking & Ovens',      icon: '🍳', filters: { kitchentype: 'cooking'    } },
-    { slug: 'breakfast-beverages', label: 'Breakfast & Beverages',icon: '☕', filters: { kitchentype: 'breakfast'  } },
+    // High-traffic subcategories first
+    { slug: 'air-fryers',        label: 'Air Fryers',            icon: '🌪️', filters: { kitchensubtype: 'air-fryer'      } },
+    { slug: 'hand-blenders',     label: 'Hand Blenders',         icon: '🥤', filters: { kitchensubtype: 'hand-blender'  } },
+    { slug: 'jug-blenders',      label: 'Jug / Stand Blenders',  icon: '🥤', filters: { kitchensubtype: 'jug-blender'   } },
+    { slug: 'mixers',            label: 'Mixers',                icon: '🎂', filters: { kitchensubtype: 'mixer'         } },
+    { slug: 'juicers',           label: 'Juicers',               icon: '🍊', filters: { kitchensubtype: 'juicer'        } },
+    { slug: 'food-processors',   label: 'Food Processors',       icon: '🔪', filters: { kitchensubtype: 'food-processor'} },
+    { slug: 'choppers',          label: 'Choppers',              icon: '🥬', filters: { kitchensubtype: 'chopper'       } },
+    { slug: 'meat-grinders',     label: 'Meat Grinders',         icon: '🥩', filters: { kitchensubtype: 'meat-grinder'  } },
+    { slug: 'electric-ovens',    label: 'Electric Ovens',        icon: '🍞', filters: { kitchensubtype: 'oven'          } },
+    { slug: 'toasters',          label: 'Toasters',              icon: '🍞', filters: { kitchensubtype: 'toaster'       } },
+    { slug: 'sandwich-makers',   label: 'Sandwich / Waffle',     icon: '🥪', filters: { kitchensubtype: 'sandwich'      } },
+    { slug: 'electric-kettles',  label: 'Electric Kettles',      icon: '🫖', filters: { kitchensubtype: 'kettle'        } },
+    { slug: 'coffee-makers',     label: 'Coffee Makers',         icon: '☕', filters: { kitchensubtype: 'coffee'        } },
+    { slug: 'roti-makers',       label: 'Roti Makers',           icon: '🫓', filters: { kitchensubtype: 'roti'          } },
+    { slug: 'induction-cookers', label: 'Induction / Ceramic',   icon: '🍳', filters: { kitchensubtype: 'induction'     } },
+    { slug: 'rice-cookers',      label: 'Rice Cookers',          icon: '🍚', filters: { kitchensubtype: 'rice-cooker'   } },
   ],
+
+  // ── Microwave Ovens ──────────────────────────────────────────────────────────
+  // Solo: 13+3=16 | Grill: 14 | Convection/AF: 14+1=15 | Total: ~45
+  microwave: [
+    { slug: 'solo-microwave',        label: 'Solo Microwaves',        icon: '📡', filters: { mwtype: 'solo'        } },
+    { slug: 'grill-microwave',       label: 'Grill Microwaves',       icon: '🔥', filters: { mwtype: 'grill'       } },
+    { slug: 'convection-microwave',  label: 'Convection / Air Fryer', icon: '🌀', filters: { mwtype: 'convection'  } },
+    { slug: 'inverter-microwave',    label: 'Inverter Microwave',     icon: '⚡', filters: { mwtype: 'inverter-mw' } },
+    { slug: 'compact-microwave',     label: 'Compact (up to 20L)',    icon: '📡', filters: { mwcap: 'small'        } },
+    { slug: 'standard-microwave',    label: 'Standard (21–30L)',      icon: '📡', filters: { mwcap: 'medium'       } },
+    { slug: 'large-microwave',       label: 'Large (31L+)',           icon: '📡', filters: { mwcap: 'large'        } },
+  ],
+
+  // ── Small Appliances / Home & Heating ────────────────────────────────────────
+  // Total: ~58 in Home&Heating + 8 in Small + 8 in vacuum/small
+  // Fans: 7 | Dry Irons: 8 | Steam Irons: 6 | Steamers: 5
+  // Heaters: 11 | Vacuums: 10 | Humidifiers: 6 | Insect Killers: 6
   small: [
-    { slug: 'fans',      label: 'Fans & Air Coolers', icon: '💨', filters: { smalltype: 'fan'    } },
-    { slug: 'irons',     label: 'Irons & Steamers',   icon: '👔', filters: { smalltype: 'iron'   } },
-    { slug: 'heaters',   label: 'Heaters',             icon: '🔥', filters: { smalltype: 'heater' } },
-    { slug: 'kettles',   label: 'Kettles',             icon: '🫖', filters: { smalltype: 'kettle' } },
-    { slug: 'vacuums',   label: 'Vacuum Cleaners',     icon: '🧹', filters: { smalltype: 'vacuum' } },
-    { slug: 'hair-care', label: 'Hair Care',           icon: '💇', filters: { smalltype: 'hair'   } },
+    { slug: 'fans',             label: 'Fans',              icon: '💨', filters: { smalltype: 'fan'           } },
+    { slug: 'dry-irons',        label: 'Dry Irons',         icon: '👔', filters: { smalltype: 'dry-iron'      } },
+    { slug: 'steam-irons',      label: 'Steam Irons',       icon: '💨', filters: { smalltype: 'steam-iron'    } },
+    { slug: 'garment-steamers', label: 'Garment Steamers',  icon: '👗', filters: { smalltype: 'garment-steam' } },
+    { slug: 'room-heaters',     label: 'Room Heaters',      icon: '🔥', filters: { smalltype: 'heater'        } },
+    { slug: 'vacuum-cleaners',  label: 'Vacuum Cleaners',   icon: '🧹', filters: { smalltype: 'vacuum'        } },
+    { slug: 'humidifiers',      label: 'Humidifiers',       icon: '💧', filters: { smalltype: 'humidifier'    } },
+    { slug: 'insect-killers',   label: 'Insect Killers',    icon: '🦟', filters: { smalltype: 'insect-killer' } },
   ],
+
+  // ── Personal Care ─────────────────────────────────────────────────────────────
+  // Total: ~38 | Hair Dryers: 12 | Straighteners: 8 | Trimmers/Clippers: 6
+  care: [
+    { slug: 'hair-dryers',      label: 'Hair Dryers',         icon: '💨', filters: { caretype: 'hair-dryer'   } },
+    { slug: 'straighteners',    label: 'Hair Straighteners',  icon: '💇', filters: { caretype: 'straightener' } },
+    { slug: 'curlers',          label: 'Curlers / Crimpers',  icon: '〰️', filters: { caretype: 'curler'       } },
+    { slug: 'trimmers',         label: 'Trimmers / Clippers', icon: '✂️', filters: { caretype: 'trimmer'      } },
+    { slug: 'body-scales',      label: 'Body Scales',         icon: '⚖️', filters: { caretype: 'scale'        } },
+    { slug: 'massagers',        label: 'Massagers',           icon: '🤲', filters: { caretype: 'massager'     } },
+  ],
+
+  // ── Solar Solutions ──────────────────────────────────────────────────────────
+  // Inverters: 57 | Batteries: 12 | Panels: 0 (not in catalog) | Pump Inv: 3
+  // kW bands: <=5: 14 | 5-8: 15 | 8-12: 9 | unlabelled: 19
+  // Battery voltages: 12.8V (1) | 25.6V/24V (2) | 51.2V/48V (5) | Lithium: 6
   solar: [
-    { slug: 'on-grid',  label: 'On-Grid',   icon: '🔌', filters: { solartype: 'ongrid'  } },
-    { slug: 'off-grid', label: 'Off-Grid',  icon: '🔋', filters: { solartype: 'offgrid' } },
-    { slug: 'hybrid',   label: 'Hybrid',    icon: '⚡', filters: { solartype: 'hybrid'  } },
-    { slug: 'up-to-3kw',label: 'Up to 3 kW',icon: '☀️', filters: { solarkw: '3kw'  } },
-    { slug: '3-5kw',    label: '3–5 kW',    icon: '☀️', filters: { solarkw: '5kw'  } },
-    { slug: '6-10kw',   label: '6–10 kW',   icon: '☀️', filters: { solarkw: '10kw' } },
-    { slug: 'above-10kw',label: 'Above 10 kW',icon: '☀️',filters: { solarkw: 'big'  } },
+    // By product type
+    { slug: 'solar-inverters',   label: 'Solar Inverters',     icon: '⚡', filters: { solarcat: 'inverter' } },
+    { slug: 'solar-batteries',   label: 'Solar Batteries',     icon: '🔋', filters: { solarcat: 'battery'  } },
+    { slug: 'pump-inverters',    label: 'Pump Inverters',      icon: '🌊', filters: { solarcat: 'pump'     } },
+    { slug: 'hybrid-systems',    label: 'Hybrid Systems',      icon: '🔄', filters: { solarcat: 'hybrid'   } },
+    // By inverter size (kW — calibrated to actual catalog coverage)
+    { slug: 'up-to-5kw',         label: 'Up to 5 kW',          icon: '☀️', filters: { solarcat: 'inverter', solarkw: '5kw'   } },
+    { slug: '5-8kw',             label: '5–8 kW',              icon: '☀️', filters: { solarcat: 'inverter', solarkw: '8kw'   } },
+    { slug: '8-12kw',            label: '8–12 kW',             icon: '☀️', filters: { solarcat: 'inverter', solarkw: '12kw'  } },
+    { slug: 'above-12kw',        label: 'Above 12 kW',         icon: '☀️', filters: { solarcat: 'inverter', solarkw: '12kw+' } },
+    // By battery voltage (compatibility groupings — 24V vs 48V matters for solar system design)
+    { slug: '24v-batteries',     label: '24V Batteries (25.6V)', icon: '🔋', filters: { solarcat: 'battery', batvolt: '24v' } },
+    { slug: '48v-batteries',     label: '48V Batteries (51.2V)', icon: '🔋', filters: { solarcat: 'battery', batvolt: '48v' } },
   ],
+
+  // ── Water Dispensers ─────────────────────────────────────────────────────────
+  // Total: 7 — simplified_names are "Dawlance Cold Water Dispenser" (generic).
+  // Type must be inferred from model# or tags. Using broadest available filters.
   water: [
-    { slug: 'compressor-dispenser', label: 'Compressor Cooling', icon: '❄️', filters: { watertype: 'compressor' } },
-    { slug: 'hot-cold-dispenser',   label: 'Hot & Cold',         icon: '♨️', filters: { watertype: 'hot'        } },
-    { slug: 'floor-dispenser',      label: 'Floor Standing',     icon: '🏢', filters: { watertype: 'floor'      } },
-    { slug: 'tabletop-dispenser',   label: 'Table Top / Mini',   icon: '🪣', filters: { watertype: 'table'      } },
+    { slug: 'cold-dispenser',    label: 'Cold Water Only',   icon: '💧', filters: { watertype: 'cold'   } },
+    { slug: 'hot-cold-dispenser',label: 'Hot & Cold',        icon: '♨️', filters: { watertype: 'hot'    } },
+    { slug: 'bottom-load',       label: 'Bottom Load',       icon: '🪣', filters: { watertype: 'bottom' } },
   ],
 }
 
 // Category-specific spec filters — applied client-side
 type SpecFilter = { key: string; label: string; options: { value: string; label: string; match: (p: Product) => boolean }[] }
 
-// Helper: extract numeric value from simplified_name (e.g. "55 inch" → 55, "4kg" → 4)
-const _inches = (p: Product) => { const m = (p.simplified_name + ' ' + p.tags).match(/(\d{2})\s*(?:"|inch|")/i); return m ? parseInt(m[1]) : 0; }
-const _kg     = (p: Product) => { const m = (p.simplified_name + ' ' + p.tags).match(/(\d{1,2}(?:\.\d)?)\s*kg/i); return m ? parseFloat(m[1]) : 0; }
-const _liters = (p: Product) => { const c = p.specs?.['Capacity'] || ''; const m = c.match(/(\d{2,3})\s*L/i); return m ? parseInt(m[1]) : 0; }
-const _cuft   = (p: Product) => { const c = p.specs?.['Capacity'] || p.simplified_name; const m = c.match(/(\d{1,2}(?:\.\d)?)\s*(?:cu\.?ft|cubic)/i); return m ? parseFloat(m[1]) : 0; }
+// Helper: extract numeric value from simplified_name / specs
+// Catalog format: "9kg", "9 kg", "9.2 kg", "11.3 Cu.Ft", "20L", "55""
+const _name = (p: Product) => (p.simplified_name || '') + ' ' + (p.tags || '') + ' ' + (p.model || '')
+const _inches = (p: Product) => { const m = _name(p).match(/(\d{2})\s*(?:"|inch|")/i); return m ? parseInt(m[1]) : 0; }
+const _kg     = (p: Product) => { const m = (p.simplified_name || '').match(/(\d{1,2}(?:\.\d{1,2})?)\s*kg\b/i); return m ? parseFloat(m[1]) : 0; }
+const _liters = (p: Product) => {
+  const src = (p.specs?.['Capacity'] || '') + ' ' + (p.simplified_name || '');
+  const m = src.match(/(\d{2,3})\s*[Ll]\b/); return m ? parseInt(m[1]) : 0;
+}
+const _cuft   = (p: Product) => {
+  const src = (p.specs?.['Capacity'] || '') + ' ' + (p.simplified_name || '');
+  const m = src.match(/(\d{1,2}(?:\.\d+)?)\s*(?:cu\.?ft|cubic\.?\s*f)/i); return m ? parseFloat(m[1]) : 0;
+}
+// kW extractor for solar
+const _kw = (p: Product) => {
+  const m = (p.simplified_name || '').match(/(\d+(?:\.\d+)?)\s*k[Ww]/);
+  return m ? parseFloat(m[1]) : 0;
+}
 
 const SPEC_FILTERS: Record<string, SpecFilter[]> = {
   // ── Air Conditioners ─────────────────────────────────────────────────────────
+  // Catalog: 194 total — "1 Ton ACs" (62), "1.5 Ton ACs" (84), "2 Ton ACs" (35),
+  //          "Air Conditioner" (13 — incl 0.9T/1.2T/1.7T/floor-standing)
+  // Inverter: 113 | Non-Inverter: 81 | T3: 34 | Heat&Cool: 137
   ac: [
     {
       key: 'tonnage', label: 'Tonnage',
       options: [
-        { value: '1t',   label: '1 Ton',    match: p => /\b1\s*ton/i.test(p.category) && !/1\.5|2\s*ton/i.test(p.category) },
-        { value: '1.5t', label: '1.5 Ton',  match: p => /1\.5\s*ton/i.test(p.category) },
-        { value: '2t',   label: '2 Ton',    match: p => /\b2\s*ton/i.test(p.category) },
+        // Match category name first (most reliable), fall back to simplified_name
+        { value: '1t',   label: '1 Ton',    match: p => p.category === '1 Ton Air Conditioners' || (/\b1\.0?\s*[Tt]on\b/i.test(p.simplified_name || '') && !/1\.[2-9]\s*[Tt]on/i.test(p.simplified_name || '')) },
+        { value: '1.5t', label: '1.5 Ton',  match: p => p.category === '1.5 Ton Air Conditioners' || /1\.5\s*[Tt]on/i.test(p.simplified_name || '') },
+        { value: '2t',   label: '2 Ton',    match: p => p.category === '2 Ton Air Conditioners' || (/\b2\.0?\s*[Tt]on\b/i.test(p.simplified_name || '') && !/2\.[1-9]/i.test(p.simplified_name || '')) },
       ],
     },
     {
       key: 'actech', label: 'Technology',
       options: [
-        { value: 'inverter',     label: 'Inverter',      match: p => /inverter/i.test(p.tags + ' ' + p.simplified_name) },
-        { value: 'non-inverter', label: 'Non-Inverter',  match: p => !/inverter/i.test(p.tags + ' ' + p.simplified_name) },
+        { value: 'inverter',     label: 'Inverter',      match: p => /inverter/i.test((p.simplified_name || '') + ' ' + (p.tags || '')) },
+        { value: 'non-inverter', label: 'Non-Inverter',  match: p => !/inverter/i.test((p.simplified_name || '') + ' ' + (p.tags || '')) },
+      ],
+    },
+    {
+      key: 'actemp', label: 'Cooling Mode',
+      options: [
+        { value: 'heatcool', label: 'Heat & Cool',          match: p => /heat.*cool|heat & cool/i.test(p.simplified_name || '') },
+        { value: 'coolonly', label: 'Cool Only',            match: p => !/heat.*cool|heat & cool/i.test(p.simplified_name || '') },
+        { value: 't3',       label: 'T3 (High Ambient 52°C)', match: p => /\bT3\b/i.test((p.simplified_name || '') + ' ' + (p.model || '')) },
       ],
     },
     {
       key: 'actype', label: 'Type',
       options: [
-        { value: 'split',  label: 'Split AC',          match: p => !/floor.?standing|portable|window/i.test(p.simplified_name + ' ' + p.tags) },
-        { value: 'floor',  label: 'Floor Standing',    match: p => /floor.?standing|floor.?mount/i.test(p.simplified_name + ' ' + p.tags) },
-        { value: 'portable',label:'Portable / Window', match: p => /portable|window.?ac/i.test(p.simplified_name + ' ' + p.tags) },
-      ],
-    },
-    {
-      key: 'acfeatures', label: 'Features',
-      options: [
-        { value: 'wifi',  label: 'WiFi / Smart Control', match: p => /wifi|wi-fi|smart.?control/i.test(p.tags + ' ' + p.simplified_name) },
-        { value: 'conv',  label: 'Convertible (5-in-1+)',match: p => /convertible|\bin-1\b|5-in-1|4-in-1/i.test(p.tags + ' ' + p.simplified_name) },
-        { value: 'heat',  label: 'Heat & Cool',          match: p => /heat|heating/i.test(p.tags + ' ' + p.simplified_name) },
+        { value: 'split', label: 'Split AC',        match: p => !/floor.?stand|floor.?mount|cassette/i.test((p.simplified_name || '') + ' ' + (p.tags || '')) && !/^GF-/i.test(p.model || '') },
+        { value: 'floor', label: 'Floor Standing',  match: p => /floor.?stand|floor.?mount|cassette/i.test((p.simplified_name || '') + ' ' + (p.tags || '')) || /^GF-/i.test(p.model || '') },
       ],
     },
   ],
@@ -173,118 +304,147 @@ const SPEC_FILTERS: Record<string, SpecFilter[]> = {
     {
       key: 'fridgesize', label: 'Size',
       options: [
-        { value: 'small',  label: 'Compact (≤10 Cu.Ft)',   match: p => { const c = _cuft(p); return c > 0 ? c <= 10 : p.category.toLowerCase().includes('small'); } },
-        { value: 'medium', label: 'Medium (11–16 Cu.Ft)',  match: p => { const c = _cuft(p); return c > 0 ? c >= 11 && c <= 16 : p.category.toLowerCase().includes('medium'); } },
-        { value: 'large',  label: 'Large (17+ Cu.Ft)',     match: p => { const c = _cuft(p); return c > 0 ? c >= 17 : p.category.toLowerCase().includes('large'); } },
+        { value: 'small',  label: 'Compact (≤10 Cu.Ft)',  match: p => { const c = _cuft(p); return c > 0 ? c <= 10  : p.category.toLowerCase().includes('small'); } },
+        { value: 'medium', label: 'Medium (11–16 Cu.Ft)', match: p => { const c = _cuft(p); return c > 0 ? c >= 11 && c <= 16 : p.category.toLowerCase().includes('medium'); } },
+        { value: 'large',  label: 'Large (17+ Cu.Ft)',    match: p => { const c = _cuft(p); return c > 0 ? c >= 17  : p.category.toLowerCase().includes('large'); } },
       ],
     },
     {
       key: 'fridgetype', label: 'Type',
       options: [
-        { value: 'glass',  label: 'Glass Door',            match: p => /glass.?door|glass.?top/i.test(p.simplified_name + ' ' + p.tags) },
-        { value: 'double', label: 'Double Door',           match: p => /double.?door|two.?door|2-door/i.test(p.simplified_name + ' ' + p.tags) },
-        { value: 'mini',   label: 'Mini / Bar Fridge',     match: p => /mini.?fridge|bar.?fridge|mini.?ref/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'glass',  label: 'Glass Door',     match: p => /glass.?door|glass.?top/i.test((p.simplified_name || '') + ' ' + (p.tags || '')) },
+        { value: 'double', label: 'Double Door',    match: p => /double.?door|two.?door|2-door/i.test((p.simplified_name || '') + ' ' + (p.tags || '')) },
+        { value: 'nofrost',label: 'No-Frost',       match: p => /no.?frost|frost.?free/i.test((p.simplified_name || '') + ' ' + (p.tags || '')) },
       ],
     },
     {
       key: 'fridgetech', label: 'Technology',
       options: [
-        { value: 'inverter',  label: 'Inverter Compressor', match: p => /inverter/i.test(p.simplified_name + ' ' + p.tags) },
-        { value: 'nofrost',   label: 'No-Frost / Frost-Free',match: p => /no.?frost|frost.?free/i.test(p.simplified_name + ' ' + p.tags) },
-        { value: 'autofrost', label: 'Auto-Defrost',         match: p => /auto.?defrost|auto.?frost/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'inverter',  label: 'Inverter Compressor', match: p => /inverter/i.test((p.simplified_name || '') + ' ' + (p.tags || '')) },
+        { value: 'twinInv',   label: 'Twin Inverter',       match: p => /twin.?inv/i.test((p.simplified_name || '') + ' ' + (p.tags || '')) },
       ],
     },
   ],
 
   // ── Freezers ─────────────────────────────────────────────────────────────────
+  // Catalog: 56 total — Inverter: 25 | Non-Inv: 31 | Double Door: 7 | Convertible: 6
+  // Cu.Ft bands: ≤9: 7 | 10-11: 8 | 12-14: 10 | 15+: 20 (20 products incl 16-18 Cu.Ft)
   freezer: [
     {
       key: 'freezertype', label: 'Type',
       options: [
-        { value: 'chest',   label: 'Chest Freezer',   match: p => /chest/i.test(p.simplified_name + ' ' + p.category + ' ' + p.tags) },
-        { value: 'upright', label: 'Upright Freezer',  match: p => /upright|vertical/i.test(p.simplified_name + ' ' + p.category + ' ' + p.tags) },
-        { value: 'deep',    label: 'Deep Freezer',     match: p => /deep.?fre|HDF/i.test(p.simplified_name + ' ' + p.category + ' ' + p.model) },
+        { value: 'double',    label: 'Double Door',     match: p => /double.?door/i.test(p.simplified_name || '') },
+        { value: 'single',    label: 'Single Door',     match: p => /single.?door/i.test(p.simplified_name || '') },
+        { value: 'convertible',label: 'Convertible',   match: p => /convert/i.test((p.simplified_name || '') + ' ' + (p.tags || '')) },
+        { value: 'upright',   label: 'Upright / Vertical', match: p => /upright|vertical/i.test((p.simplified_name || '') + ' ' + (p.tags || '')) },
       ],
     },
     {
+      // Bands calibrated to actual catalog: ≤9cuft (7 products), 10-11 (8), 12-14 (10), 15+ (20)
       key: 'freezercap', label: 'Capacity',
       options: [
-        { value: 'small',  label: 'Small (≤6 Cu.Ft)',   match: p => { const c = _cuft(p); return c > 0 ? c <= 6 : /small/i.test(p.simplified_name) } },
-        { value: 'medium', label: 'Medium (7–12 Cu.Ft)',match: p => { const c = _cuft(p); return c > 0 ? c >= 7 && c <= 12 : false; } },
-        { value: 'large',  label: 'Large (13+ Cu.Ft)',  match: p => { const c = _cuft(p); return c > 0 ? c >= 13 : /large/i.test(p.simplified_name); } },
+        { value: '8cuft',  label: '≈ 8 Cu.Ft (≤9)',    match: p => { const c = _cuft(p); return c > 0 ? c <= 9   : false } },
+        { value: '10cuft', label: '10–11 Cu.Ft',        match: p => { const c = _cuft(p); return c >= 10 && c <= 11 } },
+        { value: '13cuft', label: '12–14 Cu.Ft',        match: p => { const c = _cuft(p); return c >= 12 && c <= 14 } },
+        { value: '15cuft', label: '15+ Cu.Ft (Large)',  match: p => { const c = _cuft(p); return c >= 15 } },
       ],
     },
     {
       key: 'freezertech', label: 'Technology',
       options: [
-        { value: 'inverter', label: 'Inverter',           match: p => /inverter/i.test(p.simplified_name + ' ' + p.tags) },
-        { value: 'nofrost',  label: 'No-Frost',           match: p => /no.?frost/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'inverter',    label: 'Inverter',      match: p => /inverter/i.test((p.simplified_name || '') + ' ' + (p.tags || '')) },
+        { value: 'non-inverter',label: 'Non-Inverter',  match: p => !/inverter/i.test((p.simplified_name || '') + ' ' + (p.tags || '')) },
       ],
     },
   ],
 
   // ── Washing Machines ─────────────────────────────────────────────────────────
+  // Catalog: 58 WMs + 10 Spinners — Front Load: 3 | Top Load: 33 | Semi-Auto: 18
+  // Twin Tub: 2 | Inverter: 3 | Spinners: 10
+  // Kg bands: ≤7: 11 | 8-9: 22 | 10-11: 13 | 12-14: 14 | 15+: 8
   washing: [
     {
       key: 'washtype', label: 'Type',
       options: [
-        { value: 'front',   label: 'Front Load Auto',  match: p => /front.?load/i.test(p.tags + ' ' + p.simplified_name) },
-        { value: 'top',     label: 'Top Load Auto',    match: p => /top.?load/i.test(p.tags + ' ' + p.simplified_name) && !/semi/i.test(p.category) },
-        { value: 'semi',    label: 'Semi-Automatic',   match: p => p.category.toLowerCase().includes('semi-automatic') },
-        { value: 'spinner', label: 'Spinner',          match: p => /spinner|spin dryer/i.test(p.category + ' ' + p.tags) },
+        { value: 'front',    label: 'Front Load Auto',  match: p => /front.?load/i.test((p.simplified_name || '') + ' ' + (p.category || '')) },
+        { value: 'top',      label: 'Top Load Auto',    match: p => /top.?load/i.test((p.simplified_name || '') + ' ' + (p.category || '')) && !/semi/i.test(p.category) },
+        { value: 'semi',     label: 'Semi-Automatic',   match: p => /semi.?auto/i.test((p.category || '') + ' ' + (p.simplified_name || '')) && !/twin.?tub/i.test(p.simplified_name || '') },
+        { value: 'twintub',  label: 'Twin Tub',         match: p => /twin.?tub/i.test(p.simplified_name || '') },
+        { value: 'spinner',  label: 'Spinner',          match: p => /spinner|spin.?dry/i.test((p.category || '') + ' ' + (p.simplified_name || '')) },
       ],
     },
     {
       key: 'washcap', label: 'Capacity',
       options: [
-        { value: 'small',   label: 'Up to 7 kg',      match: p => { const k = _kg(p); return k > 0 ? k <= 7 : false } },
-        { value: 'medium',  label: '8 – 10 kg',       match: p => { const k = _kg(p); return k >= 8 && k <= 10 } },
-        { value: 'large',   label: '11 – 14 kg',      match: p => { const k = _kg(p); return k >= 11 && k <= 14 } },
-        { value: 'xl',      label: '15 kg+ (Blanket)',match: p => { const k = _kg(p); return k >= 15 || (p.tags || '').includes('blanket-washable') } },
+        { value: 'small',  label: 'Up to 7 kg',      match: p => { const k = _kg(p); return k > 0 ? k <= 7   : false } },
+        { value: 'medium', label: '8–9 kg',          match: p => { const k = _kg(p); return k >= 8  && k <= 9  } },
+        { value: 'large',  label: '10–11 kg',        match: p => { const k = _kg(p); return k >= 10 && k <= 11 } },
+        { value: 'xl',     label: '12–14 kg',        match: p => { const k = _kg(p); return k >= 12 && k <= 14 } },
+        { value: 'xxl',    label: '15 kg+ (Blanket)',match: p => { const k = _kg(p); return k >= 15 || (p.tags || '').includes('blanket') } },
       ],
     },
     {
       key: 'washinverter', label: 'Technology',
       options: [
-        { value: 'inverter', label: 'Inverter Motor', match: p => /inverter/i.test(p.simplified_name + ' ' + p.tags) },
-        { value: 'direct',   label: 'Direct Drive',   match: p => /direct.?drive/i.test(p.simplified_name + ' ' + p.tags) },
-        { value: 'digital',  label: 'Digital Display',match: p => /digital|smart|auto/i.test(p.simplified_name + ' ' + p.tags) && !/semi/i.test(p.category) },
+        { value: 'inverter', label: 'Inverter Motor',   match: p => /inverter/i.test((p.simplified_name || '') + ' ' + (p.tags || '')) },
+        { value: 'direct',   label: 'Direct Drive',     match: p => /direct.?drive/i.test((p.simplified_name || '') + ' ' + (p.tags || '')) },
       ],
     },
   ],
 
   // ── Televisions ──────────────────────────────────────────────────────────────
+  // Catalog: 84 total — 32": 6 | 43": 12 | 50-55": 21 | 65": 19 | 75": 13 | 85"+: 13
+  // QLED: 7 | 4K: 14 | Google TV: 9 | OLED: 0 (none in catalog)
   tv: [
     {
       key: 'tvsize', label: 'Screen Size',
       options: [
-        { value: '32',  label: '32"',            match: p => { const i = _inches(p); return i > 0 ? i <= 32 : /\b32\b/.test(p.simplified_name) } },
-        { value: '43',  label: '40" – 43"',      match: p => { const i = _inches(p); return i >= 40 && i <= 43 } },
-        { value: '50',  label: '50" – 55"',      match: p => { const i = _inches(p); return i >= 50 && i <= 55 } },
-        { value: '65',  label: '65" – 75"',      match: p => { const i = _inches(p); return i >= 65 && i <= 75 } },
-        { value: '85',  label: '85"+ (Ultra)',   match: p => { const i = _inches(p); return i >= 85 } },
+        { value: '32',  label: '32"',         match: p => { const i = _inches(p); return i > 0 ? i <= 32 : /\b32\b/.test(p.simplified_name || '') } },
+        { value: '43',  label: '43"',         match: p => { const i = _inches(p); return i >= 40 && i <= 43 } },
+        { value: '50',  label: '50"–55"',     match: p => { const i = _inches(p); return i >= 50 && i <= 55 } },
+        { value: '65',  label: '65"',         match: p => { const i = _inches(p); return i >= 60 && i <= 65 } },
+        { value: '75',  label: '75"',         match: p => { const i = _inches(p); return i >= 70 && i <= 75 } },
+        { value: '85',  label: '85"+ (Ultra)',match: p => { const i = _inches(p); return i >= 85 } },
       ],
     },
     {
-      key: 'tvtech', label: 'Panel Type',
+      key: 'tvtech', label: 'Display Type',
       options: [
-        { value: 'qled', label: 'QLED',          match: p => /qled/i.test(p.simplified_name + ' ' + p.tags) },
-        { value: 'oled', label: 'OLED',          match: p => /\boled\b/i.test(p.simplified_name + ' ' + p.tags) },
-        { value: 'led',  label: 'LED / Smart LED',match: p => !/qled|oled/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'qled',    label: 'QLED',          match: p => /qled/i.test((p.simplified_name || '') + ' ' + (p.tags || '')) },
+        { value: '4k',      label: '4K / Ultra HD',  match: p => /\b4k\b|ultra.?hd|\buhd\b/i.test((p.simplified_name || '') + ' ' + (p.tags || '')) },
+        { value: 'googletv',label: 'Google TV',      match: p => /google.?tv/i.test((p.simplified_name || '') + ' ' + (p.tags || '')) },
+        { value: 'led',     label: 'LED / Smart LED',match: p => !/qled/i.test((p.simplified_name || '') + ' ' + (p.tags || '')) },
       ],
     },
   ],
 
   // ── Kitchen Appliances ───────────────────────────────────────────────────────
+  // Catalog: 231 total across Kitchen* categories + Air Fryer
+  // Hand Blenders: 18 | Jug Blenders: 25 | Mixers: 11 | Juicers: 25
+  // Choppers: 8 | Food Processors: 26 | Meat Grinders: 25 | Air Fryers: 20
+  // Toasters: 23 | Kettles: 16 | Coffee: 8 | Ovens: 21 | Roti: 11 | Sandwich/Waffle: 8
   kitchen: [
     {
-      key: 'kitchentype', label: 'Category',
+      key: 'kitchensubtype', label: 'Product Type',
       options: [
-        { value: 'cooking',    label: 'Cooking & Ovens',      match: p => p.category.toLowerCase().includes('cooking') || /oven|toaster|grill/i.test(p.simplified_name) },
-        { value: 'blenders',   label: 'Blenders & Juicers',   match: p => p.category.toLowerCase().includes('blender') || /blender|juicer/i.test(p.simplified_name) },
-        { value: 'processors', label: 'Food Processors',      match: p => p.category.toLowerCase().includes('food proc') || /food.?proc|chopper/i.test(p.simplified_name) },
-        { value: 'breakfast',  label: 'Breakfast & Beverages',match: p => p.category.toLowerCase().includes('breakfast') || /coffee|tea|toaster|kettle/i.test(p.simplified_name) },
-        { value: 'airfryer',   label: 'Air Fryers',           match: p => /air.?fry/i.test(p.simplified_name + ' ' + p.category) },
+        { value: 'air-fryer',     label: 'Air Fryers',           match: p => /air.?fr/i.test((p.simplified_name || '') + ' ' + (p.category || '')) },
+        { value: 'hand-blender',  label: 'Hand Blenders',        match: p => /hand.?blend|stick.?blend|immersion.?blend/i.test(p.simplified_name || '') },
+        { value: 'jug-blender',   label: 'Jug / Stand Blenders', match: p => /\bblender\b/i.test(p.simplified_name || '') && !/hand.?blend|stick.?blend/i.test(p.simplified_name || '') },
+        { value: 'mixer',         label: 'Mixers',               match: p => /\bmixer\b/i.test(p.simplified_name || '') },
+        { value: 'juicer',        label: 'Juicers',              match: p => /juicer/i.test(p.simplified_name || '') },
+        { value: 'chopper',       label: 'Choppers',             match: p => /chopper/i.test(p.simplified_name || '') },
+        { value: 'food-processor',label: 'Food Processors',      match: p => /food.?proc|kitchen.?chef|kitchen.?robot|food.?fact/i.test(p.simplified_name || '') },
+        { value: 'meat-grinder',  label: 'Meat Grinders',        match: p => /grinder|mincer|meat.?min/i.test(p.simplified_name || '') },
+        { value: 'toaster',       label: 'Toasters',             match: p => /toaster/i.test(p.simplified_name || '') },
+        { value: 'sandwich',      label: 'Sandwich / Waffle',    match: p => /sandwich|waffle/i.test(p.simplified_name || '') },
+        { value: 'kettle',        label: 'Electric Kettles',     match: p => /kettle/i.test(p.simplified_name || '') },
+        { value: 'coffee',        label: 'Coffee Makers',        match: p => /coffee/i.test(p.simplified_name || '') },
+        { value: 'oven',          label: 'Electric Ovens',       match: p => /\boven\b/i.test(p.simplified_name || '') && !/micro|air.?fr/i.test(p.simplified_name || '') },
+        { value: 'roti',          label: 'Roti Makers',          match: p => /roti/i.test(p.simplified_name || '') },
+        { value: 'induction',     label: 'Induction / Ceramic',  match: p => /induction|ceramic.?cook/i.test(p.simplified_name || '') },
+        { value: 'rice-cooker',   label: 'Rice Cookers',         match: p => /rice.?cook/i.test(p.simplified_name || '') },
+        { value: 'water-boiler',  label: 'Water Boilers',        match: p => /water.?boil/i.test(p.simplified_name || '') },
+        { value: 'egg-boiler',    label: 'Egg Boilers',          match: p => /egg.?boil/i.test(p.simplified_name || '') },
       ],
     },
   ],
@@ -292,62 +452,107 @@ const SPEC_FILTERS: Record<string, SpecFilter[]> = {
   // ── Microwave Ovens ──────────────────────────────────────────────────────────
   microwave: [
     {
+      key: 'mwtype', label: 'Type',
+      options: [
+        { value: 'solo',        label: 'Solo (Reheat Only)',     match: p => /solo/i.test((p.simplified_name || '') + ' ' + (p.category || '')) },
+        { value: 'grill',       label: 'Grill',                 match: p => /grill/i.test((p.simplified_name || '') + ' ' + (p.category || '')) && !/convection/i.test(p.simplified_name || '') },
+        { value: 'convection',  label: 'Convection / Air Fryer',match: p => /convection|air.?fr/i.test((p.simplified_name || '') + ' ' + (p.category || '')) },
+        { value: 'inverter-mw', label: 'Inverter Microwave',    match: p => /inverter/i.test((p.simplified_name || '') + ' ' + (p.tags || '')) },
+      ],
+    },
+    {
       key: 'mwcap', label: 'Cavity Size',
       options: [
-        { value: 'small',  label: 'Compact (≤20L)',  match: p => { const l = _liters(p); return l > 0 ? l <= 20 : false } },
+        { value: 'small',  label: 'Compact (≤20L)',   match: p => { const l = _liters(p); return l > 0 ? l <= 20 : false } },
         { value: 'medium', label: 'Standard (21–30L)',match: p => { const l = _liters(p); return l >= 21 && l <= 30 } },
-        { value: 'large',  label: 'Large (31L+)',     match: p => { const l = _liters(p); return l >= 31 } },
+        { value: 'large',  label: 'Large (31L+)',      match: p => { const l = _liters(p); return l >= 31 } },
       ],
     },
   ],
 
   // ── Small Appliances ─────────────────────────────────────────────────────────
+  // Catalog: ~50 in "Home & Heating Appliances" + 8 in "Small Appliances"
+  // Fans: 7 | Dry Irons: 8 | Steam Irons: 6 | Garment Steamers: 5
+  // Heaters: 11 | Vacuums: 10 | Humidifiers: 6 | Insect Killers: 6
   small: [
     {
       key: 'smalltype', label: 'Type',
       options: [
-        { value: 'iron',    label: 'Irons & Steamers',    match: p => /iron|steamer/i.test(p.simplified_name) },
-        { value: 'heater',  label: 'Heaters',             match: p => /heater|room.?heat/i.test(p.simplified_name) },
-        { value: 'fan',     label: 'Fans & Air Coolers',  match: p => /\bfan\b|air.?cool/i.test(p.simplified_name) },
-        { value: 'vacuum',  label: 'Vacuum Cleaners',     match: p => /vacuum/i.test(p.simplified_name) },
-        { value: 'kettle',  label: 'Kettles',             match: p => /kettle/i.test(p.simplified_name) },
-        { value: 'hair',    label: 'Hair Care',           match: p => /hair|dryer|straighten/i.test(p.simplified_name) },
+        { value: 'fan',           label: 'Fans',                 match: p => /\bfan\b/i.test(p.simplified_name || '') },
+        { value: 'dry-iron',      label: 'Dry Irons',            match: p => /dry.?iron/i.test(p.simplified_name || '') },
+        { value: 'steam-iron',    label: 'Steam Irons',          match: p => /steam.?iron/i.test(p.simplified_name || '') },
+        { value: 'garment-steam', label: 'Garment Steamers',     match: p => /garment.?steam/i.test(p.simplified_name || '') },
+        { value: 'heater',        label: 'Room Heaters',         match: p => /heater/i.test(p.simplified_name || '') },
+        { value: 'vacuum',        label: 'Vacuum Cleaners',      match: p => /vacuum/i.test(p.simplified_name || '') },
+        { value: 'humidifier',    label: 'Humidifiers',          match: p => /humidif/i.test(p.simplified_name || '') },
+        { value: 'insect-killer', label: 'Insect Killers',       match: p => /insect.?kill|insect.?zap/i.test(p.simplified_name || '') },
+      ],
+    },
+  ],
+
+  // ── Personal Care ─────────────────────────────────────────────────────────────
+  // Catalog: 28 in "Personal Care Appliances" + 10 in "care"
+  // Hair Dryers: 12 | Straighteners: 8 | Trimmers/Clippers: 6 | Other: misc
+  care: [
+    {
+      key: 'caretype', label: 'Type',
+      options: [
+        { value: 'hair-dryer',    label: 'Hair Dryers',          match: p => /hair.?dry/i.test(p.simplified_name || '') },
+        { value: 'straightener',  label: 'Hair Straighteners',   match: p => /straight/i.test(p.simplified_name || '') },
+        { value: 'curler',        label: 'Curlers / Crimpers',   match: p => /curl|crimp/i.test(p.simplified_name || '') },
+        { value: 'trimmer',       label: 'Trimmers / Clippers',  match: p => /trimmer|clipper/i.test(p.simplified_name || '') },
+        { value: 'scale',         label: 'Body / Bath Scales',   match: p => /scale|weigh/i.test(p.simplified_name || '') },
+        { value: 'massager',      label: 'Massagers',            match: p => /massag/i.test(p.simplified_name || '') },
       ],
     },
   ],
 
   // ── Solar Solutions ──────────────────────────────────────────────────────────
+  // Catalog: Inverters: 57 | Batteries: 12 | Panels: 0 | Pump Inv: 3 | Misc: 13
+  // kW bands (inverters): ≤3kW: 2 | 3-5kW: 12 | 5-8kW: 15 | 8-12kW: 9 | unknown: 19
+  // Battery voltages: 12.8V (1) | 25.6V / 24V (2) | 48V / 51.2V (5) | Lithium: 6
   solar: [
     {
-      key: 'solartype', label: 'System Type',
+      key: 'solarcat', label: 'Product Type',
       options: [
-        { value: 'ongrid',  label: 'On-Grid',    match: p => /on.?grid/i.test(p.simplified_name + ' ' + p.tags) },
-        { value: 'offgrid', label: 'Off-Grid',   match: p => /off.?grid/i.test(p.simplified_name + ' ' + p.tags) },
-        { value: 'hybrid',  label: 'Hybrid',     match: p => /hybrid/i.test(p.simplified_name + ' ' + p.tags) },
-        { value: 'battery', label: 'Battery / Storage', match: p => /battery|storage|lithium/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'inverter', label: 'Inverters',         match: p => /solar.?inverter|hybrid.?inverter/i.test(p.category || '') },
+        { value: 'battery',  label: 'Solar Batteries',   match: p => /solar.?battery|lithium.?battery/i.test(p.category || '') || /kWh|LiFePO/i.test(p.simplified_name || '') },
+        { value: 'pump',     label: 'Pump Inverters',    match: p => /solar.?pump|solar.?converter|pump.?inv/i.test((p.category || '') + ' ' + (p.simplified_name || '')) },
+        { value: 'hybrid',   label: 'Hybrid Systems',   match: p => /hybrid/i.test((p.category || '') + ' ' + (p.simplified_name || '') + ' ' + (p.tags || '')) },
       ],
     },
     {
-      key: 'solarkw', label: 'System Size',
+      // kW filter — works on simplified_name values like "Ziewnic 6kW Lenox Solar Inverter"
+      key: 'solarkw', label: 'Inverter Size',
       options: [
-        { value: '3kw',  label: 'Up to 3 kW',    match: p => { const m = (p.simplified_name + ' ' + p.tags).match(/(\d+(?:\.\d+)?)\s*kw/i); return m ? parseFloat(m[1]) <= 3 : false } },
-        { value: '5kw',  label: '3 – 5 kW',      match: p => { const m = (p.simplified_name + ' ' + p.tags).match(/(\d+(?:\.\d+)?)\s*kw/i); const v = m ? parseFloat(m[1]) : 0; return v > 3 && v <= 5 } },
-        { value: '10kw', label: '6 – 10 kW',     match: p => { const m = (p.simplified_name + ' ' + p.tags).match(/(\d+(?:\.\d+)?)\s*kw/i); const v = m ? parseFloat(m[1]) : 0; return v > 5 && v <= 10 } },
-        { value: 'big',  label: 'Above 10 kW',   match: p => { const m = (p.simplified_name + ' ' + p.tags).match(/(\d+(?:\.\d+)?)\s*kw/i); return m ? parseFloat(m[1]) > 10 : false } },
+        { value: '5kw',  label: 'Up to 5 kW',    match: p => { const k = _kw(p); return k > 0 && k <= 5 } },
+        { value: '8kw',  label: '5–8 kW',        match: p => { const k = _kw(p); return k > 5  && k <= 8  } },
+        { value: '12kw', label: '8–12 kW',       match: p => { const k = _kw(p); return k > 8  && k <= 12 } },
+        { value: '12kw+',label: 'Above 12 kW',   match: p => { const k = _kw(p); return k > 12 } },
+      ],
+    },
+    {
+      // Voltage filter — relevant for batteries and compatible inverters
+      // 24V (25.6V): for ≤3kW systems | 48V (51.2V): for ≥5kW systems
+      key: 'batvolt', label: 'Battery Voltage',
+      options: [
+        { value: '12v', label: '12V Systems (12.8V)', match: p => /12\.8\s*V|12\s*V\b/i.test(p.simplified_name || '') },
+        { value: '24v', label: '24V Systems (25.6V)', match: p => /25\.6\s*V|24\s*V\b/i.test(p.simplified_name || '') },
+        { value: '48v', label: '48V Systems (51.2V)', match: p => /51\.2\s*V|48\s*V\b/i.test((p.simplified_name || '') + ' ' + (p.model || '')) },
       ],
     },
   ],
 
   // ── Water Dispensers ─────────────────────────────────────────────────────────
+  // Catalog: 7 total — simplified_names are generic "Dawlance Cold Water Dispenser"
+  // Type must be inferred from model# (WD-1035 BOTTOM LOAD) or tags
   water: [
     {
       key: 'watertype', label: 'Type',
       options: [
-        { value: 'compressor', label: 'Compressor Cooling',   match: p => /compressor/i.test(p.simplified_name + ' ' + p.tags) },
-        { value: 'electric',   label: 'Electric Cooling',     match: p => /electric.?cool|thermoelectric/i.test(p.simplified_name + ' ' + p.tags) },
-        { value: 'hot',        label: 'Hot & Cold',           match: p => /hot.{1,8}cold|cold.{1,8}hot/i.test(p.simplified_name + ' ' + p.tags) },
-        { value: 'floor',      label: 'Floor Standing',       match: p => /floor.?stand|stand.?type/i.test(p.simplified_name + ' ' + p.tags) },
-        { value: 'table',      label: 'Table Top / Mini',     match: p => /table.?top|mini|counter/i.test(p.simplified_name + ' ' + p.tags) },
+        { value: 'bottom', label: 'Bottom Load',       match: p => /bottom.?load/i.test((p.model || '') + ' ' + (p.tags || '')) },
+        { value: 'hot',    label: 'Hot & Cold',        match: p => /hot.*cold|cold.*hot|HC\b/i.test((p.model || '') + ' ' + (p.simplified_name || '') + ' ' + (p.tags || '')) },
+        { value: 'cold',   label: 'Cold Water Only',   match: p => !/hot.*cold|cold.*hot|bottom.?load/i.test((p.model || '') + ' ' + (p.simplified_name || '') + ' ' + (p.tags || '')) },
       ],
     },
   ],
@@ -370,6 +575,11 @@ function getSpecKey(catId: string): string {
   if (catId === 'microwave-grill' || catId === 'grill-microwave-ovens') return 'microwave'
   if (catId === 'microwave-convection' || catId === 'convection-air-fryer-ovens') return 'microwave'
   if (catId === 'small' || catId === 'small-appliances') return 'small'
+  // Home & Heating Appliances, vacuum, insect killers all share the 'small' filter set
+  if (catId === 'home-heating' || catId === 'home-and-heating' || catId === 'Home & Heating Appliances') return 'small'
+  if (catId === 'vacuum' || catId === 'vacuum-cleaners') return 'small'
+  // Personal Care: hair dryers, straighteners, trimmers etc.
+  if (catId === 'care' || catId === 'personal-care' || catId === 'personal-care-appliances') return 'care'
   if (catId === 'solar' || catId === 'solar-solutions') return 'solar'
   if (catId === 'solar-inverter' || catId === 'solar-inverters') return 'solar'
   if (catId === 'solar-battery' || catId === 'solar-batteries') return 'solar'

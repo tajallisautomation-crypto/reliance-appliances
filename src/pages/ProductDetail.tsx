@@ -206,7 +206,7 @@ export default function ProductDetail() {
         ? 'https://schema.org/InStock'
         : 'https://schema.org/OutOfStock',
       url: `${SITE_URL}/products/${p.slug}`,
-      seller: { '@type': 'Organization', name: 'Tajalli's', url: SITE_URL },
+      seller: { '@type': 'Organization', name: "Tajalli's", url: SITE_URL },
       priceValidUntil: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
       hasMerchantReturnPolicy: {
         '@type': 'MerchantReturnPolicy',

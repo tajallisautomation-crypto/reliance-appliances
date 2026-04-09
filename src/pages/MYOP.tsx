@@ -175,7 +175,7 @@ function getKeySpecs(product: Product, tabId: string): string[] {
 
 function buildWAMessage(items: PackageItem[], subtotal: number, discount: number, total: number): string {
   const lines: string[] = [
-    '*My Custom Package — Tajalli's* 📦',
+    "*My Custom Package — Tajalli's* 📦",
     '',
     ...items.map((item, i) => {
       const name = item.product.simplified_name || item.product.model
