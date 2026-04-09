@@ -11,7 +11,7 @@ const NAV_LINKS = [
   { label: 'Build a Package', href: '/build-your-package' },
   { label: 'Installments',    href: '/installments' },
   { label: 'Solar',           href: '/solar' },
-  { label: 'Green Corridor',  href: '/green-corridor', eco: true },
+  { label: 'Solar Packages',  href: '/green-corridor', eco: true },
   { label: 'Buying Guide',    href: '/buying-guide' },
   { label: 'Services',        href: '/services' },
 ];
@@ -29,29 +29,29 @@ const CATEGORY_NAV = [
 ];
 
 const MOBILE_LINKS = [
-  ['Products',          '/products'],
-  ['Build a Package 🎁', '/build-your-package'],
-  ['Installments',      '/installments'],
-  ['Solar Solutions',   '/solar'],
-  ['Green Corridor',    '/green-corridor'],
-  ['Solar Calculator',  '/solar-calculator'],
-  ['Tools & Calculators', '/tools'],
-  ['Buying Guide',      '/buying-guide'],
-  ['Services',          '/services'],
-  ['Partner With Us',   '/partner'],
-  ['Refer & Earn',      '/referral'],
+  ['Products',             '/products'],
+  ['Build a Package 🎁',  '/build-your-package'],
+  ['Installments',         '/installments'],
+  ['Solar Solutions',      '/solar'],
+  ['Solar Packages',       '/green-corridor'],
+  ['Solar Calculator',     '/solar-calculator'],
+  ['Tools & Calculators',  '/tools'],
+  ['Buying Guide',         '/buying-guide'],
+  ['Services',             '/services'],
+  ['Partner With Us',      '/partner'],
+  ['Refer & Earn',         '/referral'],
   ['Support / Complaints', '/support'],
-  ['Sales Catalogue',   '/catalog'],
-  ['About',             '/about'],
-  ['Contact',           '/contact'],
+  ['Sales Catalogue',      '/catalog'],
+  ['About',                '/about'],
+  ['Contact',              '/contact'],
 ];
 
 export default function Navbar() {
-  const [mobileOpen,    setMobileOpen]    = useState(false);
-  const [cartOpen,      setCartOpen]      = useState(false);
-  const [scrolled,      setScrolled]      = useState(false);
-  const [searchOpen,    setSearchOpen]    = useState(false);
-  const [productsOpen,  setProductsOpen]  = useState(false);
+  const [mobileOpen,   setMobileOpen]   = useState(false);
+  const [cartOpen,     setCartOpen]     = useState(false);
+  const [scrolled,     setScrolled]     = useState(false);
+  const [searchOpen,   setSearchOpen]   = useState(false);
+  const [productsOpen, setProductsOpen] = useState(false);
   const productsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const location = useLocation();
   const totalItems = useCartStore(s => s.items.reduce((n, i) => n + i.qty, 0));
@@ -65,50 +65,113 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // Close mobile menu / search on route change
+  useEffect(() => { setMobileOpen(false); setSearchOpen(false); }, [location.pathname]);
+
   const isActive = (href: string) => location.pathname === href;
 
   return (
     <>
-      <header className={`sticky top-0 z-30 bg-white/95 backdrop-blur-xl border-b border-gray-100/80 transition-shadow duration-200 overflow-x-hidden ${scrolled ? 'shadow-apple-lg' : ''}`}>
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-1 sm:gap-3 h-14 sm:h-16">
+      <header className={`sticky top-0 z-30 bg-white/95 backdrop-blur-xl transition-shadow duration-200 ${scrolled ? 'shadow-apple-lg' : ''}`}>
 
-            {/* Logo — seamless SVG mark + wordmark, transparent background */}
-            <Link to="/" className="flex items-center gap-1.5 sm:gap-2 shrink-0 mr-1 sm:mr-3 group" aria-label="Tajalli's — Home page">
-              <img
-                src="/tajallis-logo-icon.svg"
-                alt=""
-                aria-hidden="true"
-                className="h-7 w-7 sm:h-9 sm:w-9 transition-transform duration-200 group-hover:scale-105"
-              />
-              <span className="leading-none select-none">
-                <span className="block font-black text-[18px] text-brand-500 tracking-tight leading-none">
-                  Tajalli&#8217;s
-                </span>
-                <span className="hidden sm:block text-[9.5px] font-semibold text-gray-400 mt-0.5 tracking-[0.08em] uppercase">
-                  Home &amp; Commercial Solutions
-                </span>
-              </span>
-            </Link>
+        {/* ── Row 1: Logo + Search + Icons ──────────────────────────── */}
+        <div className="border-b border-gray-100/80">
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-2 sm:gap-4 h-14 sm:h-16">
 
-            {/* Nav links — desktop */}
-            <nav className="hidden lg:flex items-center gap-0.5">
+              {/* Logo */}
+              <Link to="/" className="flex items-center gap-1.5 sm:gap-2 shrink-0 group" aria-label="Tajalli's — Home page">
+                <img
+                  src="/tajallis-logo-icon.svg"
+                  alt=""
+                  aria-hidden="true"
+                  className="h-7 w-7 sm:h-9 sm:w-9 transition-transform duration-200 group-hover:scale-105"
+                />
+                <span className="leading-none select-none">
+                  <span className="block font-black text-[18px] text-brand-500 tracking-tight leading-none">
+                    Tajalli&#8217;s
+                  </span>
+                  <span className="hidden sm:block text-[9.5px] font-semibold text-gray-400 mt-0.5 tracking-[0.08em] uppercase">
+                    Home &amp; Commercial Solutions
+                  </span>
+                </span>
+              </Link>
+
+              {/* Search — sm+ only, takes all available space between logo and icons */}
+              <div className="hidden sm:block flex-1 min-w-0">
+                <SearchBar
+                  placeholder="Search products, models, brands…"
+                  inputClass="bg-gray-50 h-10"
+                />
+              </div>
+
+              {/* Right icons */}
+              <div className="flex items-center gap-0.5 sm:gap-1 ml-auto sm:ml-0 shrink-0">
+
+                {/* Mobile: search toggle — hidden sm+ where inline bar is shown */}
+                <button
+                  onClick={() => { setSearchOpen(s => !s); setMobileOpen(false); }}
+                  aria-label="Search"
+                  className="sm:hidden w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
+                >
+                  {searchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+                </button>
+
+                <a href={waSales()} target="_blank" rel="noreferrer" aria-label="WhatsApp"
+                  className="hidden sm:flex w-9 h-9 items-center justify-center rounded-full text-green-500 hover:bg-green-50 transition-colors">
+                  <Phone className="h-4 w-4" />
+                </a>
+
+                <Link to="/portal" aria-label="My Account"
+                  className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-brand-50 text-gray-500 hover:text-brand-600 transition-colors">
+                  <User className="h-4 w-4" />
+                </Link>
+
+                <button onClick={() => setCartOpen(true)} aria-label={`Cart (${totalItems} items)`}
+                  className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-brand-50 text-gray-500 hover:text-brand-600 transition-colors">
+                  <ShoppingCart className="h-4 w-4" />
+                  {totalItems > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-brand-500 text-white text-[10px] font-bold flex items-center justify-center">
+                      {totalItems}
+                    </span>
+                  )}
+                </button>
+
+                {/* Hamburger — hidden on lg+ where nav row is visible */}
+                <button
+                  onClick={() => { setMobileOpen(m => !m); setSearchOpen(false); }}
+                  aria-label="Menu"
+                  className="lg:hidden w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
+                >
+                  {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Row 2: Nav links — lg+ only ───────────────────────────── */}
+        <div className="hidden lg:block border-b border-gray-100/60">
+          <div className="max-w-7xl mx-auto px-6 lg:px-8">
+            <nav className="flex items-center h-10 gap-0.5">
               {NAV_LINKS.map(({ label, href, eco }) =>
                 href === '/products' ? (
-                  <div key={href} className="relative"
+                  <div key={href} className="relative h-full flex items-center"
                     onMouseEnter={openProducts}
                     onMouseLeave={closeProducts}
                   >
                     <Link to={href}
-                      className={`px-3 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
                         isActive(href) ? 'bg-brand-50 text-brand-600 font-semibold' : 'text-gray-600 hover:text-brand-600 hover:bg-brand-50'
                       }`}>
                       {label}
                       <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-150 ${productsOpen ? 'rotate-180' : ''}`} />
                     </Link>
+
                     {productsOpen && (
                       <div
-                        className="fixed top-14 sm:top-16 inset-x-0 z-50 bg-white border-b border-gray-100 shadow-lg"
+                        className="fixed inset-x-0 z-50 bg-white border-b border-gray-100 shadow-lg"
+                        style={{ top: '105px' }}
                         onMouseEnter={openProducts}
                         onMouseLeave={closeProducts}
                       >
@@ -127,7 +190,7 @@ export default function Navbar() {
                   </div>
                 ) : (
                   <Link key={href} to={href}
-                    className={`px-3 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${
                       isActive(href)
                         ? 'bg-brand-50 text-brand-600 font-semibold'
                         : eco
@@ -140,62 +203,19 @@ export default function Navbar() {
                 )
               )}
             </nav>
-
-            {/* Search */}
-            <div className="hidden sm:block flex-1 max-w-md">
-              <SearchBar placeholder="Search products, models, brands…" inputClass="bg-gray-50" />
-            </div>
-
-            {/* Right icons */}
-            <div className="flex items-center gap-0.5 sm:gap-1 ml-auto sm:ml-0 shrink-0">
-              {/* Mobile search toggle — hidden on sm+ where the inline bar is always visible */}
-              <button
-                onClick={() => { setSearchOpen(s => !s); setMobileOpen(false); }}
-                aria-label="Search"
-                className="sm:hidden w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
-              >
-                {searchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
-              </button>
-
-              <a href={waSales()} target="_blank" rel="noreferrer" aria-label="WhatsApp"
-                className="hidden sm:flex w-9 h-9 items-center justify-center rounded-full text-green-500 hover:bg-green-50 transition-colors">
-                <Phone className="h-4 w-4" />
-              </a>
-              <Link to="/portal" aria-label="My Account"
-                className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full hover:bg-brand-50 text-gray-500 hover:text-brand-600 transition-colors">
-                <User className="h-4 w-4" />
-              </Link>
-              <button onClick={() => setCartOpen(true)} aria-label={`Cart (${totalItems} items)`}
-                className="relative w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full hover:bg-brand-50 text-gray-500 hover:text-brand-600 transition-colors">
-                <ShoppingCart className="h-4 w-4" />
-                {totalItems > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-brand-500 text-white text-[10px] font-bold flex items-center justify-center">
-                    {totalItems}
-                  </span>
-                )}
-              </button>
-              <button onClick={() => { setMobileOpen(m => !m); setSearchOpen(false); }} aria-label="Menu"
-                className="lg:hidden w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 transition-colors">
-                {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </button>
-            </div>
           </div>
         </div>
 
-        {/* Mobile search panel — toggled by search icon */}
+        {/* ── Mobile: search panel ──────────────────────────────────── */}
         {searchOpen && !mobileOpen && (
-          <div className="sm:hidden border-t border-gray-100 bg-white px-4 py-3">
+          <div className="sm:hidden border-b border-gray-100 bg-white px-4 py-3">
             <SearchBar placeholder="Search products, models, brands…" autoFocus />
           </div>
         )}
 
-        {/* Mobile menu */}
+        {/* ── Mobile: nav menu ─────────────────────────────────────── */}
         {mobileOpen && (
           <div className="lg:hidden border-t border-gray-100 bg-white px-3 py-3 max-h-[80vh] overflow-y-auto no-scrollbar">
-            {/* Search inside menu — only on xs where the inline bar in header is hidden */}
-            <div className="sm:hidden mb-3">
-              <SearchBar placeholder="Search products…" autoFocus />
-            </div>
             <div className="space-y-0.5">
               {MOBILE_LINKS.map(([label, href]) => (
                 <Link key={href} to={href} onClick={() => setMobileOpen(false)}

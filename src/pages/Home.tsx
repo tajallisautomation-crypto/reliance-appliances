@@ -303,7 +303,7 @@ export default function Home() {
 
           <div className="relative max-w-3xl mx-auto px-8 py-16 text-center">
             <div className="inline-flex items-center gap-2 bg-eco-500/15 text-eco-400 px-4 py-2 rounded-full text-sm font-semibold mb-6">
-              <Leaf className="w-4 h-4" /> Green Corridor
+              <Leaf className="w-4 h-4" /> Solar Packages &amp; Green Corridor
             </div>
             <h2 className="text-4xl md:text-5xl font-black text-white mb-4 leading-tight">
               Cut your bill.<br />
@@ -442,7 +442,9 @@ export default function Home() {
       )}
 
       {/* ── TRUST BAND ───────────────────────────────────────────── */}
-      <section className="bg-gradient-to-br from-gray-950 to-gray-900 py-16 px-4">
+      <section className="relative bg-gradient-to-br from-gray-950 to-gray-900 py-16 px-4">
+        {/* Top accent line */}
+        <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-brand-500 to-transparent opacity-60" />
         <div className="max-w-5xl mx-auto">
           {/* Headline */}
           <div className="text-center mb-12">
@@ -454,16 +456,16 @@ export default function Home() {
           </div>
 
           {/* Stats — premium branded grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-white/10 border border-white/10 rounded-2xl overflow-hidden mb-12">
             {[
               { value: '14,400+', label: 'Clients Served',     sub: 'across Karachi' },
               { value: '24,000+', label: 'Orders Fulfilled',   sub: 'since 2015' },
               { value: '75%',     label: 'Customer Loyalty',   sub: 'clients who return' },
               { value: '11 Yrs',  label: 'In Business',        sub: 'trusted & established' },
             ].map(s => (
-              <div key={s.label} className="bg-white/5 border border-white/10 rounded-2xl p-5 text-center hover:bg-white/8 transition-colors">
-                <p className="text-3xl font-black text-brand-400 leading-none mb-1">{s.value}</p>
-                <p className="text-sm font-bold text-white mt-1">{s.label}</p>
+              <div key={s.label} className="text-center px-4 py-2">
+                <p className="text-4xl md:text-5xl font-black text-brand-400 leading-none mb-2">{s.value}</p>
+                <p className="text-sm font-bold text-white">{s.label}</p>
                 <p className="text-[11px] text-gray-500 mt-0.5">{s.sub}</p>
               </div>
             ))}

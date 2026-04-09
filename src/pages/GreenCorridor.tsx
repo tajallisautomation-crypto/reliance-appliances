@@ -233,7 +233,7 @@ export default function GreenCorridor() {
 
         <div className="relative max-w-4xl mx-auto px-4 py-24 md:py-32 text-center">
           <div className="inline-flex items-center gap-2 bg-eco-500/15 text-eco-400 px-4 py-2 rounded-full text-sm font-semibold mb-8">
-            <Leaf className="w-4 h-4" /> Tajalli's Green Corridor
+            <Leaf className="w-4 h-4" /> Solar + Inverter AC Packages — Karachi
           </div>
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-black text-white leading-[1.05] tracking-tight mb-6">
             Your home.<br />

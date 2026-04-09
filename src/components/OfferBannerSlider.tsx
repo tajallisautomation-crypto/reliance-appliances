@@ -76,7 +76,7 @@ export default function OfferBannerSlider() {
                   {b.badge}
                 </span>
               )}
-              <h2 className="text-white text-2xl md:text-3xl font-black leading-tight mb-1 line-clamp-2">
+              <h2 className="text-white text-2xl md:text-3xl font-black leading-tight mb-1">
                 {b.title}
               </h2>
               {b.subtitle && (
@@ -113,13 +113,15 @@ export default function OfferBannerSlider() {
               <button onClick={prev} aria-label="Previous" className="md:hidden text-white/60 hover:text-white">
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1">
                 {slides.map((_, i) => (
                   <button key={i} onClick={() => setIdx(i)} aria-label={`Go to slide ${i + 1}`}
-                    className={`rounded-full transition-all duration-300 ${
-                      i === idx ? 'bg-white w-5 h-1.5' : 'bg-white/40 w-1.5 h-1.5 hover:bg-white/60'
-                    }`}
-                  />
+                    className="p-1.5"
+                  >
+                    <span className={`block rounded-full transition-all duration-300 ${
+                      i === idx ? 'bg-white w-4 h-1' : 'bg-white/35 w-1.5 h-1.5 hover:bg-white/55'
+                    }`} />
+                  </button>
                 ))}
               </div>
               <button onClick={next} aria-label="Next" className="md:hidden text-white/60 hover:text-white">

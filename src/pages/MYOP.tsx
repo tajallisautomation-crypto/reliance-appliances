@@ -675,20 +675,20 @@ export default function MYOPPage() {
             </div>
 
             {/* Search input */}
-            <div className="relative mb-4">
+            <div className="relative mb-6">
               <input
                 type="search"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search by name, model, or brand…"
-                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                className="w-full pl-11 pr-10 py-3.5 rounded-2xl border-2 border-gray-200 bg-white text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 focus:border-orange-400 shadow-sm transition-colors"
               />
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
               </svg>
               {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500">
-                  <X className="w-3.5 h-3.5" />
+                <button onClick={() => setSearchQuery('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <X className="w-4 h-4" />
                 </button>
               )}
             </div>
@@ -716,6 +716,10 @@ export default function MYOPPage() {
                     <button onClick={() => setSearchQuery('')} className="text-orange-500 text-sm hover:underline mt-2 inline-block">
                       Clear search
                     </button>
+                    <span className="text-gray-300 mx-2 text-sm">·</span>
+                    <Link to="/products" className="text-gray-400 text-sm hover:underline mt-2 inline-block">
+                      Search all products →
+                    </Link>
                   </>
                 ) : (
                   <>
