@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Wind, Refrigerator, Shirt, ChevronRight, CheckCircle, AlertCircle, Info } from 'lucide-react'
 import SEO from '@/components/ui/SEO'
 import { waSales } from '@/lib/whatsapp'
+import { getProducts, formatPrice, type Product } from '@/lib/api'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared UI atoms
@@ -84,6 +85,81 @@ function Tip({ children }: { children: React.ReactNode }) {
     <div className="flex items-start gap-2 bg-amber-50 border border-amber-100 rounded-xl p-3 mt-3">
       <Info className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
       <p className="text-xs text-amber-800">{children}</p>
+    </div>
+  )
+}
+
+// ── Inline product strip shown below calculator results ─────────────────────
+
+function InlineProductStrip({
+  category,
+  label,
+  accentColor,
+  viewAllHref,
+}: {
+  category: string
+  label: string
+  accentColor: string
+  viewAllHref: string
+}) {
+  const [items, setItems] = useState<Product[]>([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    setLoading(true)
+    getProducts({ category, sort: 'price_asc' })
+      .then(({ products }) => setItems(products.slice(0, 6)))
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false))
+  }, [category])
+
+  if (loading) {
+    return (
+      <div className="mt-4 space-y-2">
+        <div className="h-3 w-40 bg-gray-100 rounded animate-pulse" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="bg-gray-50 rounded-2xl p-3 animate-pulse">
+              <div className="aspect-square bg-gray-100 rounded-xl mb-2" />
+              <div className="h-3 bg-gray-100 rounded w-3/4 mb-1" />
+              <div className="h-3 bg-gray-100 rounded w-1/2" />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (!items.length) return null
+
+  return (
+    <div className="mt-4">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Matching {label} from our catalog</p>
+        <Link to={viewAllHref} className="text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-0.5">
+          View all <ChevronRight className="w-3 h-3" />
+        </Link>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {items.map(p => (
+          <Link
+            key={p.id}
+            to={`/products/${p.id}`}
+            className={`group bg-white border-2 border-transparent hover:border-brand-300 hover:shadow-apple rounded-2xl p-3 transition-all`}
+          >
+            <div className="aspect-square bg-gray-50 rounded-xl overflow-hidden mb-2">
+              {p.thumbnail ? (
+                <img src={p.thumbnail} alt={p.simplified_name || p.model} className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform duration-200" loading="lazy" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-2xl">📦</div>
+              )}
+            </div>
+            <p className="text-[9px] font-bold text-brand-500 uppercase tracking-wider mb-0.5">{p.brand}</p>
+            <p className="text-xs font-bold text-gray-900 leading-tight line-clamp-2 mb-1">{p.simplified_name || p.model}</p>
+            <p className="text-xs font-black text-gray-900">PKR {formatPrice(p.price.cash_floor)}</p>
+          </Link>
+        ))}
+      </div>
     </div>
   )
 }
@@ -274,11 +350,17 @@ function ACCalculator() {
                 : 'Always choose inverter over non-inverter in Pakistan — they consume 40–60% less electricity and handle voltage fluctuations better. When in doubt between two sizes, go one step up for better comfort.'}
             </Tip>
 
+            <InlineProductStrip
+              category="air-conditioners"
+              label={`${result.tonLabel} Air Conditioners`}
+              accentColor="blue"
+              viewAllHref={`/products/category/${result.categorySlug}`}
+            />
             <Link
               to={`/products/category/${result.categorySlug}`}
               className="flex items-center justify-center gap-2 w-full bg-blue-500 hover:bg-blue-600 text-white rounded-xl py-3 font-bold text-sm transition-all"
             >
-              Browse {result.tonLabel} Air Conditioners <ChevronRight className="w-4 h-4" />
+              View All {result.tonLabel} Air Conditioners <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
         )}
@@ -458,11 +540,17 @@ function RefrigeratorCalculator() {
               Haier EP / IP / IF series are popular glass-door inverter options.
             </Tip>
 
+            <InlineProductStrip
+              category="refrigerators"
+              label="Refrigerators"
+              accentColor="teal"
+              viewAllHref="/products?category=refrigerators"
+            />
             <Link
               to={`/products?category=refrigerators`}
               className="flex items-center justify-center gap-2 w-full bg-teal-500 hover:bg-teal-600 text-white rounded-xl py-3 font-bold text-sm transition-all"
             >
-              Browse Refrigerators <ChevronRight className="w-4 h-4" />
+              View All Refrigerators <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
         )}
@@ -645,11 +733,17 @@ function ShirtCalculator() {
               go one drum size up from the recommendation.
             </Tip>
 
+            <InlineProductStrip
+              category="washing-machines"
+              label={result.type}
+              accentColor="violet"
+              viewAllHref={`/products/category/${result.categorySlug}`}
+            />
             <Link
               to={`/products/category/${result.categorySlug}`}
               className="flex items-center justify-center gap-2 w-full bg-violet-500 hover:bg-violet-600 text-white rounded-xl py-3 font-bold text-sm transition-all"
             >
-              Browse {result.type} <ChevronRight className="w-4 h-4" />
+              View All {result.type} <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
         )}
@@ -667,7 +761,7 @@ export default function BuyingGuide() {
     <div className="min-h-screen bg-gray-50">
       <SEO
         title="Appliance Buying Guide — AC, Fridge & Washing Machine Size Calculator"
-        description="Free interactive calculators to find the right AC tonnage for your room, refrigerator size for your family, and washing machine capacity for your laundry load. By Reliance Appliances Karachi."
+        description="Free interactive calculators to find the right AC tonnage for your room, refrigerator size for your family, and washing machine capacity for your laundry load. By Tajalli's — Karachi."
         path="/buying-guide"
         keywords="ac size calculator pakistan, refrigerator size guide, washing machine capacity calculator karachi, which ac to buy, right fridge size family"
       />

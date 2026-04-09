@@ -144,7 +144,7 @@ const PACKAGES: GCPackage[] = [
     popular: true,
     color: 'border-eco-500',
     badgeColor: 'bg-eco-500 text-white',
-    workmanshipWarranty: '3-year',
+    workmanshipWarranty: '1-year',
   },
   {
     id: 'total-freedom',
@@ -172,11 +172,11 @@ const PACKAGES: GCPackage[] = [
       'All wiring, electrical equipment & transport',
       'Professional installation & commissioning',
     ],
-    price: 1400000,
+    price: 1435000,
     popular: false,
     color: 'border-gray-200',
     badgeColor: 'bg-gray-100 text-gray-700',
-    workmanshipWarranty: '5-year',
+    workmanshipWarranty: '1-year',
   },
 ]
 
@@ -195,7 +195,7 @@ export default function GreenCorridor() {
   const solarSavingPct  = Math.min(0.85, 0.55 + numACs * 0.05 + (hasBattery ? 0.10 : 0))
   const monthlySaving   = Math.round(monthlyBill * solarSavingPct / 100) * 100
   const annualSaving    = monthlySaving * 12
-  const systemCost      = (numACs <= 2 ? 450000 : numACs <= 4 ? 850000 : 1400000) + (hasBattery ? 250000 : 0)
+  const systemCost      = (numACs <= 2 ? 450000 : numACs <= 4 ? 850000 : 1435000) + (hasBattery ? 250000 : 0)
   const paybackYears    = annualSaving > 0 ? +(systemCost / annualSaving).toFixed(1) : 0
   const plan3m          = calcPlan(systemCost, '3m')
 
@@ -233,7 +233,7 @@ export default function GreenCorridor() {
 
         <div className="relative max-w-4xl mx-auto px-4 py-24 md:py-32 text-center">
           <div className="inline-flex items-center gap-2 bg-eco-500/15 text-eco-400 px-4 py-2 rounded-full text-sm font-semibold mb-8">
-            <Leaf className="w-4 h-4" /> Reliance Green Corridor
+            <Leaf className="w-4 h-4" /> Tajalli's Green Corridor
           </div>
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-black text-white leading-[1.05] tracking-tight mb-6">
             Your home.<br />
@@ -407,7 +407,7 @@ export default function GreenCorridor() {
               <Leaf className="w-4 h-4 text-eco-500 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-bold text-eco-800">
-                  Recommended: <strong>{matchedPackage.name}</strong> Package ({matchedPackage.solarKw}kW)
+                  Suggested Based on Your Inputs: <strong>{matchedPackage.name}</strong> Package ({matchedPackage.solarKw}kW)
                 </p>
                 <p className="text-xs text-eco-700 mt-0.5">
                   {matchedPackage.panelCount} × {matchedPackage.panelWatts}W panels · {matchedPackage.inverterModel}
@@ -620,15 +620,16 @@ export default function GreenCorridor() {
       <section className="max-w-4xl mx-auto px-4 py-20 text-center">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {[
-            { icon: TrendingDown, stat: 'Up to 85%', label: 'Reduction in electricity bill',  color: 'text-eco-500' },
-            { icon: Sun,          stat: '25 Years',  label: 'Panel performance warranty',     color: 'text-amber-500' },
-            { icon: Zap,          stat: '1 Day',     label: 'Average installation time',      color: 'text-blue-500' },
-            { icon: CheckCircle,  stat: '100%',      label: 'Genuine DISCO-approved equipment', color: 'text-eco-500' },
+            { icon: TrendingDown, stat: 'Up to 85%', label: 'Bill reduction (based on full load + battery system)', color: 'text-eco-500', caveat: true },
+            { icon: Sun,          stat: '25 Years',  label: 'Panel performance warranty',     color: 'text-amber-500', caveat: false },
+            { icon: Zap,          stat: '1 Day',     label: 'Average installation time',      color: 'text-blue-500', caveat: false },
+            { icon: CheckCircle,  stat: '100%',      label: 'Genuine DISCO-approved equipment', color: 'text-eco-500', caveat: false },
           ].map(item => (
             <div key={item.label} className="p-6">
               <item.icon className={`w-8 h-8 ${item.color} mx-auto mb-3`} />
               <p className={`text-3xl font-black ${item.color} mb-1`}>{item.stat}</p>
               <p className="text-sm text-gray-500">{item.label}</p>
+              {item.caveat && <p className="text-[10px] text-gray-400 mt-1">Actual savings depend on your usage and load profile</p>}
             </div>
           ))}
         </div>

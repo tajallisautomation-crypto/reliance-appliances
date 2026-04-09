@@ -73,7 +73,7 @@ export function Services() {
   return (
     <div className="min-h-screen bg-white">
       <SEO
-        title="Professional Appliance Services — Reliance Appliances Karachi"
+        title="Professional Appliance Services — Tajalli's Karachi"
         description="AC installation, refrigerator repair, solar installation, and annual maintenance contracts by certified technicians. Same-day service in Karachi."
       />
 
@@ -274,6 +274,63 @@ export function Services() {
                 <p className="text-xs text-gray-600 leading-relaxed">{g.desc}</p>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* Annual Maintenance Subscription */}
+        <section>
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-black text-gray-900">Annual Maintenance Subscription</h2>
+            <p className="text-gray-500 mt-1 text-sm">For eligible products — includes free service visits throughout the year</p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6">
+              <Star className="w-6 h-6 text-blue-600 mb-3" />
+              <h3 className="font-bold text-gray-900 mb-2">Who qualifies?</h3>
+              <p className="text-sm text-gray-600 leading-relaxed mb-3">
+                Annual maintenance subscriptions are available for products priced above <strong>PKR 50,000</strong> — including ACs, refrigerators, washing machines, solar systems, and other major appliances.
+              </p>
+              <ul className="space-y-1.5 text-sm text-gray-700">
+                {[
+                  'Subscription price = 15% of product price per year',
+                  'Includes all service visits and labor for covered repairs',
+                  'Replacement parts are paid by the customer at cost',
+                  'Priority scheduling — visits confirmed within 24 hours',
+                ].map(item => (
+                  <li key={item} className="flex items-start gap-2">
+                    <CheckCircle className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="bg-gray-50 border border-gray-100 rounded-2xl p-6">
+              <Zap className="w-6 h-6 text-orange-500 mb-3" />
+              <h3 className="font-bold text-gray-900 mb-2">How it works</h3>
+              <ol className="space-y-3 text-sm text-gray-600">
+                {[
+                  'Purchase any eligible product (above PKR 50,000).',
+                  'Opt in to the Annual Maintenance Subscription at the time of purchase or within 30 days.',
+                  'Your subscription price is confirmed at 15% of the product\'s cash price.',
+                  'We schedule routine visits and respond to breakdowns throughout the year — labor is included.',
+                  'If parts need replacing, we source them and bill you at cost — no markup.',
+                ].map((step, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <span className="w-5 h-5 bg-orange-100 text-orange-600 rounded-full text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                    {step}
+                  </li>
+                ))}
+              </ol>
+              <div className="mt-4 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-xs text-amber-800">
+                <strong>Example:</strong> AC purchased at PKR 120,000 → Annual Maintenance Subscription = PKR 18,000/year (15%). All service visits and labor included. Parts at cost.
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 text-center">
+            <a href={waSales('Hi, I\'d like to know about the Annual Maintenance Subscription for my appliance')} target="_blank" rel="noreferrer"
+              className="inline-flex items-center gap-2 bg-gray-900 text-white font-bold px-7 py-3 rounded-xl hover:bg-gray-800 transition-colors">
+              <MessageCircle className="w-4 h-4" /> Ask About Subscription
+            </a>
           </div>
         </section>
 

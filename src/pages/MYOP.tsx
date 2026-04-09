@@ -546,8 +546,9 @@ export default function MYOPPage() {
   const selected   = store.items
   const setActiveTab = store.setActiveTab
 
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading,  setLoading]  = useState(false)
+  const [products,     setProducts]     = useState<Product[]>([])
+  const [loading,      setLoading]      = useState(false)
+  const [searchQuery,  setSearchQuery]  = useState('')
 
   // Solar compatibility: detect if user has an inverter in their package
   const selectedInverterItem = selected.find(item => isSolarInverter(item.product))
@@ -574,7 +575,19 @@ export default function MYOPPage() {
     finally { setLoading(false) }
   }, [])
 
-  useEffect(() => { fetchTab(activeTab) }, [activeTab, fetchTab])
+  useEffect(() => { fetchTab(activeTab); setSearchQuery('') }, [activeTab, fetchTab])
+
+  // Filter products by search query (model, simplified_name, brand)
+  const filteredProducts = searchQuery.trim()
+    ? products.filter(p => {
+        const q = searchQuery.toLowerCase()
+        return (
+          (p.simplified_name || '').toLowerCase().includes(q) ||
+          (p.model           || '').toLowerCase().includes(q) ||
+          (p.brand           || '').toLowerCase().includes(q)
+        )
+      })
+    : products
 
   const isSelected = (id: string) => store.hasItem(id)
 
@@ -661,6 +674,25 @@ export default function MYOPPage() {
               ))}
             </div>
 
+            {/* Search input */}
+            <div className="relative mb-4">
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search by name, model, or brand…"
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+              />
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+              </svg>
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
             {/* Products grid */}
             {loading ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
@@ -675,16 +707,31 @@ export default function MYOPPage() {
                   </div>
                 ))}
               </div>
-            ) : products.length === 0 ? (
+            ) : filteredProducts.length === 0 ? (
               <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
                 <p className="text-4xl mb-3">📦</p>
-                <p className="text-gray-500 font-medium">No products found in this category</p>
-                <Link to="/products" className="text-orange-500 text-sm hover:underline mt-2 inline-block">
-                  Browse all products →
-                </Link>
+                {searchQuery ? (
+                  <>
+                    <p className="text-gray-500 font-medium">No products match "{searchQuery}"</p>
+                    <button onClick={() => setSearchQuery('')} className="text-orange-500 text-sm hover:underline mt-2 inline-block">
+                      Clear search
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-gray-500 font-medium">No products found in this category</p>
+                    <Link to="/products" className="text-orange-500 text-sm hover:underline mt-2 inline-block">
+                      Browse all products →
+                    </Link>
+                  </>
+                )}
               </div>
             ) : (
               <>
+                {/* Search result count */}
+                {searchQuery && (
+                  <p className="text-xs text-gray-400 mb-3">{filteredProducts.length} result{filteredProducts.length !== 1 ? 's' : ''} for "{searchQuery}"</p>
+                )}
                 {/* Compatibility banner: shown on solar tab when an inverter is selected */}
                 {activeTab === 'solar' && selectedInverterItem && (
                   <div className={`mb-4 rounded-xl px-4 py-3 text-sm flex items-start gap-2 ${
@@ -709,7 +756,7 @@ export default function MYOPPage() {
                   </div>
                 )}
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {products.map(product => (
+                  {filteredProducts.map(product => (
                     <ProductTile
                       key={product.id}
                       product={product}

@@ -76,7 +76,7 @@ export default function OfferBannerSlider() {
                   {b.badge}
                 </span>
               )}
-              <h2 className="text-white text-2xl md:text-3xl font-black leading-tight mb-1 truncate">
+              <h2 className="text-white text-2xl md:text-3xl font-black leading-tight mb-1 line-clamp-2">
                 {b.title}
               </h2>
               {b.subtitle && (

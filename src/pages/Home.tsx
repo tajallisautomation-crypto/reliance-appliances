@@ -45,7 +45,7 @@ const PLAN_OPTIONS = [
 
 const TOOLS = [
   { icon: '🔢', title: 'Solar Calculator',    desc: 'Find out exactly what solar system you need.',       href: '/solar-calculator' },
-  { icon: '💡', title: 'Bill Savings Calc',   desc: 'See how much solar can reduce your electricity bill.',href: '/tools' },
+  { icon: '💡', title: 'Bill Savings Calc',   desc: 'Estimate your solar savings based on your actual load and usage.',href: '/tools' },
   { icon: '📈', title: 'Payback Calculator',  desc: 'Calculate when your solar investment pays back.',     href: '/tools' },
   { icon: '⚡', title: 'Net Metering Check',  desc: "Check if you're eligible to sell power to the grid.", href: '/tools' },
 ]
@@ -122,7 +122,7 @@ export default function Home() {
             <div className="flex flex-wrap gap-x-6 gap-y-2 mt-6 text-sm text-gray-500">
               <span><strong className="text-gray-900 font-bold">11</strong> Years in Business</span>
               <span><strong className="text-gray-900 font-bold">14,400+</strong> Clients</span>
-              <span><strong className="text-gray-900 font-bold">75%</strong> Return Rate</span>
+              <span><strong className="text-gray-900 font-bold">75%</strong> Customer Loyalty</span>
               <span><strong className="text-gray-900 font-bold">24,000+</strong> Orders</span>
             </div>
           </div>
@@ -441,34 +441,55 @@ export default function Home() {
         </section>
       )}
 
-      {/* ── FINAL CTA ────────────────────────────────────────────── */}
-      <section className="bg-gray-900 text-white py-16 px-4">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl font-black mb-4">Ready to shop?</h2>
-          <p className="text-gray-400 mb-8 text-lg">
-            ACs, fridges, washing machines, solar &amp; more — {totalProducts > 0 ? totalProducts : '400+'} products on easy installments. Delivered to your door in Karachi.
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8 text-left sm:text-center">
+      {/* ── TRUST BAND ───────────────────────────────────────────── */}
+      <section className="bg-gradient-to-br from-gray-950 to-gray-900 py-16 px-4">
+        <div className="max-w-5xl mx-auto">
+          {/* Headline */}
+          <div className="text-center mb-12">
+            <p className="text-brand-400 text-xs font-bold uppercase tracking-[0.2em] mb-3">Trusted since 2015</p>
+            <h2 className="text-3xl md:text-4xl font-black text-white mb-3">Karachi's most reliable<br/>appliance partner.</h2>
+            <p className="text-gray-500 max-w-lg mx-auto text-sm">
+              {totalProducts > 0 ? totalProducts : '400+'} genuine products · Easy installments · Professional installation · After-sale support
+            </p>
+          </div>
+
+          {/* Stats — premium branded grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
             {[
-              { icon: ShieldCheck, label: 'Authentic Products', sub: '100% genuine, full warranty' },
-              { icon: CreditCard,  label: 'Easy Installments',  sub: '2–12 months, no bank needed' },
-              { icon: Truck,       label: 'Home Delivery',      sub: 'Fast delivery & installation' },
-              { icon: Headphones,  label: 'After-Sale Support', sub: 'Dedicated team, warranty claims' },
-            ].map(({ icon: Icon, label, sub }) => (
-              <div key={label} className="flex sm:flex-col items-start sm:items-center gap-3 sm:gap-2 bg-white/5 rounded-2xl p-4">
-                <Icon className="w-5 h-5 text-brand-400 shrink-0" />
-                <div>
-                  <p className="text-sm font-bold text-white">{label}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{sub}</p>
-                </div>
+              { value: '14,400+', label: 'Clients Served',     sub: 'across Karachi' },
+              { value: '24,000+', label: 'Orders Fulfilled',   sub: 'since 2015' },
+              { value: '75%',     label: 'Customer Loyalty',   sub: 'clients who return' },
+              { value: '11 Yrs',  label: 'In Business',        sub: 'trusted & established' },
+            ].map(s => (
+              <div key={s.label} className="bg-white/5 border border-white/10 rounded-2xl p-5 text-center hover:bg-white/8 transition-colors">
+                <p className="text-3xl font-black text-brand-400 leading-none mb-1">{s.value}</p>
+                <p className="text-sm font-bold text-white mt-1">{s.label}</p>
+                <p className="text-[11px] text-gray-500 mt-0.5">{s.sub}</p>
               </div>
             ))}
           </div>
+
+          {/* Trust pillars */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-10">
+            {[
+              { icon: ShieldCheck, label: 'Authentic Products', sub: '100% genuine, full warranty' },
+              { icon: CreditCard,  label: 'Easy Installments',  sub: '2–12 months, no bank needed' },
+              { icon: Truck,       label: 'Home Delivery',      sub: 'Fast delivery, Karachi-wide' },
+              { icon: Headphones,  label: 'After-Sale Support', sub: 'Dedicated team, warranty claims' },
+            ].map(({ icon: Icon, label, sub }) => (
+              <div key={label} className="flex flex-col items-center gap-2 bg-white/5 rounded-2xl p-4 text-center">
+                <Icon className="w-5 h-5 text-brand-400" />
+                <p className="text-xs font-bold text-white leading-tight">{label}</p>
+                <p className="text-[10px] text-gray-500">{sub}</p>
+              </div>
+            ))}
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/products" className="bg-brand-500 hover:bg-brand-600 text-white font-bold px-8 py-4 rounded-2xl transition-colors">
+            <Link to="/products" className="bg-brand-500 hover:bg-brand-600 text-white font-bold px-8 py-4 rounded-2xl transition-colors text-center">
               Shop All Products
             </Link>
-            <Link to="/installments" className="border border-gray-600 text-gray-300 hover:bg-gray-800 font-bold px-8 py-4 rounded-2xl transition-colors">
+            <Link to="/installments" className="border border-gray-600 text-gray-300 hover:bg-gray-800 font-bold px-8 py-4 rounded-2xl transition-colors text-center">
               View Installment Plans
             </Link>
           </div>

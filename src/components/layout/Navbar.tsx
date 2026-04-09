@@ -192,7 +192,8 @@ export default function Navbar() {
         {/* Mobile menu */}
         {mobileOpen && (
           <div className="lg:hidden border-t border-gray-100 bg-white px-3 py-3 max-h-[80vh] overflow-y-auto no-scrollbar">
-            <div className="mb-3">
+            {/* Search inside menu — only on xs where the inline bar in header is hidden */}
+            <div className="sm:hidden mb-3">
               <SearchBar placeholder="Search products…" autoFocus />
             </div>
             <div className="space-y-0.5">
