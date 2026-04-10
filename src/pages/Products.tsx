@@ -278,8 +278,29 @@ const SPEC_FILTERS: Record<string, SpecFilter[]> = {
     {
       key: 'actech', label: 'Technology',
       options: [
-        { value: 'inverter',     label: 'Inverter',      match: p => /inverter/i.test((p.simplified_name || '') + ' ' + (p.tags || '')) },
-        { value: 'non-inverter', label: 'Non-Inverter',  match: p => !/inverter/i.test((p.simplified_name || '') + ' ' + (p.tags || '')) },
+        {
+          value: 'inverter', label: 'Inverter',
+          match: p => {
+            const src = (p.simplified_name || '') + ' ' + (p.tags || '');
+            if (/inverter/i.test(src)) return true;
+            // Product intelligence: Gree Airy series = inverter (not always labeled)
+            if (/gree/i.test(p.brand) && /\bairy\b/i.test(p.simplified_name || '')) return true;
+            // Product intelligence: Haier HFT series = T3 inverter
+            if (/haier/i.test(p.brand) && /\bHFT\b/.test(p.model || '')) return true;
+            return false;
+          },
+        },
+        {
+          value: 'non-inverter', label: 'Non-Inverter',
+          match: p => {
+            const src = (p.simplified_name || '') + ' ' + (p.tags || '');
+            if (/inverter/i.test(src)) return false;
+            // Gree Airy and Haier HFT are inverter — exclude from non-inverter
+            if (/gree/i.test(p.brand) && /\bairy\b/i.test(p.simplified_name || '')) return false;
+            if (/haier/i.test(p.brand) && /\bHFT\b/.test(p.model || '')) return false;
+            return true;
+          },
+        },
       ],
     },
     {
@@ -287,7 +308,15 @@ const SPEC_FILTERS: Record<string, SpecFilter[]> = {
       options: [
         { value: 'heatcool', label: 'Heat & Cool',          match: p => /heat.*cool|heat & cool/i.test(p.simplified_name || '') },
         { value: 'coolonly', label: 'Cool Only',            match: p => !/heat.*cool|heat & cool/i.test(p.simplified_name || '') },
-        { value: 't3',       label: 'T3 (High Ambient 52°C)', match: p => /\bT3\b/i.test((p.simplified_name || '') + ' ' + (p.model || '')) },
+        {
+          value: 't3', label: 'T3 (High Ambient 52°C)',
+          match: p => {
+            if (/\bT3\b/i.test((p.simplified_name || '') + ' ' + (p.model || ''))) return true;
+            // Haier HFT series = T3 inverter (product intelligence rule)
+            if (/haier/i.test(p.brand) && /\bHFT\b/.test(p.model || '')) return true;
+            return false;
+          },
+        },
       ],
     },
     {

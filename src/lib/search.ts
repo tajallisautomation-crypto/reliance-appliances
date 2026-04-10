@@ -3,6 +3,30 @@
 
 import type { Product } from './api';
 
+// ── Capacity synonym normalization ────────────────────────────────────────────
+// Applied before indexing and before query parsing so all representations
+// of the same unit collapse to a single canonical form.
+//
+// cu ft / cu.ft / cubic feet / cubic foot / cft → "cuft"
+// kg → kept as "kg"
+// litre / liter / L → "l"
+//
+// This ensures "14 cubic feet" and "14 cu ft" and "14 cft" all resolve to the
+// same token "14cuft" and score identically against an indexed product whose
+// spec says "14 Cu.Ft".
+
+function normCapacityText(s: string): string {
+  return s
+    .replace(/\bcu\.?\s*ft\b/gi,     'cuft')
+    .replace(/\bcubic\.?\s*f(?:eet|oot|t)?\b/gi, 'cuft')
+    .replace(/\bcft\b/gi,            'cuft')
+    .replace(/\bcu\s*feet\b/gi,      'cuft')
+    .replace(/\bcubic\s+feet\b/gi,   'cuft')
+    .replace(/\bcubic\s+foot\b/gi,   'cuft')
+    .replace(/\blitre[s]?\b/gi,      'l')
+    .replace(/\bliter[s]?\b/gi,      'l');
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface IndexedProduct {
@@ -22,11 +46,17 @@ export interface IndexedProduct {
   searchBlob:      string;   // full-text for substring search
   price:           number;
   /**
-   * Parsed capacity in tons (for ACs) or kWh (for batteries/solar).
+   * Parsed capacity in tons (for ACs).
    * Enables capacity-aware scoring so "1.5 ton" strictly outranks "1 ton" for that query.
    * Governance: derived from structured specs fields only — never from raw text guessing.
    */
   capacityTon?: number;
+  /**
+   * Parsed capacity in cubic feet (for refrigerators, freezers).
+   * Enables "14 cubic feet" to rank 14 cu.ft units above 18 cu.ft units.
+   * Governance: derived from specs['Capacity'] or simplified_name — structured fields only.
+   */
+  capacityCuft?: number;
 }
 
 export interface SearchIndex {
@@ -59,6 +89,8 @@ export interface ParsedQuery {
   categoryHint?: string;
   /** Capacity in tons parsed from query — e.g. "1.5 ton" → 1.5. Enables strict capacity scoring. */
   capacityTonHint?: number;
+  /** Capacity in cubic feet parsed from query — e.g. "14 cubic feet" → 14. */
+  capacityCuftHint?: number;
   // admin-only
   missingImages?: boolean;
   missingName?:   boolean;
@@ -149,10 +181,10 @@ export function buildSearchIndex(products: Product[]): SearchIndex {
     // Tags
     if (p.tags) add(p.tags);
 
-    // Specs — flatten values: "1000W" → "1000w", "1.5L" → "1.5l"
+    // Specs — flatten values, normalize capacity synonyms before tokenizing
     if (p.specs) {
       Object.values(p.specs).forEach(v => {
-        const s = String(v);
+        const s = normCapacityText(String(v));
         tokens.add(s.toLowerCase().replace(/\s+/g, ''));
         add(s);
       });
@@ -160,9 +192,33 @@ export function buildSearchIndex(products: Product[]): SearchIndex {
 
     // Description (first 300 chars, only 4+ char tokens to avoid noise)
     if (p.description) {
-      tokenize(p.description.slice(0, 300))
+      const descNorm = normCapacityText(p.description.slice(0, 300));
+      tokenize(descNorm)
         .filter(t => t.length >= 4)
         .forEach(t => tokens.add(t));
+    }
+
+    // Also normalize capacity synonyms in name/tags so "14 Cu.Ft" indexes as "14cuft"
+    const nameNorm = normCapacityText(p.simplified_name || '');
+    tokenize(nameNorm).forEach(t => tokens.add(t));
+    tokens.add(nameNorm.toLowerCase().replace(/\s+/g, ''));
+
+    // ── Product intelligence rules ────────────────────────────────────────────
+    // Governance: these rules classify products that suppliers don't tag correctly.
+    // Gree Airy series = inverter AC
+    // Haier HFT series = T3 inverter AC
+    // These tokens are added to the index so filter matching works correctly.
+    const modelUpper = (p.model || '').toUpperCase();
+    const nameForIntel = (p.simplified_name || '').toLowerCase();
+    const brandLow = p.brand.toLowerCase();
+    if (
+      (brandLow === 'gree' && /\bairy\b/i.test(nameForIntel)) ||
+      (brandLow === 'haier' && /\bHFT\b/.test(modelUpper))
+    ) {
+      tokens.add('inverter');
+    }
+    if (brandLow === 'haier' && /\bHFT\b/.test(modelUpper)) {
+      tokens.add('t3');
     }
 
     const searchBlob = [
@@ -172,14 +228,37 @@ export function buildSearchIndex(products: Product[]): SearchIndex {
       p.tags, p.description?.slice(0, 300) ?? '',
       Object.values(p.specs ?? {}).join(' '),
     ].join(' ').toLowerCase();
+    // Also add capacity-normalized version of the blob
+    const searchBlobNorm = normCapacityText(searchBlob);
 
-    // ── Capacity parsing (ACs: tons; solar/batteries: kWh) ──────────────────────
-    // Governance: read from structured specs only. Never guess from raw text.
+    // ── Capacity parsing (ACs: tons; fridges/freezers: cu.ft) ───────────────────
+    // Governance: read from structured specs first, fall back to simplified_name.
+    // Never guess from description.
     let capacityTon: number | undefined;
     if (p.specs) {
       const tonSpec = p.specs['Tonnage'] || p.specs['tonnage'] || '';
       const tonMatch = String(tonSpec).match(/^([\d.]+)\s*[Tt]on/);
       if (tonMatch) capacityTon = parseFloat(tonMatch[1]);
+    }
+
+    // Cu.ft parsing — from specs['Capacity'] then from simplified_name
+    let capacityCuft: number | undefined;
+    const cuftSources = [
+      p.specs?.['Capacity'] ?? '',
+      p.specs?.['capacity'] ?? '',
+      p.simplified_name ?? '',
+    ].join(' ');
+    // Normalize synonyms first so we match "cubic feet" and "cu ft" too
+    const cuftNorm = normCapacityText(cuftSources);
+    const cuftMatch = cuftNorm.match(/(\d{1,2}(?:\.\d+)?)\s*cuft\b/i);
+    if (cuftMatch) {
+      const v = parseFloat(cuftMatch[1]);
+      if (v >= 1 && v <= 30) capacityCuft = v; // sanity range for household appliances
+    }
+    // Also add normalized cuft token to the index for this product
+    if (capacityCuft !== undefined) {
+      tokens.add(`${capacityCuft}cuft`);
+      tokens.add(`${Math.round(capacityCuft)}cuft`);
     }
 
     indexed.push({
@@ -193,9 +272,10 @@ export function buildSearchIndex(products: Product[]): SearchIndex {
       normCatLower:     (p.normalized_category    || '').toLowerCase(),
       normSubCatLower:  (p.normalized_subcategory || '').toLowerCase(),
       browseGroupLower: (p.frontend_browse_group  || '').toLowerCase(),
-      searchBlob,
+      searchBlob: searchBlobNorm,
       price:            p.price.cash_floor,
       capacityTon,
+      capacityCuft,
     });
   }
 
@@ -216,7 +296,9 @@ function parsePriceToken(s: string): number {
 }
 
 export function parseQuery(raw: string): ParsedQuery {
-  let working = raw.toLowerCase().trim().replace(/['"]/g, '');
+  // Normalize capacity synonyms FIRST so "14 cubic feet" → "14 cuft"
+  // This ensures downstream token matching and capacity extraction work uniformly.
+  let working = normCapacityText(raw.toLowerCase().trim().replace(/['"]/g, ''));
 
   // Admin special tokens
   let missingImages = false, missingName = false, missingDesc = false;
@@ -272,15 +354,24 @@ export function parseQuery(raw: string): ParsedQuery {
     }
   }
 
-  // Capacity hint — detect "1.5 ton", "1 ton", "2 ton", "1.5ton", "15 ton" etc.
+  // Capacity hint — detect "1.5 ton", "1 ton", "2 ton" etc.
   let capacityTonHint: number | undefined;
   const capMatch = working.match(/\b([\d.]+)\s*ton\b/i);
   if (capMatch) {
     const v = parseFloat(capMatch[1]);
-    if (v >= 0.5 && v <= 5) capacityTonHint = v; // sanity range — ignore nonsense values
+    if (v >= 0.5 && v <= 5) capacityTonHint = v; // sanity range
   }
 
-  return { raw, clean: working, terms, priceMax, priceMin, isModelLike, brandHint, categoryHint, capacityTonHint, missingImages, missingName, missingDesc };
+  // Cu.ft capacity hint — detect "14 cuft" (already normalized), "14.5 cuft" etc.
+  // After normCapacityText, "14 cubic feet" / "14 cu ft" / "14 cft" all become "14 cuft"
+  let capacityCuftHint: number | undefined;
+  const cuftMatch = working.match(/\b([\d.]+)\s*cuft\b/i);
+  if (cuftMatch) {
+    const v = parseFloat(cuftMatch[1]);
+    if (v >= 1 && v <= 30) capacityCuftHint = v;
+  }
+
+  return { raw, clean: working, terms, priceMax, priceMin, isModelLike, brandHint, categoryHint, capacityTonHint, capacityCuftHint, missingImages, missingName, missingDesc };
 }
 
 // ── Edit distance (Levenshtein) ───────────────────────────────────────────────
@@ -355,14 +446,32 @@ function scoreProduct(ip: IndexedProduct, pq: ParsedQuery): number {
   if (terms.some(t => t.length >= 4 && ip.normCatLower.includes(t)))     { score += 18; }
   if (terms.some(t => t.length >= 4 && ip.normSubCatLower.includes(t)))  { score += 8;  }
 
-  // ── Capacity matching (first-class: "1.5 ton" must beat "1 ton" for that query) ─
-  // Governance: exact ton match = +80 bonus; wrong capacity = −40 penalty when a hint is present.
-  // This prevents "2 ton" ACs appearing above "1.5 ton" ACs for a "1.5 ton" query.
+  // ── Capacity matching — tonnage (ACs) ────────────────────────────────────────
+  // Exact ton match = +80; near match = +20; wrong capacity = −40.
+  // Prevents "2 ton" ACs appearing above "1.5 ton" ACs for a "1.5 ton" query.
   if (pq.capacityTonHint !== undefined && ip.capacityTon !== undefined) {
     const diff = Math.abs(ip.capacityTon - pq.capacityTonHint);
-    if (diff === 0)           { score += 80; }   // exact capacity match
-    else if (diff <= 0.2)     { score += 20; }   // very close (e.g. 1.5 vs 1.4)
-    else                      { score -= 40; }   // wrong capacity — demote
+    if (diff === 0)           { score += 80; }
+    else if (diff <= 0.2)     { score += 20; }
+    else                      { score -= 40; }
+  }
+
+  // ── Capacity matching — cubic feet (fridges/freezers) ────────────────────────
+  // Exact cuft match = +100 (higher than ton because the query is more specific).
+  // Near match (±1 cuft) = +30.
+  // Wrong capacity (>2 cuft off) = −50 penalty when hint is present.
+  // This prevents an 18 cu.ft fridge ranking above a 14 cu.ft fridge for "14 cubic feet".
+  if (pq.capacityCuftHint !== undefined) {
+    if (ip.capacityCuft !== undefined) {
+      const diff = Math.abs(ip.capacityCuft - pq.capacityCuftHint);
+      if (diff === 0)           { score += 100; }  // exact match: definitive
+      else if (diff <= 1)       { score += 30;  }  // within 1 cuft: acceptable
+      else if (diff <= 2)       { score += 5;   }  // borderline
+      else                      { score -= 50;  }  // clearly wrong size — demote hard
+    } else {
+      // Product has no structured cuft data — mild penalty so exact-match products win
+      score -= 10;
+    }
   }
 
   // ── Token matching ────────────────────────────────────────────────────────
