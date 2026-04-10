@@ -278,7 +278,7 @@ export default function About() {
                 Tajalli's has supplied bulk appliance packages to corporate offices, commercial kitchens, residential towers, and hospitality projects across Karachi.
                 We offer volume pricing, consolidated invoicing, and dedicated account management.
               </p>
-              <ul className="space-y-2 mb-8">
+              <ul className="space-y-2 mb-6">
                 {[
                   'Bulk pricing from 5+ units',
                   'Consolidated tax invoices',
@@ -292,6 +292,13 @@ export default function About() {
                   </li>
                 ))}
               </ul>
+              <div className="bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 mb-8 flex items-center gap-3">
+                <BadgeCheck className="w-4 h-4 text-brand-400 shrink-0" />
+                <div>
+                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">National Tax Number (NTN)</p>
+                  <p className="text-sm font-mono font-bold text-white tracking-wider mt-0.5">42101-3836602-3</p>
+                </div>
+              </div>
               <Link to="/corporate"
                 className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-6 py-3 rounded-2xl transition-colors">
                 Corporate Enquiry <ChevronRight className="w-4 h-4" />

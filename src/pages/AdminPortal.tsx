@@ -3857,7 +3857,7 @@ function generateQuotationPdf(opts: {
     ? 'Thank you for your business. All products carry official brand warranty. Payment terms as agreed.'
     : 'This quotation is valid for 7 days. Prices subject to availability. Advance payment required to confirm order.';
   doc.text(footer, margin, y, { maxWidth: W - margin * 2 });
-  doc.text('tajallis.com.pk  |  support@tajallis.com.pk', W / 2, y + 7, { align: 'center' });
+  doc.text('tajallis.com.pk  |  support@tajallis.com.pk  |  NTN: 42101-3836602-3', W / 2, y + 7, { align: 'center' });
 
   return doc.output('blob');
 }
