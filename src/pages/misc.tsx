@@ -403,7 +403,7 @@ const CORP_BENEFITS = [
   {
     icon: Shield,
     title: 'Extended Warranty & Priority Service',
-    desc: 'Corporate clients receive extended warranty periods and jump-the-queue priority for any service or breakdown calls — guaranteed response within 4 hours.',
+    desc: 'Corporate clients receive extended warranty periods and jump-the-queue priority for any service or breakdown calls — same-day response guaranteed.',
     bg: 'bg-green-50 border-green-100',  fg: 'text-green-600',
   },
   {

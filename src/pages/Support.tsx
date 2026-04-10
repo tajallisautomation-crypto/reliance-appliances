@@ -19,7 +19,7 @@ export default function Support() {
   const [loading,   setLoading]   = useState(false)
   const [err,       setErr]       = useState('')
   const [form, setForm] = useState({
-    name: '', phone: '', orderRef: '', product: '',
+    name: '', phone: '', area: '', address: '', orderRef: '', product: '',
     issueType: '', urgency: 'normal', description: '',
   })
 
@@ -33,10 +33,12 @@ export default function Support() {
       `*Support Request — Tajalli's*\n\n` +
       `*Name:* ${form.name}\n` +
       `*Phone:* ${form.phone}\n` +
+      (form.area    ? `*Area:* ${form.area}\n`         : '') +
+      (form.address ? `*Address:* ${form.address}\n`   : '') +
       (form.orderRef ? `*Order Ref:* ${form.orderRef}\n` : '') +
       (form.product  ? `*Product:* ${form.product}\n`   : '') +
       `*Issue Type:* ${issue}\n` +
-      `*Urgency:* ${form.urgency === 'urgent' ? '🔴 Urgent' : '🟡 Normal'}\n\n` +
+      `*Urgency:* ${form.urgency === 'urgent' ? '🔴 Urgent (same day)' : '🟡 Normal (within 48 hrs)'}\n\n` +
       `*Description:*\n${form.description}`
     )
   }
@@ -47,6 +49,8 @@ export default function Support() {
     try {
       await submitEnquiry({
         name: form.name, phone: form.phone,
+        area: form.area || null,
+        address: form.address || null,
         order_ref: form.orderRef || null,
         product: form.product || null,
         issue_type: form.issueType,
@@ -70,7 +74,7 @@ export default function Support() {
           </div>
           <h2 className="text-2xl font-black text-gray-900 mb-2">Request Received</h2>
           <p className="text-gray-500 mb-6">
-            Our support team will contact you within <strong>2–4 hours</strong> during business hours. JazakAllah.
+            Our support team will contact you within <strong>48 hours</strong> (urgent requests same day). JazakAllah.
           </p>
           <div className="space-y-3">
             <Link to="/" className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl font-bold bg-brand-500 text-white hover:bg-brand-600 transition-colors">
@@ -93,7 +97,7 @@ export default function Support() {
     <div className="min-h-screen bg-gray-50">
       <SEO
         title="Customer Support — Tajalli's Karachi"
-        description="Submit a complaint, warranty claim, or support request to Tajalli's. Fast response via WhatsApp within 2–4 hours."
+        description="Submit a complaint, warranty claim, or support request to Tajalli's. We respond within 48 hours — urgent cases same day."
         keywords="reliance appliances support, complaint, warranty claim karachi, after sale service"
         path="/support"
       />
@@ -106,7 +110,7 @@ export default function Support() {
           </div>
           <h1 className="text-3xl md:text-4xl font-black mb-3">How can we help you?</h1>
           <p className="text-blue-100 max-w-lg mx-auto">
-            Fill in the form below and our team will contact you directly on WhatsApp. Most issues are resolved within the same business day.
+            Fill in the form below and our team will contact you directly on WhatsApp. Normal requests: within 48 hours. Urgent cases: same day.
           </p>
         </div>
       </section>
@@ -172,6 +176,28 @@ export default function Support() {
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Area / Locality <span className="text-red-500">*</span></label>
+                  <select required name="area" value={form.area} onChange={handleChange}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-400 cursor-pointer">
+                    <option value="">Select area…</option>
+                    {[
+                      'DHA / Defence','Clifton / Bath Island','Gulshan-e-Iqbal','PECHS / Shahrah-e-Faisal',
+                      'North Karachi','Nazimabad / North Nazimabad','Korangi / Landhi','Malir',
+                      'Orangi / Baldia','Lyari','Saddar / City','Gulistan-e-Jauhar','Federal B Area',
+                      'Scheme 33','Surjani Town','Other / Not listed',
+                    ].map(a => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Street / House Address <span className="text-gray-400 font-normal">(helps us route)</span></label>
+                  <input name="address" value={form.address} onChange={handleChange}
+                    placeholder="e.g. B-12, Block 7, Gulshan-e-Iqbal"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-400" />
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Order Reference <span className="text-gray-400 font-normal">(if applicable)</span></label>
                   <input name="orderRef" value={form.orderRef} onChange={handleChange}
                     placeholder="e.g. ORD-A1B2C3D4"
@@ -196,14 +222,23 @@ export default function Support() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Urgency</label>
-                  <div className="flex gap-3 mt-1">
-                    {[{ v: 'normal', l: 'Normal (2–4 hrs)' }, { v: 'urgent', l: 'Urgent (ASAP)' }].map(u => (
-                      <label key={u.v} className="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="urgency" value={u.v} checked={form.urgency === u.v} onChange={handleChange}
-                          className="accent-brand-500" />
-                        <span className="text-sm text-gray-700">{u.l}</span>
-                      </label>
-                    ))}
+                  <div className="flex flex-col gap-2 mt-1">
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input type="radio" name="urgency" value="normal" checked={form.urgency === 'normal'} onChange={handleChange}
+                        className="accent-brand-500 mt-0.5" />
+                      <span className="text-sm text-gray-700">
+                        <span className="font-medium">Normal</span>
+                        <span className="text-gray-400 ml-1">— within 48 hours</span>
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input type="radio" name="urgency" value="urgent" checked={form.urgency === 'urgent'} onChange={handleChange}
+                        className="accent-brand-500 mt-0.5" />
+                      <span className="text-sm text-gray-700">
+                        <span className="font-medium">Urgent</span>
+                        <span className="text-gray-400 ml-1">— same day</span>
+                      </span>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -226,7 +261,7 @@ export default function Support() {
               </button>
 
               <p className="text-center text-xs text-gray-400">
-                Our team will contact you within 2–4 hours. Prefer instant chat?{' '}
+                Response within 48 hours (urgent requests same day). Prefer instant chat?{' '}
                 <a href={waSales()} target="_blank" rel="noreferrer" className="text-[#25D366] hover:underline">WhatsApp us directly</a>.
               </p>
             </form>
