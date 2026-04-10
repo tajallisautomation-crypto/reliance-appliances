@@ -5,6 +5,11 @@ import SEO from '@/components/ui/SEO'
 import AnimatedCounter from '@/components/ui/AnimatedCounter'
 import { calcPlan, formatPrice } from '@/lib/api'
 import { waSales } from '@/lib/whatsapp'
+import {
+  BILL_THRESHOLD_SMALL, BILL_THRESHOLD_LARGE,
+  SAVING_PCT_3KW, SAVING_PCT_5KW, SAVING_PCT_8KW,
+  SAVING_PCT_BATTERY_ADDON,
+} from '@/lib/solarRules'
 import BookingModal, { type BookingContext } from '@/components/BookingModal'
 
 const JOURNEY_STEPS = [
@@ -42,8 +47,8 @@ const JOURNEY_STEPS = [
     iconColor: 'text-eco-400',
     bgColor: 'bg-eco-400/10',
     title: 'Add Battery Storage',
-    subtitle: 'Power through load shedding — no generator needed',
-    body: 'A lithium battery bank paired with your solar system keeps your home running during load shedding. No diesel, no noise, no fumes. Charge during the day, use at night. Payback accelerated by the fuel savings alone.',
+    subtitle: 'Peak shaving + backup — the generator replacement',
+    body: 'In Karachi, load shedding runs 8–16 hours a day in summer. A LiFePO4 battery bank charges on solar during the day and covers your evening peak — the hours when the grid is most expensive and least reliable. No diesel, no noise, no fumes. At PKR 200–350/hr to run a generator, the battery pays itself back on fuel savings alone.',
     stats: [
       { label: 'Load shedding cover', value: '8–12 hrs' },
       { label: 'vs Generator cost', value: '80% cheaper' },
@@ -118,7 +123,7 @@ const PACKAGES: GCPackage[] = [
   {
     id: 'home-complete',
     name: 'Home Complete',
-    tagline: 'Most popular — covers a full 3-bedroom home',
+    tagline: 'Covers a full 3-bedroom home with 2 ACs',
     solarKw: 5,
     panelWatts: 620,
     panelCount: 8,
@@ -191,20 +196,25 @@ export default function GreenCorridor() {
 
   const openBooking = (ctx: BookingContext) => { setBookingContext(ctx); setBookingOpen(true) }
 
-  // Simplified savings estimate
-  const solarSavingPct  = Math.min(0.85, 0.55 + numACs * 0.05 + (hasBattery ? 0.10 : 0))
-  const monthlySaving   = Math.round(monthlyBill * solarSavingPct / 100) * 100
-  const annualSaving    = monthlySaving * 12
-  const systemCost      = (numACs <= 2 ? 450000 : numACs <= 4 ? 850000 : 1435000) + (hasBattery ? 250000 : 0)
-  const paybackYears    = annualSaving > 0 ? +(systemCost / annualSaving).toFixed(1) : 0
-  const plan3m          = calcPlan(systemCost, '3m')
+  // Bill is the primary signal for system size — avoids over-recommending large systems to low-bill users
+  const matchedPackage = (() => {
+    if (monthlyBill < BILL_THRESHOLD_SMALL) return PACKAGES.find(p => p.solarKw === 3) ?? PACKAGES[0]
+    if (monthlyBill < BILL_THRESHOLD_LARGE) return PACKAGES.find(p => p.solarKw === 5) ?? PACKAGES[1]
+    return PACKAGES[2]
+  })()
 
-  // Determine which package the calculator maps to
-  const matchedPackage = PACKAGES.find(p =>
-    numACs <= 2 && !hasBattery ? p.solarKw === 3 :
-    numACs <= 4 && !hasBattery ? p.solarKw === 5 :
-    p.solarKw === 8
-  ) ?? PACKAGES[1]
+  // Battery add-on only when the matched package doesn't already bundle a battery
+  const batteryAddon   = hasBattery && matchedPackage.batteryKwh === null ? 250000 : 0
+  const systemCost     = matchedPackage.price + batteryAddon
+
+  // Saving % from each package's published bill-reduction midpoint (canonical: solarRules.ts).
+  // Battery extends self-consumption into evening, adding SAVING_PCT_BATTERY_ADDON when included.
+  const baseSavingPct  = matchedPackage.solarKw === 3 ? SAVING_PCT_3KW : matchedPackage.solarKw === 5 ? SAVING_PCT_5KW : SAVING_PCT_8KW
+  const solarSavingPct = Math.min(0.90, baseSavingPct + (hasBattery ? SAVING_PCT_BATTERY_ADDON : 0))
+  const monthlySaving  = Math.round(monthlyBill * solarSavingPct / 100) * 100
+  const annualSaving   = monthlySaving * 12
+  const paybackYears   = annualSaving > 0 ? +(systemCost / annualSaving).toFixed(1) : 0
+  const plan3m         = calcPlan(systemCost, '3m')
 
   const waConsult = waSales('Hi, I\'m interested in the Green Corridor solar + inverter AC package. Can I book a free consultation?')
 
@@ -399,6 +409,19 @@ export default function GreenCorridor() {
               </p>
             </div>
           </div>
+
+          {/* Low-bill guidance — shown instead of a hard-sell when bill doesn't justify a large system */}
+          {monthlyBill < BILL_THRESHOLD_SMALL && (
+            <div className="mt-4 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3">
+              <span className="text-amber-500 text-lg shrink-0">💡</span>
+              <div>
+                <p className="text-sm font-bold text-amber-800">Right-sized, not oversized</p>
+                <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
+                  Based on your bill, the 3kW Starter is a better fit than a larger system. A matched system pays back 2–3 years faster than an oversized one. You can always expand later.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Matched package detail hint */}
           <div className="mt-4 bg-eco-50 border border-eco-100 rounded-2xl p-4">

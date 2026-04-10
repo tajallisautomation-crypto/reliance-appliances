@@ -16,6 +16,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { Sun, Zap, TrendingUp, Plus, Trash2, ChevronDown, ChevronUp,
          CheckCircle, Award, RefreshCw, ArrowRight, Star, Info } from 'lucide-react'
 import { getProducts, fmtPKR, roundTo100 as r100, calcAllPlans, submitSolarLead } from '../lib/api'
+import { checkCompatibility, parseBatteryVoltage, type CompatibilityResult } from '../lib/compatibility'
+import { UNIT_RATE_PKR, BATTERY_PKR_PER_KWH } from '../lib/solarRules'
 
 import type { Product, InstallmentPlan } from '../lib/api'
 
@@ -86,13 +88,13 @@ const UPGRADE_SUGGESTIONS: Record<string, { label: string; savingsW: number; cat
 
 const PANEL_WATTS        = 620       // Crown Bi-Facial 620W — matches GreenCorridor packages & SolarCompatibilityPanel
 const PANEL_PRICE_PER_W  = 48        // PKR per watt (620W panel ≈ PKR 29,760 ≈ PKR 30,000)
-const UNIT_RATE          = 70        // PKR per kWh — hardcoded Karachi average
+const UNIT_RATE          = UNIT_RATE_PKR  // canonical → src/lib/solarRules.ts
 const WIRING_PER_W       = 12        // Rs/W — solar wiring & equipment
 const LABOR_PER_W        = 5         // Rs/W — solar installation labor
 const ELEVATED_FRAME_W   = 28        // Rs/W — elevated frame surcharge
 const UPS_WIRING_PER_W   = 9         // Rs/W — UPS wiring & equipment
 const UPS_LABOR_PER_W    = 3         // Rs/W — UPS labor
-const BATTERY_PER_KWH    = 65000     // PKR per kWh of battery
+const BATTERY_PER_KWH    = BATTERY_PKR_PER_KWH  // canonical → src/lib/solarRules.ts
 // Net metering: K-Electric only allows grid tie-in for 10kW+ systems.
 // Requires application + approved metering hardware. One-time charge.
 const NET_METERING_MIN_KW = 10
@@ -130,6 +132,8 @@ interface Quote {
   dailyU:      number
   withInstallments: boolean
   noInstallReason:  string
+  /** Inverter/battery compatibility result — only set when both are present. */
+  batteryCompatStatus?: CompatibilityResult
 }
 
 // ── Plan filter per installment rules ─────────────────────────────────────────
@@ -195,6 +199,32 @@ function bestBatteryBank(batteries: Product[], targetKWh: number): BatteryBank |
     }
   }
   return best
+}
+
+/** Parse battery voltage from a product's spec map.
+ *  Returns the VoltageClass used by checkCompatibility(). */
+function getBatteryVoltageFromProduct(product: Product): ReturnType<typeof parseBatteryVoltage> {
+  const VOLT_KEYS = ['battery voltage', 'voltage', 'system voltage', 'nominal voltage', 'dc voltage']
+  const raw = Object.entries(product.specs ?? {})
+    .find(([k]) => VOLT_KEYS.includes(k.toLowerCase()))?.[1] ?? null
+  return parseBatteryVoltage(raw)
+}
+
+/** Run compatibility check for a (inverter kW, battery product) pair.
+ *  Returns null if either is absent (on-grid / no-battery systems). */
+function calcBatteryCompat(
+  invKW: number,
+  batBank: BatteryBank | null,
+  invProduct: Product | null,
+): CompatibilityResult | undefined {
+  if (!batBank) return undefined
+  const bv = getBatteryVoltageFromProduct(batBank.product)
+  return checkCompatibility({
+    inverterPowerKw: invKW,
+    batteryVoltage:  bv,
+    inverterBrand:   invProduct?.brand   ?? '',
+    inverterModel:   invProduct?.simplified_name ?? '',
+  })
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
@@ -306,6 +336,7 @@ export default function SolarCalculator() {
           plans, totalW, dailyU: +refU.toFixed(2),
           withInstallments: Object.keys(plans).length > 0,
           noInstallReason: noInstallReason(total, invKW),
+          batteryCompatStatus: calcBatteryCompat(invKW, batBank, invProduct),
         })
         setStep(3)
         return
@@ -369,6 +400,7 @@ export default function SolarCalculator() {
         plans, totalW, dailyU: +refU.toFixed(2),
         withInstallments: Object.keys(plans).length > 0,
         noInstallReason: noInstallReason(total, sysKW),
+        batteryCompatStatus: calcBatteryCompat(invKW, batBank, invProduct),
       })
       setStep(3)
     } finally { setLoading(false) }
@@ -911,6 +943,34 @@ export default function SolarCalculator() {
                   <span className="font-semibold">Net Metering not available for this system. </span>
                   K-Electric (KE) requires a minimum of <span className="font-semibold">10kW</span> for Net Metering approval. Your {quote.systemKW}kW system will reduce your electricity bill by consuming solar power directly, but you cannot export surplus power to the grid under KE's current policy. Contact us if you'd like to size up to 10kW.
                 </div>
+              </div>
+            )}
+
+            {/* Battery / Inverter compatibility banner */}
+            {quote.batteryCompatStatus && quote.batteryCompatStatus.status !== 'compatible' && (
+              <div className={`rounded-2xl p-4 flex gap-3 text-sm ${
+                quote.batteryCompatStatus.status === 'incompatible'
+                  ? 'bg-red-50 border border-red-200 text-red-800'
+                  : 'bg-amber-50 border border-amber-200 text-amber-800'
+              }`}>
+                <Info className="w-4 h-4 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold">
+                    {quote.batteryCompatStatus.status === 'incompatible'
+                      ? 'Battery / Inverter Incompatible'
+                      : 'Battery / Inverter — Review Required'}
+                  </p>
+                  <p className="text-xs mt-0.5 opacity-80">{quote.batteryCompatStatus.message}</p>
+                  <p className="text-xs mt-1 font-medium">
+                    Contact us to confirm the correct battery voltage for your system before ordering.
+                  </p>
+                </div>
+              </div>
+            )}
+            {quote.batteryCompatStatus?.status === 'compatible' && quote.batBank && (
+              <div className="rounded-2xl p-3 flex gap-2 items-center bg-green-50 border border-green-200 text-green-800 text-xs">
+                <CheckCircle className="w-3.5 h-3.5 shrink-0" />
+                Battery voltage compatible with this inverter.
               </div>
             )}
 

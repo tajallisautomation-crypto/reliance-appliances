@@ -3905,6 +3905,37 @@ function QuotationTab({ products }: { products: Product[] }) {
   const discountAmt = Math.round(subtotal * discount / 100);
   const grandTotal = subtotal - discountAmt;
 
+  // If the quote contains a solar inverter + solar battery, validate their compatibility
+  const solarCompatCheck = useMemo(() => {
+    const findProd = (catKeyword: string) =>
+      lines.map(l => products.find(p => p.id === l.id)).find(p =>
+        p && p.category.toLowerCase().replace(/[-\s]/g, '').includes(catKeyword)
+      );
+    const inv = findProd('solarinverter');
+    const bat = findProd('solarbattery');
+    if (!inv || !bat) return null;
+    // Parse inverter kW from spec keys
+    const invKw = (() => {
+      for (const [k, v] of Object.entries(inv.specs ?? {})) {
+        const kl = k.toLowerCase();
+        if ((kl.includes('output') || kl.includes('rated') || kl.includes('capacity')) && kl.includes('kw')) {
+          const m = String(v).match(/(\d+\.?\d*)/); if (m) return parseFloat(m[1]);
+        }
+      }
+      const m = inv.simplified_name?.match(/(\d+\.?\d*)\s*kw/i); return m ? parseFloat(m[1]) : null;
+    })();
+    // Parse battery voltage from spec keys
+    const batVoltRaw = Object.entries(bat.specs ?? {}).find(([k]) =>
+      ['battery voltage','voltage','system voltage','nominal voltage','dc voltage'].includes(k.toLowerCase())
+    )?.[1] ?? null;
+    return checkCompatibility({
+      inverterPowerKw: invKw,
+      batteryVoltage:  parseBatteryVoltage(batVoltRaw),
+      inverterBrand:   inv.brand,
+      inverterModel:   inv.model,
+    });
+  }, [lines, products]);
+
   function generate() {
     if (!lines.length) return;
     setGenerating(true);
@@ -4033,8 +4064,28 @@ function QuotationTab({ products }: { products: Product[] }) {
         </div>
       )}
 
+      {solarCompatCheck && (
+        <div className={`rounded-xl px-4 py-3 flex gap-3 text-sm items-start ${
+          solarCompatCheck.status === 'incompatible'
+            ? 'bg-red-50 border border-red-200 text-red-800'
+            : solarCompatCheck.status === 'compatible'
+            ? 'bg-green-50 border border-green-200 text-green-800'
+            : 'bg-amber-50 border border-amber-200 text-amber-800'
+        }`}>
+          <span className="shrink-0 text-base">
+            {solarCompatCheck.status === 'incompatible' ? '⛔' : solarCompatCheck.status === 'compatible' ? '✓' : '⚠️'}
+          </span>
+          <div>
+            <p className="font-bold text-xs">
+              Battery / Inverter: {solarCompatCheck.status === 'compatible' ? 'Compatible' : solarCompatCheck.status === 'incompatible' ? 'INCOMPATIBLE — do not issue this quote' : 'Manual review required'}
+            </p>
+            <p className="text-xs mt-0.5 opacity-80">{solarCompatCheck.message}</p>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-3">
-        <button onClick={generate} disabled={!lines.length || generating}
+        <button onClick={generate} disabled={!lines.length || generating || solarCompatCheck?.status === 'incompatible'}
           className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white font-bold px-5 py-2.5 rounded-xl text-sm disabled:opacity-40 transition-colors">
           {generating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</> : <>📄 Download {docType === 'invoice' ? 'Invoice' : 'Quotation'} PDF</>}
         </button>
@@ -4507,7 +4558,7 @@ function SolarLeadsTab() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-gray-900">{lead.battery_kwh} kWh</div>
-                    <div className="text-gray-400 text-xs">{Math.ceil((lead.battery_kwh * 1000) / 48)}Ah @ 48V</div>
+                    <div className="text-gray-400 text-xs">{(() => { const v = lead.system_kw < 3.7 ? 24 : 48; return `${Math.ceil((lead.battery_kwh * 1000) / v)}Ah @ ${v}V`; })()}</div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-gray-900">PKR {lead.monthly_bill.toLocaleString()}</div>
