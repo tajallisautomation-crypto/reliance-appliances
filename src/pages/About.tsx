@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ShieldCheck, CreditCard, Truck, Headphones, MessageCircle, ChevronRight, Image } from 'lucide-react'
+import { ShieldCheck, CreditCard, Truck, Headphones, MessageCircle, ChevronRight, Image, Clock, Building2, BadgeCheck } from 'lucide-react'
 import SEO from '@/components/ui/SEO'
 import { waSales } from '@/lib/whatsapp'
 import { getInstallationImages, type MediaItem } from '@/lib/gallery'
@@ -163,6 +163,153 @@ export default function About() {
                 <p className="text-sm text-gray-500 leading-relaxed">{v.desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How We Work — service level transparency */}
+      <section className="max-w-5xl mx-auto px-4 py-16">
+        <div className="text-center mb-10">
+          <p className="text-orange-500 text-xs font-bold uppercase tracking-widest mb-2">How We Work</p>
+          <h2 className="text-3xl font-black text-gray-900">No surprises. No fine print.</h2>
+          <p className="text-gray-500 mt-2 max-w-xl mx-auto">This is exactly what you get when you buy from us.</p>
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {[
+            {
+              icon: Truck,
+              title: 'Delivery',
+              color: 'text-blue-600',
+              bg: 'bg-blue-50',
+              points: [
+                'Free delivery within Karachi standard zones',
+                '48 hours after advance payment & verification',
+                'Door-to-room for large appliances (ACs, fridges)',
+                'Out-of-city delivery priced on request',
+              ],
+            },
+            {
+              icon: Clock,
+              title: 'Support Response',
+              color: 'text-amber-600',
+              bg: 'bg-amber-50',
+              points: [
+                'Normal requests: within 48 hours',
+                'Urgent requests: same day (subject to availability)',
+                'Urgent requests via WhatsApp by 12pm for same-day',
+                'Technician visit: PKR 2,000 (standard) / 3,000 (urgent)',
+              ],
+            },
+            {
+              icon: CreditCard,
+              title: 'Installments',
+              color: 'text-green-600',
+              bg: 'bg-green-50',
+              points: [
+                '2 to 12 month plans — no bank account required',
+                'Advance payment required before delivery',
+                'Verification completes within 24–48 hours of advance',
+                'Solar systems above PKR 700k: cash only',
+              ],
+            },
+            {
+              icon: ShieldCheck,
+              title: 'Warranty',
+              color: 'text-purple-600',
+              bg: 'bg-purple-50',
+              points: [
+                'Official brand warranty on every product',
+                'We assist with warranty claims — no runaround',
+                '7-day return on defective items in original packaging',
+                'Coverage varies by brand and product type',
+              ],
+            },
+            {
+              icon: BadgeCheck,
+              title: 'Authenticity',
+              color: 'text-brand-600',
+              bg: 'bg-brand-50',
+              points: [
+                '100% genuine products — no grey market or parallel imports',
+                'Authorised dealer for all brands we carry',
+                'Official brand invoices on every purchase',
+                'Products come with brand-registered warranty cards',
+              ],
+            },
+            {
+              icon: Headphones,
+              title: 'After-Sale',
+              color: 'text-rose-600',
+              bg: 'bg-rose-50',
+              points: [
+                'Dedicated support number and WhatsApp line',
+                'We follow up after every major installation',
+                'Annual maintenance contracts available (AMC)',
+                'We liaise with brand service centers on your behalf',
+              ],
+            },
+          ].map(item => (
+            <div key={item.title} className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+              <div className={`w-10 h-10 ${item.bg} rounded-xl flex items-center justify-center mb-4`}>
+                <item.icon className={`w-5 h-5 ${item.color}`} />
+              </div>
+              <h3 className="font-bold text-gray-900 mb-3">{item.title}</h3>
+              <ul className="space-y-1.5">
+                {item.points.map(pt => (
+                  <li key={pt} className="flex items-start gap-2 text-sm text-gray-600">
+                    <span className="mt-1 w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0" />
+                    {pt}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* B2B / Corporate credibility */}
+      <section className="bg-gray-950 py-16 px-4">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-10 items-center">
+            <div>
+              <p className="text-brand-400 text-xs font-bold uppercase tracking-widest mb-3">Corporate & B2B</p>
+              <h2 className="text-3xl font-black text-white mb-4">We outfit offices, hospitals, and housing projects.</h2>
+              <p className="text-gray-400 leading-relaxed mb-6">
+                Tajalli's has supplied bulk appliance packages to corporate offices, commercial kitchens, residential towers, and hospitality projects across Karachi.
+                We offer volume pricing, consolidated invoicing, and dedicated account management.
+              </p>
+              <ul className="space-y-2 mb-8">
+                {[
+                  'Bulk pricing from 5+ units',
+                  'Consolidated tax invoices',
+                  'Site-wide AC / appliance packages',
+                  'Dedicated project coordinator',
+                  'Post-installation service contracts',
+                ].map(pt => (
+                  <li key={pt} className="flex items-center gap-2 text-sm text-gray-300">
+                    <Building2 className="w-4 h-4 text-brand-400 shrink-0" />
+                    {pt}
+                  </li>
+                ))}
+              </ul>
+              <Link to="/corporate"
+                className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-6 py-3 rounded-2xl transition-colors">
+                Corporate Enquiry <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { value: '400+',   label: 'Products stocked' },
+                { value: 'PKR 0',  label: 'Hidden charges' },
+                { value: '11 yrs', label: 'In business' },
+                { value: '6',      label: 'Authorised brands' },
+              ].map(s => (
+                <div key={s.label} className="bg-gray-900 border border-gray-800 rounded-2xl p-6 text-center">
+                  <p className="text-2xl font-black text-white mb-1">{s.value}</p>
+                  <p className="text-xs text-gray-500">{s.label}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
