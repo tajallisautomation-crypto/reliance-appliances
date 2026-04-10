@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Suspense, lazy, useEffect } from 'react'
 import { Toaster } from 'react-hot-toast'
 import Layout from './components/layout/Layout'
@@ -34,7 +34,7 @@ const ComparePage     = lazy(() => import('./pages/ComparePage'))
 const BuyingGuide     = lazy(() => import('./pages/BuyingGuide'))
 const Referral        = lazy(() => import('./pages/Referral'))
 const Support         = lazy(() => import('./pages/Support'))
-const SalesCatalog    = lazy(() => import('./pages/SalesCatalog'))
+// SalesCatalog is admin-only — /catalog redirects to /admin (route kept for bookmarks)
 const MYOP            = lazy(() => import('./pages/MYOP'))
 const Gallery         = lazy(() => import('./pages/Gallery'))
 
@@ -80,7 +80,7 @@ export default function App() {
             <Route path="/build-your-package"               element={<MYOP />} />
             <Route path="/referral"                         element={<Referral />} />
             <Route path="/support"                          element={<Support />} />
-            <Route path="/catalog"                          element={<SalesCatalog />} />
+            <Route path="/catalog"                          element={<Navigate to="/admin" replace />} />
             <Route path="/gallery"                          element={<Gallery />} />
             <Route path="/policy/:type"                     element={<PolicyPage />} />
             <Route path="*" element={

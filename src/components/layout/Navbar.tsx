@@ -41,7 +41,6 @@ const MOBILE_LINKS = [
   ['Partner With Us',      '/partner'],
   ['Refer & Earn',         '/referral'],
   ['Support / Complaints', '/support'],
-  ['Sales Catalogue',      '/catalog'],
   ['About',                '/about'],
   ['Contact',              '/contact'],
 ];
