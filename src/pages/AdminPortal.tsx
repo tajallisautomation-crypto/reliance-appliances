@@ -3740,6 +3740,319 @@ const LEAD_STATUS_COLORS: Record<string, string> = {
   rejected:  'bg-red-100 text-red-600',
 };
 
+// ── Quotation Tab ─────────────────────────────────────────────────────────────
+// Generates branded PDF quotations and invoices, shareable via WhatsApp.
+// Uses the same jsPDF pattern as the solar proposal generator.
+
+interface QuoteLine {
+  id: string;
+  name: string;
+  model: string;
+  qty: number;
+  unitPrice: number;
+}
+
+function generateQuotationPdf(opts: {
+  customerName: string;
+  customerPhone: string;
+  lines: QuoteLine[];
+  discount: number;
+  docType: 'quotation' | 'invoice';
+  refNumber: string;
+}): Blob {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { jsPDF } = require('jspdf') as typeof import('jspdf');
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  const W = 210; const margin = 18; const col2 = 120; const col3 = 155; const col4 = 185;
+  let y = 0;
+
+  const PKR = (n: number) => `PKR ${n.toLocaleString('en-PK')}`;
+  const dateStr = new Date().toLocaleDateString('en-PK', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  // ── Header band ──
+  doc.setFillColor(15, 15, 15);
+  doc.rect(0, 0, W, 38, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20); doc.setTextColor(255, 255, 255);
+  doc.text("Tajalli's", margin, 17);
+  doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(180, 180, 180);
+  doc.text('Home & Commercial Solutions', margin, 23);
+  doc.text('+92 370 2578788  |  tajallis.com.pk  |  Karachi', margin, 29);
+
+  // Doc type badge
+  doc.setFillColor(opts.docType === 'invoice' ? 22 : 234, opts.docType === 'invoice' ? 163 : 88, opts.docType === 'invoice' ? 74 : 12);
+  doc.roundedRect(W - margin - 36, 10, 36, 14, 3, 3, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
+  doc.text(opts.docType === 'invoice' ? 'INVOICE' : 'QUOTATION', W - margin - 18, 18.5, { align: 'center' });
+  y = 46;
+
+  // ── Ref + date ──
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(100, 100, 100);
+  doc.text(`Ref: ${opts.refNumber}`, margin, y);
+  doc.text(`Date: ${dateStr}`, W - margin, y, { align: 'right' });
+  y += 6;
+
+  // ── Customer block ──
+  doc.setFillColor(248, 248, 248);
+  doc.rect(margin, y, W - margin * 2, 18, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(60, 60, 60);
+  doc.text('BILL TO', margin + 4, y + 5);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(20, 20, 20);
+  doc.text(opts.customerName || '—', margin + 4, y + 11);
+  doc.setFontSize(8); doc.setTextColor(100, 100, 100);
+  doc.text(opts.customerPhone || '', margin + 4, y + 16);
+  y += 24;
+
+  // ── Table header ──
+  doc.setFillColor(30, 30, 30);
+  doc.rect(margin, y, W - margin * 2, 8, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
+  doc.text('Item / Description', margin + 3, y + 5.5);
+  doc.text('Qty', col2, y + 5.5);
+  doc.text('Unit Price', col3, y + 5.5);
+  doc.text('Total', col4, y + 5.5);
+  y += 10;
+
+  // ── Table rows ──
+  let subtotal = 0;
+  opts.lines.forEach((line, i) => {
+    const lineTotal = line.qty * line.unitPrice;
+    subtotal += lineTotal;
+    if (i % 2 === 0) { doc.setFillColor(252, 252, 252); doc.rect(margin, y - 1, W - margin * 2, 10, 'F'); }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(20, 20, 20);
+    doc.text(line.name.slice(0, 55), margin + 3, y + 4);
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(120, 120, 120);
+    if (line.model) doc.text(line.model.slice(0, 40), margin + 3, y + 8.5);
+    doc.setTextColor(60, 60, 60);
+    doc.text(String(line.qty), col2 + 2, y + 5);
+    doc.text(PKR(line.unitPrice), col3, y + 5);
+    doc.setFont('helvetica', 'bold');
+    doc.text(PKR(lineTotal), col4, y + 5);
+    y += 12;
+  });
+
+  // ── Totals ──
+  y += 4;
+  doc.setDrawColor(220, 220, 220);
+  doc.line(col2, y, W - margin, y);
+  y += 5;
+  const discountAmt = Math.round(subtotal * opts.discount / 100);
+  const grandTotal = subtotal - discountAmt;
+  [[`Subtotal`, PKR(subtotal)], ...(opts.discount > 0 ? [[`Discount (${opts.discount}%)`, `- ${PKR(discountAmt)}`]] : []), ['', '']].forEach(([l, v]) => {
+    if (!l) return;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(80, 80, 80);
+    doc.text(l, col3, y); doc.text(v, col4, y); y += 6;
+  });
+  doc.setFillColor(15, 15, 15);
+  doc.rect(col2, y - 1, W - margin - col2, 9, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
+  doc.text('Grand Total', col2 + 3, y + 5);
+  doc.text(PKR(grandTotal), col4, y + 5);
+  y += 15;
+
+  // ── Footer ──
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(130, 130, 130);
+  const footer = opts.docType === 'invoice'
+    ? 'Thank you for your business. All products carry official brand warranty. Payment terms as agreed.'
+    : 'This quotation is valid for 7 days. Prices subject to availability. Advance payment required to confirm order.';
+  doc.text(footer, margin, y, { maxWidth: W - margin * 2 });
+  doc.text('tajallis.com.pk  |  support@tajallis.com.pk', W / 2, y + 7, { align: 'center' });
+
+  return doc.output('blob');
+}
+
+function QuotationTab({ products }: { products: Product[] }) {
+  const [customerName,  setCustomerName]  = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [docType, setDocType]             = useState<'quotation' | 'invoice'>('quotation');
+  const [discount, setDiscount]           = useState(0);
+  const [lines, setLines]                 = useState<QuoteLine[]>([]);
+  const [productSearch, setProductSearch] = useState('');
+  const [generating, setGenerating]       = useState(false);
+  const [pdfUrl, setPdfUrl]               = useState<string | null>(null);
+
+  const refNumber = useMemo(() => {
+    const d = new Date(); const pad = (n: number) => String(n).padStart(2, '0');
+    return `TJ-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${Math.floor(Math.random()*9000)+1000}`;
+  }, []);
+
+  const filteredProducts = useMemo(() => {
+    const q = productSearch.toLowerCase().trim();
+    if (!q) return products.slice(0, 20);
+    return products.filter(p =>
+      (p.simplified_name || '').toLowerCase().includes(q) ||
+      (p.model || '').toLowerCase().includes(q) ||
+      (p.brand || '').toLowerCase().includes(q)
+    ).slice(0, 20);
+  }, [products, productSearch]);
+
+  function addLine(p: Product) {
+    setLines(ls => ls.some(l => l.id === p.id) ? ls : [...ls, {
+      id: p.id, name: p.simplified_name || p.model, model: p.model,
+      qty: 1, unitPrice: p.price.cash_floor,
+    }]);
+    setProductSearch('');
+  }
+
+  function updateLine(id: string, field: 'qty' | 'unitPrice', val: number) {
+    setLines(ls => ls.map(l => l.id === id ? { ...l, [field]: val } : l));
+  }
+
+  function removeLine(id: string) { setLines(ls => ls.filter(l => l.id !== id)); }
+
+  const subtotal = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+  const discountAmt = Math.round(subtotal * discount / 100);
+  const grandTotal = subtotal - discountAmt;
+
+  function generate() {
+    if (!lines.length) return;
+    setGenerating(true);
+    try {
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+      const blob = generateQuotationPdf({ customerName, customerPhone, lines, discount, docType, refNumber });
+      const url = URL.createObjectURL(blob);
+      setPdfUrl(url);
+      const a = document.createElement('a');
+      a.href = url; a.download = `tajallis_${docType}_${refNumber}.pdf`; a.click();
+    } finally { setGenerating(false); }
+  }
+
+  const waText = encodeURIComponent(
+    `*Tajalli's ${docType === 'invoice' ? 'Invoice' : 'Quotation'} — ${refNumber}*\n\n` +
+    `Customer: ${customerName}\n` +
+    lines.map(l => `• ${l.name} × ${l.qty} — PKR ${(l.qty * l.unitPrice).toLocaleString('en-PK')}`).join('\n') +
+    `\n\n*Grand Total: PKR ${grandTotal.toLocaleString('en-PK')}*` +
+    (discount > 0 ? `\n_Discount ${discount}% applied_` : '') +
+    `\n\nValid for 7 days. tajallis.com.pk`
+  );
+
+  return (
+    <div className="max-w-5xl mx-auto py-6 space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-black text-gray-900">Quotation / Invoice Generator</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Branded PDF · WhatsApp-ready · Ref: <span className="font-mono text-gray-600">{refNumber}</span></p>
+        </div>
+        <div className="flex gap-2">
+          {(['quotation', 'invoice'] as const).map(t => (
+            <button key={t} onClick={() => setDocType(t)}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold capitalize transition-colors ${
+                docType === t ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}>{t}</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Customer</p>
+          <input value={customerName} onChange={e => setCustomerName(e.target.value)}
+            placeholder="Customer name"
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          <input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)}
+            placeholder="Phone (03XX-XXXXXXX)"
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          <div className="flex items-center gap-3">
+            <label className="text-xs font-semibold text-gray-600 shrink-0">Discount %</label>
+            <input type="number" min={0} max={50} value={discount} onChange={e => setDiscount(Number(e.target.value))}
+              className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Add Products</p>
+          <input value={productSearch} onChange={e => setProductSearch(e.target.value)}
+            placeholder="Search by name, model, or brand…"
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          {productSearch.trim() && (
+            <div className="border border-gray-100 rounded-xl overflow-hidden max-h-44 overflow-y-auto">
+              {filteredProducts.map(p => (
+                <button key={p.id} onClick={() => addLine(p)}
+                  className="w-full flex items-center justify-between px-3 py-2 hover:bg-orange-50 text-left border-b border-gray-50 last:border-0">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-800">{p.simplified_name || p.model}</p>
+                    <p className="text-[10px] text-gray-400">{p.brand} · {p.model}</p>
+                  </div>
+                  <p className="text-xs font-bold text-orange-600 shrink-0 ml-3">
+                    PKR {p.price.cash_floor.toLocaleString('en-PK')}
+                  </p>
+                </button>
+              ))}
+              {filteredProducts.length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-4">No products found</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {lines.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600">Item</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 w-20">Qty</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 w-36">Unit Price (PKR)</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600 w-28">Total</th>
+                <th className="w-10" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {lines.map(line => (
+                <tr key={line.id}>
+                  <td className="px-4 py-2.5">
+                    <p className="font-medium text-gray-900 text-xs">{line.name}</p>
+                    <p className="text-[10px] text-gray-400">{line.model}</p>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <input type="number" min={1} value={line.qty} onChange={e => updateLine(line.id, 'qty', Math.max(1, Number(e.target.value)))}
+                      className="w-16 border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <input type="number" min={0} value={line.unitPrice} onChange={e => updateLine(line.id, 'unitPrice', Number(e.target.value))}
+                      className="w-32 border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                  </td>
+                  <td className="px-4 py-2.5 font-bold text-xs text-gray-900">
+                    PKR {(line.qty * line.unitPrice).toLocaleString('en-PK')}
+                  </td>
+                  <td className="px-2 py-2.5">
+                    <button onClick={() => removeLine(line.id)} className="text-gray-300 hover:text-red-500 transition-colors">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-6 text-sm">
+            {discount > 0 && <span className="text-gray-500">Subtotal: PKR {subtotal.toLocaleString('en-PK')} · Discount: − PKR {discountAmt.toLocaleString('en-PK')}</span>}
+            <span className="font-black text-gray-900 text-base">Grand Total: PKR {grandTotal.toLocaleString('en-PK')}</span>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-3">
+        <button onClick={generate} disabled={!lines.length || generating}
+          className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white font-bold px-5 py-2.5 rounded-xl text-sm disabled:opacity-40 transition-colors">
+          {generating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</> : <>📄 Download {docType === 'invoice' ? 'Invoice' : 'Quotation'} PDF</>}
+        </button>
+        {lines.length > 0 && customerPhone && (
+          <a href={`https://wa.me/${customerPhone.replace(/\D/g, '')}?text=${waText}`}
+            target="_blank" rel="noreferrer"
+            className="flex items-center gap-2 bg-[#25D366] hover:bg-[#1ebe5c] text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors">
+            <MessageCircle className="w-4 h-4" /> Send Summary on WhatsApp
+          </a>
+        )}
+        {lines.length === 0 && (
+          <p className="text-xs text-gray-400 self-center">Add at least one product to generate a document.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Solar Leads Tab ────────────────────────────────────────────────────────────
 
 
@@ -5450,8 +5763,8 @@ export default function AdminPortal() {
   const [deleteId, setDeleteId]   = useState<string | null>(null);
   const [deleting, setDeleting]   = useState(false);
   const [quickImg, setQuickImg]   = useState<Product | null>(null);
-  type AdminTab = 'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'settings' | 'schema' | 'audit' | 'catalog' | 'solar' | 'compatibility';
-  const VALID_TABS: AdminTab[] = ['products','images','import','tools','qc','reviews','leads','orders','enquiries','settings','schema','audit','catalog','solar','compatibility'];
+  type AdminTab = 'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'quotation' | 'settings' | 'schema' | 'audit' | 'catalog' | 'solar' | 'compatibility';
+  const VALID_TABS: AdminTab[] = ['products','images','import','tools','qc','reviews','leads','orders','enquiries','quotation','settings','schema','audit','catalog','solar','compatibility'];
   const tabFromHash = (): AdminTab => {
     const h = window.location.hash.slice(1) as AdminTab;
     return VALID_TABS.includes(h) ? h : 'products';
@@ -5719,6 +6032,7 @@ export default function AdminPortal() {
             { id: 'catalog',   label: 'WhatsApp Catalog', group: 'catalog' },
             { id: 'orders',    label: 'Orders',      group: 'crm' },
             { id: 'enquiries', label: 'Enquiries',   group: 'crm' },
+            { id: 'quotation', label: '📄 Quotation', group: 'crm' },
             { id: 'reviews',   label: 'Reviews',     group: 'crm' },
             { id: 'solar',     label: '☀️ Solar Leads', group: 'crm' },
             { id: 'leads',     label: 'Partners',    group: 'crm' },
@@ -5755,6 +6069,8 @@ export default function AdminPortal() {
           <OrdersTab />
         ) : tab === 'enquiries' ? (
           <EnquiriesTab />
+        ) : tab === 'quotation' ? (
+          <QuotationTab products={products} />
         ) : tab === 'reviews' ? (
           <ReviewsTab />
         ) : tab === 'solar' ? (
