@@ -565,7 +565,11 @@ export function autocomplete(
   limit = 8
 ): SearchSuggestion[] {
   if (!query.trim()) return [];
-  const q   = query.toLowerCase().trim();
+  // Normalize capacity synonyms so "14 cubic feet" → "14 cuft" before matching.
+  // Without this, typed synonyms produce zero suggestions because product names
+  // are indexed in normalized form ("14 cuft") not the typed form ("14 cu ft").
+  const qRaw  = query.toLowerCase().trim();
+  const q     = normCapacityText(qRaw);
   const out: SearchSuggestion[] = [];
   const seen = new Set<string>();
 
@@ -575,12 +579,38 @@ export function autocomplete(
     out.push(s);
   }
 
-  // 1. Product name matches — starts-with first, then contains
+  // 0. Structured capacity suggestions — when user types a size query, surface
+  //    a guided "N Cu.Ft Refrigerators" suggestion before individual products.
+  //    Helps users understand the search is capacity-aware.
+  const cuftM = q.match(/^(\d{1,2}(?:\.\d+)?)\s*cuft\b/i);
+  if (cuftM) {
+    const n = cuftM[1];
+    push({ text: `${n} Cu.Ft Refrigerators`, subtext: 'Search by capacity', type: 'category' });
+    push({ text: `${n} Cu.Ft Deep Freezers`,  subtext: 'Search by capacity', type: 'category' });
+  }
+  const tonM = q.match(/^(\d(?:\.\d+)?)\s*ton\b/i);
+  if (tonM) {
+    const n = tonM[1];
+    push({ text: `${n} Ton Air Conditioners`, subtext: 'Search by capacity', type: 'category' });
+    push({ text: `${n} Ton Inverter AC`,       subtext: 'Search by capacity', type: 'category' });
+  }
+
+  // 1. Product name matches — starts-with first, then contains.
+  //    Match against normalized name (products may use "14 cuft" in nameLower after indexing)
+  //    OR against the original query for natural-language names.
   const nameMatches = index.products
-    .filter(ip => ip.nameLower.startsWith(q) || (q.length >= 3 && ip.nameLower.includes(q)))
+    .filter(ip => {
+      const normName = normCapacityText(ip.nameLower);
+      return normName.startsWith(q)
+        || (q.length >= 3 && normName.includes(q))
+        || ip.nameLower.startsWith(qRaw)
+        || (qRaw.length >= 3 && ip.nameLower.includes(qRaw));
+    })
     .sort((a, b) => {
-      const as = a.nameLower.startsWith(q) ? 0 : 1;
-      const bs = b.nameLower.startsWith(q) ? 0 : 1;
+      const aNorm = normCapacityText(a.nameLower);
+      const bNorm = normCapacityText(b.nameLower);
+      const as = (aNorm.startsWith(q) || a.nameLower.startsWith(qRaw)) ? 0 : 1;
+      const bs = (bNorm.startsWith(q) || b.nameLower.startsWith(qRaw)) ? 0 : 1;
       return as - bs || (b.product.featured ? 1 : 0) - (a.product.featured ? 1 : 0);
     });
   for (const ip of nameMatches.slice(0, 5)) {
@@ -591,7 +621,7 @@ export function autocomplete(
   if (out.length < limit) {
     const mNorm = norm(q);
     const mMatches = index.products
-      .filter(ip => ip.modelNorm.startsWith(mNorm) || ip.product.model.toLowerCase().startsWith(q))
+      .filter(ip => ip.modelNorm.startsWith(mNorm) || ip.product.model.toLowerCase().startsWith(qRaw))
       .slice(0, 3);
     for (const ip of mMatches) {
       push({ text: ip.product.simplified_name || ip.product.model, subtext: ip.product.model, type: 'model', productId: ip.product.id });
@@ -601,7 +631,7 @@ export function autocomplete(
   // 3. Category matches
   if (out.length < limit) {
     for (const cat of index.categories) {
-      if (cat.toLowerCase().startsWith(q) || (q.length >= 3 && cat.toLowerCase().includes(q))) {
+      if (cat.toLowerCase().startsWith(qRaw) || (qRaw.length >= 3 && cat.toLowerCase().includes(qRaw))) {
         push({ text: cat, type: 'category' });
       }
     }
@@ -610,7 +640,7 @@ export function autocomplete(
   // 4. Brand matches
   if (out.length < limit) {
     for (const brand of index.brands) {
-      if (brand.startsWith(q)) {
+      if (brand.startsWith(qRaw)) {
         push({ text: brand.charAt(0).toUpperCase() + brand.slice(1), type: 'brand' });
       }
     }
