@@ -212,8 +212,8 @@ export default function GreenCorridor() {
     <div className="min-h-screen bg-white">
       <SEO
         path="/green-corridor"
-        title="Green Corridor — Solar, Inverter ACs & Battery Storage"
-        description="Cut your electricity bill by up to 85%. Complete solar systems, inverter ACs and battery storage on easy installments. Free site assessment in Karachi."
+        title="Green Corridor — Efficient Home Pathway | Tajalli's Karachi"
+        description="A curated pathway to a lower-consumption home. Inverter ACs, efficient refrigerators, solar systems, and battery storage on easy installments. Karachi."
         keywords="solar system karachi, inverter ac karachi, battery storage karachi, solar installation karachi, green energy karachi"
       />
 
@@ -232,16 +232,15 @@ export default function GreenCorridor() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-eco-500/10 rounded-full blur-3xl" />
 
         <div className="relative max-w-4xl mx-auto px-4 py-24 md:py-32 text-center">
-          <div className="inline-flex items-center gap-2 bg-eco-500/15 text-eco-400 px-4 py-2 rounded-full text-sm font-semibold mb-8">
-            <Leaf className="w-4 h-4" /> Solar + Inverter AC Packages — Karachi
+          <div className="inline-flex items-center gap-2 bg-eco-500/15 text-eco-400 px-4 py-2 rounded-full text-sm font-bold mb-8 uppercase tracking-widest">
+            <Leaf className="w-4 h-4" /> Tajalli's Green Corridor
           </div>
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-black text-white leading-[1.05] tracking-tight mb-6">
-            Your home.<br />
-            <span className="text-eco-400">Off the grid.</span>
+            A smarter home.<br />
+            <span className="text-eco-400">A smaller bill.</span>
           </h1>
           <p className="text-gray-400 text-xl mb-10 max-w-2xl mx-auto leading-relaxed">
-            Solar · Inverter ACs · Battery Storage<br />
-            One roof. One partner. Zero compromise.
+            A curated pathway to a lower-consumption home — inverter ACs, efficient refrigerators, solar systems, and smart appliance combinations. Not just solar. A complete strategy.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a href="#calculator"

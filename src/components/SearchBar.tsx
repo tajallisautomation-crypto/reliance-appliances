@@ -151,7 +151,7 @@ export default function SearchBar({
           onChange={e => { setQuery(e.target.value); setActiveIdx(-1); }}
           onFocus={() => { ensureIndex(); if (suggestions.length > 0) setOpen(true); }}
           onKeyDown={handleKey}
-          className={`pl-9 pr-8 py-2 w-full rounded-full bg-white border border-gray-200 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent ${inputClass}`}
+          className={`pl-9 pr-8 py-2.5 w-full rounded-full bg-white border border-gray-200 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-300 transition-all ${inputClass}`}
         />
         {query && (
           <button
@@ -165,7 +165,7 @@ export default function SearchBar({
 
       {/* Dropdown */}
       {open && suggestions.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-gray-200 rounded-2xl shadow-xl z-50 overflow-hidden">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-2xl shadow-2xl z-50 overflow-hidden ring-1 ring-black/5">
           {suggestions.map((s, i) => (
             <button
               key={`${s.type}-${s.text}`}

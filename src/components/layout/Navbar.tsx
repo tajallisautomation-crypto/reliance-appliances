@@ -11,7 +11,7 @@ const NAV_LINKS = [
   { label: 'Build a Package', href: '/build-your-package' },
   { label: 'Installments',    href: '/installments' },
   { label: 'Solar',           href: '/solar' },
-  { label: 'Solar Packages',  href: '/green-corridor', eco: true },
+  { label: 'Green Corridor',  href: '/green-corridor', eco: true },
   { label: 'Buying Guide',    href: '/buying-guide' },
   { label: 'Services',        href: '/services' },
 ];
@@ -33,7 +33,7 @@ const MOBILE_LINKS = [
   ['Build a Package 🎁',  '/build-your-package'],
   ['Installments',         '/installments'],
   ['Solar Solutions',      '/solar'],
-  ['Solar Packages',       '/green-corridor'],
+  ['Green Corridor',       '/green-corridor'],
   ['Solar Calculator',     '/solar-calculator'],
   ['Tools & Calculators',  '/tools'],
   ['Buying Guide',         '/buying-guide'],

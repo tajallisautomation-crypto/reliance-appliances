@@ -3,14 +3,15 @@ import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import { useSettingsStore } from '@/store/settingsStore';
 
-const THEMES: Record<string, { grad: string; circle: string; muted: string }> = {
-  orange: { grad: 'from-orange-600 to-orange-400',     circle: 'bg-white/10',  muted: 'text-orange-100' },
-  dark:   { grad: 'from-gray-900 to-gray-700',         circle: 'bg-white/5',   muted: 'text-gray-300'   },
-  blue:   { grad: 'from-blue-700 to-blue-500',         circle: 'bg-white/10',  muted: 'text-blue-100'   },
-  green:  { grad: 'from-emerald-700 to-emerald-500',   circle: 'bg-white/10',  muted: 'text-emerald-100'},
-  teal:   { grad: 'from-teal-700 to-teal-500',         circle: 'bg-white/10',  muted: 'text-teal-100'   },
-  red:    { grad: 'from-red-700 to-red-500',           circle: 'bg-white/10',  muted: 'text-red-100'    },
-  purple: { grad: 'from-purple-700 to-purple-500',     circle: 'bg-white/10',  muted: 'text-purple-100' },
+// Premium restrained palette — no harsh orange. Brand-native dark + accent tones.
+const THEMES: Record<string, { grad: string; muted: string; badge: string }> = {
+  orange: { grad: 'from-gray-900 via-gray-900 to-brand-900',   muted: 'text-brand-300',   badge: 'bg-brand-500/20 text-brand-300'   },
+  dark:   { grad: 'from-gray-950 to-gray-900',                 muted: 'text-gray-400',    badge: 'bg-white/10 text-gray-300'        },
+  blue:   { grad: 'from-blue-950 via-blue-900 to-gray-900',    muted: 'text-blue-200',    badge: 'bg-blue-500/20 text-blue-200'     },
+  green:  { grad: 'from-emerald-950 via-emerald-900 to-gray-900', muted: 'text-emerald-200', badge: 'bg-emerald-500/20 text-emerald-300' },
+  teal:   { grad: 'from-teal-950 via-teal-900 to-gray-900',    muted: 'text-teal-200',    badge: 'bg-teal-500/20 text-teal-200'     },
+  red:    { grad: 'from-rose-950 via-rose-900 to-gray-900',    muted: 'text-rose-200',    badge: 'bg-rose-500/20 text-rose-200'     },
+  purple: { grad: 'from-purple-950 via-purple-900 to-gray-900',muted: 'text-purple-200',  badge: 'bg-purple-500/20 text-purple-200' },
 };
 
 export default function OfferBannerSlider() {
@@ -52,40 +53,33 @@ export default function OfferBannerSlider() {
     >
       <div className={`bg-gradient-to-r ${theme.grad} relative`}>
 
-        {/* Subtle decorative layer — refined grid + soft shapes */}
+        {/* Refined decorative layer */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
-          {/* Micro grid texture */}
-          <div className="absolute inset-0 opacity-[0.06]"
-            style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.6) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.6) 1px,transparent 1px)', backgroundSize: '28px 28px' }} />
-          {/* Right-side soft glow */}
-          <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full bg-white/5 blur-2xl" />
-          <div className="absolute right-12 bottom-0 w-40 h-40 rounded-full bg-white/5 blur-xl" />
-          {/* Small accent dots */}
-          <div className="absolute right-20 top-4 w-2 h-2 rounded-full bg-white/20" />
-          <div className="absolute right-28 top-8 w-1 h-1 rounded-full bg-white/30" />
-          <div className="absolute right-14 top-10 w-1.5 h-1.5 rounded-full bg-white/15" />
+          <div className="absolute inset-0 opacity-[0.04]"
+            style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.5) 1px,transparent 1px)', backgroundSize: '32px 32px' }} />
+          <div className="absolute -right-24 top-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-white/3 blur-3xl" />
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-7 md:py-9 relative">
           <div className="flex items-center gap-6">
 
             {/* Content */}
             <div className="flex-1 min-w-0">
               {b.badge && (
-                <span className="inline-block bg-white/20 text-white text-[10px] font-bold px-3 py-1 rounded-full mb-3 uppercase tracking-widest">
+                <span className={`inline-block ${theme.badge} text-[10px] font-bold px-3 py-1 rounded-full mb-3 uppercase tracking-widest`}>
                   {b.badge}
                 </span>
               )}
-              <h2 className="text-white text-2xl md:text-3xl font-black leading-tight mb-1">
+              <h2 className="text-white text-xl md:text-2xl font-black leading-tight mb-1.5 tracking-tight">
                 {b.title}
               </h2>
               {b.subtitle && (
-                <p className={`${theme.muted} text-sm md:text-base mb-4 max-w-lg`}>{b.subtitle}</p>
+                <p className={`${theme.muted} text-sm mb-4 max-w-lg leading-relaxed`}>{b.subtitle}</p>
               )}
               {b.cta && b.ctaLink && (
                 <Link
                   to={b.ctaLink}
-                  className="inline-flex items-center gap-2 bg-white text-gray-900 font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-gray-50 transition-colors shadow-sm"
+                  className="inline-flex items-center gap-2 bg-white text-gray-900 font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-gray-100 transition-colors"
                 >
                   {b.cta} <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
