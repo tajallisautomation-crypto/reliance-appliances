@@ -634,6 +634,89 @@ export default function GreenCorridor() {
         </div>
       </section>
 
+      {/* ── SHOP THE CORRIDOR ───────────────────────────────────── */}
+      {/*
+        Taxonomy intelligence: each tile links to a pre-filtered product page
+        using the structured filter keys defined in Products.tsx.
+        Inverter ACs include Gree Airy and Haier HFT via product intelligence rules.
+        Inverter fridges surface only compressor-inverter models.
+      */}
+      <section className="max-w-5xl mx-auto px-4 py-20">
+        <div className="text-center mb-10">
+          <p className="text-eco-600 text-xs font-bold uppercase tracking-widest mb-3">Shop the Corridor</p>
+          <h2 className="text-3xl md:text-4xl font-black text-gray-900">Every product that belongs in an efficient home.</h2>
+          <p className="text-gray-500 mt-3 max-w-xl mx-auto">
+            Each category below is pre-filtered to show only inverter or efficiency-rated models. No guesswork.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {[
+            {
+              icon: '❄️',
+              label: 'Inverter ACs',
+              sub: 'Includes Gree Airy & Haier HFT series',
+              href: '/products/air-conditioners?actech=inverter',
+              bg: 'bg-blue-50 border-blue-100',
+              accent: 'text-blue-700',
+            },
+            {
+              icon: '🌡️',
+              label: 'T3 Inverter ACs',
+              sub: 'Rated for 52°C ambient — Karachi summer-proof',
+              href: '/products/air-conditioners?actemp=t3',
+              bg: 'bg-orange-50 border-orange-100',
+              accent: 'text-orange-700',
+            },
+            {
+              icon: '🧊',
+              label: 'Inverter Refrigerators',
+              sub: 'Lower running cost, quieter compressor',
+              href: '/products/refrigerators?fridgetech=inverter',
+              bg: 'bg-cyan-50 border-cyan-100',
+              accent: 'text-cyan-700',
+            },
+            {
+              icon: '☀️',
+              label: 'Solar Inverters',
+              sub: 'Hybrid & on-grid systems',
+              href: '/products/solar?solarcat=inverter',
+              bg: 'bg-amber-50 border-amber-100',
+              accent: 'text-amber-700',
+            },
+            {
+              icon: '🔋',
+              label: 'Solar Batteries',
+              sub: 'LiFePO4 & AGM storage',
+              href: '/products/solar?solarcat=battery',
+              bg: 'bg-eco-50 border-eco-100',
+              accent: 'text-eco-700',
+            },
+            {
+              icon: '🌀',
+              label: 'Inverter Deep Freezers',
+              sub: 'Energy-efficient chest & upright models',
+              href: '/products/freezers?freezertech=inverter',
+              bg: 'bg-indigo-50 border-indigo-100',
+              accent: 'text-indigo-700',
+            },
+          ].map(tile => (
+            <Link
+              key={tile.href}
+              to={tile.href}
+              className={`${tile.bg} border rounded-2xl p-5 flex flex-col gap-2 hover:shadow-md transition-all group`}
+            >
+              <span className="text-3xl">{tile.icon}</span>
+              <p className={`font-bold text-sm ${tile.accent} group-hover:underline`}>{tile.label}</p>
+              <p className="text-xs text-gray-500 leading-snug">{tile.sub}</p>
+              <span className={`text-xs font-semibold ${tile.accent} flex items-center gap-1 mt-auto`}>
+                Browse <ArrowRight className="w-3 h-3" />
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       {/* ── FINAL CTA ────────────────────────────────────────────── */}
       <section className="bg-gray-950 py-20 px-4">
         <div className="max-w-2xl mx-auto text-center">
