@@ -16,8 +16,14 @@ import { useState, useEffect, useMemo } from 'react'
 import { Sun, Zap, TrendingUp, Plus, Trash2, ChevronDown, ChevronUp,
          CheckCircle, Award, RefreshCw, ArrowRight, Star, Info } from 'lucide-react'
 import { getProducts, fmtPKR, roundTo100 as r100, calcAllPlans, submitSolarLead } from '../lib/api'
-import { checkCompatibility, parseBatteryVoltage, type CompatibilityResult } from '../lib/compatibility'
-import { UNIT_RATE_PKR, BATTERY_PKR_PER_KWH } from '../lib/solarRules'
+import { checkCompatibility, parseBatteryVoltage, filterCompatibleBatteries, type CompatibilityResult } from '../lib/compatibility'
+import {
+  UNIT_RATE_PKR, BATTERY_PKR_PER_KWH, INVERTER_PKR_PER_KW,
+  PANEL_WATTS, PANEL_PRICE_PER_W,
+  WIRING_PER_W, LABOR_PER_W, ELEVATED_FRAME_PER_W,
+  UPS_WIRING_PER_W, UPS_LABOR_PER_W,
+  NET_METERING_MIN_KW, NET_METERING_COST_PKR,
+} from '../lib/solarRules'
 
 import type { Product, InstallmentPlan } from '../lib/api'
 
@@ -84,21 +90,13 @@ const UPGRADE_SUGGESTIONS: Record<string, { label: string; savingsW: number; cat
   wm_fl:    { label:'Switch to a Top-Load Automatic WM', savingsW:1500,category:'washing',searchKey:'top load automatic'},
 }
 
-// ── Pricing constants ──────────────────────────────────────────────────────────
+// ── Pricing constants — all canonical values from src/lib/solarRules.ts ────────
+// Do NOT redeclare these here. Edit solarRules.ts to change them.
 
-const PANEL_WATTS        = 620       // Crown Bi-Facial 620W — matches GreenCorridor packages & SolarCompatibilityPanel
-const PANEL_PRICE_PER_W  = 48        // PKR per watt (620W panel ≈ PKR 29,760 ≈ PKR 30,000)
-const UNIT_RATE          = UNIT_RATE_PKR  // canonical → src/lib/solarRules.ts
-const WIRING_PER_W       = 12        // Rs/W — solar wiring & equipment
-const LABOR_PER_W        = 5         // Rs/W — solar installation labor
-const ELEVATED_FRAME_W   = 28        // Rs/W — elevated frame surcharge
-const UPS_WIRING_PER_W   = 9         // Rs/W — UPS wiring & equipment
-const UPS_LABOR_PER_W    = 3         // Rs/W — UPS labor
-const BATTERY_PER_KWH    = BATTERY_PKR_PER_KWH  // canonical → src/lib/solarRules.ts
-// Net metering: K-Electric only allows grid tie-in for 10kW+ systems.
-// Requires application + approved metering hardware. One-time charge.
-const NET_METERING_MIN_KW = 10
-const NET_METERING_COST   = 250_000  // PKR — metering hardware + DISCO application fee
+const UNIT_RATE    = UNIT_RATE_PKR
+const BATTERY_PER_KWH = BATTERY_PKR_PER_KWH
+const ELEVATED_FRAME_W = ELEVATED_FRAME_PER_W
+const NET_METERING_COST = NET_METERING_COST_PKR
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -179,13 +177,46 @@ interface BatteryBank {
   totalCost: number
 }
 
-function bestBatteryBank(batteries: Product[], targetKWh: number): BatteryBank | null {
+/** Parse battery voltage from a product's spec map (needed before getBatteryVoltageFromProduct is defined). */
+function _getBattVoltForProduct(product: Product): 24 | 48 | 'unknown' {
+  const VOLT_KEYS = ['battery voltage', 'voltage', 'system voltage', 'nominal voltage', 'dc voltage']
+  const raw = Object.entries(product.specs ?? {})
+    .find(([k]) => VOLT_KEYS.includes(k.toLowerCase()))?.[1] ?? null
+  return parseBatteryVoltage(raw)
+}
+
+/**
+ * Pick the best battery bank from catalog for the given target kWh and inverter kW.
+ * Applies compatibility filtering — only batteries compatible with the inverter are considered.
+ * Falls back to all batteries if compatibility metadata is absent (missing_data_blocked).
+ */
+function bestBatteryBank(batteries: Product[], targetKWh: number, inverterKw?: number): BatteryBank | null {
   if (!targetKWh || !batteries.length) return null
   const kwhOf = (p: Product) => {
     const m = (p.simplified_name + ' ' + (p.specs?.Capacity ?? '') + '').match(/(\d+(?:\.\d)?)\s*k[wW]h/i)
     return m ? parseFloat(m[1]) : 0
   }
-  const valid = batteries.filter(p => kwhOf(p) > 0)
+
+  // Filter by compatibility if inverter kW is known
+  let candidates = batteries
+  if (inverterKw) {
+    const compatible = filterCompatibleBatteries(
+      batteries.map(p => ({
+        id: p.id,
+        brand: p.brand ?? '',
+        model: p.simplified_name ?? '',
+        batteryVoltage: _getBattVoltForProduct(p),
+      })),
+      inverterKw,
+    )
+    const compatIds = new Set(compatible.map(b => b.id))
+    const filtered = batteries.filter(p => compatIds.has(p.id))
+    // If compatibility filtering yields results, use them. Otherwise fall back to all
+    // (missing metadata — surface via calcBatteryCompat warning in UI).
+    if (filtered.length > 0) candidates = filtered
+  }
+
+  const valid = candidates.filter(p => kwhOf(p) > 0)
   if (!valid.length) return null
   // Pick the option with lowest total cost to cover targetKWh
   let best: BatteryBank | null = null
@@ -319,10 +350,10 @@ export default function SolarCalculator() {
       if (mode === 'ups') {
         const batKWh  = Math.ceil(totalW * backupHrs / 1000 * 1.2)  // 20% buffer
         const invKW   = Math.ceil(totalW / 100) / 10                 // round up to 0.1kW
-        const batBank = bestBatteryBank(solarProds.batteries, batKWh)
+        const batBank = bestBatteryBank(solarProds.batteries, batKWh, invKW)
         const batCost = batBank ? batBank.totalCost : r100(batKWh * BATTERY_PER_KWH)
         const invProduct = bestInverter(solarProds.inverters, invKW)
-        const invCost    = invProduct ? invProduct.price.cash_floor : r100(invKW * 15000)
+        const invCost    = invProduct ? invProduct.price.cash_floor : r100(invKW * INVERTER_PKR_PER_KW)
         const wiringCost = r100(totalW * (UPS_WIRING_PER_W + UPS_LABOR_PER_W))
         const total      = r100(invCost + batCost + wiringCost)
         const allPlans   = calcAllPlans(total)
@@ -359,12 +390,12 @@ export default function SolarCalculator() {
       // over-specifying (e.g. 5.58kW array should recommend 5kW, not 8kW inverter).
       const invKW      = activeType === 'ups-only' ? sysKW : (sysKW <= 3.5 ? 3 : sysKW <= 5.5 ? 5 : sysKW <= 8.5 ? 8 : sysKW <= 12.5 ? 12 : 15)
       const invProduct = bestInverter(solarProds.inverters, invKW)
-      const invCost    = invProduct ? invProduct.price.cash_floor : r100(invKW * 15000)
+      const invCost    = invProduct ? invProduct.price.cash_floor : r100(invKW * INVERTER_PKR_PER_KW)
 
       // Battery bank (supports stacking multiple units)
       const needBat = activeType !== 'on-grid'
       const batKWh  = needBat ? Math.ceil(refU * 0.6) : 0   // cover 60% of daily from battery
-      const batBank = needBat ? bestBatteryBank(solarProds.batteries, batKWh) : null
+      const batBank = needBat ? bestBatteryBank(solarProds.batteries, batKWh, invKW) : null
       const batCost = needBat
         ? (batBank ? batBank.totalCost : r100(batKWh * BATTERY_PER_KWH))
         : 0

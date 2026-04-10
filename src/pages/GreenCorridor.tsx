@@ -98,23 +98,24 @@ const PACKAGES: GCPackage[] = [
     panelCount: 5,
     inverterModel: 'Crown Yorker 3.6kW Hybrid Inverter',
     inverterWarranty: '2-year',
-    batteryKwh: null,
-    batteryModel: null,
-    batteryWarranty: null,
+    batteryKwh: 2.4,
+    batteryModel: 'Crown LiFePO4 2.4kWh (24V, 100Ah)',
+    batteryWarranty: '5-year',
     acCount: 1,
     acTonnage: '1 ton',
     acBrands: 'Haier or Dawlance',
     monthlyUnitsMin: 350,
     monthlyUnitsMax: 420,
-    billReduction: '50–65%',
+    billReduction: '55–70%',
     includes: [
       '5 × Crown Bi-Facial 620W Solar Panels (3.1kW peak)',
       'Crown Yorker 3.6kW Hybrid Inverter (2-yr warranty)',
+      'Crown LiFePO4 2.4kWh Battery — 24V, 6–8 hrs backup (5-yr warranty)',
       '1 Haier or Dawlance Inverter AC (1 ton)',
       'All wiring, electrical equipment & transport',
       'Professional installation & commissioning',
     ],
-    price: 450000,
+    price: 560000,
     popular: false,
     color: 'border-gray-200',
     badgeColor: 'bg-gray-100 text-gray-700',
@@ -129,23 +130,24 @@ const PACKAGES: GCPackage[] = [
     panelCount: 8,
     inverterModel: 'Crown 5kW Hybrid Inverter',
     inverterWarranty: '2-year',
-    batteryKwh: null,
-    batteryModel: null,
-    batteryWarranty: null,
+    batteryKwh: 5.12,
+    batteryModel: 'Crown LiFePO4 5.12kWh (48V, 100Ah)',
+    batteryWarranty: '5-year',
     acCount: 2,
     acTonnage: '1.5 ton each',
     acBrands: 'Haier or Dawlance',
     monthlyUnitsMin: 550,
     monthlyUnitsMax: 650,
-    billReduction: '65–80%',
+    billReduction: '70–85%',
     includes: [
       '8 × Crown Bi-Facial 620W Solar Panels (4.96kW peak)',
       'Crown 5kW Hybrid Inverter (2-yr warranty)',
+      'Crown LiFePO4 5.12kWh Battery — 48V, 8–12 hrs backup (5-yr warranty)',
       '2 Haier or Dawlance Inverter ACs (1.5 ton each)',
       'All wiring, electrical equipment & transport',
       'Professional installation & commissioning',
     ],
-    price: 850000,
+    price: 1150000,
     popular: true,
     color: 'border-eco-500',
     badgeColor: 'bg-eco-500 text-white',
@@ -188,7 +190,6 @@ const PACKAGES: GCPackage[] = [
 export default function GreenCorridor() {
   const [monthlyBill, setMonthlyBill] = useState(8000)
   const [numACs,      setNumACs]      = useState(2)
-  const [hasBattery,  setHasBattery]  = useState(false)
 
   // Booking modal state
   const [bookingOpen,    setBookingOpen]    = useState(false)
@@ -203,14 +204,11 @@ export default function GreenCorridor() {
     return PACKAGES[2]
   })()
 
-  // Battery add-on only when the matched package doesn't already bundle a battery
-  const batteryAddon   = hasBattery && matchedPackage.batteryKwh === null ? 250000 : 0
-  const systemCost     = matchedPackage.price + batteryAddon
-
-  // Saving % from each package's published bill-reduction midpoint (canonical: solarRules.ts).
-  // Battery extends self-consumption into evening, adding SAVING_PCT_BATTERY_ADDON when included.
+  // All Green Corridor packages now bundle LiFePO4 battery as standard.
+  // Saving % always uses battery-inclusive midpoint (solar midpoint + SAVING_PCT_BATTERY_ADDON).
+  const systemCost     = matchedPackage.price
   const baseSavingPct  = matchedPackage.solarKw === 3 ? SAVING_PCT_3KW : matchedPackage.solarKw === 5 ? SAVING_PCT_5KW : SAVING_PCT_8KW
-  const solarSavingPct = Math.min(0.90, baseSavingPct + (hasBattery ? SAVING_PCT_BATTERY_ADDON : 0))
+  const solarSavingPct = Math.min(0.90, baseSavingPct + SAVING_PCT_BATTERY_ADDON)
   const monthlySaving  = Math.round(monthlyBill * solarSavingPct / 100) * 100
   const annualSaving   = monthlySaving * 12
   const paybackYears   = annualSaving > 0 ? +(systemCost / annualSaving).toFixed(1) : 0
@@ -367,24 +365,21 @@ export default function GreenCorridor() {
               </div>
             </div>
 
-            {/* Battery toggle */}
+            {/* Battery — always included */}
             <div>
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-3">
-                Add battery storage?
+                Battery storage
               </label>
-              <div className="flex gap-2">
-                {(['No', 'Yes'] as const).map((val) => (
-                  <button key={val} onClick={() => setHasBattery(val === 'Yes')}
-                    className={`flex-1 py-3 rounded-xl text-sm font-bold border transition-all ${(val === 'Yes') === hasBattery ? 'bg-gray-900 text-white border-gray-900' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-400'}`}>
-                    {val}
-                  </button>
-                ))}
+              <div className="flex items-center gap-2 bg-eco-50 border border-eco-200 rounded-xl px-4 py-3">
+                <Battery className="w-4 h-4 text-eco-600 shrink-0" />
+                <span className="text-sm font-bold text-eco-800">LiFePO4 — Included in all packages</span>
               </div>
+              <p className="text-[11px] text-gray-400 mt-1.5">Day-charge, evening-discharge. Karachi peak-shaving included.</p>
             </div>
           </div>
 
           {/* Results */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-apple animate-fade-in" key={`${monthlyBill}-${numACs}-${hasBattery}`}>
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-apple animate-fade-in" key={`${monthlyBill}-${numACs}`}>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               {[
                 { label: 'Monthly saving',  value: `PKR ${formatPrice(monthlySaving)}`,  color: 'text-eco-600' },
@@ -459,7 +454,7 @@ export default function GreenCorridor() {
               onClick={() => openBooking({
                 packageName: `Green Corridor — ${matchedPackage.name} (${matchedPackage.solarKw}kW)`,
                 estimatedPrice: systemCost,
-                notes: `Calculator result: ${numACs} ACs, battery: ${hasBattery}, monthly bill: PKR ${monthlyBill}`,
+                notes: `Calculator result: ${numACs} ACs, LiFePO4 battery included, monthly bill: PKR ${monthlyBill}`,
               })}
               className="inline-flex items-center justify-center gap-2 bg-eco-500 hover:bg-eco-600 text-white font-bold px-8 py-4 rounded-2xl transition-all shadow-eco">
               <CalendarCheck className="w-5 h-5" /> Book Free Site Assessment

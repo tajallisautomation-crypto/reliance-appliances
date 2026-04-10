@@ -16,6 +16,10 @@ import {
 } from '@/lib/api';
 import { buildSearchIndex, adminSearch } from '@/lib/search';
 import {
+  PANEL_WATTS, PANEL_PRICE_PER_W, INVERTER_PKR_PER_KW, BATTERY_PKR_PER_KWH,
+  NET_METERING_COST_PKR, DEFAULT_BATTERY_CHEMISTRY,
+} from '@/lib/solarRules';
+import {
   LogOut, Plus, Pencil, Trash2, Upload, Search, X, Check,
   ChevronDown, ChevronUp, Package, FileUp, Loader2, Sparkles, Image as ImageIcon,
   RefreshCw, AlertTriangle, Camera, ImageOff, Tag, Wand2, ListChecks, MessageCircle,
@@ -4182,11 +4186,12 @@ function generateSolarPdf(lead: SolarLead, opts: {
   y += 8;
 
   const specs = [
-    ['System Type',   'Off-Grid (Battery Storage)'],
+    ['System Type',   'Hybrid Solar (Battery Storage)'],
     ['System Size',   `${lead.system_kw} kW`],
-    ['Solar Panels',  `${Math.ceil((lead.system_kw * 1000) / 545)} × 545W Mono PERC (Tier-1)`],
-    ['Inverter',      `${lead.system_kw}kW Off-Grid Inverter (Growatt / Deye)`],
+    ['Solar Panels',  `${Math.ceil((lead.system_kw * 1000) / PANEL_WATTS)} × ${PANEL_WATTS}W Crown Bi-Facial`],
+    ['Inverter',      `${lead.system_kw}kW Hybrid Inverter (Crown)`],
     ['Battery Bank',  `${lead.battery_kwh} kWh — ${opts.batteryType === 'lithium' ? 'Lithium LiFePO₄' : 'Tubular Lead-Acid'}`],
+    ['Battery Voltage', opts.batteryType === 'lithium' ? (lead.system_kw < 3.7 ? '24V' : '48V') : '12V × bank'],
     ['Night Backup',  `${lead.backup_hours} Hours`],
     ['Installation',  'Included — Karachi only'],
   ];
@@ -4226,15 +4231,15 @@ function generateSolarPdf(lead: SolarLead, opts: {
   doc.text('TOTAL (PKR)', W - margin - 3, y + 1, { align: 'right' });
   y += 9;
 
-  const panelQty = Math.ceil((lead.system_kw * 1000) / 545);
-  const battAhNeeded = Math.ceil((lead.battery_kwh * 1000) / (opts.batteryType === 'lithium' ? 12 : 2));
+  const panelQty = Math.ceil((lead.system_kw * 1000) / PANEL_WATTS);
+  const battVoltDisplay = opts.batteryType === 'lithium' ? (lead.system_kw < 3.7 ? '24V' : '48V') : '12V';
 
   const lineItems = [
-    { desc: '545W Mono PERC Solar Panel (Tier-1)', qty: panelQty, unit: opts.panelPrice },
-    { desc: `Off-Grid Inverter ${lead.system_kw}kW`, qty: 1, unit: opts.inverterPrice },
+    { desc: `${PANEL_WATTS}W Crown Bi-Facial Solar Panel`, qty: panelQty, unit: opts.panelPrice },
+    { desc: `Crown ${lead.system_kw}kW Hybrid Inverter`, qty: 1, unit: opts.inverterPrice },
     { desc: opts.batteryType === 'lithium'
-        ? `Lithium LiFePO₄ Battery (${lead.battery_kwh}kWh)`
-        : `Tubular Battery Bank (${lead.battery_kwh}kWh)`,
+        ? `Lithium LiFePO₄ Battery — ${lead.battery_kwh}kWh @ ${battVoltDisplay}`
+        : `Tubular Battery Bank — ${lead.battery_kwh}kWh`,
       qty: 1, unit: opts.batteryPrice },
     { desc: 'Installation & Commissioning', qty: 1, unit: opts.installPrice },
   ];
@@ -4294,16 +4299,16 @@ function generateSolarPdf(lead: SolarLead, opts: {
 }
 
 function SolarQuoteModal({ lead, onClose }: { lead: SolarLead; onClose: () => void }) {
-  const [battType,     setBattType]     = useState<'tubular' | 'lithium'>('tubular');
-  const [panelPrice,   setPanelPrice]   = useState(String(lead.system_kw <= 3 ? 38000 : 36000));
-  const [invPrice,     setInvPrice]     = useState(String(Math.round(lead.system_kw * 55000)));
-  const [battPrice,    setBattPrice]    = useState(String(Math.round(lead.battery_kwh * (battType === 'lithium' ? 42000 : 18000))));
+  const [battType,     setBattType]     = useState<'tubular' | 'lithium'>(DEFAULT_BATTERY_CHEMISTRY);
+  const [panelPrice,   setPanelPrice]   = useState(String(Math.round(PANEL_WATTS * PANEL_PRICE_PER_W)));
+  const [invPrice,     setInvPrice]     = useState(String(Math.round(lead.system_kw * INVERTER_PKR_PER_KW)));
+  const [battPrice,    setBattPrice]    = useState(String(Math.round(lead.battery_kwh * (DEFAULT_BATTERY_CHEMISTRY === 'lithium' ? BATTERY_PKR_PER_KWH : 18000))));
   const [installPrice, setInstallPrice] = useState('25000');
   const [saving,       setSaving]       = useState(false);
   const [err,          setErr]          = useState('');
   const [waUrl,        setWaUrl]        = useState('');
 
-  const subtotal = (parseInt(panelPrice) * Math.ceil((lead.system_kw * 1000) / 545)) +
+  const subtotal = (parseInt(panelPrice) * Math.ceil((lead.system_kw * 1000) / PANEL_WATTS)) +
     parseInt(invPrice) + parseInt(battPrice) + parseInt(installPrice);
 
   const handleGenerate = async () => {
