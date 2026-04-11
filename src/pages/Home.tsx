@@ -121,16 +121,16 @@ export default function Home() {
               </Link>
             </div>
             <div className="mt-6 pt-5 border-t border-gray-100">
-              <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:flex sm:flex-wrap sm:items-center sm:gap-x-0 sm:gap-y-0 sm:divide-x sm:divide-gray-200">
+              <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3">
                 {[
                   { value: '11 yrs',    label: 'in business'  },
                   { value: '14,400+',   label: 'clients'      },
                   { value: '75%',       label: 'loyalty rate' },
                   { value: '24,000+',   label: 'orders'       },
                 ].map((s, i) => (
-                  <div key={i} className={`flex items-baseline gap-1.5 ${i > 0 ? 'sm:pl-5' : ''} ${i < 3 ? 'sm:pr-5' : ''}`}>
+                  <div key={i} className={`flex items-baseline gap-1.5 ${i > 0 ? 'border-l border-gray-200 pl-4' : ''}`}>
                     <dt className="text-sm font-black text-gray-900 leading-none">{s.value}</dt>
-                    <dd className="text-xs text-gray-400 font-medium">{s.label}</dd>
+                    <dd className="text-xs text-gray-400 font-medium leading-none">{s.label}</dd>
                   </div>
                 ))}
               </dl>
