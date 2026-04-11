@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Leaf, Sun, Zap, TrendingDown, CheckCircle, MessageCircle, Calculator, Battery, CalendarCheck } from 'lucide-react'
+import { ArrowRight, Leaf, Sun, Zap, TrendingDown, CheckCircle, MessageCircle, Calculator, Battery, CalendarCheck, AlertTriangle } from 'lucide-react'
 import SEO from '@/components/ui/SEO'
 import AnimatedCounter from '@/components/ui/AnimatedCounter'
 import { calcPlan, formatPrice } from '@/lib/api'
 import { waSales } from '@/lib/whatsapp'
 import {
-  BILL_THRESHOLD_SMALL, BILL_THRESHOLD_LARGE,
+  BILL_THRESHOLD_SMALL, BILL_THRESHOLD_LARGE, BILL_THRESHOLD_INDUSTRIAL,
   SAVING_PCT_3KW, SAVING_PCT_5KW, SAVING_PCT_8KW,
   SAVING_PCT_BATTERY_ADDON,
+  INSTALLMENT_MAX_PKR,
+  NET_METERING_MIN_KW, NET_METERING_COST_PKR,
 } from '@/lib/solarRules'
 import BookingModal, { type BookingContext } from '@/components/BookingModal'
 
@@ -57,10 +59,9 @@ const JOURNEY_STEPS = [
   },
 ]
 
-// Net metering rule: only available for 10kW+ systems, PKR 250,000 add-on.
-// None of the standard packages below qualify — do NOT show net metering on these.
-const NET_METERING_MIN_KW = 10
-const NET_METERING_ADDON_PRICE = 250000
+// Net metering thresholds — canonical values imported from solarRules.ts.
+// Only the 12kW Industrial Freedom package qualifies for KE net metering.
+const NET_METERING_ADDON_PRICE = NET_METERING_COST_PKR
 
 interface GCPackage {
   id: string
@@ -163,18 +164,18 @@ const PACKAGES: GCPackage[] = [
     inverterModel: 'Crown 8kW Hybrid Inverter',
     inverterWarranty: '2-year',
     batteryKwh: 10,
-    batteryModel: 'Crown 10.24kWh LiFePO4 Battery (2 × 5.12kWh)',
+    batteryModel: 'Crown 10.24kWh LiFePO4 Battery (2 × 5.12kWh, 48V)',
     batteryWarranty: '5-year',
     acCount: 4,
     acTonnage: 'mixed (1 + 1.5 + 1.5 + 2 ton)',
     acBrands: 'Haier or Dawlance',
     monthlyUnitsMin: 900,
     monthlyUnitsMax: 1050,
-    billReduction: '75–90%',
+    billReduction: '80–90%',
     includes: [
       '13 × Crown Bi-Facial 620W Solar Panels (8.06kW peak)',
       'Crown 8kW Hybrid Inverter (2-yr warranty)',
-      'Crown 10.24kWh LiFePO4 Battery Storage — 8–12 hrs backup (5-yr warranty)',
+      'Crown 10.24kWh LiFePO4 Battery — 48V, 8–12 hrs backup (5-yr warranty)',
       '4 Haier or Dawlance Inverter ACs (mixed tonnage)',
       'All wiring, electrical equipment & transport',
       'Professional installation & commissioning',
@@ -185,10 +186,43 @@ const PACKAGES: GCPackage[] = [
     badgeColor: 'bg-gray-100 text-gray-700',
     workmanshipWarranty: '1-year',
   },
+  {
+    id: 'industrial-freedom',
+    name: 'Industrial Freedom',
+    tagline: 'Net-metering eligible — sell surplus to K-Electric',
+    solarKw: 12,
+    panelWatts: 550,
+    panelCount: 22,
+    inverterModel: 'Crown/Inverex 12kW 3-Phase Hybrid Inverter',
+    inverterWarranty: '2-year',
+    batteryKwh: 20.4,
+    batteryModel: '2 × 10.24kWh LiFePO4 Battery Bank (48V)',
+    batteryWarranty: '5-year',
+    acCount: 6,
+    acTonnage: 'mixed (commercial load)',
+    acBrands: 'Haier or Dawlance',
+    monthlyUnitsMin: 1200,
+    monthlyUnitsMax: 1500,
+    billReduction: '85–100%',
+    includes: [
+      '22 × 550W+ Bi-Facial N-Type Panels (12.1kW peak)',
+      'Crown/Inverex 12kW 3-Phase Hybrid Inverter (2-yr warranty)',
+      '2 × 10.24kWh LiFePO4 Battery Bank — 48V, 16–20 hrs backup (5-yr warranty)',
+      'Elevated 12-gauge galvanised steel mounting structure',
+      'K-Electric Net Metering application & approved metering hardware',
+      'All wiring, electrical equipment & transport',
+      'Professional 3-phase installation & commissioning',
+    ],
+    price: 2850000,
+    popular: false,
+    color: 'border-brand-300',
+    badgeColor: 'bg-brand-100 text-brand-700',
+    workmanshipWarranty: '2-year',
+  },
 ]
 
 export default function GreenCorridor() {
-  const [monthlyBill, setMonthlyBill] = useState(8000)
+  const [monthlyBill, setMonthlyBill] = useState(25000)
   const [numACs,      setNumACs]      = useState(2)
 
   // Booking modal state
@@ -199,17 +233,31 @@ export default function GreenCorridor() {
 
   // Bill is the primary signal for system size — avoids over-recommending large systems to low-bill users
   const matchedPackage = (() => {
-    if (monthlyBill < BILL_THRESHOLD_SMALL) return PACKAGES.find(p => p.solarKw === 3) ?? PACKAGES[0]
-    if (monthlyBill < BILL_THRESHOLD_LARGE) return PACKAGES.find(p => p.solarKw === 5) ?? PACKAGES[1]
-    return PACKAGES[2]
+    if (monthlyBill < BILL_THRESHOLD_SMALL)      return PACKAGES.find(p => p.solarKw === 3)  ?? PACKAGES[0]
+    if (monthlyBill < BILL_THRESHOLD_LARGE)      return PACKAGES.find(p => p.solarKw === 5)  ?? PACKAGES[1]
+    if (monthlyBill < BILL_THRESHOLD_INDUSTRIAL) return PACKAGES.find(p => p.solarKw === 8)  ?? PACKAGES[2]
+    return PACKAGES.find(p => p.solarKw === 12) ?? PACKAGES[3]
+  })()
+
+  // Input sanity: flag combos that don't make physical sense
+  const sanityWarning = (() => {
+    if (numACs >= 3 && monthlyBill < BILL_THRESHOLD_SMALL)
+      return `${numACs} ACs on a PKR ${monthlyBill.toLocaleString()} bill seems low — verify your bill or reduce AC count for a meaningful estimate.`
+    if (numACs >= 4 && monthlyBill < BILL_THRESHOLD_LARGE)
+      return `${numACs} ACs typically produce a higher bill than PKR ${monthlyBill.toLocaleString()}. Your estimate may be understated.`
+    return null
   })()
 
   // All Green Corridor packages now bundle LiFePO4 battery as standard.
   // Saving % always uses battery-inclusive midpoint (solar midpoint + SAVING_PCT_BATTERY_ADDON).
   const systemCost     = matchedPackage.price
-  const baseSavingPct  = matchedPackage.solarKw === 3 ? SAVING_PCT_3KW : matchedPackage.solarKw === 5 ? SAVING_PCT_5KW : SAVING_PCT_8KW
-  const solarSavingPct = Math.min(0.90, baseSavingPct + SAVING_PCT_BATTERY_ADDON)
-  const monthlySaving  = Math.round(monthlyBill * solarSavingPct / 100) * 100
+  const baseSavingPct  = matchedPackage.solarKw === 3 ? SAVING_PCT_3KW
+                       : matchedPackage.solarKw === 5 ? SAVING_PCT_5KW
+                       : matchedPackage.solarKw === 8 ? SAVING_PCT_8KW
+                       : 0.875 // 12kW: midpoint of 85–100%, net metering caps grid draw near zero
+  const solarSavingPct = Math.min(0.95, baseSavingPct + SAVING_PCT_BATTERY_ADDON)
+  // round monthlySaving to nearest PKR 100
+  const monthlySaving  = Math.round((monthlyBill * solarSavingPct) / 100) * 100
   const annualSaving   = monthlySaving * 12
   const paybackYears   = annualSaving > 0 ? +(systemCost / annualSaving).toFixed(1) : 0
   const plan3m         = calcPlan(systemCost, '3m')
@@ -272,13 +320,13 @@ export default function GreenCorridor() {
         <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-6">The Reality</p>
         <div className="mb-6">
           <p className="text-7xl md:text-8xl font-black text-gray-900">
-            PKR <AnimatedCounter target={8400} />
+            PKR <AnimatedCounter target={25000} />
           </p>
-          <p className="text-xl text-gray-500 mt-3">Average monthly electricity bill in Karachi.</p>
+          <p className="text-xl text-gray-500 mt-3">Typical monthly bill for a 3-bedroom home with 2+ ACs in Karachi.</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
           {[
-            { label: 'Per year leaving your household', value: 'PKR 1,00,800' },
+            { label: 'Per year leaving your household', value: 'PKR 3,00,000+' },
             { label: 'Hours of load shedding in summer', value: '12–16 hrs/day' },
             { label: 'Fuel cost increase per year', value: '~25%' },
           ].map(item => (
@@ -404,6 +452,14 @@ export default function GreenCorridor() {
               </p>
             </div>
           </div>
+
+          {/* Input sanity warning */}
+          {sanityWarning && (
+            <div className="mt-4 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3">
+              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-800 leading-relaxed">{sanityWarning}</p>
+            </div>
+          )}
 
           {/* Low-bill guidance — shown instead of a hard-sell when bill doesn't justify a large system */}
           {monthlyBill < BILL_THRESHOLD_SMALL && (
@@ -621,9 +677,9 @@ export default function GreenCorridor() {
             </p>
             <p>
               K-Electric (KE) only approves Net Metering for systems of <strong>{NET_METERING_MIN_KW}kW or above</strong>.
-              None of the packages above are eligible — they operate as standard grid-tied systems.
-              If Net Metering is a priority, contact us for a custom 10kW+ system.
-              Net Metering adds <strong>PKR {formatPrice(NET_METERING_ADDON_PRICE)}</strong> to the system cost.
+              The 3kW, 5kW, and 8kW packages operate as standard grid-tied systems — they offset your consumption in real-time but cannot sell surplus back.
+              The <strong>12kW Industrial Freedom</strong> package includes the KE net metering application and approved metering hardware
+              (valued at PKR {formatPrice(NET_METERING_ADDON_PRICE)}) — bundled into the package price.
             </p>
           </div>
 

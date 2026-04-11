@@ -3,20 +3,22 @@ import { Link } from 'react-router-dom'
 import {
   ArrowRight, Calculator, ShieldCheck, Truck, CreditCard, Headphones,
   ChevronRight, Zap, Leaf, Image,
+  AirVent, Refrigerator, Shirt, Tv, Sun, UtensilsCrossed, Droplets, Plug,
+  Snowflake,
 } from 'lucide-react'
 import { getProducts, getProductCount, type Product, formatPrice } from '../lib/api'
 
 // Shop-by-category — 9 stable main categories only. Subcategories live inside filters/BYOP/buying guides.
 const HOME_CATEGORIES = [
-  { id: 'air-conditioners',   name: 'Air Conditioners',  icon: '❄️', to: '/products?category=air-conditioners'   },
-  { id: 'refrigerators',      name: 'Refrigerators',     icon: '🧊', to: '/products?category=refrigerators'      },
-  { id: 'washing-machines',   name: 'Washing Machines',  icon: '👕', to: '/products?category=washing-machines'   },
-  { id: 'freezers',           name: 'Freezers',          icon: '🥶', to: '/products?category=freezers'           },
-  { id: 'televisions',        name: 'Televisions',       icon: '📺', to: '/products?category=televisions'        },
-  { id: 'solar',              name: 'Solar & Energy',    icon: '☀️', to: '/solar'                                },
-  { id: 'kitchen-appliances', name: 'Kitchen',           icon: '🍳', to: '/products?category=kitchen-appliances' },
-  { id: 'water-dispensers',   name: 'Water Dispensers',  icon: '💧', to: '/products?category=water-dispensers'   },
-  { id: 'small-appliances',   name: 'Small Appliances',  icon: '🔌', to: '/products?category=small-appliances'   },
+  { id: 'air-conditioners',   name: 'Air Conditioners',  Icon: AirVent,          color: 'text-blue-500',   to: '/products?category=air-conditioners'   },
+  { id: 'refrigerators',      name: 'Refrigerators',     Icon: Refrigerator,     color: 'text-cyan-500',   to: '/products?category=refrigerators'      },
+  { id: 'washing-machines',   name: 'Washing Machines',  Icon: Shirt,            color: 'text-indigo-500', to: '/products?category=washing-machines'   },
+  { id: 'freezers',           name: 'Freezers',          Icon: Snowflake,        color: 'text-sky-500',    to: '/products?category=freezers'           },
+  { id: 'televisions',        name: 'Televisions',       Icon: Tv,               color: 'text-gray-700',   to: '/products?category=televisions'        },
+  { id: 'solar',              name: 'Solar & Energy',    Icon: Sun,              color: 'text-amber-500',  to: '/solar'                                },
+  { id: 'kitchen-appliances', name: 'Kitchen',           Icon: UtensilsCrossed,  color: 'text-orange-500', to: '/products?category=kitchen-appliances' },
+  { id: 'water-dispensers',   name: 'Water Dispensers',  Icon: Droplets,         color: 'text-teal-500',   to: '/products?category=water-dispensers'   },
+  { id: 'small-appliances',   name: 'Small Appliances',  Icon: Plug,             color: 'text-purple-500', to: '/products?category=small-appliances'   },
 ]
 import { calcPlan } from '../lib/plans'
 import ProductCard from '../components/products/ProductCard'
@@ -118,14 +120,17 @@ export default function Home() {
                 <Zap className="w-4 h-4" /> Solar Solutions
               </Link>
             </div>
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-6 pt-6 border-t border-gray-100 text-xs text-gray-400">
-              <span className="font-semibold text-gray-700">11 yrs</span>
-              <span className="text-gray-200">·</span>
-              <span className="font-semibold text-gray-700">14,400+ clients</span>
-              <span className="text-gray-200">·</span>
-              <span className="font-semibold text-gray-700">75% loyalty</span>
-              <span className="text-gray-200">·</span>
-              <span className="font-semibold text-gray-700">24,000+ orders</span>
+            <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-6 pt-6 border-t border-gray-100 text-xs text-gray-400">
+              {[
+                '11 yrs in business',
+                '14,400+ clients',
+                '75% loyalty rate',
+                '24,000+ orders',
+              ].map((stat, i) => (
+                <span key={i} className="whitespace-nowrap font-semibold text-gray-700 after:content-['·'] after:ml-3 after:text-gray-200 last:after:content-none">
+                  {stat}
+                </span>
+              ))}
             </div>
           </div>
 
@@ -166,11 +171,11 @@ export default function Home() {
           </Link>
         </div>
         <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-9 gap-3 sm:gap-4">
-          {HOME_CATEGORIES.map(cat => (
-            <Link key={cat.id} to={cat.to}
+          {HOME_CATEGORIES.map(({ id, name, Icon, color, to }) => (
+            <Link key={id} to={to}
               className="group flex flex-col items-center gap-2 py-5 px-2 rounded-3xl bg-gray-50 hover:bg-brand-50 border border-transparent hover:border-brand-100 hover:shadow-sm transition-all duration-200 text-center">
-              <span className="text-3xl group-hover:scale-110 transition-transform duration-200 leading-none">{cat.icon}</span>
-              <span className="text-[11px] font-bold text-gray-500 group-hover:text-brand-700 leading-tight">{cat.name}</span>
+              <Icon className={`w-7 h-7 ${color} group-hover:scale-110 transition-transform duration-200`} />
+              <span className="text-[11px] font-bold text-gray-500 group-hover:text-brand-700 leading-tight">{name}</span>
             </Link>
           ))}
         </div>
@@ -474,8 +479,8 @@ export default function Home() {
               { value: '11 yrs',  label: 'In business',       detail: 'No shortcuts. No drop in quality.' },
             ].map((s, i) => (
               <div key={s.label}
-                className={`py-8 pr-8 ${i > 0 ? 'pl-8 border-l border-white/8' : ''} ${i >= 2 ? 'mt-px pt-8 md:mt-0 md:pt-8' : ''}`}>
-                <p className="text-5xl md:text-6xl font-black text-white leading-none tracking-tight mb-2">{s.value}</p>
+                className={`py-6 md:py-8 pr-4 md:pr-8 ${i % 2 !== 0 ? 'pl-4 md:pl-8 border-l border-white/10' : ''} ${i >= 2 ? 'border-t border-white/10 md:border-t-0 md:border-l border-white/10' : ''}`}>
+                <p className="text-4xl md:text-6xl font-black text-white leading-none tracking-tight mb-2">{s.value}</p>
                 <p className="text-sm font-bold text-brand-400 mb-1">{s.label}</p>
                 <p className="text-xs text-gray-600 leading-snug">{s.detail}</p>
               </div>

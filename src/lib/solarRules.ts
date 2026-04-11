@@ -89,6 +89,9 @@ export const BILL_THRESHOLD_SMALL = 15_000;
 /** Monthly bill (PKR) above which we recommend the 8kW Total Freedom package. */
 export const BILL_THRESHOLD_LARGE = 40_000;
 
+/** Monthly bill (PKR) above which we recommend the 12kW Industrial Freedom package. */
+export const BILL_THRESHOLD_INDUSTRIAL = 80_000;
+
 // ── Per-system saving percentages ────────────────────────────────────────────
 //
 // Midpoints from each package's published bill-reduction range.

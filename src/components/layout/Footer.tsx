@@ -60,6 +60,7 @@ export default function Footer() {
               ['Green Corridor',     '/green-corridor'],
               ['Partner With Us',    '/partner'],
               ['Refer & Earn',       '/referral'],
+              ['Gallery',            '/gallery'],
               ['Customer Portal',    '/portal'],
             ].map(([l, h]) => (
               <li key={l}>

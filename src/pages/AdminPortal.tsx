@@ -29,6 +29,7 @@ import {
   Building2, Phone, Mail, Bell, Settings, ShoppingBag, CalendarDays, CheckCircle, Layers,
 } from 'lucide-react';
 import { useSettingsStore, SETTING_DEFAULTS, DEFAULT_BANNERS, type OfferBanner } from '@/store/settingsStore';
+import * as XLSX from 'xlsx';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -1041,23 +1042,118 @@ function FixQueue({ missing, onDone, onRefresh }: {
   );
 }
 
+// ── Image slot counting (target: 1 thumbnail + 2 gallery = 3 images) ─────────
+
+function imageSlotCount(p: Product): number {
+  let n = 0;
+  if (p.thumbnail?.startsWith('http')) n++;
+  if (p.gallery) n += p.gallery.filter(u => u?.startsWith('http')).length;
+  return n;
+}
+
+/** Export products with fewer than 3 images to Excel for bulk URL entry. */
+function exportImageGapsXlsx(products: Product[]) {
+  const rows = products
+    .filter(p => imageSlotCount(p) < 3)
+    .map(p => {
+      const gallery = (p.gallery || []).filter(u => u?.startsWith('http'));
+      return {
+        id:          p.id,
+        brand:       p.brand,
+        model:       p.model,
+        category:    p.normalized_category || p.category,
+        name:        p.simplified_name || '',
+        image_1:     p.thumbnail || '',
+        image_2:     gallery[0] || '',
+        image_3:     gallery[1] || '',
+        images_have: imageSlotCount(p),
+        images_missing: 3 - imageSlotCount(p),
+      };
+    });
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [
+    { wch: 36 }, // id
+    { wch: 14 }, // brand
+    { wch: 20 }, // model
+    { wch: 22 }, // category
+    { wch: 30 }, // name
+    { wch: 60 }, // image_1
+    { wch: 60 }, // image_2
+    { wch: 60 }, // image_3
+    { wch: 12 }, // images_have
+    { wch: 14 }, // images_missing
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Image Gaps');
+  XLSX.writeFile(wb, `image-gaps-${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+/** Parse an image-gap import Excel file. Returns per-row results. */
+async function importImageGapsXlsx(file: File, onProgress?: (msg: string) => void): Promise<{ ok: number; skipped: number; errors: string[] }> {
+  const buf  = await file.arrayBuffer();
+  const wb   = XLSX.read(buf, { type: 'array' });
+  const ws   = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws);
+
+  let ok = 0, skipped = 0;
+  const errors: string[] = [];
+
+  for (const row of rows) {
+    const id = String(row['id'] || '').trim();
+    if (!id) { skipped++; continue; }
+
+    const img1 = String(row['image_1'] || '').trim();
+    const img2 = String(row['image_2'] || '').trim();
+    const img3 = String(row['image_3'] || '').trim();
+
+    // Only update slots that now have a URL (never blank out existing)
+    const thumbnail_url = img1.startsWith('http') ? img1 : undefined;
+    const gallery_urls  = [img2, img3].filter(u => u.startsWith('http'));
+
+    if (!thumbnail_url && gallery_urls.length === 0) { skipped++; continue; }
+
+    try {
+      const update: Record<string, unknown> = {};
+      if (thumbnail_url) update.thumbnail_url = thumbnail_url;
+      if (gallery_urls.length) {
+        // fetch existing gallery first, then merge
+        const { data } = await supabase.from('products').select('gallery_urls').eq('id', id).single();
+        const existing: string[] = Array.isArray(data?.gallery_urls) ? data.gallery_urls : [];
+        const merged = [...new Set([...gallery_urls, ...existing])];
+        update.gallery_urls = merged;
+      }
+      const { error } = await supabase.from('products').update(update).eq('id', id);
+      if (error) { errors.push(`${id}: ${error.message}`); }
+      else { ok++; onProgress?.(`Updated ${id}`); }
+    } catch (e) {
+      errors.push(`${id}: ${String(e)}`);
+    }
+  }
+  return { ok, skipped, errors };
+}
+
 // ── Images Tab ────────────────────────────────────────────────────────────────
 
 function ImagesTab({ products, onRefresh }: { products: Product[]; onRefresh: () => void }) {
-  const [brandFilter, setBrandFilter]     = useState('');
-  const [missingOnly, setMissingOnly]     = useState(false);
-  const [quickImg, setQuickImg]           = useState<Product | null>(null);
-  const [rematching, setRematching]       = useState(false);
-  const [rematchResult, setRematchResult] = useState<{ found: number; missing: number; cleared: number } | null>(null);
+  const [brandFilter, setBrandFilter]       = useState('');
+  const [missingOnly, setMissingOnly]       = useState(false);
+  const [quickImg, setQuickImg]             = useState<Product | null>(null);
+  const [rematching, setRematching]         = useState(false);
+  const [rematchResult, setRematchResult]   = useState<{ found: number; missing: number; cleared: number } | null>(null);
   const [clearUnmatched, setClearUnmatched] = useState(true);
-  const [fixQueueOpen, setFixQueueOpen]   = useState(false);
+  const [fixQueueOpen, setFixQueueOpen]     = useState(false);
   const [confirmRematch, setConfirmRematch] = useState(false);
+  const [importing, setImporting]           = useState(false);
+  const [importResult, setImportResult]     = useState<{ ok: number; skipped: number; errors: string[] } | null>(null);
+  const importRef = useRef<HTMLInputElement>(null);
 
   const brands = [...new Set(products.map(p => p.brand))].sort();
 
   const hasImg = productHasImage;
 
-  const missingProducts = products.filter(p => !hasImg(p));
+  const missingProducts    = products.filter(p => !hasImg(p));
+  const under3Products     = products.filter(p => imageSlotCount(p) < 3);
 
   const filtered = products
     .filter(p => !brandFilter || p.brand === brandFilter)
@@ -1065,6 +1161,7 @@ function ImagesTab({ products, onRefresh }: { products: Product[]; onRefresh: ()
 
   const totalWithImg = products.filter(hasImg).length;
   const totalMissing = missingProducts.length;
+  const totalUnder3  = under3Products.length;
 
   async function handleRematch() {
     setRematching(true); setRematchResult(null);
@@ -1072,17 +1169,31 @@ function ImagesTab({ products, onRefresh }: { products: Product[]; onRefresh: ()
     setRematchResult(r); setRematching(false); onRefresh();
   }
 
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true); setImportResult(null);
+    const result = await importImageGapsXlsx(file);
+    setImportResult(result); setImporting(false);
+    onRefresh();
+    if (importRef.current) importRef.current.value = '';
+  }
+
   return (
     <div className="max-w-6xl mx-auto py-6 space-y-4">
       {/* Summary bar */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-4 gap-4">
         <div className="bg-white rounded-xl border border-gray-100 p-4">
           <div className="text-2xl font-black text-green-600">{totalWithImg}</div>
-          <div className="text-xs text-gray-500 mt-0.5">Products with images</div>
+          <div className="text-xs text-gray-500 mt-0.5">Have at least 1 image</div>
         </div>
         <div className="bg-white rounded-xl border border-gray-100 p-4">
-          <div className={`text-2xl font-black ${totalMissing > 0 ? 'text-amber-500' : 'text-gray-300'}`}>{totalMissing}</div>
-          <div className="text-xs text-gray-500 mt-0.5">Missing images</div>
+          <div className={`text-2xl font-black ${totalMissing > 0 ? 'text-red-500' : 'text-gray-300'}`}>{totalMissing}</div>
+          <div className="text-xs text-gray-500 mt-0.5">No images at all</div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 p-4">
+          <div className={`text-2xl font-black ${totalUnder3 > 0 ? 'text-amber-500' : 'text-gray-300'}`}>{totalUnder3}</div>
+          <div className="text-xs text-gray-500 mt-0.5">Under 3 images</div>
         </div>
         <div className="bg-white rounded-xl border border-gray-100 p-4">
           <div className="text-2xl font-black text-gray-900">{products.length ? ((totalWithImg / products.length) * 100).toFixed(0) : 0}%</div>
@@ -1102,6 +1213,19 @@ function ImagesTab({ products, onRefresh }: { products: Product[]; onRefresh: ()
           Missing only
         </label>
         <div className="flex-1" />
+        {/* Excel export — products with < 3 images */}
+        {totalUnder3 > 0 && (
+          <button onClick={() => exportImageGapsXlsx(products)}
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-bold">
+            <FileUp className="w-4 h-4" />
+            Export {totalUnder3} gaps (.xlsx)
+          </button>
+        )}
+        {/* Excel import */}
+        <label className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold cursor-pointer ${importing ? 'bg-gray-300 text-gray-500' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
+          {importing ? <><Loader2 className="w-4 h-4 animate-spin" />Importing…</> : <><Upload className="w-4 h-4" />Import URLs (.xlsx)</>}
+          <input ref={importRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} disabled={importing} />
+        </label>
         {totalMissing > 0 && (
           <button onClick={() => setFixQueueOpen(true)}
             className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-bold">
@@ -1114,6 +1238,14 @@ function ImagesTab({ products, onRefresh }: { products: Product[]; onRefresh: ()
           {rematching ? <><Loader2 className="w-4 h-4 animate-spin" />Re-matching…</> : <><RefreshCw className="w-4 h-4" />Auto Re-match</>}
         </button>
       </div>
+
+      {/* Import result */}
+      {importResult && (
+        <div className={`text-sm font-medium px-4 py-2 rounded-lg ${importResult.errors.length ? 'bg-amber-50 text-amber-800' : 'bg-green-50 text-green-800'}`}>
+          Import done: {importResult.ok} updated · {importResult.skipped} skipped
+          {importResult.errors.length > 0 && <span className="text-red-600"> · {importResult.errors.length} errors: {importResult.errors.slice(0, 3).join(', ')}</span>}
+        </div>
+      )}
 
       {rematchResult && (
         <p className={`text-sm font-medium ${rematchResult.missing > 0 ? 'text-amber-600' : 'text-green-600'}`}>
@@ -1157,12 +1289,19 @@ function ImagesTab({ products, onRefresh }: { products: Product[]; onRefresh: ()
                     </td>
                     <td className="px-4 py-3 text-gray-600 text-xs">{p.simplified_name || '—'}</td>
                     <td className="px-4 py-3 text-[10px] text-gray-400 font-mono">{path}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 space-y-1">
                       {p.thumbnail?.startsWith('http')
-                        ? <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Thumbnail ✓</span>
+                        ? <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium block w-fit">Thumbnail ✓</span>
                         : hasImage
-                          ? <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">Gallery only</span>
-                          : <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">Missing</span>}
+                          ? <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium block w-fit">Gallery only</span>
+                          : <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium block w-fit">No image</span>}
+                      {(() => { const n = imageSlotCount(p); return n < 3 ? (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium block w-fit">
+                          {n}/3 — missing {3 - n}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-50 text-gray-400 font-medium block w-fit">3/3 ✓</span>
+                      ); })()}
                     </td>
                     <td className="px-4 py-3">
                       <button onClick={() => setQuickImg(p)}
