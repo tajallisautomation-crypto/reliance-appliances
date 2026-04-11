@@ -17,7 +17,9 @@ import {
 import { buildSearchIndex, adminSearch } from '@/lib/search';
 import {
   PANEL_WATTS, PANEL_PRICE_PER_W, INVERTER_PKR_PER_KW, BATTERY_PKR_PER_KWH,
-  NET_METERING_COST_PKR, DEFAULT_BATTERY_CHEMISTRY,
+  UNIT_RATE_PKR, NET_METERING_COST_PKR, DEFAULT_BATTERY_CHEMISTRY,
+  SAVING_PCT_3KW, SAVING_PCT_5KW, SAVING_PCT_8KW, SAVING_PCT_BATTERY_ADDON,
+  BILL_THRESHOLD_SMALL, BILL_THRESHOLD_LARGE,
 } from '@/lib/solarRules';
 import {
   LogOut, Plus, Pencil, Trash2, Upload, Search, X, Check,
@@ -4277,12 +4279,12 @@ function generateSolarPdf(lead: SolarLead, opts: {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(20, 20, 20);
-  doc.text('Estimated ROI', margin, y);
+  doc.text('Estimated ROI (Karachi planning average — actual savings vary by usage)', margin, y);
   y += 5;
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(80, 80, 80);
-  const breakEven = (subtotal / lead.est_savings).toFixed(1);
-  doc.text(`Monthly Savings: PKR ${lead.est_savings.toLocaleString()}   |   Break-even: ~${breakEven} months   |   25-Year Panel Warranty`, margin, y);
+  const breakEven = lead.est_savings > 0 ? (subtotal / lead.est_savings).toFixed(1) : '—';
+  doc.text(`Est. Monthly Saving: PKR ${lead.est_savings.toLocaleString()}   |   Payback: ~${breakEven} months   |   25-Year Panel Warranty`, margin, y);
   y += 12;
 
   // ── Footer ──
@@ -4430,7 +4432,7 @@ const SOLAR_STATUS_COLORS: Record<string, string> = {
 };
 
 function SolarLeadsTab() {
-  const UNIT_PRICE   = 62;
+  const UNIT_PRICE   = UNIT_RATE_PKR;  // canonical → solarRules.ts
   const PEAK_SUN_HRS = 4.5;
 
   const [leads,   setLeads]   = useState<SolarLead[]>([]);
@@ -4465,11 +4467,14 @@ function SolarLeadsTab() {
     const dailyU   = (bill / UNIT_PRICE) / 30;
     const systemKw = Math.max(1, Math.ceil(dailyU / PEAK_SUN_HRS));
     const battKwh  = parseFloat((dailyU * (backup / 24) * 1.2).toFixed(1));
+    // Use governed saving percentages based on bill size (mirrors GreenCorridor logic)
+    const basePct  = bill < BILL_THRESHOLD_SMALL ? SAVING_PCT_3KW : bill < BILL_THRESHOLD_LARGE ? SAVING_PCT_5KW : SAVING_PCT_8KW;
+    const savingPct = Math.min(0.90, basePct + SAVING_PCT_BATTERY_ADDON);
     setQuoting({
       name: nf.name.trim(), phone: nf.phone.trim(), city: nf.city,
       monthly_bill: bill, backup_hours: backup,
       system_kw: systemKw, battery_kwh: battKwh,
-      est_savings: Math.round(bill * 0.9), status: 'new',
+      est_savings: Math.round(bill * savingPct), status: 'new',
     });
     setShowNew(false);
   };

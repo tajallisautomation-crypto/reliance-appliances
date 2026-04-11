@@ -177,8 +177,8 @@ interface BatteryBank {
   totalCost: number
 }
 
-/** Parse battery voltage from a product's spec map (needed before getBatteryVoltageFromProduct is defined). */
-function _getBattVoltForProduct(product: Product): 24 | 48 | 'unknown' {
+/** Parse battery voltage from a product's spec map. Used for both compatibility filtering and compat checks. */
+function getBatteryVoltageFromProduct(product: Product): 24 | 48 | 'unknown' {
   const VOLT_KEYS = ['battery voltage', 'voltage', 'system voltage', 'nominal voltage', 'dc voltage']
   const raw = Object.entries(product.specs ?? {})
     .find(([k]) => VOLT_KEYS.includes(k.toLowerCase()))?.[1] ?? null
@@ -205,7 +205,7 @@ function bestBatteryBank(batteries: Product[], targetKWh: number, inverterKw?: n
         id: p.id,
         brand: p.brand ?? '',
         model: p.simplified_name ?? '',
-        batteryVoltage: _getBattVoltForProduct(p),
+        batteryVoltage: getBatteryVoltageFromProduct(p),
       })),
       inverterKw,
     )
@@ -230,15 +230,6 @@ function bestBatteryBank(batteries: Product[], targetKWh: number, inverterKw?: n
     }
   }
   return best
-}
-
-/** Parse battery voltage from a product's spec map.
- *  Returns the VoltageClass used by checkCompatibility(). */
-function getBatteryVoltageFromProduct(product: Product): ReturnType<typeof parseBatteryVoltage> {
-  const VOLT_KEYS = ['battery voltage', 'voltage', 'system voltage', 'nominal voltage', 'dc voltage']
-  const raw = Object.entries(product.specs ?? {})
-    .find(([k]) => VOLT_KEYS.includes(k.toLowerCase()))?.[1] ?? null
-  return parseBatteryVoltage(raw)
 }
 
 /** Run compatibility check for a (inverter kW, battery product) pair.
