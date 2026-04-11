@@ -822,7 +822,7 @@ export default function Products() {
 
           {/* Scrollable category tabs — shared mobile + desktop */}
           <div className="flex-1 overflow-x-auto no-scrollbar">
-            <div className="flex gap-1.5 w-max lg:w-auto lg:flex-wrap">
+            <div className="flex gap-1.5 w-max">
               <button onClick={() => goToCategory('')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all min-h-[36px]
                   ${!category ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-brand-50 active:bg-brand-50'}`}>
