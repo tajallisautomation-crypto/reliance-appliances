@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams, useParams, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { Grid3X3, List, SlidersHorizontal, X, ChevronDown, ChevronUp } from 'lucide-react'
@@ -35,15 +35,6 @@ const PRIMARY_BROWSE_CATS = [
   { id: 'small-appliances',   label: 'Small Appliances',   icon: '🔌' },
 ] as const
 
-// Legacy group → category mapping kept for backward compat with old ?group= URLs
-const CATEGORY_GROUPS = [
-  { id: 'cooling', label: 'Cooling & Refrigeration', icon: '❄️', cats: ['ac', 'fridge', 'fridge-nofrost', 'fridge-sbs', 'fridge-french', 'freezer'] },
-  { id: 'laundry', label: 'Laundry',            icon: '🫧', cats: ['washing', 'frontload'] },
-  { id: 'kitchen', label: 'Kitchen & Cooking',  icon: '🍳', cats: ['kitchen', 'microwave-solo', 'microwave-grill', 'microwave-convection', 'hood'] },
-  { id: 'tv',      label: 'Televisions',        icon: '📺', cats: ['tv'] },
-  { id: 'solar',   label: 'Solar & Energy',     icon: '☀️', cats: ['solar-inverter', 'solar-battery', 'solar-panel', 'solar-pump'] },
-  { id: 'home',    label: 'Home & Comfort',     icon: '🏠', cats: ['fan', 'water', 'small', 'care'] },
-] as const
 
 // ── Deep subcategories — pre-set spec filter combinations accessible via ?sub= ─
 // Each entry maps a specKey (e.g. 'ac') to an array of browsable subcategories.
@@ -626,6 +617,7 @@ export default function Products() {
   const [total, setTotal]       = useState(0)
   const [loading, setLoading]   = useState(true)
   const [fetchError, setFetchError] = useState(false)
+  const fetchSeq = useRef(0)
   const [view, setView]         = useState<'grid' | 'list'>('grid')
   const [showFilters, setShowFilters] = useState(false)
   const [specFilters, setSpecFilters] = useState<Record<string, string>>({})
@@ -661,16 +653,19 @@ export default function Products() {
   const fetchProducts = useCallback(() => {
     setLoading(true)
     setFetchError(false)
+    const seq = ++fetchSeq.current
     const params: Record<string, string> = {}
     if (category) params.category = category
     if (brand)  params.brand  = brand
     if (search) params.search = search
     if (sort)   params.sort   = sort
     getProducts(params).then(d => {
+      if (seq !== fetchSeq.current) return // stale response — a newer fetch is in flight
       setProducts(d.products)
       setTotal(d.total)
       setLoading(false)
     }).catch(() => {
+      if (seq !== fetchSeq.current) return
       setFetchError(true)
       setLoading(false)
     })

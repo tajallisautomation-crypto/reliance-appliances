@@ -120,17 +120,20 @@ export default function Home() {
                 <Zap className="w-4 h-4" /> Solar Solutions
               </Link>
             </div>
-            <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-6 pt-6 border-t border-gray-100 text-xs text-gray-400">
-              {[
-                '11 yrs in business',
-                '14,400+ clients',
-                '75% loyalty rate',
-                '24,000+ orders',
-              ].map((stat, i) => (
-                <span key={i} className="whitespace-nowrap font-semibold text-gray-700 after:content-['·'] after:ml-3 after:text-gray-200 last:after:content-none">
-                  {stat}
-                </span>
-              ))}
+            <div className="mt-6 pt-5 border-t border-gray-100">
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:flex sm:flex-wrap sm:items-center sm:gap-x-0 sm:gap-y-0 sm:divide-x sm:divide-gray-200">
+                {[
+                  { value: '11 yrs',    label: 'in business'  },
+                  { value: '14,400+',   label: 'clients'      },
+                  { value: '75%',       label: 'loyalty rate' },
+                  { value: '24,000+',   label: 'orders'       },
+                ].map((s, i) => (
+                  <div key={i} className={`flex items-baseline gap-1.5 ${i > 0 ? 'sm:pl-5' : ''} ${i < 3 ? 'sm:pr-5' : ''}`}>
+                    <dt className="text-sm font-black text-gray-900 leading-none">{s.value}</dt>
+                    <dd className="text-xs text-gray-400 font-medium">{s.label}</dd>
+                  </div>
+                ))}
+              </dl>
             </div>
           </div>
 

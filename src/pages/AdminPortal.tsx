@@ -4165,29 +4165,178 @@ function generateQuotationPdf(opts: {
   return doc.output('blob');
 }
 
+// ── Brand alias map for fuzzy search tolerance ──
+const BRAND_ALIASES: Record<string, string[]> = {
+  haier:     ['hair', 'haiir', 'haer'],
+  dawlance:  ['dolance', 'dawalance', 'dawalnce', 'dalwance'],
+  ecostar:   ['eco star', 'ecostarr', 'eco-star'],
+  gree:      ['gre', 'gree', 'grree'],
+  orient:    ['orint', 'oriant', 'oriint'],
+  pel:       ['pell', 'ple'],
+  singer:    ['singr', 'sinjer'],
+  westpoint: ['west point', 'west-point', 'westpoit'],
+};
+
+function normalizeOcr(s: string): string {
+  return s.toLowerCase().replace(/\s+/g, ' ').replace(/0/g, 'o').replace(/1/g, 'i').replace(/5/g, 's');
+}
+
+function scoreSearchProduct(p: Product, rawQ: string): number {
+  const q = rawQ.toLowerCase().trim();
+  if (!q) return 0;
+  const name  = (p.simplified_name || '').toLowerCase();
+  const model = (p.model || '').toLowerCase();
+  const brand = (p.brand || '').toLowerCase();
+
+  // Exact substring matches (highest priority)
+  if (name.includes(q))  return 100;
+  if (brand === q)        return 95;
+  if (model.includes(q)) return 90;
+  if (brand.includes(q)) return 85;
+
+  // Brand alias tolerance
+  const qNorm = normalizeOcr(q);
+  for (const [canonical, aliases] of Object.entries(BRAND_ALIASES)) {
+    if (brand === canonical || brand.includes(canonical)) {
+      if (aliases.some(a => q.includes(a) || a.includes(q))) return 80;
+    }
+    // user typed alias, product has canonical brand
+    if (aliases.some(a => q.includes(a))) {
+      if (brand === canonical) return 78;
+    }
+  }
+
+  // OCR/typo normalization fallback
+  const nameNorm  = normalizeOcr(name);
+  const modelNorm = normalizeOcr(model);
+  const brandNorm = normalizeOcr(brand);
+  if (nameNorm.includes(qNorm))  return 60;
+  if (modelNorm.includes(qNorm)) return 55;
+  if (brandNorm.includes(qNorm)) return 50;
+
+  // Word-level partial match
+  const qWords = q.split(' ').filter(Boolean);
+  if (qWords.length > 1) {
+    const haystack = `${name} ${model} ${brand}`;
+    const matches = qWords.filter(w => haystack.includes(w));
+    if (matches.length === qWords.length) return 40;
+    if (matches.length >= Math.ceil(qWords.length * 0.6)) return 25;
+  }
+
+  return 0;
+}
+
+// ── Phone formatter ──
+function formatPhone(val: string): string {
+  const digits = val.replace(/\D/g, '');
+  let normalized = digits;
+  if (normalized.startsWith('92')) {
+    normalized = normalized.slice(0, 12);
+  } else if (normalized.startsWith('0')) {
+    normalized = '92' + normalized.slice(1);
+    normalized = normalized.slice(0, 12);
+  } else if (normalized.length > 0) {
+    // treat as local digits without prefix
+    normalized = normalized.slice(0, 10);
+    return normalized; // don't format incomplete entry
+  }
+  // Format as: 92 3XX XXXXXXX
+  if (normalized.length > 2) {
+    const rest = normalized.slice(2);
+    if (rest.length > 3) {
+      return `92 ${rest.slice(0, 3)} ${rest.slice(3)}`;
+    }
+    return `92 ${rest}`;
+  }
+  return normalized;
+}
+
+function isValidPhone(phone: string): boolean {
+  const digits = phone.replace(/\D/g, '');
+  // Valid: starts with 03 (as 923) followed by 9 more digits = 12 total
+  return digits.length === 12 && digits.startsWith('923');
+}
+
 function QuotationTab({ products }: { products: Product[] }) {
   const [customerName,  setCustomerName]  = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [docType, setDocType]             = useState<'quotation' | 'invoice'>('quotation');
   const [discount, setDiscount]           = useState(0);
+  const [discountRaw, setDiscountRaw]     = useState('0');
   const [lines, setLines]                 = useState<QuoteLine[]>([]);
   const [productSearch, setProductSearch] = useState('');
   const [generating, setGenerating]       = useState(false);
+  const [pdfState, setPdfState]           = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
   const [pdfUrl, setPdfUrl]               = useState<string | null>(null);
+  const [toastMsg, setToastMsg]           = useState('');
+  const [draftBanner, setDraftBanner]     = useState(false);
+  const autosaveRef                        = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refNumber = useMemo(() => {
     const d = new Date(); const pad = (n: number) => String(n).padStart(2, '0');
     return `TJ-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${Math.floor(Math.random()*9000)+1000}`;
   }, []);
 
+  // ── Autosave draft ──
+  useEffect(() => {
+    const saved = localStorage.getItem('reliance-invoice-draft');
+    if (saved) {
+      try {
+        const draft = JSON.parse(saved);
+        if (draft && (draft.lines?.length > 0 || draft.customerName)) {
+          setDraftBanner(true);
+        }
+      } catch { /* ignore */ }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (autosaveRef.current) clearTimeout(autosaveRef.current);
+    autosaveRef.current = setTimeout(() => {
+      if (lines.length > 0 || customerName || customerPhone) {
+        localStorage.setItem('reliance-invoice-draft', JSON.stringify({
+          lines, customerName, customerPhone, discount, discountRaw, docType, refNumber,
+        }));
+      }
+    }, 1000);
+    return () => { if (autosaveRef.current) clearTimeout(autosaveRef.current); };
+  }, [lines, customerName, customerPhone, discount, discountRaw, docType, refNumber]);
+
+  function restoreDraft() {
+    try {
+      const saved = localStorage.getItem('reliance-invoice-draft');
+      if (!saved) return;
+      const draft = JSON.parse(saved);
+      if (draft.lines)         setLines(draft.lines);
+      if (draft.customerName)  setCustomerName(draft.customerName);
+      if (draft.customerPhone) setCustomerPhone(draft.customerPhone);
+      if (typeof draft.discount === 'number') { setDiscount(draft.discount); setDiscountRaw(String(draft.discount)); }
+      if (draft.docType)       setDocType(draft.docType);
+    } catch { /* ignore */ }
+    setDraftBanner(false);
+  }
+
+  function discardDraft() {
+    localStorage.removeItem('reliance-invoice-draft');
+    setDraftBanner(false);
+  }
+
+  // ── Toast auto-dismiss ──
+  useEffect(() => {
+    if (!toastMsg) return;
+    const t = setTimeout(() => setToastMsg(''), 2000);
+    return () => clearTimeout(t);
+  }, [toastMsg]);
+
   const filteredProducts = useMemo(() => {
-    const q = productSearch.toLowerCase().trim();
+    const q = productSearch.trim();
     if (!q) return products.slice(0, 20);
-    return products.filter(p =>
-      (p.simplified_name || '').toLowerCase().includes(q) ||
-      (p.model || '').toLowerCase().includes(q) ||
-      (p.brand || '').toLowerCase().includes(q)
-    ).slice(0, 20);
+    return products
+      .map(p => ({ p, score: scoreSearchProduct(p, q) }))
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 20)
+      .map(({ p }) => p);
   }, [products, productSearch]);
 
   function addLine(p: Product) {
@@ -4196,6 +4345,7 @@ function QuotationTab({ products }: { products: Product[] }) {
       qty: 1, unitPrice: p.price.cash_floor,
     }]);
     setProductSearch('');
+    setToastMsg(`${p.brand || ''} ${p.model} added`.trim());
   }
 
   function updateLine(id: string, field: 'qty' | 'unitPrice', val: number) {
@@ -4240,18 +4390,33 @@ function QuotationTab({ products }: { products: Product[] }) {
   }, [lines, products]);
 
   function generate() {
-    if (!lines.length) return;
+    if (!lines.length || pdfState === 'generating') return;
+    setPdfState('generating');
     setGenerating(true);
+    const timeout = setTimeout(() => {
+      setPdfState('error');
+      setGenerating(false);
+    }, 10000);
     try {
       if (pdfUrl) URL.revokeObjectURL(pdfUrl);
-      const blob = generateQuotationPdf({ customerName, customerPhone, lines, discount, docType, refNumber });
+      const blob = generateQuotationPdf({ customerName, customerPhone: customerPhone.replace(/\D/g, ''), lines, discount, docType, refNumber });
+      clearTimeout(timeout);
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
       const a = document.createElement('a');
       a.href = url; a.download = `tajallis_${docType}_${refNumber}.pdf`; a.click();
-    } finally { setGenerating(false); }
+      setPdfState('success');
+      setGenerating(false);
+      setTimeout(() => setPdfState('idle'), 3000);
+    } catch {
+      clearTimeout(timeout);
+      setPdfState('error');
+      setGenerating(false);
+    }
   }
 
+  const phoneDigits = customerPhone.replace(/\D/g, '');
+  const waFallbackPhone = phoneDigits.length >= 10 ? phoneDigits : '';
   const waText = encodeURIComponent(
     `*Tajalli's ${docType === 'invoice' ? 'Invoice' : 'Quotation'} — ${refNumber}*\n\n` +
     `Customer: ${customerName}\n` +
@@ -4260,9 +4425,43 @@ function QuotationTab({ products }: { products: Product[] }) {
     (discount > 0 ? `\n_Discount ${discount}% applied_` : '') +
     `\n\nValid for 7 days. tajallis.com.pk`
   );
+  const waErrorText = encodeURIComponent(
+    `Invoice #${refNumber} — ${customerName || 'Customer'}\n` +
+    `Items: ${lines.length}\nGrand Total: PKR ${grandTotal.toLocaleString('en-PK')}\n\nContact Tajalli's for PDF`
+  );
+  const waErrorHref = waFallbackPhone
+    ? `https://wa.me/${waFallbackPhone}?text=${waErrorText}`
+    : `https://wa.me/?text=${waErrorText}`;
+
+  const phoneValid   = isValidPhone(customerPhone);
+  const phoneInvalid = customerPhone.length > 0 && !phoneValid;
 
   return (
-    <div className="max-w-5xl mx-auto py-6 space-y-5">
+    <div className="max-w-5xl mx-auto py-6 pb-24 lg:pb-6 space-y-5">
+      {/* ── Toast notification ── */}
+      {toastMsg && (
+        <div className="fixed top-4 right-4 z-50 bg-gray-900 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-lg pointer-events-none animate-fade-in">
+          {toastMsg}
+        </div>
+      )}
+
+      {/* ── Draft restore banner ── */}
+      {draftBanner && (
+        <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm">
+          <span className="text-amber-800 font-medium">Restore unsaved invoice draft?</span>
+          <div className="flex gap-2 ml-4">
+            <button onClick={restoreDraft}
+              className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-1 rounded-lg text-xs transition-colors">
+              Restore
+            </button>
+            <button onClick={discardDraft}
+              className="bg-white border border-amber-300 text-amber-700 hover:bg-amber-100 font-semibold px-3 py-1 rounded-lg text-xs transition-colors">
+              Discard
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-black text-gray-900">Quotation / Invoice Generator</h2>
@@ -4284,13 +4483,47 @@ function QuotationTab({ products }: { products: Product[] }) {
           <input value={customerName} onChange={e => setCustomerName(e.target.value)}
             placeholder="Customer name"
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-          <input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)}
-            placeholder="Phone (03XX-XXXXXXX)"
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          {/* Phone input with validation indicator */}
+          <div className="relative">
+            <input
+              value={customerPhone}
+              onChange={e => setCustomerPhone(formatPhone(e.target.value))}
+              placeholder="Phone (03XX-XXXXXXX)"
+              inputMode="numeric"
+              className={`w-full border rounded-xl px-4 py-2.5 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 ${
+                phoneInvalid ? 'border-red-300' : phoneValid ? 'border-green-400' : 'border-gray-200'
+              }`}
+            />
+            {phoneValid && (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-base">✓</span>
+            )}
+            {phoneInvalid && (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-red-400 text-xs font-bold">✗</span>
+            )}
+          </div>
+          {/* Discount input with normalization */}
           <div className="flex items-center gap-3">
             <label className="text-xs font-semibold text-gray-600 shrink-0">Discount %</label>
-            <input type="number" min={0} max={50} value={discount} onChange={e => setDiscount(Number(e.target.value))}
-              className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            <input
+              type="text"
+              inputMode="numeric"
+              min={0}
+              max={100}
+              value={discountRaw}
+              onChange={e => {
+                const raw = e.target.value.replace(/[^0-9]/g, '');
+                setDiscountRaw(raw);
+                const n = Math.min(100, Math.max(0, Number(raw) || 0));
+                setDiscount(n);
+              }}
+              onBlur={() => {
+                // Remove leading zeros, clamp
+                const n = Math.min(100, Math.max(0, Number(discountRaw) || 0));
+                setDiscount(n);
+                setDiscountRaw(String(n));
+              }}
+              className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            />
           </div>
         </div>
 
@@ -4345,7 +4578,7 @@ function QuotationTab({ products }: { products: Product[] }) {
                       className="w-16 border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-400" />
                   </td>
                   <td className="px-4 py-2.5">
-                    <input type="number" min={0} value={line.unitPrice} onChange={e => updateLine(line.id, 'unitPrice', Number(e.target.value))}
+                    <input type="number" min={0} value={line.unitPrice} onChange={e => updateLine(line.id, 'unitPrice', Math.max(0, Number(e.target.value)))}
                       className="w-32 border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-400" />
                   </td>
                   <td className="px-4 py-2.5 font-bold text-xs text-gray-900">
@@ -4388,12 +4621,37 @@ function QuotationTab({ products }: { products: Product[] }) {
       )}
 
       <div className="flex flex-wrap gap-3">
-        <button onClick={generate} disabled={!lines.length || generating || solarCompatCheck?.status === 'incompatible'}
-          className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white font-bold px-5 py-2.5 rounded-xl text-sm disabled:opacity-40 transition-colors">
-          {generating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</> : <>📄 Download {docType === 'invoice' ? 'Invoice' : 'Quotation'} PDF</>}
+        <button
+          onClick={generate}
+          disabled={!lines.length || pdfState === 'generating' || solarCompatCheck?.status === 'incompatible'}
+          className={`flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm disabled:opacity-40 transition-colors ${
+            pdfState === 'success'
+              ? 'bg-green-600 hover:bg-green-700 text-white'
+              : pdfState === 'error'
+              ? 'bg-red-600 hover:bg-red-700 text-white'
+              : 'bg-gray-900 hover:bg-gray-800 text-white'
+          }`}
+        >
+          {pdfState === 'generating'
+            ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</>
+            : pdfState === 'success'
+            ? <>✓ Downloaded!</>
+            : pdfState === 'error'
+            ? <>⚠ PDF failed — retry</>
+            : <>📄 Download {docType === 'invoice' ? 'Invoice' : 'Quotation'} PDF</>}
         </button>
-        {lines.length > 0 && customerPhone && (
-          <a href={`https://wa.me/${customerPhone.replace(/\D/g, '')}?text=${waText}`}
+
+        {/* WhatsApp fallback when PDF errors */}
+        {pdfState === 'error' && lines.length > 0 && (
+          <a href={waErrorHref}
+            target="_blank" rel="noreferrer"
+            className="flex items-center gap-2 bg-[#25D366] hover:bg-[#1ebe5c] text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors">
+            <MessageCircle className="w-4 h-4" /> Send via WhatsApp instead
+          </a>
+        )}
+
+        {lines.length > 0 && customerPhone && pdfState !== 'error' && (
+          <a href={`https://wa.me/${waFallbackPhone}?text=${waText}`}
             target="_blank" rel="noreferrer"
             className="flex items-center gap-2 bg-[#25D366] hover:bg-[#1ebe5c] text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors">
             <MessageCircle className="w-4 h-4" /> Send Summary on WhatsApp
@@ -4403,6 +4661,33 @@ function QuotationTab({ products }: { products: Product[] }) {
           <p className="text-xs text-gray-400 self-center">Add at least one product to generate a document.</p>
         )}
       </div>
+
+      {/* ── Mobile sticky summary bar ── */}
+      {lines.length > 0 && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] px-4 py-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">Grand Total</p>
+            <p className="text-base font-black text-gray-900">PKR {grandTotal.toLocaleString('en-PK')}</p>
+          </div>
+          <div className="flex gap-2">
+            {lines.length > 0 && waFallbackPhone && (
+              <a href={`https://wa.me/${waFallbackPhone}?text=${waText}`}
+                target="_blank" rel="noreferrer"
+                className="flex items-center gap-1.5 bg-[#25D366] text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors">
+                <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+              </a>
+            )}
+            <button
+              onClick={generate}
+              disabled={pdfState === 'generating' || solarCompatCheck?.status === 'incompatible'}
+              className="flex items-center gap-1.5 bg-gray-900 text-white font-bold px-3 py-2 rounded-xl text-xs disabled:opacity-40 transition-colors">
+              {pdfState === 'generating'
+                ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating…</>
+                : <>📄 PDF</>}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
