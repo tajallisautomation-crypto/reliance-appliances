@@ -631,10 +631,6 @@ export default function Products() {
   const [specFilters, setSpecFilters] = useState<Record<string, string>>({})
   const [budgetIdx, setBudgetIdx] = useState<number | null>(null)
   const [inStockOnly, setInStockOnly] = useState(false)
-  const [manualGroup, setManualGroup] = useState<string | null>(() => {
-    const g = sp.get('group')
-    return g && CATEGORY_GROUPS.find(cg => cg.id === g) ? g : null
-  })
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     budget: true, brand: true, specs: true, stock: true,
   })
@@ -651,22 +647,22 @@ export default function Products() {
   const catDeepSubs   = DEEP_SUBCATEGORIES[specKey] || []
   const activeDeepSub = catDeepSubs.find(s => s.slug === subSlug) ?? null
 
-  // Derive the active group from the selected sub-category, or from the manually selected group
-  const activeGroupId   = activeCat
-    ? (CATEGORY_GROUPS.find(g => (g.cats as readonly string[]).includes(activeCat.id))?.id ?? null)
-    : manualGroup
-  const activeGroupData = CATEGORY_GROUPS.find(g => g.id === activeGroupId) ?? null
+  // Helper: is a PRIMARY_BROWSE_CATS tab active for the current URL?
+  const isPrimaryTabActive = (catId: string) => {
+    if (catId === 'solar') {
+      return category === 'solar' || (activeCat?.id ?? '').startsWith('solar-')
+    }
+    if (catId === 'refrigerators') {
+      return activeCat?.id === 'fridge' || (activeCat?.id ?? '').startsWith('fridge-')
+    }
+    return activeCat?.slug === catId || category === catId
+  }
 
   const fetchProducts = useCallback(() => {
     setLoading(true)
     setFetchError(false)
     const params: Record<string, string> = {}
-    if (category) {
-      params.category = category
-    } else if (activeGroupId && activeGroupData) {
-      // No specific sub-category selected — filter by all cats in the active group
-      params.categories = activeGroupData.cats.join(',')
-    }
+    if (category) params.category = category
     if (brand)  params.brand  = brand
     if (search) params.search = search
     if (sort)   params.sort   = sort
@@ -678,7 +674,7 @@ export default function Products() {
       setFetchError(true)
       setLoading(false)
     })
-  }, [category, brand, search, sort, activeGroupId, activeGroupData])
+  }, [category, brand, search, sort])
 
   useEffect(() => { fetchProducts() }, [fetchProducts])
 
@@ -717,10 +713,9 @@ export default function Products() {
     return list
   }, [products, budgetIdx, inStockOnly, specFilters, catSpecFilters, sort, category, search])
 
-  function goToCategory(catId: string, keepGroup = false) {
+  function goToCategory(catId: string) {
     setSpecFilters({}); setBudgetIdx(null); setInStockOnly(false)
     if (!catId) {
-      if (!keepGroup) setManualGroup(null)
       if (categorySlug) navigate('/products')
       else setSp({})
       return
@@ -749,7 +744,7 @@ export default function Products() {
   }
 
   function clearAll() {
-    setSpecFilters({}); setBudgetIdx(null); setInStockOnly(false); setManualGroup(null)
+    setSpecFilters({}); setBudgetIdx(null); setInStockOnly(false)
     if (categorySlug) { navigate('/products'); return }
     setSp({})
   }
@@ -830,52 +825,26 @@ export default function Products() {
             )}
           </div>
 
-          {/* Scrollable category chips — mobile */}
-          <div className="flex-1 overflow-x-auto no-scrollbar lg:hidden">
-            <div className="flex gap-1.5 w-max">
-              <button onClick={() => { goToCategory(''); setManualGroup(null) }}
+          {/* Scrollable category tabs — shared mobile + desktop */}
+          <div className="flex-1 overflow-x-auto no-scrollbar">
+            <div className="flex gap-1.5 w-max lg:w-auto lg:flex-wrap">
+              <button onClick={() => goToCategory('')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all min-h-[36px]
-                  ${!activeGroupId ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 active:bg-brand-50'}`}>
+                  ${!category ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-brand-50 active:bg-brand-50'}`}>
                 All
               </button>
-              {CATEGORY_GROUPS.map(g => {
-                const isActive = g.id === activeGroupId
+              {PRIMARY_BROWSE_CATS.map(cat => {
+                const isActive = isPrimaryTabActive(cat.id)
                 return (
-                  <button key={g.id}
-                    onClick={() => {
-                      if (g.cats.length === 1) { setManualGroup(g.id); goToCategory(g.cats[0]) }
-                      else { setManualGroup(isActive ? null : g.id); if (isActive) goToCategory('') }
-                    }}
+                  <button key={cat.id}
+                    onClick={() => goToCategory(cat.id)}
                     className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap flex items-center gap-1 transition-all min-h-[36px]
-                      ${isActive ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 active:bg-brand-50'}`}>
-                    {g.icon} {g.label}
+                      ${isActive ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-brand-50 active:bg-brand-50'}`}>
+                    {cat.icon} {cat.label}
                   </button>
                 )
               })}
             </div>
-          </div>
-
-          {/* Group tabs — desktop only */}
-          <div className="hidden lg:flex gap-1 overflow-x-auto">
-            <button onClick={() => { goToCategory(''); setManualGroup(null) }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all
-                ${!activeGroupId ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-brand-50'}`}>
-              All
-            </button>
-            {CATEGORY_GROUPS.map(g => {
-              const isActive = g.id === activeGroupId
-              return (
-                <button key={g.id}
-                  onClick={() => {
-                    if (g.cats.length === 1) { setManualGroup(g.id); goToCategory(g.cats[0]) }
-                    else { setManualGroup(isActive ? null : g.id); if (isActive) goToCategory('') }
-                  }}
-                  className={`px-2.5 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap flex items-center gap-1 transition-all
-                    ${isActive ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-brand-50'}`}>
-                  {g.icon} {g.label}
-                </button>
-              )
-            })}
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2 ml-auto shrink-0">
@@ -912,33 +881,6 @@ export default function Products() {
             </div>
           </div>
         </div>
-
-        {/* ── Sub-category strip (desktop) — shown when a group with multiple cats is active ── */}
-        {activeGroupData && activeGroupData.cats.length > 1 && (
-          <div className="hidden lg:block border-t bg-brand-50/60 px-4 py-2">
-            <div className="max-w-7xl mx-auto flex gap-1.5 flex-wrap">
-              <button
-                onClick={() => goToCategory('', true)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-                  !category ? 'bg-brand-500 text-white' : 'text-brand-700 hover:bg-brand-100'
-                }`}>
-                All {activeGroupData.label}
-              </button>
-              {(activeGroupData.cats as readonly string[]).map(id => {
-                const cat = DEFAULT_CATEGORIES.find(c => c.id === id)
-                if (!cat) return null
-                return (
-                  <button key={id} onClick={() => goToCategory(id)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap flex items-center gap-1 transition-all ${
-                      activeCat?.id === id ? 'bg-brand-500 text-white' : 'text-brand-700 hover:bg-brand-100'
-                    }`}>
-                    {cat.icon} {cat.name}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
 
         {/* ── Deep subcategory strip — shown when a specific category is active and has subcategories ── */}
         {catDeepSubs.length > 0 && category && (
@@ -995,36 +937,18 @@ export default function Products() {
               {/* Scrollable area on mobile */}
               <div className="flex-1 overflow-y-auto lg:overflow-visible -mx-4 px-4 lg:mx-0 lg:px-0">
 
-              {/* Mobile category picker — grouped */}
+              {/* Mobile category picker */}
               <div className="lg:hidden mb-5 space-y-3">
                 <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">Category</div>
                 <div className="flex gap-2 flex-wrap">
-                  <Pill active={!activeGroupId} onClick={() => { goToCategory(''); setManualGroup(null); setShowFilters(false) }}>All</Pill>
-                  {CATEGORY_GROUPS.map(g => (
-                    <Pill key={g.id} active={g.id === activeGroupId}
-                      onClick={() => {
-                        if (g.cats.length === 1) { setManualGroup(g.id); goToCategory(g.cats[0]); setShowFilters(false) }
-                        else { setManualGroup(g.id === activeGroupId ? null : g.id); if (g.id === activeGroupId) goToCategory('') }
-                      }}>
-                      {g.icon} {g.label}
+                  <Pill active={!category} onClick={() => { goToCategory(''); setShowFilters(false) }}>All</Pill>
+                  {PRIMARY_BROWSE_CATS.map(cat => (
+                    <Pill key={cat.id} active={isPrimaryTabActive(cat.id)}
+                      onClick={() => { goToCategory(cat.id); setShowFilters(false) }}>
+                      {cat.icon} {cat.label}
                     </Pill>
                   ))}
                 </div>
-                {/* Sub-category pills when a group is selected */}
-                {activeGroupData && activeGroupData.cats.length > 1 && (
-                  <div className="flex gap-1.5 flex-wrap pl-2 border-l-2 border-brand-200">
-                    <Pill active={!category} onClick={() => { goToCategory('', true) }}>All {activeGroupData.label}</Pill>
-                    {(activeGroupData.cats as readonly string[]).map(id => {
-                      const cat = DEFAULT_CATEGORIES.find(c => c.id === id)
-                      if (!cat) return null
-                      return (
-                        <Pill key={id} active={activeCat?.id === id} onClick={() => { goToCategory(id); setShowFilters(false) }}>
-                          {cat.icon} {cat.name}
-                        </Pill>
-                      )
-                    })}
-                  </div>
-                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1094,7 +1018,7 @@ export default function Products() {
               {hasFilters && (
                 <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-200">
                   <span className="text-xs text-gray-400 font-medium">Active:</span>
-                  {activeCat && <FilterChip label={`${activeCat.icon} ${activeCat.name}`} onRemove={() => goToCategory('', true)} />}
+                  {activeCat && <FilterChip label={`${activeCat.icon} ${activeCat.name}`} onRemove={() => goToCategory('')} />}
                   {activeDeepSub && <FilterChip label={`${activeDeepSub.icon} ${activeDeepSub.label}`} onRemove={() => goToSubcat('')} />}
                   {brand && <FilterChip label={`Brand: ${brand}`} onRemove={() => setFilter('brand', '')} />}
                   {budgetIdx !== null && <FilterChip label={`Budget: ${BUDGET_RANGES[budgetIdx].label}`} onRemove={() => setBudgetIdx(null)} />}
