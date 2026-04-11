@@ -493,6 +493,7 @@ export const TAXONOMY_REGISTRY: TaxonomyEntry[] = [
     aliases: [
       'single tub washing machine', 'single-tub washing machine',
       'single tub washer', 'haier single tub',
+      'single tub / washer', 'single tub/washer', 'single-tub washer',
     ],
     normalized_category: 'Washing Machines',
     normalized_subcategory: 'Single Tub Washer',
@@ -1133,6 +1134,27 @@ export const TAXONOMY_REGISTRY: TaxonomyEntry[] = [
     required_specs: ['Type'],
   },
 
+  // Electric Water Cooler — NG brand uses this raw category string
+  {
+    id: 'electric_water_cooler',
+    display_name: 'Electric Water Cooler',
+    aliases: [
+      'electric water cooler', 'water cooler', 'ng water cooler',
+      'nasgas water cooler', 'drinking water cooler', 'room cooler dispenser',
+    ],
+    normalized_category: 'Water Dispensers',
+    normalized_subcategory: 'Water Cooler',
+    category_family: 'Kitchen',
+    comparison_group: 'water_dispenser',
+    frontend_browse_group: 'water-dispensers',
+    seo_category_slug: 'water-dispensers',
+    seo_subcategory_slug: 'water-coolers',
+    schema_type: 'Product',
+    publish_allowed: true,
+    spec_template: 'water_dispenser',
+    required_specs: ['Capacity', 'Type'],
+  },
+
   // Generic water dispenser catch-all
   {
     id: 'water_dispenser',
@@ -1153,6 +1175,27 @@ export const TAXONOMY_REGISTRY: TaxonomyEntry[] = [
     publish_allowed: true,
     spec_template: 'water_dispenser',
     required_specs: ['Type'],
+  },
+
+  // AC Accessory / Wi-Fi module — EcoStar ES-WI-FI and similar accessories
+  {
+    id: 'ac_accessory',
+    display_name: 'AC Accessory / Wi-Fi Module',
+    aliases: [
+      'ac accessory', 'ac accessories', 'wi-fi module', 'wifi module',
+      'ac wifi module', 'smart ac adapter', 'ecostar wi-fi',
+    ],
+    normalized_category: 'Small Appliances',
+    normalized_subcategory: 'AC Accessory',
+    category_family: 'Small Appliances',
+    comparison_group: 'small_appliance',
+    frontend_browse_group: 'small-appliances',
+    seo_category_slug: 'small-appliances',
+    seo_subcategory_slug: 'ac-accessories',
+    schema_type: 'Product',
+    publish_allowed: true,
+    spec_template: 'small_appliance',
+    required_specs: [],
   },
 
   // ──────────────────────────────────────────────────────────────────────────
