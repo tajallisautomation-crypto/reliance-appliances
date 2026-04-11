@@ -1147,6 +1147,8 @@ function ImagesTab({ products, onRefresh }: { products: Product[]; onRefresh: ()
   const [importing, setImporting]           = useState(false);
   const [importResult, setImportResult]     = useState<{ ok: number; skipped: number; errors: string[] } | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleting, setDeleting]             = useState(false);
 
   const brands = [...new Set(products.map(p => p.brand))].sort();
 
@@ -1167,6 +1169,12 @@ function ImagesTab({ products, onRefresh }: { products: Product[]; onRefresh: ()
     setRematching(true); setRematchResult(null);
     const r = await rematchAllImages(() => {}, undefined, { clearUnmatched });
     setRematchResult(r); setRematching(false); onRefresh();
+  }
+
+  async function handleDeleteProduct(id: string) {
+    setDeleting(true);
+    try { await deleteProduct(id); onRefresh(); }
+    finally { setDeleting(false); setDeleteConfirmId(null); }
   }
 
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
@@ -1304,11 +1312,17 @@ function ImagesTab({ products, onRefresh }: { products: Product[]; onRefresh: ()
                       ); })()}
                     </td>
                     <td className="px-4 py-3">
-                      <button onClick={() => setQuickImg(p)}
-                        className="flex items-center gap-1 text-xs bg-orange-50 hover:bg-orange-100 text-orange-600 font-medium px-2 py-1.5 rounded-lg transition-colors">
-                        <Camera className="w-3.5 h-3.5" />
-                        Upload
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => setQuickImg(p)}
+                          className="flex items-center gap-1 text-xs bg-orange-50 hover:bg-orange-100 text-orange-600 font-medium px-2 py-1.5 rounded-lg transition-colors">
+                          <Camera className="w-3.5 h-3.5" />
+                          Upload
+                        </button>
+                        <button onClick={() => setDeleteConfirmId(p.id)}
+                          className="flex items-center gap-1 text-xs bg-red-50 hover:bg-red-100 text-red-600 font-medium px-2 py-1.5 rounded-lg transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -1350,6 +1364,20 @@ function ImagesTab({ products, onRefresh }: { products: Product[]; onRefresh: ()
           onCancel={() => setConfirmRematch(false)}
         />
       )}
+
+      {deleteConfirmId && (() => {
+        const p = products.find(x => x.id === deleteConfirmId);
+        return (
+          <ConfirmDialog
+            title="Delete Product?"
+            message={<p>Permanently delete <strong>{p?.brand} {p?.model}</strong>? This cannot be undone.</p>}
+            confirmLabel={deleting ? 'Deleting…' : 'Delete'}
+            danger
+            onConfirm={() => handleDeleteProduct(deleteConfirmId)}
+            onCancel={() => setDeleteConfirmId(null)}
+          />
+        );
+      })()}
     </div>
   );
 }
@@ -1420,12 +1448,71 @@ function SummaryCard({ label, value, color }: { label: string; value: number; co
   );
 }
 
-function ImportTab({ onImported }: { onImported: () => void }) {
+/** Normalise a model string for fuzzy duplicate matching.
+ *  Strips spaces/dashes/underscores and lowercases.
+ *  Also collapses common OCR confusions: 0↔O, 1↔I↔L, 5↔S, 8↔B, 6↔G.
+ *  Returns the canonical key used to detect near-duplicate model numbers. */
+function normModel(s: string): string {
+  return s.toLowerCase()
+    .replace(/\s+/g, '').replace(/[-_]/g, '')
+    .replace(/0/g, 'o')
+    .replace(/1/g, 'i')
+    .replace(/5/g, 's')
+    .replace(/8/g, 'b')
+    .replace(/6/g, 'g');
+}
+
+interface DuplicateHit {
+  csvRow:    CsvImportRow;
+  existingModel: string;
+  existingId:    string;
+  kind: 'exact' | 'fuzzy';
+}
+
+function findDuplicates(rows: CsvImportRow[], existing: Product[]): DuplicateHit[] {
+  const hits: DuplicateHit[] = [];
+  // Build lookup: brand → model → id
+  const exact  = new Map<string, string>(); // `${brand}|${model.toLowerCase()}` → id
+  const fuzzy  = new Map<string, { model: string; id: string }>(); // `${brand}|${normModel}` → {model,id}
+  for (const p of existing) {
+    const bk = p.brand.toLowerCase();
+    exact.set(`${bk}|${p.model.toLowerCase()}`, p.id);
+    const fk = `${bk}|${normModel(p.model)}`;
+    if (!fuzzy.has(fk)) fuzzy.set(fk, { model: p.model, id: p.id });
+  }
+  for (const row of rows) {
+    const brand = (row['Brand'] || '').trim();
+    const model = (row['Model'] || '').trim();
+    if (!brand || !model) continue;
+    const bk = brand.toLowerCase();
+    const ek = `${bk}|${model.toLowerCase()}`;
+    if (exact.has(ek)) {
+      hits.push({ csvRow: row, existingModel: model, existingId: exact.get(ek)!, kind: 'exact' });
+      continue;
+    }
+    const fk = `${bk}|${normModel(model)}`;
+    if (fuzzy.has(fk)) {
+      const m = fuzzy.get(fk)!;
+      if (m.model.toLowerCase() !== model.toLowerCase()) { // only flag if models visually differ
+        hits.push({ csvRow: row, existingModel: m.model, existingId: m.id, kind: 'fuzzy' });
+      }
+    }
+  }
+  return hits;
+}
+
+function ImportTab({ onImported, existingProducts }: { onImported: () => void; existingProducts: Product[] }) {
   const [rows, setRows]           = useState<CsvImportRow[]>([]);
   const [progress, setProgress]   = useState<string>('');
   const [summary, setSummary]     = useState<ImportSummary | null>(null);
   const [err, setErr]             = useState('');
   const [rematchImgs, setRematchImgs] = useState(false);
+  const [dupeOverride, setDupeOverride] = useState(false);
+
+  const dupes = useMemo(() => rows.length > 0 ? findDuplicates(rows, existingProducts) : [], [rows, existingProducts]);
+  const fuzzyDupes = dupes.filter(d => d.kind === 'fuzzy');
+  const exactDupes = dupes.filter(d => d.kind === 'exact');
+  const hasBlockingDupes = fuzzyDupes.length > 0 && !dupeOverride;
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
@@ -1433,13 +1520,13 @@ function ImportTab({ onImported }: { onImported: () => void }) {
     reader.onload = ev => {
       const text = ev.target?.result as string;
       setRows(parseCSV(text));
-      setSummary(null); setErr(''); setProgress('');
+      setSummary(null); setErr(''); setProgress(''); setDupeOverride(false);
     };
     reader.readAsText(file);
   }
 
   async function handleImport() {
-    if (rows.length === 0) return;
+    if (rows.length === 0 || hasBlockingDupes) return;
     setErr(''); setSummary(null);
     try {
       const result = await processCSVImport(rows, msg => setProgress(msg), { rematchImages: rematchImgs });
@@ -1481,6 +1568,75 @@ function ImportTab({ onImported }: { onImported: () => void }) {
 
       {rows.length > 0 && !summary && (
         <div className="mt-6">
+
+          {/* ── Duplicate / OCR check panel ── */}
+          {dupes.length > 0 && (
+            <div className={`mb-4 rounded-2xl border p-4 ${fuzzyDupes.length > 0 ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'}`}>
+              <p className={`text-sm font-bold mb-2 flex items-center gap-2 ${fuzzyDupes.length > 0 ? 'text-red-800' : 'text-amber-800'}`}>
+                <AlertTriangle className="w-4 h-4" />
+                {fuzzyDupes.length > 0
+                  ? `${fuzzyDupes.length} likely OCR/typo duplicate${fuzzyDupes.length !== 1 ? 's' : ''} detected — import blocked`
+                  : `${exactDupes.length} exact match${exactDupes.length !== 1 ? 'es' : ''} found — prices will update, no new products created`}
+              </p>
+
+              {fuzzyDupes.length > 0 && (
+                <>
+                  <p className="text-xs text-red-700 mb-3">
+                    These CSV models look like corrupted versions of existing models (0↔O, 1↔I, 5↔S, 8↔B, 6↔G confusion). Check the source price list carefully before importing.
+                  </p>
+                  <div className="overflow-x-auto rounded-lg border border-red-200 mb-3">
+                    <table className="text-xs w-full bg-white">
+                      <thead className="bg-red-50">
+                        <tr>
+                          <th className="text-left px-3 py-2 text-red-700">Brand</th>
+                          <th className="text-left px-3 py-2 text-red-700">CSV Model (suspect)</th>
+                          <th className="text-left px-3 py-2 text-red-700">Existing Model (in DB)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {fuzzyDupes.map((d, i) => (
+                          <tr key={i} className="border-t border-red-100">
+                            <td className="px-3 py-1.5 text-gray-700">{d.csvRow['Brand']}</td>
+                            <td className="px-3 py-1.5 font-mono text-red-700 font-bold">{d.csvRow['Model']}</td>
+                            <td className="px-3 py-1.5 font-mono text-gray-600">{d.existingModel}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <label className="flex items-center gap-2 text-xs text-red-700 cursor-pointer select-none">
+                    <input type="checkbox" checked={dupeOverride} onChange={e => setDupeOverride(e.target.checked)} className="accent-red-500" />
+                    I have verified these are genuinely new models — override block and allow import
+                  </label>
+                </>
+              )}
+
+              {fuzzyDupes.length === 0 && exactDupes.length > 0 && (
+                <div className="overflow-x-auto rounded-lg border border-amber-200">
+                  <table className="text-xs w-full bg-white">
+                    <thead className="bg-amber-50">
+                      <tr>
+                        <th className="text-left px-3 py-2 text-amber-700">Brand</th>
+                        <th className="text-left px-3 py-2 text-amber-700">Model (existing — price will update)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {exactDupes.slice(0, 10).map((d, i) => (
+                        <tr key={i} className="border-t border-amber-100">
+                          <td className="px-3 py-1.5 text-gray-700">{d.csvRow['Brand']}</td>
+                          <td className="px-3 py-1.5 font-mono text-gray-600">{d.existingModel}</td>
+                        </tr>
+                      ))}
+                      {exactDupes.length > 10 && (
+                        <tr><td colSpan={2} className="px-3 py-1.5 text-amber-600 text-center">…and {exactDupes.length - 10} more</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-sm font-medium text-gray-700">{rows.length} rows detected — preview:</p>
@@ -1489,11 +1645,13 @@ function ImportTab({ onImported }: { onImported: () => void }) {
                 <span className="text-xs text-gray-500">Re-match images for existing products</span>
               </label>
             </div>
-            <button onClick={handleImport} disabled={!!progress}
-              className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg text-sm font-bold disabled:opacity-60">
+            <button onClick={handleImport} disabled={!!progress || hasBlockingDupes}
+              className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed">
               {progress
                 ? <><Loader2 className="w-4 h-4 animate-spin" /> {progress}</>
-                : <><Upload className="w-4 h-4" /> Import {rows.length} Products</>}
+                : hasBlockingDupes
+                  ? <><AlertTriangle className="w-4 h-4" /> Blocked — resolve OCR dupes first</>
+                  : <><Upload className="w-4 h-4" /> Import {rows.length} Products</>}
             </button>
           </div>
           <div className="overflow-x-auto rounded-xl border border-gray-200">
@@ -6258,7 +6416,7 @@ export default function AdminPortal() {
 
       <div className="max-w-6xl mx-auto px-4 py-6">
         {tab === 'import' ? (
-          <ImportTab onImported={loadProducts} />
+          <ImportTab onImported={loadProducts} existingProducts={products} />
         ) : tab === 'tools' ? (
           <ToolsTab onRefresh={loadProducts} products={products} selectedIds={selectedIds} />
         ) : tab === 'images' ? (
