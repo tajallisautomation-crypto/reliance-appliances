@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Search, SlidersHorizontal, X, ChevronDown, ChevronUp, Loader2, AlertCircle } from 'lucide-react';
 import { getProducts, formatPrice, type Product } from '@/lib/api';
-import { buildSearchIndex, search, type SearchIndex } from '@/lib/search';
+import { buildSearchIndex, search, parseQuery, type SearchIndex } from '@/lib/search';
 import ProductCard from '@/components/products/ProductCard';
 import SearchBar from '@/components/SearchBar';
 import SEO from '@/components/ui/SEO';
@@ -292,6 +292,37 @@ export default function SearchResults() {
 
           {/* ── Results grid ── */}
           <div className="flex-1 min-w-0">
+            {/* Capacity hint banner — shown when query specifies a numeric size */}
+            {!loading && rawQuery && (() => {
+              const pq = parseQuery(rawQuery);
+              if (pq.capacityCuftHint !== undefined) {
+                return (
+                  <div className="mb-4 flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 text-sm">
+                    <AlertCircle className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                    <p className="text-blue-800">
+                      Showing closest matches to <strong>{pq.capacityCuftHint} cu.ft</strong>
+                      {filtered.length === 0
+                        ? ' — no exact match found. Try browsing by size filter.'
+                        : '. Use the size filter on the left for exact capacity matches.'}
+                    </p>
+                  </div>
+                );
+              }
+              if (pq.capacityTonHint !== undefined) {
+                return (
+                  <div className="mb-4 flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 text-sm">
+                    <AlertCircle className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                    <p className="text-blue-800">
+                      Showing closest matches to <strong>{pq.capacityTonHint} ton</strong>
+                      {filtered.length === 0
+                        ? ' — no exact match found. Try browsing by tonnage filter.'
+                        : '. Use the brand or category filter to narrow further.'}
+                    </p>
+                  </div>
+                );
+              }
+              return null;
+            })()}
             {loading ? (
               <div className="flex items-center justify-center py-32">
                 <Loader2 className="w-8 h-8 animate-spin text-brand-400" />

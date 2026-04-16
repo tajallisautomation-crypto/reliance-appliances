@@ -66,6 +66,7 @@ export default {
         'apple-lg':   '0 4px 16px rgba(0,0,0,0.10)',
         'apple-xl':   '0 8px 32px rgba(0,0,0,0.12)',
         'apple-2xl':  '0 16px 48px rgba(0,0,0,0.16)',
+        'soft':       '0 4px 24px rgba(0,0,0,0.06)',
         'eco':        '0 4px 20px rgba(34,197,94,0.25)',
         'brand':      '0 4px 20px rgba(249,115,22,0.35)',
       },

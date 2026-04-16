@@ -53,7 +53,7 @@ const SERVICE_ITEMS = [
 ]
 
 const PROCESS = [
-  { num: '01', title: 'Contact Us', desc: 'WhatsApp or call to describe your requirement. Our team responds within 1 hour during business hours.' },
+  { num: '01', title: 'Contact Us', desc: 'WhatsApp or call to describe your requirement. Our team responds within 4 business hours.' },
   { num: '02', title: 'Schedule Visit', desc: 'We confirm a time slot that works for you — including evenings and Saturdays.' },
   { num: '03', title: 'Diagnosis & Quote', desc: 'The technician assesses the issue on-site. A transparent quote is provided before any work begins.' },
   { num: '04', title: 'Repair & Sign-Off', desc: 'Work is completed to standard. You sign off before we leave. 90-day workmanship guarantee on all repairs.' },
@@ -358,7 +358,7 @@ export function Services() {
                 className="block w-full text-center py-3.5 rounded-xl font-bold text-white bg-orange-500 hover:bg-orange-600 transition-colors">
                 Get AMC Quote
               </a>
-              <p className="text-xs text-gray-500 text-center mt-2">We'll call back within 1 hour</p>
+              <p className="text-xs text-gray-500 text-center mt-2">We'll confirm your slot within 4 business hours</p>
             </div>
           </div>
         </section>
@@ -367,7 +367,7 @@ export function Services() {
         <section className="bg-gray-900 rounded-3xl p-10 text-white text-center">
           <h2 className="text-2xl font-black mb-2">Ready to book?</h2>
           <p className="text-gray-400 mb-8 max-w-md mx-auto text-sm">
-            WhatsApp us with your appliance and the issue — we'll confirm a slot within 1 hour.
+            WhatsApp us with your appliance and the issue — we'll confirm your slot within 4 business hours.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a href={waSales('Hi, I\'d like to book a service visit')} target="_blank" rel="noreferrer"

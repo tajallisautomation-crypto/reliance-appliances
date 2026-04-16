@@ -160,7 +160,7 @@ export const TEMPLATES = {
     `📦 *Order ID:* ${orderId}\n` +
     `🛍️ *Product:* ${product}\n\n` +
     `What happens next:\n` +
-    `1. Our team will call within 1 hour to confirm\n` +
+    `1. Our team will call within a few hours to confirm\n` +
     `2. Delivery will be scheduled at your convenience\n` +
     `3. Advance payment at delivery\n` +
     `4. Professional installation on the spot\n\n` +

@@ -125,7 +125,7 @@ export default function Home() {
                 {[
                   { value: '11 yrs',    label: 'in business'  },
                   { value: '14,400+',   label: 'clients'      },
-                  { value: '75%',       label: 'loyalty rate' },
+                  { value: '75%',       label: 'Customer Loyalty' },
                   { value: '24,000+',   label: 'orders'       },
                 ].map((s, i) => (
                   <div key={i} className={`flex items-baseline gap-1.5 ${i > 0 ? 'border-l border-gray-200 pl-4' : ''}`}>
@@ -150,15 +150,6 @@ export default function Home() {
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 animate-pulse" />
               )}
-            </div>
-            {/* Floating badges */}
-            <div className="absolute -bottom-5 -left-5 bg-white rounded-2xl shadow-apple-xl px-5 py-4 border border-gray-100 animate-slide-up">
-              <p className="text-2xl font-black text-gray-900 leading-none">14,400+</p>
-              <p className="text-xs text-gray-400 mt-0.5 font-medium">Clients served</p>
-            </div>
-            <div className="absolute -top-5 -right-5 bg-gray-900 text-white rounded-2xl shadow-apple-xl px-5 py-4 animate-slide-up">
-              <p className="text-2xl font-black leading-none text-brand-400">24K+</p>
-              <p className="text-xs opacity-60 mt-0.5 font-medium">Orders fulfilled</p>
             </div>
           </div>
         </div>
@@ -188,7 +179,7 @@ export default function Home() {
       <OfferBannerSlider />
 
       {/* ── MYOP PROMO ───────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 md:pt-24 pb-12">
         <div className="relative bg-gray-950 rounded-3xl overflow-hidden">
           <div className="absolute inset-0 opacity-[0.03]"
             style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.8) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.8) 1px,transparent 1px)', backgroundSize: '32px 32px' }} />
@@ -478,14 +469,14 @@ export default function Home() {
             {[
               { value: '14,400+', label: 'Clients served',    detail: 'Karachi-wide, since 2015' },
               { value: '24,000+', label: 'Orders fulfilled',  detail: 'On time, every time' },
-              { value: '75%',     label: 'Customer loyalty',  detail: 'Come back. Bring family.' },
+              { value: '75%',     label: 'Customer Loyalty',  detail: 'Come back. Bring family.' },
               { value: '11 yrs',  label: 'In business',       detail: 'No shortcuts. No drop in quality.' },
             ].map((s, i) => (
               <div key={s.label}
-                className={`py-6 md:py-8 pr-4 md:pr-8 ${i % 2 !== 0 ? 'pl-4 md:pl-8 border-l border-white/10' : ''} ${i >= 2 ? 'border-t border-white/10 md:border-t-0 md:border-l border-white/10' : ''}`}>
-                <p className="text-4xl md:text-6xl font-black text-white leading-none tracking-tight mb-2">{s.value}</p>
+                className={`group py-6 md:py-8 pr-4 md:pr-8 cursor-default transition-all duration-300 hover:bg-white/[0.03] rounded-xl ${i % 2 !== 0 ? 'pl-4 md:pl-8 border-l border-white/10' : ''} ${i >= 2 ? 'border-t border-white/10 md:border-t-0 md:border-l border-white/10' : ''}`}>
+                <p className="text-4xl md:text-6xl font-black text-white leading-none tracking-tight mb-2 group-hover:text-brand-300 transition-colors duration-300">{s.value}</p>
                 <p className="text-sm font-bold text-brand-400 mb-1">{s.label}</p>
-                <p className="text-xs text-gray-600 leading-snug">{s.detail}</p>
+                <p className="text-xs text-gray-600 group-hover:text-gray-500 leading-snug transition-colors duration-300">{s.detail}</p>
               </div>
             ))}
           </div>

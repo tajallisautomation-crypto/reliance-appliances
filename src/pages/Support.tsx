@@ -38,7 +38,7 @@ export default function Support() {
       (form.orderRef ? `*Order Ref:* ${form.orderRef}\n` : '') +
       (form.product  ? `*Product:* ${form.product}\n`   : '') +
       `*Issue Type:* ${issue}\n` +
-      `*Urgency:* ${form.urgency === 'urgent' ? '🔴 Urgent (same day)' : '🟡 Normal (within 48 hrs)'}\n\n` +
+      `*Urgency:* ${form.urgency === 'urgent' ? '🔴 Same-Day Priority' : '🟡 Standard (Within 48 hrs)'}\n\n` +
       `*Description:*\n${form.description}`
     )
   }
@@ -227,16 +227,16 @@ export default function Support() {
                       <input type="radio" name="urgency" value="normal" checked={form.urgency === 'normal'} onChange={handleChange}
                         className="accent-brand-500 mt-0.5" />
                       <span className="text-sm text-gray-700">
-                        <span className="font-medium">Normal</span>
-                        <span className="text-gray-400 ml-1">— within 48 hours</span>
+                        <span className="font-medium">Standard</span>
+                        <span className="text-gray-400 ml-1">— Within 48 hours</span>
                       </span>
                     </label>
                     <label className="flex items-start gap-2 cursor-pointer">
                       <input type="radio" name="urgency" value="urgent" checked={form.urgency === 'urgent'} onChange={handleChange}
                         className="accent-brand-500 mt-0.5" />
                       <span className="text-sm text-gray-700">
-                        <span className="font-medium">Urgent</span>
-                        <span className="text-gray-400 ml-1">— same day</span>
+                        <span className="font-medium">Same-Day Priority</span>
+                        <span className="text-gray-400 ml-1">— request by 12 pm</span>
                       </span>
                     </label>
                   </div>
