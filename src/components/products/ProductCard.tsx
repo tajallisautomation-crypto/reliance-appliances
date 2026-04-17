@@ -40,7 +40,7 @@ export default function ProductCard({ product: p }: Props) {
           <img
             src={p.thumbnail}
             alt={`${p.brand} ${p.model}`}
-            className="w-full h-full object-contain p-3 group-hover:scale-[1.03] transition-transform duration-500 ease-out"
+            className="w-full h-full object-contain p-5 group-hover:scale-[1.03] transition-transform duration-500 ease-out"
             loading="lazy"
             onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
