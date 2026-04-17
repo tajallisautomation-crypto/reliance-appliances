@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useDeferredValue, useCallback } from 'react';
+import { jsPDF } from 'jspdf';
 import { signIn, signUp, resetPasswordForEmail, updatePassword } from '@/lib/auth';
 import { useAuthStore } from '@/store/authStore';
 import { supabase } from '@/lib/supabase';
@@ -4063,8 +4064,6 @@ function generateQuotationPdf(opts: {
   docType: 'quotation' | 'invoice';
   refNumber: string;
 }): Blob {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { jsPDF } = require('jspdf') as typeof import('jspdf');
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
   const W = 210; const margin = 18; const col2 = 120; const col3 = 155; const col4 = 185;
@@ -4702,9 +4701,6 @@ function generateSolarPdf(lead: SolarLead, opts: {
   batteryPrice: number;
   installPrice: number;
 }): Blob {
-  // Dynamic import-style usage of jsPDF (bundled as named export)
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { jsPDF } = require('jspdf') as typeof import('jspdf');
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
   const W = 210; const margin = 18;

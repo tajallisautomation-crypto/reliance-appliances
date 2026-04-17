@@ -123,7 +123,7 @@ const DEEP_SUBCATEGORIES: Record<string, Array<{
   ],
 
   // ── Televisions ──────────────────────────────────────────────────────────────
-  // Total: 84 | 32": 6 | 43": 12 | 50-55": 21 | 65": 19 | 75": 13 | 85"+: 13
+  // Total: 84 | 32": 6 | 43": 12 | 50-55": 21 | 65": 19 | 75-79": 15 | 80"+: 11
   // QLED: 7 | 4K: 14 | Google TV: 9 | OLED: 0 (none in catalog — not listed)
   tv: [
     // By screen size (primary browse)
@@ -413,7 +413,7 @@ const SPEC_FILTERS: Record<string, SpecFilter[]> = {
   ],
 
   // ── Televisions ──────────────────────────────────────────────────────────────
-  // Catalog: 84 total — 32": 6 | 43": 12 | 50-55": 21 | 65": 19 | 75": 13 | 85"+: 13
+  // Catalog: 84 total — 32": 6 | 43": 12 | 50-55": 21 | 65": 19 | 75-79": 15 | 80"+: 11
   // QLED: 7 | 4K: 14 | Google TV: 9 | OLED: 0 (none in catalog)
   tv: [
     {
@@ -423,8 +423,8 @@ const SPEC_FILTERS: Record<string, SpecFilter[]> = {
         { value: '43',  label: '43"',         match: p => { const i = _inches(p); return i >= 40 && i <= 43 } },
         { value: '50',  label: '50"–55"',     match: p => { const i = _inches(p); return i >= 50 && i <= 55 } },
         { value: '65',  label: '65"',         match: p => { const i = _inches(p); return i >= 60 && i <= 65 } },
-        { value: '75',  label: '75"',         match: p => { const i = _inches(p); return i >= 70 && i <= 75 } },
-        { value: '85',  label: '85"+ (Ultra)',match: p => { const i = _inches(p); return i >= 85 } },
+        { value: '75',  label: '75"',         match: p => { const i = _inches(p); return i >= 70 && i <= 79 } },
+        { value: '85',  label: '85"+ (Ultra)',match: p => { const i = _inches(p); return i >= 80 } },
       ],
     },
     {

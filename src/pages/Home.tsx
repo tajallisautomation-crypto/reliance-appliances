@@ -102,9 +102,13 @@ export default function Home() {
               <span className="text-brand-300 text-xs">·</span>
               <span className="text-brand-500 text-xs font-bold uppercase tracking-[0.2em] whitespace-nowrap">11 Years of Trust</span>
             </div>
-            <h1 className="text-5xl md:text-6xl lg:text-[4.5rem] font-black text-gray-900 leading-[1.04] tracking-tight mb-6">
-              Home Appliances.<br />Solar Solutions.<br />
-              <span className="text-brand-500">All on Installments.</span>
+            <h1 className="leading-[1.06] tracking-tight mb-6">
+              <span className="block text-2xl md:text-3xl lg:text-4xl font-bold text-gray-400 mb-2 tracking-normal">
+                Home Appliances &amp; Solar Solutions
+              </span>
+              <span className="block text-5xl md:text-6xl lg:text-[4.5rem] font-black text-brand-500">
+                All on Installments.
+              </span>
             </h1>
             <p className="text-lg text-gray-500 leading-relaxed mb-8 max-w-md">
               Karachi's trusted store for ACs, fridges, washing machines, solar & more — since 2015.
@@ -112,11 +116,11 @@ export default function Home() {
             </p>
             <div className="flex flex-wrap gap-3">
               <Link to="/products"
-                className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-7 py-4 rounded-2xl shadow-brand transition-all">
+                className="inline-flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-7 py-4 rounded-2xl shadow-brand transition-all min-w-[168px]">
                 Shop Now <ArrowRight className="w-4 h-4" />
               </Link>
               <Link to="/solar"
-                className="inline-flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white font-bold px-7 py-4 rounded-2xl transition-all">
+                className="inline-flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white font-bold px-7 py-4 rounded-2xl transition-all min-w-[168px]">
                 <Zap className="w-4 h-4" /> Solar Solutions
               </Link>
             </div>
@@ -157,7 +161,7 @@ export default function Home() {
 
 
       {/* ── CATEGORY GRID ────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-12">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-16">
         <div className="flex items-baseline justify-between mb-6">
           <h2 className="text-xl font-black text-gray-900">Shop by Category</h2>
           <Link to="/products" className="text-sm text-brand-600 font-semibold hover:text-brand-700 flex items-center gap-1">
@@ -179,7 +183,7 @@ export default function Home() {
       <OfferBannerSlider />
 
       {/* ── MYOP PROMO ───────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 md:pt-24 pb-12">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 md:pt-20 pb-16">
         <div className="relative bg-gray-950 rounded-3xl overflow-hidden">
           <div className="absolute inset-0 opacity-[0.03]"
             style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.8) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.8) 1px,transparent 1px)', backgroundSize: '32px 32px' }} />
@@ -196,7 +200,7 @@ export default function Home() {
                 className="flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-8 py-4 rounded-2xl transition-colors shadow-brand">
                 Start Building <ArrowRight className="w-4 h-4" />
               </Link>
-              <p className="text-gray-600 text-xs">3+ items required for discount</p>
+              <p className="text-gray-400 text-xs">3+ items required for discount</p>
             </div>
           </div>
         </div>
@@ -239,7 +243,7 @@ export default function Home() {
       </section>
 
       {/* ── INSTALLMENT ENGINE ───────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 pb-4">
+      <section className="max-w-7xl mx-auto px-4 pb-16">
         <div className="bg-gray-950 rounded-3xl p-8 md:p-12">
           <div className="text-center mb-10">
             <p className="text-brand-400 text-xs font-bold uppercase tracking-widest mb-3">Flexible Installments</p>
@@ -307,7 +311,7 @@ export default function Home() {
       </section>
 
       {/* ── GREEN CORRIDOR TEASER ─────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-12">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="relative bg-gray-950 rounded-3xl overflow-hidden">
           <div className="absolute inset-0 opacity-[0.04]"
             style={{ backgroundImage: 'linear-gradient(#4ade80 1px, transparent 1px), linear-gradient(90deg, #4ade80 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
@@ -359,7 +363,7 @@ export default function Home() {
 
 
       {/* ── BRANDS ───────────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 pb-10 pt-6">
+      <section className="max-w-7xl mx-auto px-4 py-14">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-black text-gray-900">Brands We Carry</h2>
           <Link to="/products" className="text-sm text-brand-600 font-semibold flex items-center gap-1 hover:text-brand-700">
@@ -420,7 +424,7 @@ export default function Home() {
 
       {/* ── PROOF OF WORK ────────────────────────────────────────── */}
       {galleryStrip.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 pb-6">
+        <section className="max-w-7xl mx-auto px-4 py-14">
           <div className="flex items-end justify-between mb-6">
             <div>
               <p className="text-brand-500 text-xs font-bold uppercase tracking-widest mb-1">Real Jobs</p>
@@ -432,9 +436,10 @@ export default function Home() {
             </Link>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {galleryStrip.map(item => (
+            {galleryStrip.map((item, i) => (
               <Link key={item.id} to="/gallery"
-                className="aspect-square rounded-2xl overflow-hidden block bg-gray-100 hover:opacity-90 transition-opacity">
+                className="aspect-square rounded-2xl overflow-hidden block bg-gray-100 hover:opacity-90 transition-opacity animate-fade-in"
+                style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}>
                 <img
                   src={item.public_url}
                   alt={item.caption}

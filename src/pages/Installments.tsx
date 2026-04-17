@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  Calculator, Info, CheckCircle, Phone, FileText,
+  Calculator, Info, Phone, FileText,
   Home, Users, Clock, ShieldCheck, ChevronRight, AlertCircle, ChevronDown,
 } from 'lucide-react'
 import { calcAllPlans, fmtPKR, roundTo100 } from '../lib/api'
@@ -58,26 +58,30 @@ const PROCESS_STEPS = [
 ]
 
 const BUYER_DOCS = [
-  'Original CNIC (National Identity Card)',
-  'Copy of latest electricity or gas utility bill',
-  'Passport-sized photograph',
+  { text: 'Original CNIC (National Identity Card)', icon: '🪪' },
+  { text: 'Copy of latest electricity or gas utility bill', icon: '🧾' },
+  { text: 'Passport-sized photograph', icon: '📷' },
 ]
 
 const GUARANTOR_DOCS = [
-  'Original CNIC of guarantor',
-  'Copy of utility bill in guarantor\'s name',
-  'Passport-sized photograph of guarantor',
+  { text: 'Original CNIC of guarantor', icon: '🪪' },
+  { text: 'Copy of utility bill in guarantor\'s name', icon: '🧾' },
+  { text: 'Passport-sized photograph of guarantor', icon: '📷' },
 ]
 
 export default function InstallmentsPage() {
   const [price,   setPrice]   = useState('')
   const [result,  setResult]  = useState<any>(null)
   const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const resultsRef = useRef<HTMLDivElement>(null)
 
   const calculate = () => {
     const p = parseFloat(price)
     if (!p || p <= 0) return
     setResult({ price: roundTo100(p), plans: calcAllPlans(p) })
+    setTimeout(() => {
+      resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 50)
   }
 
   return (
@@ -117,11 +121,11 @@ export default function InstallmentsPage() {
             <h2 className="text-2xl font-black text-gray-900">Our Installment Plans</h2>
             <p className="text-gray-500 mt-1 text-sm">All plans include professional delivery and installation in Karachi</p>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
             {PLAN_DETAILS.map(p => (
-              <div key={p.key} className={`relative bg-white rounded-2xl border-2 p-6 ${p.popular ? 'border-brand-400 shadow-lg shadow-brand-50' : 'border-gray-100'}`}>
+              <div key={p.key} className={`relative bg-white rounded-2xl border-2 p-6 transition-transform ${p.popular ? 'border-brand-400 shadow-xl shadow-brand-100 ring-2 ring-brand-300/40 scale-105 z-10' : 'border-gray-100'}`}>
                 {p.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand-500 text-white text-xs font-bold px-3 py-1 rounded-full">MOST POPULAR</div>
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">MOST POPULAR</div>
                 )}
                 <div className="text-center">
                   <div className="text-2xl font-black text-gray-900 mb-2">{p.label}</div>
@@ -157,8 +161,11 @@ export default function InstallmentsPage() {
             </button>
           </div>
           {result && (
-            <div className="mt-8 space-y-4">
-              <p className="text-sm text-gray-500">Results for <strong>{fmtPKR(result.price)}</strong></p>
+            <div ref={resultsRef} className="mt-8 space-y-4 scroll-mt-6">
+              <div className="flex items-center gap-3">
+                <h3 className="text-base font-black text-gray-900">Results</h3>
+                <span className="text-sm text-gray-500">for <strong>{fmtPKR(result.price)}</strong></span>
+              </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {Object.entries(result.plans).map(([key, plan]: [string, any]) => (
                   <div key={key} className={`rounded-2xl border-2 p-5 ${key === '3m' ? 'border-brand-400 bg-brand-50' : 'border-gray-200 bg-white'}`}>
@@ -232,9 +239,9 @@ export default function InstallmentsPage() {
               </div>
               <ul className="space-y-3">
                 {BUYER_DOCS.map(doc => (
-                  <li key={doc} className="flex items-start gap-2 text-sm text-gray-700">
-                    <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
-                    {doc}
+                  <li key={doc.text} className="flex items-center gap-3 text-sm text-gray-700">
+                    <span className="w-7 h-7 bg-green-50 border border-green-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">{doc.icon}</span>
+                    {doc.text}
                   </li>
                 ))}
               </ul>
@@ -253,9 +260,9 @@ export default function InstallmentsPage() {
               </div>
               <ul className="space-y-3">
                 {GUARANTOR_DOCS.map(doc => (
-                  <li key={doc} className="flex items-start gap-2 text-sm text-gray-700">
-                    <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
-                    {doc}
+                  <li key={doc.text} className="flex items-center gap-3 text-sm text-gray-700">
+                    <span className="w-7 h-7 bg-green-50 border border-green-100 rounded-lg flex items-center justify-center text-base flex-shrink-0">{doc.icon}</span>
+                    {doc.text}
                   </li>
                 ))}
               </ul>
