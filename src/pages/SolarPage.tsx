@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Sun, ArrowRight, Calculator, CheckCircle2, MessageCircle, Shield, CalendarCheck } from 'lucide-react'
+import { Sun, ArrowRight, Calculator, CheckCircle2, MessageCircle, Shield, CalendarCheck, ChevronDown } from 'lucide-react'
 import { getProducts, getProduct, type Product, formatPrice } from '../lib/api'
 import ProductCard from '../components/products/ProductCard'
 import { wa } from '../lib/whatsapp'
@@ -248,9 +248,11 @@ function PackageCard({
   crownPrices: Record<string, number>;
   onBook:      (ctx: BookingContext) => void;
 }) {
-  const [withFrame,       setWithFrame]       = useState(pkg.frameDeduction > 0)
-  const [selectedInvLabel, setInvLabel]       = useState(pkg.inverterOptions[0].label)
-  const [selectedBatLabel, setBatLabel]       = useState(pkg.batteryOptions[0].label)
+  const [withFrame,        setWithFrame]       = useState(pkg.frameDeduction > 0)
+  const [selectedInvLabel, setInvLabel]        = useState(pkg.inverterOptions[0].label)
+  const [selectedBatLabel, setBatLabel]        = useState(pkg.batteryOptions[0].label)
+  const [includesOpen,     setIncludesOpen]    = useState(false)
+  const [warrantiesOpen,   setWarrantiesOpen]  = useState(false)
 
   const invOpt = pkg.inverterOptions.find(o => o.label === selectedInvLabel) ?? pkg.inverterOptions[0]
   const batOpt = pkg.batteryOptions.find(o => o.label === selectedBatLabel) ?? pkg.batteryOptions[0]
@@ -310,32 +312,7 @@ function PackageCard({
         <ComponentSelector label="Battery"  options={pkg.batteryOptions}  value={selectedBatLabel}
           crownPrices={crownPrices} onChange={setBatLabel} />
 
-        {/* What's included */}
-        <div className="mb-4">
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">What's Included</p>
-          <ul className="space-y-1.5">
-            {allIncludes.map(item => (
-              <li key={item} className="flex items-start gap-2 text-sm text-gray-600">
-                <CheckCircle2 className="w-3.5 h-3.5 text-green-500 mt-0.5 shrink-0" />
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Warranties */}
-        <div className="bg-blue-50 rounded-2xl px-4 py-3 mb-4">
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <Shield className="w-3.5 h-3.5 text-blue-600" />
-            <span className="text-xs font-bold text-blue-700">Warranties</span>
-          </div>
-          <p className="text-xs text-blue-600 leading-relaxed font-semibold">✓ 1-Year Installation Warranty</p>
-          {pkg.warranties.map(w => (
-            <p key={w} className="text-xs text-blue-600 leading-relaxed">✓ {w}</p>
-          ))}
-        </div>
-
-        {/* Frame toggle */}
+        {/* Frame toggle — shown immediately after component selection */}
         {pkg.frameDeduction > 0 && (
           <label className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-4 cursor-pointer">
             <div>
@@ -350,6 +327,49 @@ function PackageCard({
               className="w-4 h-4 accent-orange-500 cursor-pointer" />
           </label>
         )}
+
+        {/* What's Included — collapsible */}
+        <div className="mb-4">
+          <button
+            onClick={() => setIncludesOpen(o => !o)}
+            className="w-full flex items-center justify-between text-xs font-bold text-gray-400 uppercase tracking-widest mb-2"
+          >
+            What&apos;s Included
+            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${includesOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {includesOpen && (
+            <ul className="space-y-1.5">
+              {allIncludes.map(item => (
+                <li key={item} className="flex items-start gap-2 text-sm text-gray-600">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-green-500 mt-0.5 shrink-0" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Warranties — collapsible */}
+        <div className="bg-blue-50 rounded-2xl px-4 py-3 mb-4">
+          <button
+            onClick={() => setWarrantiesOpen(o => !o)}
+            className="w-full flex items-center justify-between"
+          >
+            <div className="flex items-center gap-1.5">
+              <Shield className="w-3.5 h-3.5 text-blue-600" />
+              <span className="text-xs font-bold text-blue-700">Warranties</span>
+            </div>
+            <ChevronDown className={`w-4 h-4 text-blue-400 transition-transform duration-200 ${warrantiesOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {warrantiesOpen && (
+            <div className="mt-1.5">
+              <p className="text-xs text-blue-600 leading-relaxed font-semibold">✓ 1-Year Installation Warranty</p>
+              {pkg.warranties.map(w => (
+                <p key={w} className="text-xs text-blue-600 leading-relaxed">✓ {w}</p>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Price + CTAs */}
         <div className="mt-auto">

@@ -29,22 +29,42 @@ const CATEGORY_NAV = [
   { href: '/products?category=small-appliances',  label: 'Small Appliances',   icon: '🔌' },
 ];
 
-const MOBILE_LINKS = [
-  ['Products',             '/products'],
-  ['Build a Package 🎁',  '/build-your-package'],
-  ['Installments',         '/installments'],
-  ['Solar Solutions',      '/solar'],
-  ['Green Corridor',       '/green-corridor'],
-  ['Solar Calculator',     '/solar-calculator'],
-  ['Gallery',              '/gallery'],
-  ['Tools & Calculators',  '/tools'],
-  ['Buying Guide',         '/buying-guide'],
-  ['Services',             '/services'],
-  ['Partner With Us',      '/partner'],
-  ['Refer & Earn',         '/referral'],
-  ['Support / Complaints', '/support'],
-  ['About',                '/about'],
-  ['Contact',              '/contact'],
+const MOBILE_GROUPS: { label: string; links: [string, string][] }[] = [
+  {
+    label: 'Shop',
+    links: [
+      ['Products',            '/products'],
+      ['Build a Package 🎁', '/build-your-package'],
+      ['Installments',        '/installments'],
+    ],
+  },
+  {
+    label: 'Solar',
+    links: [
+      ['Solar Solutions',  '/solar'],
+      ['Green Corridor',   '/green-corridor'],
+      ['Solar Calculator', '/solar-calculator'],
+    ],
+  },
+  {
+    label: 'Tools & Guides',
+    links: [
+      ['Tools & Calculators', '/tools'],
+      ['Buying Guide',        '/buying-guide'],
+      ['Gallery',             '/gallery'],
+    ],
+  },
+  {
+    label: 'More',
+    links: [
+      ['Services',             '/services'],
+      ['Partner With Us',      '/partner'],
+      ['Refer & Earn',         '/referral'],
+      ['Support / Complaints', '/support'],
+      ['About',                '/about'],
+      ['Contact',              '/contact'],
+    ],
+  },
 ];
 
 export default function Navbar() {
@@ -53,6 +73,7 @@ export default function Navbar() {
   const [scrolled,     setScrolled]     = useState(false);
   const [searchOpen,   setSearchOpen]   = useState(false);
   const [productsOpen, setProductsOpen] = useState(false);
+  const [openGroup,    setOpenGroup]    = useState<string>('Shop');
   const productsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const location = useLocation();
   const totalItems = useCartStore(s => s.items.reduce((n, i) => n + i.qty, 0));
@@ -217,19 +238,34 @@ export default function Navbar() {
         {/* ── Mobile: nav menu ─────────────────────────────────────── */}
         {mobileOpen && (
           <div className="lg:hidden border-t border-gray-100 bg-white px-3 py-3 max-h-[80vh] overflow-y-auto no-scrollbar">
-            <div className="space-y-0.5">
-              {MOBILE_LINKS.map(([label, href]) => (
-                <Link key={href} to={href} onClick={() => setMobileOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-[15px] font-medium transition-colors min-h-[52px] ${
-                    isActive(href)
-                      ? 'bg-brand-50 text-brand-600 font-semibold'
-                      : href === '/green-corridor'
-                        ? 'text-eco-700 hover:bg-eco-50 active:bg-eco-100'
-                        : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'
-                  }`}>
-                  {href === '/green-corridor' && <Leaf className="w-4 h-4 text-eco-500 flex-shrink-0" />}
-                  {label}
-                </Link>
+            <div className="space-y-1">
+              {MOBILE_GROUPS.map(group => (
+                <div key={group.label}>
+                  <button
+                    onClick={() => setOpenGroup(g => g === group.label ? '' : group.label)}
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-[13px] font-bold text-gray-400 uppercase tracking-widest hover:bg-gray-50 transition-colors"
+                  >
+                    {group.label}
+                    <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${openGroup === group.label ? 'rotate-180' : ''}`} />
+                  </button>
+                  {openGroup === group.label && (
+                    <div className="space-y-0.5 mb-1">
+                      {group.links.map(([label, href]) => (
+                        <Link key={href} to={href} onClick={() => setMobileOpen(false)}
+                          className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[15px] font-medium transition-colors min-h-[48px] ${
+                            isActive(href)
+                              ? 'bg-brand-50 text-brand-600 font-semibold'
+                              : href === '/green-corridor'
+                                ? 'text-eco-700 hover:bg-eco-50 active:bg-eco-100'
+                                : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'
+                          }`}>
+                          {href === '/green-corridor' && <Leaf className="w-4 h-4 text-eco-500 flex-shrink-0" />}
+                          {label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
             <div className="pt-3 mt-2 border-t border-gray-100 space-y-1">
