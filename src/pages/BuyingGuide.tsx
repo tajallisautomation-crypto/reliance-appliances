@@ -356,12 +356,6 @@ function ACCalculator() {
               accentColor="blue"
               viewAllHref={`/products/category/${result.categorySlug}`}
             />
-            <Link
-              to={`/products/category/${result.categorySlug}`}
-              className="flex items-center justify-center gap-2 w-full bg-blue-500 hover:bg-blue-600 text-white rounded-xl py-3 font-bold text-sm transition-all"
-            >
-              View All {result.tonLabel} Air Conditioners <ChevronRight className="w-4 h-4" />
-            </Link>
           </div>
         )}
       </div>
@@ -546,12 +540,6 @@ function RefrigeratorCalculator() {
               accentColor="teal"
               viewAllHref="/products?category=refrigerators"
             />
-            <Link
-              to={`/products?category=refrigerators`}
-              className="flex items-center justify-center gap-2 w-full bg-teal-500 hover:bg-teal-600 text-white rounded-xl py-3 font-bold text-sm transition-all"
-            >
-              View All Refrigerators <ChevronRight className="w-4 h-4" />
-            </Link>
           </div>
         )}
       </div>
@@ -739,12 +727,6 @@ function ShirtCalculator() {
               accentColor="violet"
               viewAllHref={`/products/category/${result.categorySlug}`}
             />
-            <Link
-              to={`/products/category/${result.categorySlug}`}
-              className="flex items-center justify-center gap-2 w-full bg-violet-500 hover:bg-violet-600 text-white rounded-xl py-3 font-bold text-sm transition-all"
-            >
-              View All {result.type} <ChevronRight className="w-4 h-4" />
-            </Link>
           </div>
         )}
       </div>

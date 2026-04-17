@@ -1,5 +1,23 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Phone, Mail, MapPin, Leaf, Facebook } from 'lucide-react';
+import { Phone, Mail, MapPin, Leaf, Facebook, ChevronDown } from 'lucide-react';
+
+function CollapsibleSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="md:cursor-default w-full flex items-center justify-between mb-3"
+        aria-expanded={open}
+      >
+        <h3 className="font-bold text-sm uppercase tracking-wider text-gray-300">{title}</h3>
+        <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform md:hidden ${open ? 'rotate-180' : ''}`} />
+      </button>
+      <div className={`md:block ${open ? 'block' : 'hidden'}`}>{children}</div>
+    </div>
+  );
+}
 
 export default function Footer() {
   const year = new Date().getFullYear();
@@ -28,8 +46,7 @@ export default function Footer() {
         </div>
 
         {/* Products */}
-        <div>
-          <h3 className="font-bold text-sm uppercase tracking-wider text-gray-300 mb-3">Products</h3>
+        <CollapsibleSection title="Products">
           <ul className="space-y-2">
             {[
               { label: 'Air Conditioners',   to: '/products?category=air-conditioners'   },
@@ -45,11 +62,10 @@ export default function Footer() {
               </li>
             ))}
           </ul>
-        </div>
+        </CollapsibleSection>
 
         {/* Services */}
-        <div>
-          <h3 className="font-bold text-sm uppercase tracking-wider text-gray-300 mb-3">Services</h3>
+        <CollapsibleSection title="Services">
           <ul className="space-y-2">
             {[
               ['Build a Package',    '/build-your-package'],
@@ -71,9 +87,9 @@ export default function Footer() {
               </li>
             ))}
           </ul>
-        </div>
+        </CollapsibleSection>
 
-        {/* Contact */}
+        {/* Contact — always visible */}
         <div>
           <h3 className="font-bold text-sm uppercase tracking-wider text-gray-300 mb-3">Contact</h3>
           <ul className="space-y-3">

@@ -41,11 +41,11 @@ function zn(label: string, catalogPrice: number): ComponentOption {
 
 const ZN_INV_MINI35:  ComponentOption = zn('Ziewnic RouX Mini 3.5kW',     85_000)   //  98,000
 const ZN_INV_MAX35:   ComponentOption = zn('Ziewnic MAX 3.5kW',           95_000)   // 110,000
-const ZN_INV_LITE42:  ComponentOption = zn('Ziewnic RouX Lite 4.2kW',    115_000)   // 133,000
 const ZN_INV_MAX55:   ComponentOption = zn('Ziewnic MAX 5.5kW',          110_000)   // 127,000
 const ZN_INV_LITE59:  ComponentOption = zn('Ziewnic RouX Lite 5.9kW',    135_000)   // 156,000
 const ZN_INV_ROUX67:  ComponentOption = zn('Ziewnic RouX 6.7kW',         167_000)   // 193,000
 const ZN_INV_ULTRA85: ComponentOption = zn('Ziewnic RouX Ultra 8.5kW',   250_000)   // 288,000
+const ZN_INV_ROUX12:  ComponentOption = zn('Ziewnic RouX Ultra 12kW',    380_000)   // 437,000
 
 const ZN_BAT_LW256:  ComponentOption = zn('Ziewnic LI-WALL 2.0 2.56kWh',  134_000)  // 154,000
 const ZN_BAT_LW512:  ComponentOption = zn('Ziewnic LI-WALL 2.0 5.12kWh',  223_000)  // 257,000
@@ -80,8 +80,8 @@ export const PACKAGES: SolarPackage[] = [
     includes: ['All wiring & electrical equipment', 'Professional installation & transport'],
     warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
     total: 285000, frameDeduction: 0,
-    inverterOptions: [CROWN_INV_36, ZN_INV_MINI35, ZN_INV_MAX35, ZN_INV_LITE42],
-    batteryOptions:  [CROWN_BAT_24, ZN_BAT_LW256, ZN_BAT_ZB256, CROWN_BAT_512, ZN_BAT_LW512],
+    inverterOptions: [CROWN_INV_36, ZN_INV_MINI35, ZN_INV_MAX35],
+    batteryOptions:  [CROWN_BAT_24, ZN_BAT_LW256, ZN_BAT_ZB256],
   },
   {
     id: 'solar-3.6kw', name: '3.6kW Solar System', kw: '3.6kW',
@@ -95,8 +95,8 @@ export const PACKAGES: SolarPackage[] = [
     warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
     // PKR 480,000 without frame | PKR 576,000 with frame
     total: 576000, frameDeduction: 96000, frameLabel: 'Elevated Solar Frame',
-    inverterOptions: [CROWN_INV_36, ZN_INV_MINI35, ZN_INV_MAX35, ZN_INV_LITE42],
-    batteryOptions:  [CROWN_BAT_24, ZN_BAT_LW256, ZN_BAT_ZB256, CROWN_BAT_512, ZN_BAT_LW512],
+    inverterOptions: [CROWN_INV_36, ZN_INV_MINI35, ZN_INV_MAX35],
+    batteryOptions:  [CROWN_BAT_24, ZN_BAT_LW256, ZN_BAT_ZB256],
   },
   {
     id: 'ups-5kw', name: '5kW UPS System', kw: '5kW',
@@ -104,8 +104,8 @@ export const PACKAGES: SolarPackage[] = [
     includes: ['All wiring & electrical equipment', 'Professional installation & transport'],
     warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
     total: 475000, frameDeduction: 0,
-    inverterOptions: [CROWN_INV_5, ZN_INV_MAX55, ZN_INV_LITE59, ZN_INV_ROUX67, CROWN_INV_36, CROWN_INV_8],
-    batteryOptions:  [CROWN_BAT_512, ZN_BAT_LW512, ZN_BAT_ZB512, CROWN_BAT_24, ZN_BAT_LW256],
+    inverterOptions: [CROWN_INV_5, ZN_INV_MAX55, ZN_INV_LITE59, ZN_INV_ROUX67],
+    batteryOptions:  [CROWN_BAT_512, ZN_BAT_LW512, ZN_BAT_ZB512],
   },
   {
     id: 'solar-5kw', name: '5kW Solar System', kw: '5kW',
@@ -118,8 +118,8 @@ export const PACKAGES: SolarPackage[] = [
     ],
     warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
     total: 875000, frameDeduction: 140000, frameLabel: 'Elevated Solar Frame',
-    inverterOptions: [CROWN_INV_5, ZN_INV_MAX55, ZN_INV_LITE59, ZN_INV_ROUX67, CROWN_INV_36, CROWN_INV_8],
-    batteryOptions:  [CROWN_BAT_512, ZN_BAT_LW512, ZN_BAT_ZB512, CROWN_BAT_24, ZN_BAT_LW256],
+    inverterOptions: [CROWN_INV_5, ZN_INV_MAX55, ZN_INV_LITE59, ZN_INV_ROUX67],
+    batteryOptions:  [CROWN_BAT_512, ZN_BAT_LW512, ZN_BAT_ZB512],
   },
   {
     id: 'solar-8kw', name: '8kW Solar System', kw: '8kW',
@@ -132,7 +132,22 @@ export const PACKAGES: SolarPackage[] = [
     ],
     warranties: ['5-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
     total: 1364000, frameDeduction: 224000, frameLabel: 'Elevated Solar Frame',
-    inverterOptions: [CROWN_INV_8, ZN_INV_ULTRA85, ZN_INV_ROUX67, CROWN_INV_5],
+    inverterOptions: [CROWN_INV_8, ZN_INV_ULTRA85],
+    batteryOptions:  [CROWN_BAT_512, ZN_BAT_LW512, ZN_BAT_ZB512],
+  },
+  {
+    id: 'solar-12kw', name: '12kW Solar System', kw: '12kW',
+    type: 'solar', badge: 'Net Metering Ready', badgeColor: 'bg-green-600', popular: false,
+    includes: [
+      'Crown Bi-Facial 620W Solar Plates ×20',
+      'All wiring & electrical equipment',
+      'Professional installation & transport',
+      'Elevated Solar Frame (optional)',
+      'Net Metering eligible — K-Electric approval required',
+    ],
+    warranties: ['5-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
+    total: 1820000, frameDeduction: 336000, frameLabel: 'Elevated Solar Frame',
+    inverterOptions: [ZN_INV_ROUX12],
     batteryOptions:  [CROWN_BAT_512, ZN_BAT_LW512, ZN_BAT_ZB512],
   },
 ]
@@ -356,7 +371,7 @@ function PackageCard({
           <div className="space-y-2">
             <button
               onClick={handleBook}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-white text-sm bg-gray-900 hover:bg-orange-500 transition-colors">
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-white text-sm bg-orange-500 hover:bg-orange-600 transition-colors">
               <CalendarCheck className="w-4 h-4" /> Book This Package
             </button>
             <a href={wa(WA_SALES, buildWAMsg(pkg, withFrame, invOpt, batOpt, displayPrice))}

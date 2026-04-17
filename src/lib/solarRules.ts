@@ -102,9 +102,10 @@ export const BILL_THRESHOLD_INDUSTRIAL = 80_000;
 //   5kW Home Complete: 70–85%  → midpoint 77.5%  (base 72.5% + 5% battery)
 //   8kW Total Freedom: 75–90%  → midpoint 82.5%  (always battery-inclusive)
 
-export const SAVING_PCT_3KW = 0.575;
-export const SAVING_PCT_5KW = 0.725;
-export const SAVING_PCT_8KW = 0.825;
+export const SAVING_PCT_3KW  = 0.575;
+export const SAVING_PCT_5KW  = 0.725;
+export const SAVING_PCT_8KW  = 0.825;
+export const SAVING_PCT_12KW = 0.875;
 
 /** Additional saving percentage from battery storage (LiFePO4 peak shaving).
  *  Battery charges on solar during the day and covers the evening K-Electric

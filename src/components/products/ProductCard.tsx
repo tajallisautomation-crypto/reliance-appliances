@@ -13,6 +13,7 @@ interface Props { product: Product; }
 export default function ProductCard({ product: p }: Props) {
   const addItem  = useCartStore(s => s.addItem);
   const [added, setAdded] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   const isAvailable = p.stock_status === 'In Stock';
 
@@ -36,13 +37,13 @@ export default function ProductCard({ product: p }: Props) {
 
       {/* Image */}
       <div className="relative aspect-square bg-gray-50 overflow-hidden">
-        {p.thumbnail ? (
+        {p.thumbnail && !imgError ? (
           <img
             src={p.thumbnail}
             alt={`${p.brand} ${p.model}`}
             className="w-full h-full object-contain p-5 group-hover:scale-[1.03] transition-transform duration-500 ease-out"
             loading="lazy"
-            onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+            onError={() => setImgError(true)}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gray-100">
