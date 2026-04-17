@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useDeferredValue, useCallback } from 'react';
 import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { signIn, signUp, resetPasswordForEmail, updatePassword } from '@/lib/auth';
 import { useAuthStore } from '@/store/authStore';
 import { supabase } from '@/lib/supabase';
@@ -4056,110 +4057,191 @@ interface QuoteLine {
   unitPrice: number;
 }
 
-function generateQuotationPdf(opts: {
+async function loadLogoBase64(): Promise<string> {
+  const res = await fetch('/tajallis-logo.jpeg');
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function generateQuotationPdf(opts: {
   customerName: string;
   customerPhone: string;
   lines: QuoteLine[];
   discount: number;
   docType: 'quotation' | 'invoice';
   refNumber: string;
-}): Blob {
+}): Promise<Blob> {
+  const ORANGE  = '#EA580C';
+  const DARK    = '#1A1A1A';
+  const LIGHT_ORANGE_BG = [255, 247, 237] as [number, number, number]; // #FFF7ED
+  const W = 210; const margin = 18;
+
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-
-  const W = 210; const margin = 18; const col2 = 120; const col3 = 155; const col4 = 185;
-  let y = 0;
-
   const PKR = (n: number) => `PKR ${n.toLocaleString('en-PK')}`;
   const dateStr = new Date().toLocaleDateString('en-PK', { year: 'numeric', month: 'long', day: 'numeric' });
 
-  // ── Header band ──
-  doc.setFillColor(15, 15, 15);
+  // ── 1. Header band ──────────────────────────────────────────────────────────
+  doc.setFillColor(ORANGE);
   doc.rect(0, 0, W, 38, 'F');
+
+  // Logo
+  try {
+    const logoData = await loadLogoBase64();
+    doc.addImage(logoData, 'JPEG', margin, 5, 0, 28); // auto-width from height 28mm
+  } catch {
+    // Logo load failed — fall back to text wordmark
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.setTextColor(255, 255, 255);
+    doc.text("Tajalli's", margin, 22);
+  }
+
+  // Company details (right of logo area)
+  const textX = margin + 36;
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20); doc.setTextColor(255, 255, 255);
-  doc.text("Tajalli's", margin, 17);
-  doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(180, 180, 180);
-  doc.text('Home & Commercial Solutions', margin, 23);
-  doc.text('+92 370 2578788  |  tajallis.com.pk  |  Karachi', margin, 29);
+  doc.setFontSize(14);
+  doc.setTextColor(255, 255, 255);
+  doc.text("Tajalli's", textX, 14);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(255, 214, 176); // light orange tint
+  doc.text('Home & Commercial Solutions', textX, 20);
+  doc.text('+92 370 2578788  |  tajallis.com.pk  |  Karachi', textX, 26);
 
-  // Doc type badge
-  doc.setFillColor(opts.docType === 'invoice' ? 22 : 234, opts.docType === 'invoice' ? 163 : 88, opts.docType === 'invoice' ? 74 : 12);
-  doc.roundedRect(W - margin - 36, 10, 36, 14, 3, 3, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
-  doc.text(opts.docType === 'invoice' ? 'INVOICE' : 'QUOTATION', W - margin - 18, 18.5, { align: 'center' });
-  y = 46;
+  // Doc-type badge (top-right, dark pill)
+  const badgeLabel = opts.docType === 'invoice' ? 'INVOICE' : 'QUOTATION';
+  const badgeW = 36; const badgeH = 12;
+  doc.setFillColor(DARK);
+  doc.roundedRect(W - margin - badgeW, 10, badgeW, badgeH, 2, 2, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(255, 255, 255);
+  doc.text(badgeLabel, W - margin - badgeW / 2, 17.5, { align: 'center' });
 
-  // ── Ref + date ──
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(100, 100, 100);
+  let y = 44;
+
+  // ── 2. Ref + date row ────────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(120, 120, 120);
   doc.text(`Ref: ${opts.refNumber}`, margin, y);
   doc.text(`Date: ${dateStr}`, W - margin, y, { align: 'right' });
+  y += 5;
+
+  // ── 3. Customer block ────────────────────────────────────────────────────────
+  const blockH = 22;
+  doc.setFillColor(LIGHT_ORANGE_BG[0], LIGHT_ORANGE_BG[1], LIGHT_ORANGE_BG[2]);
+  doc.rect(margin, y, W - margin * 2, blockH, 'F');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(234, 88, 12); // orange text
+  doc.text('BILL TO', margin + 4, y + 6);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(20, 20, 20);
+  doc.text(opts.customerName || '—', margin + 4, y + 13);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(100, 100, 100);
+  if (opts.customerPhone) doc.text(opts.customerPhone, margin + 4, y + 19);
+
+  y += blockH + 6;
+
+  // ── 4. Item table (autoTable) ────────────────────────────────────────────────
+  const subtotalBeforeDiscount = opts.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+  const discountAmt = Math.round(subtotalBeforeDiscount * opts.discount / 100);
+  const grandTotal  = subtotalBeforeDiscount - discountAmt;
+
+  autoTable(doc, {
+    startY: y,
+    margin: { left: margin, right: margin },
+    head: [['Item / Description', 'Qty', 'Unit Price', 'Total']],
+    body: opts.lines.map(line => [
+      line.model ? `${line.name}\n${line.model}` : line.name,
+      String(line.qty),
+      PKR(line.unitPrice),
+      PKR(line.qty * line.unitPrice),
+    ]),
+    columnStyles: {
+      0: { cellWidth: 92 },
+      1: { cellWidth: 14, halign: 'right' },
+      2: { cellWidth: 38, halign: 'right' },
+      3: { cellWidth: 30, halign: 'right', fontStyle: 'bold' },
+    },
+    headStyles: {
+      fillColor: ORANGE,
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 8,
+    },
+    bodyStyles: {
+      fontSize: 8,
+      textColor: [40, 40, 40],
+      lineColor: [229, 231, 235],
+      lineWidth: 0.2,
+    },
+    alternateRowStyles: { fillColor: [250, 250, 250] },
+    styles: { overflow: 'linebreak', cellPadding: 3 },
+    didParseCell: (data) => {
+      // Model line (second line of item cell) in gray
+      if (data.column.index === 0 && data.cell.raw && String(data.cell.raw).includes('\n')) {
+        data.cell.styles.fontSize = 7;
+      }
+    },
+  });
+
+  // ── 5. Totals block ──────────────────────────────────────────────────────────
+  // @ts-ignore — jspdf-autotable adds lastAutoTable to doc instance
+  y = (doc as any).lastAutoTable.finalY + 6;
+  const totalsX = W - margin - 68; const valX = W - margin;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(80, 80, 80);
+  doc.text('Subtotal', totalsX, y);
+  doc.text(PKR(subtotalBeforeDiscount), valX, y, { align: 'right' });
   y += 6;
 
-  // ── Customer block ──
-  doc.setFillColor(248, 248, 248);
-  doc.rect(margin, y, W - margin * 2, 18, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(60, 60, 60);
-  doc.text('BILL TO', margin + 4, y + 5);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(20, 20, 20);
-  doc.text(opts.customerName || '—', margin + 4, y + 11);
-  doc.setFontSize(8); doc.setTextColor(100, 100, 100);
-  doc.text(opts.customerPhone || '', margin + 4, y + 16);
-  y += 24;
+  if (opts.discount > 0) {
+    doc.setTextColor(234, 88, 12);
+    doc.setFont('helvetica', 'italic');
+    doc.text(`Discount (${opts.discount}%)`, totalsX, y);
+    doc.text(`- ${PKR(discountAmt)}`, valX, y, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80, 80, 80);
+    y += 6;
+  }
 
-  // ── Table header ──
-  doc.setFillColor(30, 30, 30);
-  doc.rect(margin, y, W - margin * 2, 8, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
-  doc.text('Item / Description', margin + 3, y + 5.5);
-  doc.text('Qty', col2, y + 5.5);
-  doc.text('Unit Price', col3, y + 5.5);
-  doc.text('Total', col4, y + 5.5);
-  y += 10;
+  // Grand total filled bar
+  doc.setFillColor(ORANGE);
+  doc.rect(totalsX - 4, y - 1, valX - totalsX + 4 + margin, 10, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(255, 255, 255);
+  doc.text('Grand Total', totalsX, y + 6);
+  doc.text(PKR(grandTotal), valX, y + 6, { align: 'right' });
+  y += 16;
 
-  // ── Table rows ──
-  let subtotal = 0;
-  opts.lines.forEach((line, i) => {
-    const lineTotal = line.qty * line.unitPrice;
-    subtotal += lineTotal;
-    if (i % 2 === 0) { doc.setFillColor(252, 252, 252); doc.rect(margin, y - 1, W - margin * 2, 10, 'F'); }
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(20, 20, 20);
-    doc.text(line.name.slice(0, 55), margin + 3, y + 4);
-    doc.setFont('helvetica', 'normal'); doc.setTextColor(120, 120, 120);
-    if (line.model) doc.text(line.model.slice(0, 40), margin + 3, y + 8.5);
-    doc.setTextColor(60, 60, 60);
-    doc.text(String(line.qty), col2 + 2, y + 5);
-    doc.text(PKR(line.unitPrice), col3, y + 5);
-    doc.setFont('helvetica', 'bold');
-    doc.text(PKR(lineTotal), col4, y + 5);
-    y += 12;
-  });
-
-  // ── Totals ──
-  y += 4;
-  doc.setDrawColor(220, 220, 220);
-  doc.line(col2, y, W - margin, y);
-  y += 5;
-  const discountAmt = Math.round(subtotal * opts.discount / 100);
-  const grandTotal = subtotal - discountAmt;
-  [[`Subtotal`, PKR(subtotal)], ...(opts.discount > 0 ? [[`Discount (${opts.discount}%)`, `- ${PKR(discountAmt)}`]] : []), ['', '']].forEach(([l, v]) => {
-    if (!l) return;
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(80, 80, 80);
-    doc.text(l, col3, y); doc.text(v, col4, y); y += 6;
-  });
-  doc.setFillColor(15, 15, 15);
-  doc.rect(col2, y - 1, W - margin - col2, 9, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
-  doc.text('Grand Total', col2 + 3, y + 5);
-  doc.text(PKR(grandTotal), col4, y + 5);
-  y += 15;
-
-  // ── Footer ──
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(130, 130, 130);
-  const footer = opts.docType === 'invoice'
+  // ── 6. Footer ────────────────────────────────────────────────────────────────
+  const footerY = 282;
+  const terms = opts.docType === 'invoice'
     ? 'Thank you for your business. All products carry official brand warranty. Payment terms as agreed.'
     : 'This quotation is valid for 7 days. Prices subject to availability. Advance payment required to confirm order.';
-  doc.text(footer, margin, y, { maxWidth: W - margin * 2 });
-  doc.text('tajallis.com.pk  |  support@tajallis.com.pk  |  NTN: 42101-3836602-3', W / 2, y + 7, { align: 'center' });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(150, 150, 150);
+  doc.text(terms, margin, footerY, { maxWidth: W - margin * 2 });
+  doc.setFontSize(7);
+  doc.text('tajallis.com.pk  |  support@tajallis.com.pk  |  NTN: 42101-3836602-3', W / 2, footerY + 6, { align: 'center' });
 
   return doc.output('blob');
 }
@@ -4388,7 +4470,7 @@ function QuotationTab({ products }: { products: Product[] }) {
     });
   }, [lines, products]);
 
-  function generate() {
+  async function generate() {
     if (!lines.length || pdfState === 'generating') return;
     setPdfState('generating');
     setGenerating(true);
@@ -4398,7 +4480,7 @@ function QuotationTab({ products }: { products: Product[] }) {
     }, 10000);
     try {
       if (pdfUrl) URL.revokeObjectURL(pdfUrl);
-      const blob = generateQuotationPdf({ customerName, customerPhone: customerPhone.replace(/\D/g, ''), lines, discount, docType, refNumber });
+      const blob = await generateQuotationPdf({ customerName, customerPhone: customerPhone.replace(/\D/g, ''), lines, discount, docType, refNumber });
       clearTimeout(timeout);
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
