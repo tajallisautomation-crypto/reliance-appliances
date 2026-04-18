@@ -4,14 +4,12 @@ import { Sun, Zap, Battery, TrendingDown, ChevronRight, ArrowRight, Leaf, Drople
 import { getProducts, formatPrice } from '@/lib/api'
 import { calcPlan } from '@/lib/plans'
 import type { Product } from '@/lib/types'
+import { PANEL_WATTS, WIRING_PER_W, LABOR_PER_W, UNIT_RATE_PKR } from '@/lib/solarRules'
 
-// ── Constants (keep aligned with SolarCalculator.tsx) ─────────────────────────
-const PANEL_WATTS   = 620        // W per panel — Crown Bi-Facial 620W (matches GreenCorridor packages)
+// ── Constants ─────────────────────────────────────────────────────────────────
 const PANEL_PRICE   = 30_000     // PKR per panel
 const PEAK_HRS      = 5          // avg daily peak sun hours (Karachi)
-const UNIT_RATE     = 70         // PKR / kWh — grid rate
-const WIRING_PER_W  = 12         // Rs/W — wiring & equipment
-const LABOR_PER_W   = 5          // Rs/W — installation labor (PKR 5,000/kW — aligned with SolarCalculator)
+const UNIT_RATE     = UNIT_RATE_PKR
 
 // ── Wattage estimation ─────────────────────────────────────────────────────────
 

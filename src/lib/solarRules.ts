@@ -46,10 +46,13 @@ export const PANEL_PRICE_PER_W = 48;
 export const WIRING_PER_W = 12;
 
 /** Solar installation labor cost (PKR per watt). */
-export const LABOR_PER_W = 5;
+export const LABOR_PER_W = 6;
 
-/** Elevated frame surcharge (PKR per watt). Only applies when requested. */
-export const ELEVATED_FRAME_PER_W = 28;
+/** Elevated galvanized steel frame surcharge (PKR per panel). 14-gauge, anti-rust coated. */
+export const ELEVATED_FRAME_PER_PANEL = 17_500;
+
+/** Elevated frame surcharge (PKR per watt) — derived from per-panel price. */
+export const ELEVATED_FRAME_PER_W = ELEVATED_FRAME_PER_PANEL / PANEL_WATTS;
 
 /** UPS system wiring & electrical equipment cost (PKR per watt). */
 export const UPS_WIRING_PER_W = 9;
