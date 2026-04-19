@@ -4385,6 +4385,405 @@ async function generateQuotationPdf(opts: {
   return doc.output('blob');
 }
 
+// ── Installment Invoice PDF Generators ────────────────────────────────────────
+
+async function generateInstallmentAdvancePdf(opts: {
+  customerName: string;
+  customerPhone: string;
+  lines: QuoteLine[];
+  discount: number;
+  refNumber: string;
+  instTotalPrice: number;
+  instAdvanceAmt: number;
+  instMonths: number;
+  instMonthlyAmt: number;
+  instFirstDate: string;
+}): Promise<Blob> {
+  const ORANGE = '#EA580C';
+  const DARK   = '#1A1A1A';
+  const W = 210; const margin = 18;
+  const printW = W - margin * 2;
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const PKR = (n: number) => `PKR ${Math.round(n).toLocaleString('en-PK')}`;
+  const now = new Date();
+  const fmtDate = (d: Date) => d.toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' });
+  const dateStr = fmtDate(now);
+
+  let logoData: string | null = null;
+  try { logoData = await loadLogoWhite(); } catch { /* fallback */ }
+  let qrData: string | null = null;
+  try { qrData = await loadQrBase64(); } catch { /* skip */ }
+
+  // ── 1. Header band ────────────────────────────────────────────────────────
+  doc.setFillColor(ORANGE);
+  doc.rect(0, 0, W, 40, 'F');
+  if (logoData) {
+    doc.addImage(logoData, 'PNG', margin, 5, 0, 30);
+  } else {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(255, 255, 255);
+    doc.text("Tajalli's", margin, 24);
+  }
+  const textX = margin + 38;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
+  doc.text("Tajalli's", textX, 13);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(255, 214, 176);
+  doc.text('Home & Commercial Solutions', textX, 19);
+  doc.text('+92 370 2578788  |  tajallis.com.pk', textX, 25);
+  doc.text('L-152 & 153, Sector 11C-1, North Karachi', textX, 31);
+  const bW = 44; const bH = 11;
+  doc.setFillColor(DARK);
+  doc.roundedRect(W - margin - bW, 10, bW, bH, 2, 2, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
+  doc.text('ADVANCE INVOICE', W - margin - bW / 2, 17, { align: 'center' });
+
+  let y = 46;
+
+  // ── 2. Info bar ────────────────────────────────────────────────────────────
+  doc.setFillColor(243, 244, 246);
+  doc.rect(margin, y, printW, 10, 'F');
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(80, 80, 80);
+  const colW = printW / 4;
+  doc.text(`Ref: ${opts.refNumber}`, margin + 2, y + 6.5);
+  doc.text(`Date: ${dateStr}`, margin + colW + 2, y + 6.5);
+  doc.text('Advance Due: Today', margin + colW * 2 + 2, y + 6.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text('ADVANCE INVOICE', margin + colW * 3 + 2, y + 6.5);
+  y += 14;
+
+  // ── 3. Customer block ──────────────────────────────────────────────────────
+  doc.setFillColor(255, 247, 237);
+  doc.rect(margin, y, printW, 20, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(234, 88, 12);
+  doc.text('BILL TO', margin + 4, y + 6);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(20, 20, 20);
+  doc.text(opts.customerName || '—', margin + 4, y + 13);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(100, 100, 100);
+  if (opts.customerPhone) doc.text(opts.customerPhone, margin + 4, y + 18);
+  y += 24;
+
+  // ── 4. Products table ──────────────────────────────────────────────────────
+  const productSubtotal = opts.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+  const discountAmt = Math.round(productSubtotal * opts.discount / 100);
+  const cashPrice = productSubtotal - discountAmt;
+
+  const categoryOrder: string[] = [];
+  const grouped: Record<string, QuoteLine[]> = {};
+  for (const line of opts.lines) {
+    const cat = line.category || 'Other';
+    if (!grouped[cat]) { grouped[cat] = []; categoryOrder.push(cat); }
+    grouped[cat].push(line);
+  }
+  const tableBody: any[] = [];
+  for (const cat of categoryOrder) {
+    const catLines = grouped[cat];
+    tableBody.push([{ content: cat.toUpperCase(), colSpan: 6, styles: { fillColor: [26, 26, 26], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 } } }]);
+    for (const line of catLines) {
+      tableBody.push([
+        line.model ? `${line.name}\n${line.model}` : line.name,
+        line.keySpec || '—', line.warranty || '—',
+        String(line.qty), PKR(line.unitPrice), PKR(line.qty * line.unitPrice),
+      ]);
+    }
+  }
+  autoTable(doc, {
+    startY: y, margin: { left: margin, right: margin },
+    head: [['Item / Description', 'Key Spec', 'Warranty', 'Qty', 'Unit Price', 'Total']],
+    body: tableBody,
+    columnStyles: { 0: { cellWidth: 65 }, 1: { cellWidth: 28 }, 2: { cellWidth: 22 }, 3: { cellWidth: 10, halign: 'right' }, 4: { cellWidth: 26, halign: 'right' }, 5: { cellWidth: 23, halign: 'right', fontStyle: 'bold' } },
+    headStyles: { fillColor: ORANGE, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
+    bodyStyles: { fontSize: 7.5, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.2 },
+    alternateRowStyles: { fillColor: [250, 250, 250] },
+    styles: { overflow: 'linebreak', cellPadding: 2.5 },
+  });
+  // @ts-ignore
+  y = (doc as any).lastAutoTable.finalY + 6;
+
+  // ── 5. Installment summary block ───────────────────────────────────────────
+  const sumX = W - margin - 80;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(80, 80, 80);
+  if (opts.discount > 0) {
+    doc.text('Cash Price', sumX, y);
+    doc.text(PKR(cashPrice), W - margin, y, { align: 'right' });
+    y += 7;
+  }
+  doc.text('Installment Total', sumX, y);
+  doc.text(PKR(opts.instTotalPrice), W - margin, y, { align: 'right' });
+  y += 7;
+  doc.setFillColor(ORANGE);
+  doc.rect(sumX - 4, y - 1, W - margin - sumX + 4 + margin, 11, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
+  doc.text('Advance Due Now', sumX, y + 7);
+  doc.text(PKR(opts.instAdvanceAmt), W - margin, y + 7, { align: 'right' });
+  y += 17;
+
+  // ── 6. Installment schedule table ─────────────────────────────────────────
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(40, 40, 40);
+  doc.text('INSTALLMENT SCHEDULE', margin, y + 1);
+  y += 5;
+
+  const schedBody: any[] = [];
+  schedBody.push([
+    { content: '0', styles: { fillColor: [234, 88, 12], textColor: [255, 255, 255], fontStyle: 'bold' } },
+    { content: 'Advance Payment', styles: { fillColor: [234, 88, 12], textColor: [255, 255, 255], fontStyle: 'bold' } },
+    { content: PKR(opts.instAdvanceAmt), styles: { fillColor: [234, 88, 12], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'right' as const } },
+    { content: 'Upon Confirmation', styles: { fillColor: [234, 88, 12], textColor: [255, 255, 255], fontStyle: 'bold' } },
+  ]);
+  for (let i = 1; i <= opts.instMonths; i++) {
+    const d = new Date(opts.instFirstDate);
+    d.setMonth(d.getMonth() + (i - 1));
+    schedBody.push([String(i), `Installment ${i}`, PKR(opts.instMonthlyAmt), fmtDate(d)]);
+  }
+  schedBody.push([
+    { content: '', styles: { fillColor: [248, 248, 248] } },
+    { content: 'TOTAL', styles: { fillColor: [248, 248, 248], fontStyle: 'bold', textColor: [40, 40, 40] } },
+    { content: PKR(opts.instTotalPrice), styles: { fillColor: [248, 248, 248], fontStyle: 'bold', halign: 'right' as const, textColor: [40, 40, 40] } },
+    { content: '', styles: { fillColor: [248, 248, 248] } },
+  ]);
+
+  autoTable(doc, {
+    startY: y, margin: { left: margin, right: margin },
+    head: [['#', 'Description', 'Amount', 'Due Date']],
+    body: schedBody,
+    columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 80 }, 2: { cellWidth: 40, halign: 'right' }, 3: { cellWidth: 42 } },
+    headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
+    bodyStyles: { fontSize: 7.5, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.2 },
+    styles: { overflow: 'linebreak', cellPadding: 2.5 },
+  });
+  // @ts-ignore
+  y = (doc as any).lastAutoTable.finalY + 8;
+
+  // ── 7. Bank details ────────────────────────────────────────────────────────
+  const bdH = 28;
+  doc.setFillColor(240, 253, 244);
+  doc.rect(margin, y, printW, bdH, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(22, 101, 52);
+  doc.text('BANK TRANSFER — PAY ADVANCE NOW', margin + 3, y + 6);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(20, 20, 20);
+  doc.text("TAJALLI'S HOME COLLECTION", margin + 3, y + 13);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(60, 60, 60);
+  doc.text('IBAN: PK33MEZN0001060101874794', margin + 3, y + 19);
+  doc.text('Meezan Bank — F.B Area Branch, KHI', margin + 3, y + 25);
+  if (qrData) { doc.addImage(qrData, 'JPEG', margin + printW - 21, y + 4, 18, 18); }
+  y += bdH + 6;
+
+  // ── 8. CTA ────────────────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(234, 88, 12);
+  doc.text('To confirm order, share deposit slip on WhatsApp: +92 370 2578788', W / 2, y, { align: 'center' });
+
+  // ── 9. Footer ─────────────────────────────────────────────────────────────
+  const footerY = 282;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(150, 150, 150);
+  doc.text(
+    'Advance payment confirms your order. Balance due per installment schedule above. Late payment penalty: 1% of outstanding balance per additional day past due date.',
+    margin, footerY, { maxWidth: printW }
+  );
+  doc.setFontSize(7);
+  doc.text('tajallis.com.pk  |  support@tajallis.com.pk  |  NTN: 42101-3836602-3', W / 2, footerY + 6, { align: 'center' });
+
+  return doc.output('blob');
+}
+
+async function generateInstallmentPaymentPdf(opts: {
+  customerName: string;
+  customerPhone: string;
+  lines: QuoteLine[];
+  discount: number;
+  refNumber: string;
+  instTotalPrice: number;
+  instAdvanceAmt: number;
+  instMonths: number;
+  instMonthlyAmt: number;
+  instFirstDate: string;
+  paymentNumber: number;
+}): Promise<Blob> {
+  const ORANGE = '#EA580C';
+  const DARK   = '#1A1A1A';
+  const W = 210; const margin = 18;
+  const printW = W - margin * 2;
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const PKR = (n: number) => `PKR ${Math.round(n).toLocaleString('en-PK')}`;
+  const fmtDate = (d: Date) => d.toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' });
+  const now = new Date();
+  const dateStr = fmtDate(now);
+
+  const dueDate = new Date(opts.instFirstDate);
+  dueDate.setMonth(dueDate.getMonth() + (opts.paymentNumber - 1));
+  const dueDateStr = fmtDate(dueDate);
+  const paidSoFar = opts.instAdvanceAmt + opts.paymentNumber * opts.instMonthlyAmt;
+  const outstanding = Math.max(0, opts.instTotalPrice - paidSoFar);
+
+  let logoData: string | null = null;
+  try { logoData = await loadLogoWhite(); } catch { /* fallback */ }
+  let qrData: string | null = null;
+  try { qrData = await loadQrBase64(); } catch { /* skip */ }
+
+  // ── 1. Header band ────────────────────────────────────────────────────────
+  doc.setFillColor(ORANGE);
+  doc.rect(0, 0, W, 40, 'F');
+  if (logoData) {
+    doc.addImage(logoData, 'PNG', margin, 5, 0, 30);
+  } else {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(255, 255, 255);
+    doc.text("Tajalli's", margin, 24);
+  }
+  const textX = margin + 38;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
+  doc.text("Tajalli's", textX, 13);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(255, 214, 176);
+  doc.text('Home & Commercial Solutions', textX, 19);
+  doc.text('+92 370 2578788  |  tajallis.com.pk', textX, 25);
+  doc.text('L-152 & 153, Sector 11C-1, North Karachi', textX, 31);
+  const bW = 48; const bH = 11;
+  doc.setFillColor(DARK);
+  doc.roundedRect(W - margin - bW, 10, bW, bH, 2, 2, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
+  doc.text('INSTALLMENT INVOICE', W - margin - bW / 2, 17, { align: 'center' });
+
+  let y = 46;
+
+  // ── 2. Info bar ────────────────────────────────────────────────────────────
+  doc.setFillColor(243, 244, 246);
+  doc.rect(margin, y, printW, 10, 'F');
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(80, 80, 80);
+  const colW = printW / 4;
+  doc.text(`Ref: ${opts.refNumber}`, margin + 2, y + 6.5);
+  doc.text(`Date: ${dateStr}`, margin + colW + 2, y + 6.5);
+  doc.text(`Due: ${dueDateStr}`, margin + colW * 2 + 2, y + 6.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`PAYMENT ${opts.paymentNumber} / ${opts.instMonths}`, margin + colW * 3 + 2, y + 6.5);
+  y += 14;
+
+  // ── 3. Customer block ──────────────────────────────────────────────────────
+  doc.setFillColor(255, 247, 237);
+  doc.rect(margin, y, printW, 20, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(234, 88, 12);
+  doc.text('BILL TO', margin + 4, y + 6);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(20, 20, 20);
+  doc.text(opts.customerName || '—', margin + 4, y + 13);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(100, 100, 100);
+  if (opts.customerPhone) doc.text(opts.customerPhone, margin + 4, y + 18);
+  y += 24;
+
+  // ── 4. Payment highlight box ───────────────────────────────────────────────
+  const phH = 28;
+  doc.setFillColor(255, 247, 237);
+  doc.rect(margin, y, printW, phH, 'F');
+  doc.setDrawColor(234, 88, 12); doc.setLineWidth(1);
+  doc.line(margin, y, margin, y + phH);
+  doc.setLineWidth(0.2);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(234, 88, 12);
+  doc.text(`INSTALLMENT ${opts.paymentNumber} OF ${opts.instMonths}`, margin + 5, y + 7);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(20, 20, 20);
+  doc.text(PKR(opts.instMonthlyAmt), margin + 5, y + 18);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(100, 100, 100);
+  doc.text(`Due: ${dueDateStr}`, margin + 5, y + 25);
+  if (outstanding > 0) {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(100, 100, 100);
+    doc.text('Outstanding after this payment:', W - margin - 62, y + 13);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(40, 40, 40);
+    doc.text(PKR(outstanding), W - margin - 62, y + 22);
+  } else {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(22, 101, 52);
+    doc.text('FULLY PAID \u2713', W - margin - 42, y + 18);
+  }
+  y += phH + 8;
+
+  // ── 5. Products reference table ────────────────────────────────────────────
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(120, 120, 120);
+  doc.text('ITEMS PURCHASED (REFERENCE)', margin, y);
+  y += 4;
+  const refBody: any[] = [];
+  for (const line of opts.lines) {
+    refBody.push([
+      line.model ? `${line.name}  ${line.model}` : line.name,
+      line.keySpec || '—', String(line.qty), PKR(line.qty * line.unitPrice),
+    ]);
+  }
+  autoTable(doc, {
+    startY: y, margin: { left: margin, right: margin },
+    head: [['Item', 'Spec', 'Qty', 'Total']],
+    body: refBody,
+    columnStyles: { 0: { cellWidth: 85 }, 1: { cellWidth: 50 }, 2: { cellWidth: 12, halign: 'right' }, 3: { cellWidth: 27, halign: 'right' } },
+    headStyles: { fillColor: [80, 80, 80], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+    bodyStyles: { fontSize: 7, textColor: [80, 80, 80], lineColor: [229, 231, 235], lineWidth: 0.2 },
+    styles: { overflow: 'linebreak', cellPadding: 2 },
+  });
+  // @ts-ignore
+  y = (doc as any).lastAutoTable.finalY + 6;
+
+  // ── 6. Full installment schedule ───────────────────────────────────────────
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(40, 40, 40);
+  doc.text('INSTALLMENT SCHEDULE', margin, y + 1);
+  y += 5;
+
+  const schedBody: any[] = [];
+  schedBody.push(['0', 'Advance Payment', PKR(opts.instAdvanceAmt), 'Upon Confirmation']);
+  for (let i = 1; i <= opts.instMonths; i++) {
+    const d = new Date(opts.instFirstDate);
+    d.setMonth(d.getMonth() + (i - 1));
+    const dStr = fmtDate(d);
+    if (i === opts.paymentNumber) {
+      schedBody.push([
+        { content: String(i), styles: { fillColor: [234, 88, 12], textColor: [255, 255, 255], fontStyle: 'bold' } },
+        { content: `Installment ${i}  \u2190 THIS PAYMENT`, styles: { fillColor: [234, 88, 12], textColor: [255, 255, 255], fontStyle: 'bold' } },
+        { content: PKR(opts.instMonthlyAmt), styles: { fillColor: [234, 88, 12], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'right' as const } },
+        { content: dStr, styles: { fillColor: [234, 88, 12], textColor: [255, 255, 255], fontStyle: 'bold' } },
+      ]);
+    } else {
+      schedBody.push([String(i), `Installment ${i}`, PKR(opts.instMonthlyAmt), dStr]);
+    }
+  }
+  schedBody.push([
+    { content: '', styles: { fillColor: [248, 248, 248] } },
+    { content: 'TOTAL', styles: { fillColor: [248, 248, 248], fontStyle: 'bold', textColor: [40, 40, 40] } },
+    { content: PKR(opts.instTotalPrice), styles: { fillColor: [248, 248, 248], fontStyle: 'bold', halign: 'right' as const, textColor: [40, 40, 40] } },
+    { content: '', styles: { fillColor: [248, 248, 248] } },
+  ]);
+  autoTable(doc, {
+    startY: y, margin: { left: margin, right: margin },
+    head: [['#', 'Description', 'Amount', 'Due Date']],
+    body: schedBody,
+    columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 80 }, 2: { cellWidth: 40, halign: 'right' }, 3: { cellWidth: 42 } },
+    headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
+    bodyStyles: { fontSize: 7.5, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.2 },
+    styles: { overflow: 'linebreak', cellPadding: 2.5 },
+  });
+  // @ts-ignore
+  y = (doc as any).lastAutoTable.finalY + 8;
+
+  // ── 7. Bank details ────────────────────────────────────────────────────────
+  const bdH = 28;
+  doc.setFillColor(240, 253, 244);
+  doc.rect(margin, y, printW, bdH, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(22, 101, 52);
+  doc.text('BANK TRANSFER', margin + 3, y + 6);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(20, 20, 20);
+  doc.text("TAJALLI'S HOME COLLECTION", margin + 3, y + 13);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(60, 60, 60);
+  doc.text('IBAN: PK33MEZN0001060101874794', margin + 3, y + 19);
+  doc.text('Meezan Bank — F.B Area Branch, KHI', margin + 3, y + 25);
+  if (qrData) { doc.addImage(qrData, 'JPEG', margin + printW - 21, y + 4, 18, 18); }
+  y += bdH + 6;
+
+  // ── 8. CTA ────────────────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(234, 88, 12);
+  doc.text('Share payment confirmation on WhatsApp: +92 370 2578788', W / 2, y, { align: 'center' });
+
+  // ── 9. Footer ─────────────────────────────────────────────────────────────
+  const footerY = 282;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(150, 150, 150);
+  doc.text(
+    'Late payment penalty: 1% of outstanding balance per additional day past due date. All products carry official brand warranty.',
+    margin, footerY, { maxWidth: printW }
+  );
+  doc.setFontSize(7);
+  doc.text('tajallis.com.pk  |  support@tajallis.com.pk  |  NTN: 42101-3836602-3', W / 2, footerY + 6, { align: 'center' });
+
+  return doc.output('blob');
+}
+
 // ── Brand alias map for fuzzy search tolerance ──
 const BRAND_ALIASES: Record<string, string[]> = {
   haier:     ['hair', 'haiir', 'haer'],
@@ -4480,7 +4879,7 @@ function isValidPhone(phone: string): boolean {
 function QuotationTab({ products }: { products: Product[] }) {
   const [customerName,  setCustomerName]  = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [docType, setDocType]             = useState<'quotation' | 'invoice'>('quotation');
+  const [docType, setDocType]             = useState<'quotation' | 'invoice' | 'installment-invoice'>('quotation');
   const [discount, setDiscount]           = useState(0);
   const [discountRaw, setDiscountRaw]     = useState('0');
   const [lines, setLines]                 = useState<QuoteLine[]>([]);
@@ -4498,6 +4897,18 @@ function QuotationTab({ products }: { products: Product[] }) {
   const [laborAmt, setLaborAmt]       = useState(0);
   const [advancePct, setAdvancePct]   = useState(70);
   const [balanceNote, setBalanceNote] = useState('delivery');
+  // ── Installment invoice state ──
+  const [instTotalPrice, setInstTotalPrice]     = useState(0);
+  const [instAdvanceAmt, setInstAdvanceAmt]     = useState(0);
+  const [instMonths, setInstMonths]             = useState(6);
+  const [instMonthlyAmt, setInstMonthlyAmt]     = useState(0);
+  const [instFirstDate, setInstFirstDate]       = useState(() => {
+    const d = new Date(); d.setMonth(d.getMonth() + 1);
+    return d.toISOString().slice(0, 10);
+  });
+  const [instPaymentNumber, setInstPaymentNumber] = useState(1);
+  const [instAdvPdfState, setInstAdvPdfState]   = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
+  const [instPayPdfState, setInstPayPdfState]   = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
 
   const autosaveRef                        = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -4549,12 +4960,14 @@ function QuotationTab({ products }: { products: Product[] }) {
           lines, customerName, customerPhone, discount, discountRaw, docType, refNumber,
           installationType, elevatedStructureOn, elevatedStructureAmt, wiringAmt, laborAmt,
           advancePct, balanceNote,
+          instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber,
         }));
       }
     }, 1000);
     return () => { if (autosaveRef.current) clearTimeout(autosaveRef.current); };
   }, [lines, customerName, customerPhone, discount, discountRaw, docType, refNumber,
-      installationType, elevatedStructureOn, elevatedStructureAmt, wiringAmt, laborAmt, advancePct, balanceNote]);
+      installationType, elevatedStructureOn, elevatedStructureAmt, wiringAmt, laborAmt, advancePct, balanceNote,
+      instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber]);
 
   function restoreDraft() {
     try {
@@ -4573,6 +4986,12 @@ function QuotationTab({ products }: { products: Product[] }) {
       if (typeof draft.laborAmt === 'number') setLaborAmt(draft.laborAmt);
       if (typeof draft.advancePct === 'number') setAdvancePct(draft.advancePct);
       if (draft.balanceNote) setBalanceNote(draft.balanceNote);
+      if (typeof draft.instTotalPrice === 'number') setInstTotalPrice(draft.instTotalPrice);
+      if (typeof draft.instAdvanceAmt === 'number') setInstAdvanceAmt(draft.instAdvanceAmt);
+      if (typeof draft.instMonths === 'number') setInstMonths(draft.instMonths);
+      if (typeof draft.instMonthlyAmt === 'number') setInstMonthlyAmt(draft.instMonthlyAmt);
+      if (draft.instFirstDate) setInstFirstDate(draft.instFirstDate);
+      if (typeof draft.instPaymentNumber === 'number') setInstPaymentNumber(draft.instPaymentNumber);
     } catch { /* ignore */ }
     setDraftBanner(false);
   }
@@ -4679,7 +5098,7 @@ function QuotationTab({ products }: { products: Product[] }) {
             ...(laborAmt > 0 ? [{ name: 'Installation Labour', amount: laborAmt }] : []),
           ]
         : [];
-      const blob = await generateQuotationPdf({ customerName, customerPhone: customerPhone.replace(/\D/g, ''), lines, discount, docType, refNumber, installationType, installationLines: instLines, advancePct, balanceNote });
+      const blob = await generateQuotationPdf({ customerName, customerPhone: customerPhone.replace(/\D/g, ''), lines, discount, docType: docType as 'quotation' | 'invoice', refNumber, installationType, installationLines: instLines, advancePct, balanceNote });
       clearTimeout(timeout);
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
@@ -4692,6 +5111,53 @@ function QuotationTab({ products }: { products: Product[] }) {
       clearTimeout(timeout);
       setPdfState('error');
       setGenerating(false);
+    }
+  }
+
+  async function generateAdvanceInvoice() {
+    if (!lines.length || instAdvPdfState === 'generating') return;
+    setInstAdvPdfState('generating');
+    const timeout = setTimeout(() => setInstAdvPdfState('error'), 15000);
+    try {
+      const blob = await generateInstallmentAdvancePdf({
+        customerName, customerPhone: customerPhone.replace(/\D/g, ''),
+        lines, discount, refNumber,
+        instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate,
+      });
+      clearTimeout(timeout);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `tajallis_advance_invoice_${refNumber}.pdf`; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      setInstAdvPdfState('success');
+      setTimeout(() => setInstAdvPdfState('idle'), 3000);
+    } catch {
+      clearTimeout(timeout);
+      setInstAdvPdfState('error');
+    }
+  }
+
+  async function generatePaymentInvoice() {
+    if (!lines.length || instPayPdfState === 'generating') return;
+    setInstPayPdfState('generating');
+    const timeout = setTimeout(() => setInstPayPdfState('error'), 15000);
+    try {
+      const blob = await generateInstallmentPaymentPdf({
+        customerName, customerPhone: customerPhone.replace(/\D/g, ''),
+        lines, discount, refNumber,
+        instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate,
+        paymentNumber: instPaymentNumber,
+      });
+      clearTimeout(timeout);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `tajallis_installment_${instPaymentNumber}_${refNumber}.pdf`; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      setInstPayPdfState('success');
+      setTimeout(() => setInstPayPdfState('idle'), 3000);
+    } catch {
+      clearTimeout(timeout);
+      setInstPayPdfState('error');
     }
   }
 
@@ -4748,11 +5214,15 @@ function QuotationTab({ products }: { products: Product[] }) {
           <p className="text-xs text-gray-400 mt-0.5">Branded PDF · WhatsApp-ready · Ref: <span className="font-mono text-gray-600">{refNumber}</span></p>
         </div>
         <div className="flex gap-2">
-          {(['quotation', 'invoice'] as const).map(t => (
+          {([
+            ['quotation', 'Quotation'],
+            ['invoice', 'Invoice'],
+            ['installment-invoice', 'Installment'],
+          ] as [typeof docType, string][]).map(([t, label]) => (
             <button key={t} onClick={() => setDocType(t)}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold capitalize transition-colors ${
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
                 docType === t ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}>{t}</button>
+              }`}>{label}</button>
           ))}
         </div>
       </div>
@@ -4839,28 +5309,98 @@ function QuotationTab({ products }: { products: Product[] }) {
               )}
             </div>
           )}
-          {/* ── Payment terms ── */}
-          <div className="space-y-2 pt-1 border-t border-gray-100">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Payment Terms</p>
-            <div className="flex items-center gap-3">
-              <label className="text-xs font-semibold text-gray-600 shrink-0">Advance %</label>
-              <input
-                type="number" min={0} max={100} value={advancePct}
-                onChange={e => setAdvancePct(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
-                className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-              />
-              <span className="text-xs text-gray-400">Balance: {100 - advancePct}%</span>
+          {/* ── Payment terms (quotation / invoice only) ── */}
+          {docType !== 'installment-invoice' && (
+            <div className="space-y-2 pt-1 border-t border-gray-100">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Payment Terms</p>
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-semibold text-gray-600 shrink-0">Advance %</label>
+                <input
+                  type="number" min={0} max={100} value={advancePct}
+                  onChange={e => setAdvancePct(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                  className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                />
+                <span className="text-xs text-gray-400">Balance: {100 - advancePct}%</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-semibold text-gray-600 shrink-0">Balance due on</label>
+                <input
+                  type="text" value={balanceNote}
+                  onChange={e => setBalanceNote(e.target.value)}
+                  placeholder="delivery / installation"
+                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                />
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <label className="text-xs font-semibold text-gray-600 shrink-0">Balance due on</label>
-              <input
-                type="text" value={balanceNote}
-                onChange={e => setBalanceNote(e.target.value)}
-                placeholder="delivery / installation"
-                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-              />
+          )}
+
+          {/* ── Installment plan (installment-invoice only) ── */}
+          {docType === 'installment-invoice' && (
+            <div className="space-y-3 pt-1 border-t border-gray-100">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Installment Plan</p>
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-semibold text-gray-600 w-40 shrink-0">Total Installment Price</label>
+                <span className="text-xs text-gray-400 shrink-0">PKR</span>
+                <input type="number" min={0} value={instTotalPrice || ''}
+                  onChange={e => setInstTotalPrice(Math.max(0, Number(e.target.value) || 0))}
+                  placeholder="0"
+                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-semibold text-gray-600 w-40 shrink-0">Advance Amount</label>
+                <span className="text-xs text-gray-400 shrink-0">PKR</span>
+                <input type="number" min={0} value={instAdvanceAmt || ''}
+                  onChange={e => setInstAdvanceAmt(Math.max(0, Number(e.target.value) || 0))}
+                  placeholder="0"
+                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-semibold text-gray-600 w-40 shrink-0">Monthly Installments</label>
+                <input type="number" min={1} max={24} value={instMonths}
+                  onChange={e => setInstMonths(Math.max(1, Math.min(24, Number(e.target.value) || 1)))}
+                  className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                <span className="text-xs text-gray-400">months</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-semibold text-gray-600 w-40 shrink-0">Monthly Amount</label>
+                <span className="text-xs text-gray-400 shrink-0">PKR</span>
+                <input type="number" min={0} value={instMonthlyAmt || ''}
+                  onChange={e => setInstMonthlyAmt(Math.max(0, Number(e.target.value) || 0))}
+                  placeholder="0"
+                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-semibold text-gray-600 w-40 shrink-0">First Installment Date</label>
+                <input type="date" value={instFirstDate}
+                  onChange={e => setInstFirstDate(e.target.value)}
+                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+              </div>
+              {/* Plan summary + mismatch warning */}
+              {(instTotalPrice > 0 || instAdvanceAmt > 0 || instMonthlyAmt > 0) && (
+                <div className={`rounded-xl px-3 py-2 text-xs font-medium ${
+                  instAdvanceAmt + instMonths * instMonthlyAmt === instTotalPrice
+                    ? 'bg-orange-50 text-orange-800'
+                    : 'bg-red-50 text-red-700'
+                }`}>
+                  PKR {instAdvanceAmt.toLocaleString('en-PK')} advance + {instMonths} × PKR {instMonthlyAmt.toLocaleString('en-PK')} = PKR {(instAdvanceAmt + instMonths * instMonthlyAmt).toLocaleString('en-PK')}
+                  {instAdvanceAmt + instMonths * instMonthlyAmt !== instTotalPrice && instTotalPrice > 0 && (
+                    <span className="ml-1">≠ total PKR {instTotalPrice.toLocaleString('en-PK')} — please reconcile</span>
+                  )}
+                </div>
+              )}
+              {/* Payment invoice selector */}
+              <div className="pt-1 border-t border-gray-100 space-y-2">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Payment Invoice</p>
+                <div className="flex items-center gap-3">
+                  <label className="text-xs font-semibold text-gray-600 shrink-0">Installment #</label>
+                  <input type="number" min={1} max={instMonths} value={instPaymentNumber}
+                    onChange={e => setInstPaymentNumber(Math.max(1, Math.min(instMonths, Number(e.target.value) || 1)))}
+                    className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  <span className="text-xs text-gray-400">of {instMonths}</span>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
@@ -4973,47 +5513,94 @@ function QuotationTab({ products }: { products: Product[] }) {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-3">
-        <button
-          onClick={generate}
-          disabled={!lines.length || pdfState === 'generating' || solarCompatCheck?.status === 'incompatible'}
-          className={`flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm disabled:opacity-40 transition-colors ${
-            pdfState === 'success'
-              ? 'bg-green-600 hover:bg-green-700 text-white'
+      {/* ── Quotation / Invoice buttons ── */}
+      {docType !== 'installment-invoice' && (
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={generate}
+            disabled={!lines.length || pdfState === 'generating' || solarCompatCheck?.status === 'incompatible'}
+            className={`flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm disabled:opacity-40 transition-colors ${
+              pdfState === 'success'
+                ? 'bg-green-600 hover:bg-green-700 text-white'
+                : pdfState === 'error'
+                ? 'bg-red-600 hover:bg-red-700 text-white'
+                : 'bg-gray-900 hover:bg-gray-800 text-white'
+            }`}
+          >
+            {pdfState === 'generating'
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</>
+              : pdfState === 'success'
+              ? <>✓ Downloaded!</>
               : pdfState === 'error'
-              ? 'bg-red-600 hover:bg-red-700 text-white'
-              : 'bg-gray-900 hover:bg-gray-800 text-white'
-          }`}
-        >
-          {pdfState === 'generating'
-            ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</>
-            : pdfState === 'success'
-            ? <>✓ Downloaded!</>
-            : pdfState === 'error'
-            ? <>⚠ PDF failed — retry</>
-            : <>📄 Download {docType === 'invoice' ? 'Invoice' : 'Quotation'} PDF</>}
-        </button>
+              ? <>⚠ PDF failed — retry</>
+              : <>📄 Download {docType === 'invoice' ? 'Invoice' : 'Quotation'} PDF</>}
+          </button>
 
-        {/* WhatsApp fallback when PDF errors */}
-        {pdfState === 'error' && lines.length > 0 && (
-          <a href={waErrorHref}
-            target="_blank" rel="noreferrer"
-            className="flex items-center gap-2 bg-[#25D366] hover:bg-[#1ebe5c] text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors">
-            <MessageCircle className="w-4 h-4" /> Send via WhatsApp instead
-          </a>
-        )}
+          {pdfState === 'error' && lines.length > 0 && (
+            <a href={waErrorHref}
+              target="_blank" rel="noreferrer"
+              className="flex items-center gap-2 bg-[#25D366] hover:bg-[#1ebe5c] text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors">
+              <MessageCircle className="w-4 h-4" /> Send via WhatsApp instead
+            </a>
+          )}
 
-        {lines.length > 0 && customerPhone && pdfState !== 'error' && (
-          <a href={`https://wa.me/${waFallbackPhone}?text=${waText}`}
-            target="_blank" rel="noreferrer"
-            className="flex items-center gap-2 bg-[#25D366] hover:bg-[#1ebe5c] text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors">
-            <MessageCircle className="w-4 h-4" /> Send Summary on WhatsApp
-          </a>
-        )}
-        {lines.length === 0 && (
-          <p className="text-xs text-gray-400 self-center">Add at least one product to generate a document.</p>
-        )}
-      </div>
+          {lines.length > 0 && customerPhone && pdfState !== 'error' && (
+            <a href={`https://wa.me/${waFallbackPhone}?text=${waText}`}
+              target="_blank" rel="noreferrer"
+              className="flex items-center gap-2 bg-[#25D366] hover:bg-[#1ebe5c] text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors">
+              <MessageCircle className="w-4 h-4" /> Send Summary on WhatsApp
+            </a>
+          )}
+          {lines.length === 0 && (
+            <p className="text-xs text-gray-400 self-center">Add at least one product to generate a document.</p>
+          )}
+        </div>
+      )}
+
+      {/* ── Installment invoice buttons ── */}
+      {docType === 'installment-invoice' && (
+        <div className="flex flex-wrap gap-3 items-center">
+          <button
+            onClick={generateAdvanceInvoice}
+            disabled={!lines.length || instAdvPdfState === 'generating'}
+            className={`flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm disabled:opacity-40 transition-colors ${
+              instAdvPdfState === 'success'
+                ? 'bg-green-600 hover:bg-green-700 text-white'
+                : instAdvPdfState === 'error'
+                ? 'bg-red-600 hover:bg-red-700 text-white'
+                : 'bg-orange-600 hover:bg-orange-700 text-white'
+            }`}
+          >
+            {instAdvPdfState === 'generating'
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</>
+              : instAdvPdfState === 'success' ? <>✓ Downloaded!</>
+              : instAdvPdfState === 'error' ? <>⚠ Failed — retry</>
+              : <>📄 Download Advance Invoice</>}
+          </button>
+
+          <button
+            onClick={generatePaymentInvoice}
+            disabled={!lines.length || instPayPdfState === 'generating'}
+            className={`flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm disabled:opacity-40 transition-colors ${
+              instPayPdfState === 'success'
+                ? 'bg-green-600 hover:bg-green-700 text-white'
+                : instPayPdfState === 'error'
+                ? 'bg-red-600 hover:bg-red-700 text-white'
+                : 'bg-gray-900 hover:bg-gray-800 text-white'
+            }`}
+          >
+            {instPayPdfState === 'generating'
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</>
+              : instPayPdfState === 'success' ? <>✓ Downloaded!</>
+              : instPayPdfState === 'error' ? <>⚠ Failed — retry</>
+              : <>📄 Payment Invoice #{instPaymentNumber}</>}
+          </button>
+
+          {lines.length === 0 && (
+            <p className="text-xs text-gray-400 self-center">Add at least one product to generate a document.</p>
+          )}
+        </div>
+      )}
 
       {/* ── Mobile sticky summary bar ── */}
       {lines.length > 0 && (
@@ -5030,14 +5617,26 @@ function QuotationTab({ products }: { products: Product[] }) {
                 <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
               </a>
             )}
-            <button
-              onClick={generate}
-              disabled={pdfState === 'generating' || solarCompatCheck?.status === 'incompatible'}
-              className="flex items-center gap-1.5 bg-gray-900 text-white font-bold px-3 py-2 rounded-xl text-xs disabled:opacity-40 transition-colors">
-              {pdfState === 'generating'
-                ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating…</>
-                : <>📄 PDF</>}
-            </button>
+            {docType !== 'installment-invoice' && (
+              <button
+                onClick={generate}
+                disabled={pdfState === 'generating' || solarCompatCheck?.status === 'incompatible'}
+                className="flex items-center gap-1.5 bg-gray-900 text-white font-bold px-3 py-2 rounded-xl text-xs disabled:opacity-40 transition-colors">
+                {pdfState === 'generating'
+                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating…</>
+                  : <>📄 PDF</>}
+              </button>
+            )}
+            {docType === 'installment-invoice' && (
+              <button
+                onClick={generateAdvanceInvoice}
+                disabled={!lines.length || instAdvPdfState === 'generating'}
+                className="flex items-center gap-1.5 bg-orange-600 text-white font-bold px-3 py-2 rounded-xl text-xs disabled:opacity-40 transition-colors">
+                {instAdvPdfState === 'generating'
+                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating…</>
+                  : <>📄 Advance</>}
+              </button>
+            )}
           </div>
         </div>
       )}
