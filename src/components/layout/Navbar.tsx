@@ -190,7 +190,7 @@ export default function Navbar() {
                     onMouseLeave={closeProducts}
                   >
                     <Link to={href}
-                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
+                      className={`inline-btn px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
                         isActive(href) ? 'bg-brand-50 text-brand-600 font-semibold' : 'text-gray-600 hover:text-brand-600 hover:bg-brand-50'
                       }`}>
                       {label}
@@ -219,7 +219,7 @@ export default function Navbar() {
                   </div>
                 ) : (
                   <Link key={href} to={href}
-                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                    className={`inline-btn px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${
                       isActive(href)
                         ? 'bg-brand-50 text-brand-600 font-semibold'
                         : eco
@@ -238,7 +238,7 @@ export default function Navbar() {
               onMouseLeave={closeResources}
             >
               <button
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
+                className={`inline-btn px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
                   RESOURCES_LINKS.some(r => isActive(r.href))
                     ? 'bg-brand-50 text-brand-600 font-semibold'
                     : 'text-gray-600 hover:text-brand-600 hover:bg-brand-50'

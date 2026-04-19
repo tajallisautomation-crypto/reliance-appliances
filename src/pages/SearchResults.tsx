@@ -194,7 +194,7 @@ export default function SearchResults() {
           {/* ── Filters sidebar ── */}
           {/* Mobile: shown as overlay block above results; Desktop: always visible sidebar */}
           <aside className={`w-56 shrink-0 ${showFilters ? 'block' : 'hidden'} md:block`}>
-            <div className="bg-white rounded-2xl border border-gray-100 p-4 sticky top-20">
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 sticky top-20 lg:top-[120px]">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
                   <SlidersHorizontal className="w-4 h-4" /> Filters

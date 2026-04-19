@@ -10,7 +10,7 @@ export default function AnnouncementBanner() {
 
   return (
     <div className="bg-brand-600 text-white text-sm py-2 px-4 flex items-center justify-center gap-3 relative">
-      <span className="text-center leading-snug">{announcementText}</span>
+      <span className="text-center leading-snug pr-7 sm:pr-0">{announcementText}</span>
       <button
         onClick={() => setDismissed(true)}
         className="absolute right-4 top-1/2 -translate-y-1/2 opacity-70 hover:opacity-100 transition-opacity"

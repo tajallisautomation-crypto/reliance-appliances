@@ -368,7 +368,7 @@ function PackageSummary({
   }
 
   return (
-    <div className="bg-white rounded-3xl border-2 border-gray-100 shadow-xl overflow-hidden sticky top-20">
+    <div className="bg-white rounded-3xl border-2 border-gray-100 shadow-xl overflow-hidden sticky top-20 lg:top-[120px]">
       {/* Header */}
       <div className="bg-gray-900 px-5 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">

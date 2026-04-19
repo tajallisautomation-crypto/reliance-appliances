@@ -243,7 +243,7 @@ export default function Checkout() {
 
         {/* Desktop order summary — sticky sidebar */}
         <div className="hidden md:block">
-          <div className="bg-gray-50 rounded-2xl p-6 sticky top-24">
+          <div className="bg-gray-50 rounded-2xl p-6 sticky top-24 lg:top-[120px]">
             <h2 className="font-bold text-gray-800 mb-4">Order Summary</h2>
             <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
               {items.map(i => (

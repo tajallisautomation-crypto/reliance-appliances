@@ -275,7 +275,7 @@ export default function ProductDetail() {
       <div className="grid md:grid-cols-2 gap-6 sm:gap-10 lg:gap-16">
 
         {/* ── Images (sticky) ── */}
-        <div className="md:sticky md:top-24 self-start">
+        <div className="md:sticky md:top-24 lg:top-[120px] self-start">
           <div
             className="aspect-square rounded-2xl overflow-hidden bg-gray-50 mb-3 shadow-apple-lg relative group cursor-zoom-in"
             onClick={() => openLightbox(activeImg)}

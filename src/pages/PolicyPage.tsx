@@ -147,7 +147,7 @@ export default function PolicyPage() {
       </div>
 
       {/* Policy nav */}
-      <div className="border-b bg-white sticky top-16 z-20">
+      <div className="border-b bg-white sticky top-16 lg:top-[104px] z-20">
         <div className="max-w-3xl mx-auto px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar">
           {(Object.keys(POLICIES) as PolicyType[]).map(k => (
             <Link key={k} to={`/policy/${k}`}

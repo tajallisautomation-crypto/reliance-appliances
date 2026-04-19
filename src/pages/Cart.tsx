@@ -75,7 +75,7 @@ export default function Cart() {
 
           {/* Desktop order summary — sticky sidebar */}
           <div className="hidden md:block md:col-span-1">
-            <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm sticky top-24">
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm sticky top-24 lg:top-[120px]">
               <h2 className="font-bold text-gray-900 mb-4">Order Summary</h2>
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between text-sm text-gray-600">

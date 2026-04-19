@@ -6073,6 +6073,7 @@ function SolarLeadsTab() {
         </div>
       ) : (
         <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
@@ -6131,6 +6132,7 @@ function SolarLeadsTab() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -6411,6 +6413,8 @@ function OrdersTab() {
   const deferredSearch                = useDeferredValue(search);
   const [expanded,    setExpanded]    = useState<string | null>(null);
   const [updatingId,  setUpdatingId]  = useState<string | null>(null);
+  const [confirmDel,  setConfirmDel]  = useState<Order | null>(null);
+  const [deleting,    setDeleting]    = useState<string | null>(null);
 
   async function load() {
     setLoading(true); setLoadError('');
@@ -6429,6 +6433,14 @@ function OrdersTab() {
     const { data } = await supabase.from('orders').update({ status }).eq('id', id).select().single();
     if (data) setOrders(prev => prev.map(o => o.id === id ? data as Order : o));
     setUpdatingId(null);
+  }
+
+  async function handleDelete(id: string) {
+    setDeleting(id);
+    await supabase.from('orders').delete().eq('id', id);
+    setOrders(prev => prev.filter(o => o.id !== id));
+    setDeleting(null);
+    setConfirmDel(null);
   }
 
   const filtered = orders.filter(o => {
@@ -6514,6 +6526,7 @@ function OrdersTab() {
                   <th className="text-left px-4 py-3 font-medium text-gray-600 w-40">Status</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600 w-28">Date</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600 w-16">WA</th>
+                  <th className="px-4 py-3 w-10"></th>
                 </tr>
               </thead>
               <tbody>
@@ -6560,11 +6573,17 @@ function OrdersTab() {
                             <MessageCircle className="w-4 h-4" />
                           </a>
                         </td>
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                          <button onClick={() => setConfirmDel(order)}
+                            className="p-1.5 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-lg">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
                       </tr>
 
                       {expanded === order.id && (
                         <tr key={`${order.id}-d`} className="bg-orange-50/20 border-b border-orange-100">
-                          <td colSpan={7} className="px-6 py-4">
+                          <td colSpan={8} className="px-6 py-4">
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                               <div>
                                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Customer</p>
@@ -6607,6 +6626,22 @@ function OrdersTab() {
           )}
         </div>
       )}
+
+      {confirmDel && (
+        <ConfirmDialog
+          title="Delete this order?"
+          message={`Order from ${confirmDel.customer_name} — PKR ${(confirmDel.total_amount || 0).toLocaleString()}\nThis cannot be undone.`}
+          confirmLabel="Delete Order"
+          danger
+          onConfirm={() => handleDelete(confirmDel.id)}
+          onCancel={() => setConfirmDel(null)}
+        />
+      )}
+      {deleting && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-white" />
+        </div>
+      )}
     </div>
   );
 }
@@ -6632,6 +6667,16 @@ function EnquiriesTab() {
   const [loading,    setLoading]    = useState(true);
   const [loadError,  setLoadError]  = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [confirmDel, setConfirmDel] = useState<Enquiry | null>(null);
+  const [deleting,   setDeleting]   = useState<string | null>(null);
+
+  async function handleDelete(id: string) {
+    setDeleting(id);
+    await supabase.from('analytics').delete().eq('id', id);
+    setItems(prev => prev.filter(i => i.id !== id));
+    setDeleting(null);
+    setConfirmDel(null);
+  }
 
   async function load() {
     setLoading(true); setLoadError('');
@@ -6711,6 +6756,7 @@ function EnquiriesTab() {
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Message / Product</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600 w-28">Date</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600 w-20">Reach</th>
+                  <th className="px-4 py-3 w-10"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -6751,6 +6797,12 @@ function EnquiriesTab() {
                         )}
                       </div>
                     </td>
+                    <td className="px-4 py-3">
+                      <button onClick={() => setConfirmDel(item)}
+                        className="p-1.5 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-lg">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -6761,6 +6813,22 @@ function EnquiriesTab() {
               Showing {filtered.length} of {items.length} entries
             </div>
           )}
+        </div>
+      )}
+
+      {confirmDel && (
+        <ConfirmDialog
+          title="Delete this enquiry?"
+          message={`From: ${confirmDel.name || 'Unknown'}\nType: ${confirmDel.event}\nThis cannot be undone.`}
+          confirmLabel="Delete"
+          danger
+          onConfirm={() => handleDelete(confirmDel.id)}
+          onCancel={() => setConfirmDel(null)}
+        />
+      )}
+      {deleting && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-white" />
         </div>
       )}
     </div>
@@ -7594,8 +7662,10 @@ export default function AdminPortal() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Header + Tabs — sticky unit sits below the public navbar */}
+      <div className="sticky top-14 sm:top-16 lg:top-[104px] z-20 bg-white shadow-sm">
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
+      <div className="border-b border-gray-100 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
             <Package className="w-4 h-4 text-orange-600" />
@@ -7609,7 +7679,7 @@ export default function AdminPortal() {
       </div>
 
       {/* Tabs — grouped by function */}
-      <div className="bg-white border-b border-gray-100 px-4 overflow-x-auto">
+      <div className="border-b border-gray-100 px-4 overflow-x-auto">
         <div className="flex gap-1 min-w-max">
           {([
             { id: 'products',  label: 'Products',    group: 'catalog' },
@@ -7643,6 +7713,7 @@ export default function AdminPortal() {
           })}
         </div>
       </div>
+      </div>{/* end sticky header+tabs wrapper */}
 
       <div className="max-w-6xl mx-auto px-4 py-6">
         {tab === 'import' ? (
