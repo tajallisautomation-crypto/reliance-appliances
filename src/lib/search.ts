@@ -447,27 +447,27 @@ function scoreProduct(ip: IndexedProduct, pq: ParsedQuery): number {
   if (terms.some(t => t.length >= 4 && ip.normSubCatLower.includes(t)))  { score += 8;  }
 
   // ── Capacity matching — tonnage (ACs) ────────────────────────────────────────
-  // Exact ton match = +80; near match = +20; wrong capacity = −40.
-  // Prevents "2 ton" ACs appearing above "1.5 ton" ACs for a "1.5 ton" query.
+  // Exact ton match = +80; near match = +20; wrong capacity = −100 (strong enough to
+  // overcome category/brand token bonuses and drop product below MIN_SCORE).
   if (pq.capacityTonHint !== undefined && ip.capacityTon !== undefined) {
     const diff = Math.abs(ip.capacityTon - pq.capacityTonHint);
     if (diff === 0)           { score += 80; }
     else if (diff <= 0.2)     { score += 20; }
-    else                      { score -= 40; }
+    else                      { score -= 100; }
   }
 
   // ── Capacity matching — cubic feet (fridges/freezers) ────────────────────────
-  // Exact cuft match = +100 (higher than ton because the query is more specific).
-  // Near match (±1 cuft) = +30.
-  // Wrong capacity (>2 cuft off) = −50 penalty when hint is present.
-  // This prevents an 18 cu.ft fridge ranking above a 14 cu.ft fridge for "14 cubic feet".
+  // Exact cuft match = +100. Near match (±1 cuft) = +30. Borderline (±2) = +5.
+  // Wrong capacity (>2 cuft off) = −150: strong enough to push product below MIN_SCORE=12
+  // even after category/brand token bonuses (~95 pts), preventing "14 cubic feet" from
+  // returning 18 or 19 cu.ft models in the results.
   if (pq.capacityCuftHint !== undefined) {
     if (ip.capacityCuft !== undefined) {
       const diff = Math.abs(ip.capacityCuft - pq.capacityCuftHint);
       if (diff === 0)           { score += 100; }  // exact match: definitive
       else if (diff <= 1)       { score += 30;  }  // within 1 cuft: acceptable
       else if (diff <= 2)       { score += 5;   }  // borderline
-      else                      { score -= 50;  }  // clearly wrong size — demote hard
+      else                      { score -= 150; }  // clearly wrong size — filter out
     } else {
       // Product has no structured cuft data — mild penalty so exact-match products win
       score -= 10;

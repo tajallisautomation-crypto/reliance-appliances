@@ -4,7 +4,7 @@ import {
   ArrowRight, Calculator, ShieldCheck, Truck, CreditCard, Headphones,
   ChevronRight, Zap, Leaf, Image,
   AirVent, Refrigerator, Shirt, Tv, Sun, UtensilsCrossed, Droplets, Plug,
-  Snowflake,
+  Snowflake, CalendarDays, Users, Star, Package,
 } from 'lucide-react'
 import { getProducts, getProductCount, type Product, formatPrice } from '../lib/api'
 
@@ -125,19 +125,23 @@ export default function Home() {
               </Link>
             </div>
             <div className="mt-6 pt-5 border-t border-gray-100">
-              <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 {[
-                  { value: '11 yrs',    label: 'in business'  },
-                  { value: '14,400+',   label: 'clients'      },
-                  { value: '75%',       label: 'Customer Loyalty' },
-                  { value: '24,000+',   label: 'orders'       },
-                ].map((s, i) => (
-                  <div key={i} className={`flex items-baseline gap-1.5 ${i > 0 ? 'border-l border-gray-200 pl-4' : ''}`}>
-                    <dt className="text-sm font-black text-gray-900 leading-none">{s.value}</dt>
-                    <dd className="text-xs text-gray-400 font-medium leading-none">{s.label}</dd>
+                  { Icon: CalendarDays, value: '11 Years',  label: 'Established 2015', color: 'text-brand-500' },
+                  { Icon: Users,        value: '14,400+',   label: 'Customer Loyalty', color: 'text-blue-500'  },
+                  { Icon: Star,         value: '75%',       label: 'Repeat Customers', color: 'text-amber-500' },
+                  { Icon: Package,      value: '24,000+',   label: 'Orders Fulfilled', color: 'text-green-500' },
+                ].map(({ Icon, value, label, color }) => (
+                  <div key={label}
+                    className="group flex items-center gap-3 bg-gray-50 hover:bg-white border border-transparent hover:border-gray-200 hover:shadow-soft rounded-2xl px-3.5 py-3 transition-all duration-200 cursor-default">
+                    <Icon className={`w-5 h-5 ${color} shrink-0`} />
+                    <div>
+                      <p className="text-sm font-black text-gray-900 leading-none">{value}</p>
+                      <p className="text-[11px] text-gray-400 font-medium mt-0.5 leading-none">{label}</p>
+                    </div>
                   </div>
                 ))}
-              </dl>
+              </div>
             </div>
           </div>
 
@@ -183,7 +187,7 @@ export default function Home() {
       <OfferBannerSlider />
 
       {/* ── MYOP PROMO ───────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 md:pt-20 pb-16">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 md:pt-32 pb-20">
         <div className="relative bg-gray-950 rounded-3xl overflow-hidden">
           <div className="absolute inset-0 opacity-[0.03]"
             style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.8) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.8) 1px,transparent 1px)', backgroundSize: '32px 32px' }} />
@@ -374,7 +378,7 @@ export default function Home() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-3">
           {BRANDS.filter(b => b.featured).map(b => (
             <Link key={b.slug} to={`/products?brand=${b.slug}`}
-              className="group flex items-center gap-4 bg-white border-2 border-gray-100 hover:border-brand-300 hover:shadow-apple-lg rounded-2xl p-5 transition-all">
+              className="group flex items-center gap-4 bg-white border-2 border-gray-100 hover:border-brand-300 hover:shadow-soft rounded-2xl p-5 transition-all">
               <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-black text-xl flex-shrink-0" style={{ backgroundColor: b.color }}>{b.name[0]}</div>
               <div>
                 <div className="font-bold text-gray-800 group-hover:text-brand-700">{b.name}</div>
@@ -410,7 +414,7 @@ export default function Home() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {TOOLS.map(t => (
               <Link key={t.title} to={t.href}
-                className="group bg-white rounded-2xl border border-gray-100 hover:border-brand-300 hover:shadow-apple-lg p-6 transition-all">
+                className="group bg-white rounded-2xl border border-gray-100 hover:border-brand-300 hover:shadow-soft p-6 transition-all">
                 <div className="text-3xl mb-3">{t.icon}</div>
                 <div className="font-bold text-gray-800 mb-1 group-hover:text-brand-700">{t.title}</div>
                 <div className="text-sm text-gray-500 mb-4">{t.desc}</div>

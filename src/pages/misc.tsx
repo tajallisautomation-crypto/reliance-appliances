@@ -53,7 +53,7 @@ const SERVICE_ITEMS = [
 ]
 
 const PROCESS = [
-  { num: '01', title: 'Contact Us', desc: 'WhatsApp or call to describe your requirement. Our team responds within 4 business hours.' },
+  { num: '01', title: 'Contact Us', desc: 'WhatsApp or call to describe your requirement. Urgent same-day requests must reach us by 12pm. Standard service is scheduled within 48 hours.' },
   { num: '02', title: 'Schedule Visit', desc: 'We confirm a time slot that works for you — including evenings and Saturdays.' },
   { num: '03', title: 'Diagnosis & Quote', desc: 'The technician assesses the issue on-site. A transparent quote is provided before any work begins.' },
   { num: '04', title: 'Repair & Sign-Off', desc: 'Work is completed to standard. You sign off before we leave. 90-day workmanship guarantee on all repairs.' },
@@ -121,7 +121,7 @@ export function Services() {
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {SERVICE_ITEMS.map(s => (
-              <div key={s.title} className="bg-white rounded-2xl p-6 border border-gray-100 hover:border-orange-200 hover:shadow-md transition-all">
+              <div key={s.title} className="bg-white rounded-2xl p-6 border border-gray-100 hover:border-orange-200 hover:shadow-soft transition-all">
                 <div className="text-3xl mb-4">{s.icon}</div>
                 <h3 className="font-bold text-gray-900 mb-2">{s.title}</h3>
                 <p className="text-sm text-gray-500 mb-4 leading-relaxed">{s.desc}</p>
@@ -148,8 +148,8 @@ export function Services() {
             <div className="text-sm text-orange-900 leading-relaxed space-y-1">
               <p><strong>Repair Policy — Diagnosis First:</strong> All repair services (AC, refrigerator, freezer, dispenser, washing machine, solar inverter, UPS, microwave, LED TV) require an on-site technician visit for diagnosis. The repair quote is only provided <em>after</em> the technician assesses the unit.</p>
               <ul className="list-disc pl-4 space-y-0.5 text-orange-800">
-                <li><strong>Standard visit:</strong> PKR 2,000 — within 48 hours. Collected at start of visit.</li>
-                <li><strong>Urgent same-day visit:</strong> PKR 3,000 — collected in advance. Request by 12pm.</li>
+                <li><strong>Standard (Within 48 hours):</strong> PKR 2,000 — collected at start of visit.</li>
+                <li><strong>Same-Day Priority:</strong> PKR 3,000 — collected in advance. Request by 12pm.</li>
                 <li>If you <strong>decline</strong> the repair after diagnosis, the visit charge is retained. No refund on visit fees.</li>
               </ul>
             </div>
@@ -358,7 +358,7 @@ export function Services() {
                 className="block w-full text-center py-3.5 rounded-xl font-bold text-white bg-orange-500 hover:bg-orange-600 transition-colors">
                 Get AMC Quote
               </a>
-              <p className="text-xs text-gray-500 text-center mt-2">We'll confirm your slot within 4 business hours</p>
+              <p className="text-xs text-gray-500 text-center mt-2">Standard: within 48 hrs · Urgent same-day: request by 12pm</p>
             </div>
           </div>
         </section>
@@ -367,7 +367,7 @@ export function Services() {
         <section className="bg-gray-900 rounded-3xl p-10 text-white text-center">
           <h2 className="text-2xl font-black mb-2">Ready to book?</h2>
           <p className="text-gray-400 mb-8 max-w-md mx-auto text-sm">
-            WhatsApp us with your appliance and the issue — we'll confirm your slot within 4 business hours.
+            WhatsApp us with your appliance and the issue. Standard service within 48 hours — or same-day if you request by 12pm.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a href={waSales('Hi, I\'d like to book a service visit')} target="_blank" rel="noreferrer"

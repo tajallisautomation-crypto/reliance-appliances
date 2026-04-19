@@ -821,7 +821,7 @@ export default function Products() {
           </div>
 
           {/* Scrollable category tabs — shared mobile + desktop */}
-          <div className="flex-1 overflow-x-auto no-scrollbar">
+          <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}>
             <div className="flex gap-1.5 w-max">
               <button onClick={() => goToCategory('')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all min-h-[36px]
@@ -879,7 +879,7 @@ export default function Products() {
 
         {/* ── Deep subcategory strip — shown when a specific category is active and has subcategories ── */}
         {catDeepSubs.length > 0 && category && (
-          <div className="border-t bg-orange-50/40 px-3 sm:px-4 py-2 overflow-x-auto no-scrollbar">
+          <div className="border-t bg-orange-50/40 px-3 sm:px-4 py-2 overflow-x-auto no-scrollbar" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}>
             <div className="flex gap-1.5 w-max items-center">
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider shrink-0 mr-1 hidden sm:inline">Type:</span>
               <button
