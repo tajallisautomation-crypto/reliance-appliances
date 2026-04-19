@@ -210,42 +210,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── FEATURED PRODUCTS ────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 py-14">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <p className="text-brand-500 text-xs font-bold uppercase tracking-widest mb-1">Featured</p>
-            <h2 className="text-2xl md:text-3xl font-black text-gray-900">Top Picks for You</h2>
-          </div>
-          <Link to="/products?featured=true"
-            className="hidden sm:flex items-center gap-1 text-brand-600 font-semibold text-sm hover:text-brand-700">
-            View All <ChevronRight className="w-4 h-4" />
-          </Link>
-        </div>
-        {loading
-          ? <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                  <div className="aspect-square bg-gray-100 animate-pulse" />
-                  <div className="p-4 space-y-2.5">
-                    <div className="h-2.5 w-16 bg-gray-100 rounded-full animate-pulse" />
-                    <div className="h-3.5 w-3/4 bg-gray-100 rounded-full animate-pulse" />
-                    <div className="h-3.5 w-1/2 bg-gray-100 rounded-full animate-pulse" />
-                    <div className="h-3 w-1/3 bg-gray-100 rounded-full animate-pulse" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          : <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">{featured.map(p => <ProductCard key={p.id} product={p} />)}</div>
-        }
-        <div className="text-center mt-8">
-          <Link to="/products"
-            className="inline-flex items-center gap-2 border-2 border-brand-500 text-brand-600 font-bold px-8 py-3 rounded-2xl hover:bg-brand-500 hover:text-white transition-all">
-            Browse All {totalProducts > 0 ? `${totalProducts} ` : ''}Products <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-      </section>
-
       {/* ── INSTALLMENT ENGINE ───────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 pb-16">
         <div className="bg-gray-950 rounded-3xl p-8 md:p-12">
@@ -514,6 +478,42 @@ export default function Home() {
               View Installment Plans
             </Link>
           </div>
+        </div>
+      </section>
+
+      {/* ── FEATURED PRODUCTS ────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-4 py-14">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <p className="text-brand-500 text-xs font-bold uppercase tracking-widest mb-1">Featured</p>
+            <h2 className="text-2xl md:text-3xl font-black text-gray-900">Top Picks for You</h2>
+          </div>
+          <Link to="/products?featured=true"
+            className="hidden sm:flex items-center gap-1 text-brand-600 font-semibold text-sm hover:text-brand-700">
+            View All <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
+        {loading
+          ? <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                  <div className="aspect-square bg-gray-100 animate-pulse" />
+                  <div className="p-4 space-y-2.5">
+                    <div className="h-2.5 w-16 bg-gray-100 rounded-full animate-pulse" />
+                    <div className="h-3.5 w-3/4 bg-gray-100 rounded-full animate-pulse" />
+                    <div className="h-3.5 w-1/2 bg-gray-100 rounded-full animate-pulse" />
+                    <div className="h-3 w-1/3 bg-gray-100 rounded-full animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          : <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">{featured.map(p => <ProductCard key={p.id} product={p} />)}</div>
+        }
+        <div className="text-center mt-8">
+          <Link to="/products"
+            className="inline-flex items-center gap-2 border-2 border-brand-500 text-brand-600 font-bold px-8 py-3 rounded-2xl hover:bg-brand-500 hover:text-white transition-all">
+            Browse All {totalProducts > 0 ? `${totalProducts} ` : ''}Products <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
       </section>
     </div>
