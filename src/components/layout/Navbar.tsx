@@ -12,9 +12,12 @@ const NAV_LINKS = [
   { label: 'Installments',    href: '/installments' },
   { label: 'Solar',           href: '/solar' },
   { label: 'Green Corridor',  href: '/green-corridor', eco: true },
-  { label: 'Gallery',         href: '/gallery' },
-  { label: 'Buying Guide',    href: '/buying-guide' },
-  { label: 'Services',        href: '/services' },
+];
+
+const RESOURCES_LINKS = [
+  { label: 'Gallery',      href: '/gallery' },
+  { label: 'Buying Guide', href: '/buying-guide' },
+  { label: 'Services',     href: '/services' },
 ];
 
 const CATEGORY_NAV = [
@@ -68,18 +71,22 @@ const MOBILE_GROUPS: { label: string; links: [string, string][] }[] = [
 ];
 
 export default function Navbar() {
-  const [mobileOpen,   setMobileOpen]   = useState(false);
-  const [cartOpen,     setCartOpen]     = useState(false);
-  const [scrolled,     setScrolled]     = useState(false);
-  const [searchOpen,   setSearchOpen]   = useState(false);
-  const [productsOpen, setProductsOpen] = useState(false);
-  const [openGroup,    setOpenGroup]    = useState<string>('Shop');
-  const productsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [mobileOpen,    setMobileOpen]    = useState(false);
+  const [cartOpen,      setCartOpen]      = useState(false);
+  const [scrolled,      setScrolled]      = useState(false);
+  const [searchOpen,    setSearchOpen]    = useState(false);
+  const [productsOpen,  setProductsOpen]  = useState(false);
+  const [resourcesOpen, setResourcesOpen] = useState(false);
+  const [openGroup,     setOpenGroup]     = useState<string>('Shop');
+  const productsTimeoutRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resourcesTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const location = useLocation();
   const totalItems = useCartStore(s => s.items.reduce((n, i) => n + i.qty, 0));
 
-  const openProducts  = () => { if (productsTimeoutRef.current) clearTimeout(productsTimeoutRef.current); setProductsOpen(true); };
-  const closeProducts = () => { productsTimeoutRef.current = setTimeout(() => setProductsOpen(false), 120); };
+  const openProducts   = () => { if (productsTimeoutRef.current)  clearTimeout(productsTimeoutRef.current);  setProductsOpen(true); };
+  const closeProducts  = () => { productsTimeoutRef.current  = setTimeout(() => setProductsOpen(false), 120); };
+  const openResources  = () => { if (resourcesTimeoutRef.current) clearTimeout(resourcesTimeoutRef.current); setResourcesOpen(true); };
+  const closeResources = () => { resourcesTimeoutRef.current = setTimeout(() => setResourcesOpen(false), 120); };
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -128,7 +135,7 @@ export default function Navbar() {
               </div>
 
               {/* Right icons */}
-              <div className="flex items-center gap-0.5 sm:gap-1 ml-auto sm:ml-0 shrink-0">
+              <div className="flex items-center gap-1 sm:gap-2 ml-auto sm:ml-0 shrink-0">
 
                 {/* Mobile: search toggle — hidden sm+ where inline bar is shown */}
                 <button
@@ -219,11 +226,47 @@ export default function Navbar() {
                           ? 'text-eco-700 hover:bg-eco-50 hover:text-eco-700'
                           : 'text-gray-600 hover:text-brand-600 hover:bg-brand-50'
                     }`}>
-                    {eco && <Leaf className="w-3 h-3" />}
+                    {eco && <Leaf className="w-3.5 h-3.5" />}
                     {label}
                   </Link>
                 )
               )}
+
+            {/* Resources dropdown (Gallery, Buying Guide, Services) */}
+            <div className="relative h-full flex items-center"
+              onMouseEnter={openResources}
+              onMouseLeave={closeResources}
+            >
+              <button
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
+                  RESOURCES_LINKS.some(r => isActive(r.href))
+                    ? 'bg-brand-50 text-brand-600 font-semibold'
+                    : 'text-gray-600 hover:text-brand-600 hover:bg-brand-50'
+                }`}>
+                Resources
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-150 ${resourcesOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {resourcesOpen && (
+                <div
+                  className="absolute top-full left-0 mt-1 z-50 bg-white border border-gray-100 rounded-2xl shadow-apple-lg py-1 min-w-[160px]"
+                  onMouseEnter={openResources}
+                  onMouseLeave={closeResources}
+                >
+                  {RESOURCES_LINKS.map(r => (
+                    <Link key={r.href} to={r.href}
+                      onClick={() => setResourcesOpen(false)}
+                      className={`flex items-center px-4 py-2.5 text-sm font-medium transition-colors ${
+                        isActive(r.href)
+                          ? 'text-brand-600 bg-brand-50'
+                          : 'text-gray-600 hover:text-brand-600 hover:bg-brand-50'
+                      }`}>
+                      {r.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
             </nav>
           </div>
         </div>

@@ -824,7 +824,7 @@ export default function Products() {
           <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}>
             <div className="flex gap-1.5 w-max">
               <button onClick={() => goToCategory('')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all min-h-[36px]
+                className={`px-4 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all min-h-[36px]
                   ${!category ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-brand-50 active:bg-brand-50'}`}>
                 All
               </button>
@@ -833,7 +833,7 @@ export default function Products() {
                 return (
                   <button key={cat.id}
                     onClick={() => goToCategory(cat.id)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap flex items-center gap-1 transition-all min-h-[36px]
+                    className={`px-4 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap flex items-center gap-1.5 transition-all min-h-[36px]
                       ${isActive ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-brand-50 active:bg-brand-50'}`}>
                     {cat.icon} {cat.label}
                   </button>
@@ -864,13 +864,13 @@ export default function Products() {
             </button>
 
             {/* View toggle — hidden on mobile (always grid) */}
-            <div className="hidden sm:flex border border-gray-200 rounded-xl overflow-hidden">
+            <div className="hidden sm:flex border border-gray-200 rounded-xl overflow-hidden min-h-[36px]">
               <button onClick={() => setView('grid')}
-                className={`p-1.5 transition-colors ${view === 'grid' ? 'bg-brand-500 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                className={`px-2 transition-colors flex items-center ${view === 'grid' ? 'bg-brand-500 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
                 <Grid3X3 className="w-4 h-4" />
               </button>
               <button onClick={() => setView('list')}
-                className={`p-1.5 transition-colors ${view === 'list' ? 'bg-brand-500 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                className={`px-2 transition-colors flex items-center ${view === 'list' ? 'bg-brand-500 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
                 <List className="w-4 h-4" />
               </button>
             </div>

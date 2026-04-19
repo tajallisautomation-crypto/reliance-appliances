@@ -52,7 +52,7 @@ export default function ProductCard({ product: p }: Props) {
         )}
 
         {/* Badges — top */}
-        <div className="absolute top-2 left-2 flex flex-wrap gap-1 max-w-[calc(100%-1rem)]">
+        <div className="absolute top-2 left-2 flex flex-col gap-1 max-w-[calc(100%-1rem)]">
           {p.stock_status === 'Discontinued' && (
             <span className="inline-flex items-center text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 tracking-wide">
               Discontinued
@@ -114,7 +114,7 @@ export default function ProductCard({ product: p }: Props) {
 
         {/* Installment hint */}
         {bestPlan ? (
-          <p className="text-[11px] text-brand-500 font-semibold mb-2">
+          <p className="text-xs text-brand-600 font-semibold mb-2">
             or <span className="font-black">PKR {formatPrice(bestPlan.monthly)}</span>/mo
           </p>
         ) : <div className="mb-2" />}
@@ -123,7 +123,7 @@ export default function ProductCard({ product: p }: Props) {
         {p.warranty && (
           <div className="flex items-center gap-1 pt-2 border-t border-gray-50">
             <CheckCircle className="w-3 h-3 text-emerald-500 flex-shrink-0" />
-            <p className="text-[10px] text-gray-400 truncate">{p.warranty}</p>
+            <p className="text-[10px] text-gray-400 line-clamp-2 leading-snug">{p.warranty}</p>
           </div>
         )}
       </div>
