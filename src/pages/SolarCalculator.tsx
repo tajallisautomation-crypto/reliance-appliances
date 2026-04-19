@@ -1038,6 +1038,92 @@ export default function SolarCalculator() {
               </div>
             )}
 
+            {/* ── Battery Requirement Breakdown — hybrid / off-grid only ─────────── */}
+            {(quote.type === 'hybrid' || quote.type === 'off-grid') && (
+              <div className="bg-white rounded-2xl shadow-sm border border-blue-100 p-5">
+                <h3 className="font-bold text-gray-800 mb-1 text-sm flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-blue-500"/> Battery Requirement Breakdown
+                </h3>
+                <p className="text-xs text-gray-500 mb-4">
+                  Your battery bank is sized from <strong>actual after-dark consumption</strong> — not an arbitrary percentage.
+                </p>
+
+                {/* After-dark load */}
+                <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="text-xs font-semibold text-blue-800">Power Requirement After Dark</div>
+                      <div className="text-[11px] text-blue-600 mt-0.5">
+                        {items.length > 0
+                          ? `Load running beyond your ${peakHrs}h solar window`
+                          : 'Estimated from your daily usage (40% assumed after dark)'}
+                      </div>
+                    </div>
+                    <div className="text-lg font-bold text-blue-700">{quote.afterDarkKWh} kWh/night</div>
+                  </div>
+                </div>
+
+                {/* Two off-grid options */}
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {/* Partially off-grid */}
+                  <div className={`rounded-xl border-2 p-4 ${quote.type === 'hybrid' ? 'border-orange-400 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <span className="text-sm font-bold text-gray-800">Partially Off-Grid</span>
+                      {quote.type === 'hybrid' && (
+                        <span className="text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded-full font-semibold">Your System</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-600 mb-3 leading-relaxed">
+                      Battery covers nighttime only. Grid remains your daytime backup on cloudy days.
+                    </div>
+                    <div className="space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Battery needed</span>
+                        <span className="font-bold text-gray-800">{quote.partialOffGridBatKWh} kWh</span>
+                      </div>
+                      {quote.batBank && quote.type === 'hybrid' && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Crown battery bank</span>
+                          <span className="font-bold text-orange-600">{fmtPKR(quote.costs.battery)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Completely off-grid */}
+                  <div className={`rounded-xl border-2 p-4 ${quote.type === 'off-grid' ? 'border-orange-400 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <span className="text-sm font-bold text-gray-800">Completely Off-Grid</span>
+                      {quote.type === 'off-grid' && (
+                        <span className="text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded-full font-semibold">Your System</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-600 mb-3 leading-relaxed">
+                      Full daily autonomy with 50% cloudy-day reserve. Zero grid dependency.
+                    </div>
+                    <div className="space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Battery needed</span>
+                        <span className="font-bold text-gray-800">{quote.fullOffGridBatKWh} kWh</span>
+                      </div>
+                      {quote.batBank && quote.type === 'off-grid' && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Crown battery bank</span>
+                          <span className="font-bold text-orange-600">{fmtPKR(quote.costs.battery)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-gray-400 mt-3 flex items-center gap-1">
+                  <Info className="w-3 h-3 shrink-0"/>
+                  Battery sizing includes 20% efficiency buffer and 85% inverter efficiency.
+                  Crown batteries are preferred — see recommended products below.
+                </p>
+              </div>
+            )}
+
             {/* Recommended products */}
             {(quote.panelProduct || quote.invProduct || quote.batBank) && (
               <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-5">
@@ -1163,16 +1249,19 @@ export default function SolarCalculator() {
             {quote.type === 'ups-only' && quote.totalW > 0 && (
               <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-5">
                 <h3 className="font-bold text-gray-800 mb-1 text-sm">🔋 Battery Size Options</h3>
-                <p className="text-xs text-gray-500 mb-4">Compare backup tiers — all prices are battery cost only, excluding inverter &amp; installation.</p>
+                <p className="text-xs text-gray-500 mb-4">
+                  Compare backup tiers — priced from Crown battery inventory. Battery cost only, excludes inverter &amp; installation.
+                </p>
                 <div className="space-y-3">
                   {[
                     { tier: 'Economy',     hrs: Math.max(1, Math.round(backupHrs * 0.5)), tag: '' },
                     { tier: 'Recommended', hrs: backupHrs, tag: 'Your Selection' },
                     { tier: 'Extended',    hrs: Math.round(backupHrs * 1.75), tag: '' },
                   ].map((opt, i) => {
-                    const kWh  = Math.ceil(quote.totalW * opt.hrs / 1000 * 1.2 * 10) / 10
-                    const cost = Math.round(kWh * BATTERY_PER_KWH / 100) * 100
-                    const actualHrs = (kWh / (quote.totalW / 1000) * 0.85).toFixed(1)
+                    const kWh     = Math.max(0.5, Math.ceil(quote.totalW * opt.hrs / 1000 / 0.85 * 1.2 * 10) / 10)
+                    const bank    = bestBatteryBank(solarProds.batteries, kWh, quote.inverterKW)
+                    const cost    = bank ? bank.totalCost : Math.round(kWh * BATTERY_PER_KWH / 100) * 100
+                    const actualHrs = (kWh * 0.85 / (quote.totalW / 1000)).toFixed(1)
                     return (
                       <div key={i} className={`flex items-center gap-4 p-4 rounded-xl border-2 ${i === 1 ? 'border-orange-400 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
                         <div className="flex-1 min-w-0">
@@ -1183,10 +1272,13 @@ export default function SolarCalculator() {
                             )}
                           </div>
                           <div className="text-xs text-gray-500 mt-0.5">{kWh.toFixed(1)} kWh · ~{actualHrs}h backup at full load</div>
+                          {bank && (
+                            <div className="text-[11px] text-blue-600 mt-0.5">{bank.qty > 1 ? `${bank.qty}× ` : ''}{bank.product.simplified_name}</div>
+                          )}
                         </div>
                         <div className="text-right shrink-0">
                           <div className="font-bold text-orange-600 text-sm">{fmtPKR(cost)}</div>
-                          <div className="text-[10px] text-gray-400">battery cost only</div>
+                          <div className="text-[10px] text-gray-400">{bank ? 'from inventory' : 'est. price'}</div>
                         </div>
                       </div>
                     )
@@ -1321,7 +1413,7 @@ export default function SolarCalculator() {
                   const reducedW    = totalW - savingsW * item.qty
                   const reducedKW   = +(reducedW * 1.25 / peakHrs / 1000).toFixed(1)
                   const savedKW     = quote.systemKW - reducedKW
-                  const savedCost   = r100(savedKW * (WIRING_PER_W + LABOR_PER_W + PANEL_PRICE_PER_W) * 1000)
+                  const savedCost   = r100(savedKW * (WIRING_PER_W + LABOR_PER_W) * 1000 + Math.round(savedKW * 1000 / PANEL_WATTS) * PANEL_PRICE)
                   return (
                     <div key={item.id} className="bg-white rounded-2xl shadow-sm border border-amber-100 p-5">
                       <div className="flex items-start gap-3 mb-3">

@@ -237,7 +237,11 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
           .sort((a, b) => {
             const ka = parseFloat((a.simplified_name + ' ' + a.model).match(/(\d+(?:\.\d+)?)\s*kw/i)?.[1] ?? '99')
             const kb = parseFloat((b.simplified_name + ' ' + b.model).match(/(\d+(?:\.\d+)?)\s*kw/i)?.[1] ?? '99')
-            return ka !== kb ? ka - kb : a.price.cash_floor - b.price.cash_floor
+            if (ka !== kb) return ka - kb
+            // Tie-break: Crown first, then cheapest
+            const aCrown = (a.brand ?? '').toLowerCase().includes('crown') ? 0 : 1
+            const bCrown = (b.brand ?? '').toLowerCase().includes('crown') ? 0 : 1
+            return aCrown !== bCrown ? aCrown - bCrown : a.price.cash_floor - b.price.cash_floor
           })
           .slice(0, 3)
         setSolarInverters(matched)
@@ -245,11 +249,16 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
       .catch(() => {})
   }, [sizing.invKW])
 
-  // ── Fetch batteries — sorted by best value (kWh/PKR) ─────────────
+  // ── Fetch batteries — Crown first, then by best kWh/PKR value ─────
   useEffect(() => {
     getProducts({ category: 'solar-battery', sort: 'price_asc' })
       .then(({ products }) => {
-        const sorted = [...products].sort((a, b) => batteryValueScore(b) - batteryValueScore(a))
+        const sorted = [...products].sort((a, b) => {
+          const aCrown = (a.brand ?? '').toLowerCase().includes('crown') ? 0 : 1
+          const bCrown = (b.brand ?? '').toLowerCase().includes('crown') ? 0 : 1
+          if (aCrown !== bCrown) return aCrown - bCrown
+          return batteryValueScore(b) - batteryValueScore(a)
+        })
         setBatteries(sorted.slice(0, 3))
       })
       .catch(() => {})

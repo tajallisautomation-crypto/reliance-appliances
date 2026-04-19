@@ -10,18 +10,26 @@ import { WA_ADMIN } from '../lib/config'
 
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-const UNIT_PRICE   = 62    // PKR/unit — 2026 Karachi average tariff
+const UNIT_PRICE   = 62     // PKR/unit — 2026 Karachi average tariff
 const PEAK_SUN_HRS = 4.5   // Karachi daily peak sun hours
+const PANEL_WATTS  = 620   // Crown Bi-Facial 620W
+const PANEL_PRICE  = 30_000 // PKR per panel (flat)
 
 // ── Calculation Logic ──────────────────────────────────────────────────────────
 function calcSystem(bill: number, backupHours: number) {
-  const dailyUnits   = (bill / UNIT_PRICE) / 30
-  const systemKw     = Math.max(1, Math.ceil(dailyUnits / PEAK_SUN_HRS))
-  const panels       = Math.ceil((systemKw * 1000) / 545)
-  const batteryKwh   = parseFloat((dailyUnits * (backupHours / 24) * 1.2).toFixed(1))
-  const batteryAh48  = Math.ceil((batteryKwh * 1000) / 48)
-  const estSavings   = Math.round(bill * 0.9)
-  return { dailyUnits, systemKw, panels, batteryKwh, batteryAh48, estSavings }
+  const dailyUnits = (bill / UNIT_PRICE) / 30
+  const systemKw   = Math.max(1, Math.ceil(dailyUnits / PEAK_SUN_HRS))
+  const panels     = Math.ceil((systemKw * 1000) / PANEL_WATTS)
+  const panelCost  = panels * PANEL_PRICE
+
+  // Battery: covers backupHours of nighttime load at 85% inverter efficiency + 20% buffer
+  const nightKwh   = parseFloat((dailyUnits * (backupHours / 24) / 0.85 * 1.2).toFixed(1))
+  // Full autonomy option: entire daily load for comparison
+  const fullKwh    = parseFloat((dailyUnits / 0.85 * 1.5).toFixed(1))
+
+  const batteryAh48 = Math.ceil((nightKwh * 1000) / 48)
+  const estSavings  = Math.round(bill * 0.9)
+  return { dailyUnits, systemKw, panels, panelCost, batteryKwh: nightKwh, fullKwh, batteryAh48, estSavings }
 }
 
 function buildWaMessage(bill: number, backupHours: number, result: ReturnType<typeof calcSystem>) {
@@ -33,8 +41,9 @@ function buildWaMessage(bill: number, backupHours: number, result: ReturnType<ty
     '',
     '*Proposed Setup:*',
     `• System Size: ${result.systemKw}kW`,
-    `• Solar Panels: ${result.panels} × 545W`,
-    `• Battery Bank: ${result.batteryKwh}kWh (${result.batteryAh48}Ah at 48V)`,
+    `• Solar Panels: ${result.panels} × ${PANEL_WATTS}W Crown (PKR ${result.panelCost.toLocaleString()})`,
+    `• Night Battery (partially off-grid): ${result.batteryKwh}kWh (${result.batteryAh48}Ah at 48V)`,
+    `• Full Autonomy Battery (completely off-grid): ${result.fullKwh}kWh`,
     `• Est. Monthly Savings: PKR ${result.estSavings.toLocaleString()}`,
     '',
     'Please share your best quote. JazakAllah.',
@@ -164,13 +173,19 @@ function OffGridCalculator() {
             icon={<Sun className="w-4 h-4" />}
             label="System Size"
             value={`${result.systemKw} kW`}
-            sub={`${result.panels} × 545W solar panels`}
+            sub={`${result.panels} × ${PANEL_WATTS}W Crown panels — PKR ${result.panelCost.toLocaleString()}`}
           />
           <SpecRow
             icon={<Battery className="w-4 h-4" />}
-            label="Battery Bank"
+            label="Battery — Partially Off-Grid"
             value={`${result.batteryKwh} kWh`}
-            sub={`${result.batteryAh48}Ah at 48V — covers ${backup}h night backup`}
+            sub={`${result.batteryAh48}Ah at 48V — covers ${backup}h nighttime (Crown recommended)`}
+          />
+          <SpecRow
+            icon={<Battery className="w-4 h-4" />}
+            label="Battery — Completely Off-Grid"
+            value={`${result.fullKwh} kWh`}
+            sub="Full daily autonomy with 50% cloudy-day reserve"
           />
           <SpecRow
             icon={<Zap className="w-4 h-4" />}
@@ -468,9 +483,9 @@ export default function OffGridSolar() {
               </p>
               <div className="space-y-2">
                 {[
-                  'Tier-1 545W Mono PERC Panels',
-                  'Off-Grid Inverter (Growatt / Deye)',
-                  'Tubular Battery Bank (optional Lithium)',
+                  'Crown 620W Bi-Facial Solar Panels (PKR 30,000/panel)',
+                  'Off-Grid Inverter (Crown recommended)',
+                  'Crown Tubular or Lithium Battery Bank',
                   'DC Combiner Box + AC Distribution',
                   'Professional Installation (Karachi)',
                   '1-Year Service Warranty',
