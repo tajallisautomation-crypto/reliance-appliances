@@ -36,10 +36,13 @@ export interface PlanBreakdown {
 }
 
 export function calcPlan(retailPrice: number, plan: PlanKey): PlanBreakdown {
-  const cfg     = _activeRatios[plan];
-  const total   = r100(retailPrice * cfg.markup);
-  const advance = r100(total * cfg.advRatio);
-  const monthly = cfg.installments > 0 ? r100((total - advance) / cfg.installments) : 0;
+  const cfg          = _activeRatios[plan];
+  const contractTotal = r100(retailPrice * cfg.markup);
+  const advance      = r100(contractTotal * cfg.advRatio);
+  const n            = cfg.installments;
+  // Round UP so collection never falls short, then re-derive total from actual payments
+  const monthly = n > 0 ? Math.ceil((contractTotal - advance) / n / 100) * 100 : 0;
+  const total   = advance + monthly * n;
   return {
     months: plan === '2m' ? 2 : plan === '3m' ? 3 : plan === '6m' ? 6 : 12,
     total, advance, monthly,

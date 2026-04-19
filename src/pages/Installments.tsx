@@ -14,8 +14,8 @@ const FAQS = [
     a: 'No. Your guarantor only needs to be available for a phone call and the home verification visit. They never need to visit our office.',
   },
   {
-    q: 'My guarantor is a tenant — what do I do?',
-    a: 'Guarantors must be homeowners. If your first guarantor is a tenant, you can provide two separate guarantors who are both homeowners. Their utility bills must be in their own names.',
+    q: 'How many guarantors do I need?',
+    a: 'One guarantor is sufficient if either you (the buyer) or your guarantor is an existing Reliance customer. If neither of you is an existing customer, two guarantors are required — both must be homeowners with utility bills in their own names. Guarantors must not be tenants.',
   },
   {
     q: 'Is the advance refundable if my application is rejected?',
@@ -23,7 +23,7 @@ const FAQS = [
   },
   {
     q: 'What happens if I miss a monthly payment?',
-    a: 'Late payments attract a penalty charge as per your signed agreement. Persistent non-payment can result in product retrieval and legal proceedings. Contact us immediately on WhatsApp if you are facing difficulty — we can discuss options.',
+    a: 'A 1% daily penalty is charged on the outstanding principal for every day the payment is overdue. If the payment remains unpaid for 30 days, comprehensive recovery proceedings — including product retrieval and legal action — are activated immediately. Contact us on WhatsApp at the first sign of difficulty.',
   },
   {
     q: 'Can I settle the full remaining balance early?',
@@ -276,7 +276,9 @@ export default function InstallmentsPage() {
               <div className="text-sm">
                 <p className="font-bold text-amber-900 mb-1">Guarantor must be a homeowner</p>
                 <p className="text-amber-700">
-                  Your guarantor must own their home. A utility bill in the guarantor's name is accepted as proof. If you are a tenant, <strong>two guarantors (both homeowners)</strong> are required.
+                  Your guarantor must own their home — a utility bill in the guarantor's name is accepted as proof.
+                  <strong> One guarantor is sufficient if either the buyer or the guarantor is an existing Reliance customer.</strong>{' '}
+                  If neither is an existing customer, <strong>two guarantors (both homeowners)</strong> are required.
                   The guarantor takes legal responsibility for the installment payments.
                 </p>
               </div>
@@ -298,6 +300,17 @@ export default function InstallmentsPage() {
                 <p className="text-red-700">
                   Approval is not guaranteed. Missing or falsified documents result in immediate cancellation.
                   All installment agreements are legally binding.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-5">
+              <AlertCircle className="w-5 h-5 text-red-700 flex-shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-bold text-red-900 mb-1">Late Payment Penalty</p>
+                <p className="text-red-700">
+                  A <strong>1% daily penalty</strong> is charged on the outstanding principal for every day beyond the payment due date.
+                  If a payment remains overdue for <strong>30 days</strong>, comprehensive recovery proceedings — including legal action and product retrieval — will be activated immediately.
+                  Contact us on WhatsApp at the first sign of difficulty.
                 </p>
               </div>
             </div>
