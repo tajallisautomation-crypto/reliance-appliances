@@ -4133,20 +4133,17 @@ async function generateQuotationPdf(opts: {
     doc.text("Tajalli's", margin, 24);
   }
 
-  const textX = margin + 38;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
-  doc.text("Tajalli's", textX, 13);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(255, 214, 176);
-  doc.text('Home & Commercial Solutions', textX, 19);
-  doc.text('+92 370 2578788  |  tajallis.com.pk', textX, 25);
-  doc.text('L-152 & 153, Sector 11C-1, North Karachi', textX, 31);
-
   const badgeLabel = opts.docType === 'invoice' ? 'INVOICE' : 'QUOTATION';
-  const bW = 36; const bH = 11;
-  doc.setFillColor(DARK);
-  doc.roundedRect(W - margin - bW, 10, bW, bH, 2, 2, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
-  doc.text(badgeLabel, W - margin - bW / 2, 17, { align: 'center' });
+
+  // Doc type as large clean heading — top right, no button box
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
+  doc.text(badgeLabel, W - margin, 14, { align: 'right' });
+
+  // Address/contact right-aligned below the doc type label
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(255, 214, 176);
+  doc.text('Home & Commercial Solutions', W - margin, 21, { align: 'right' });
+  doc.text('+92 370 2578788  |  tajallis.com.pk', W - margin, 27, { align: 'right' });
+  doc.text('L-152 & 153, Sector 11C-1, North Karachi', W - margin, 33, { align: 'right' });
 
   let y = 46;
 
@@ -4155,11 +4152,12 @@ async function generateQuotationPdf(opts: {
   doc.rect(margin, y, printW, 10, 'F');
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(80, 80, 80);
   const colW = printW / 4;
+  const col3Label = opts.docType === 'quotation' ? `Expires: ${validUntilStr}` : `Advance: ${opts.advancePct}%`;
+  const col4Label = opts.installationType === 'installation-included' ? 'Supply + Install' : 'Supply Only';
   doc.text(`Ref: ${opts.refNumber}`,    margin + 2,            y + 6.5);
   doc.text(`Date: ${dateStr}`,           margin + colW + 2,     y + 6.5);
-  doc.text(`Valid: ${validUntilStr}`,    margin + colW * 2 + 2, y + 6.5);
-  doc.setFont('helvetica', 'bold');
-  doc.text(badgeLabel,                   margin + colW * 3 + 2, y + 6.5);
+  doc.text(col3Label,                    margin + colW * 2 + 2, y + 6.5);
+  doc.text(col4Label,                    margin + colW * 3 + 2, y + 6.5);
   y += 14;
 
   // ── 3. Customer block ──────────────────────────────────────────────────────
@@ -4192,7 +4190,6 @@ async function generateQuotationPdf(opts: {
   const tableBody: any[] = [];
   for (const cat of categoryOrder) {
     const catLines = grouped[cat];
-    const catSubtotal = catLines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
 
     tableBody.push([{
       content: cat.toUpperCase(),
@@ -4210,12 +4207,6 @@ async function generateQuotationPdf(opts: {
         PKR(line.qty * line.unitPrice),
       ]);
     }
-
-    tableBody.push([
-      { content: '', colSpan: 4, styles: { fillColor: [248, 248, 248] } },
-      { content: 'Subtotal', styles: { halign: 'right' as const, fillColor: [248, 248, 248], textColor: [120, 120, 120], fontSize: 7 } },
-      { content: PKR(catSubtotal), styles: { halign: 'right' as const, fillColor: [248, 248, 248], textColor: [120, 120, 120], fontSize: 7, fontStyle: 'bold' } },
-    ]);
   }
 
   if (opts.installationType === 'installation-included' && opts.installationLines.length > 0) {
@@ -4227,11 +4218,6 @@ async function generateQuotationPdf(opts: {
     for (const inst of opts.installationLines) {
       tableBody.push([inst.name, '—', '—', '1', PKR(inst.amount), PKR(inst.amount)]);
     }
-    tableBody.push([
-      { content: '', colSpan: 4, styles: { fillColor: [248, 248, 248] } },
-      { content: 'Subtotal', styles: { halign: 'right' as const, fillColor: [248, 248, 248], textColor: [120, 120, 120], fontSize: 7 } },
-      { content: PKR(installSubtotal), styles: { halign: 'right' as const, fillColor: [248, 248, 248], textColor: [120, 120, 120], fontSize: 7, fontStyle: 'bold' } },
-    ]);
   }
 
   autoTable(doc, {
@@ -4272,10 +4258,10 @@ async function generateQuotationPdf(opts: {
   }
 
   doc.setFillColor(ORANGE);
-  doc.rect(totalsX - 4, y - 1, valX - totalsX + 4 + margin, 11, 'F');
+  doc.rect(totalsX - 4, y - 2, valX - totalsX + 4 + margin, 12, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
-  doc.text('Grand Total', totalsX, y + 7);
-  doc.text(PKR(grandTotal), valX, y + 7, { align: 'right' });
+  doc.text('Grand Total', totalsX, y + 6);
+  doc.text(PKR(grandTotal), valX, y + 6, { align: 'right' });
   y += 17;
 
   // ── 6. Solar disclaimer (conditional) ─────────────────────────────────────
@@ -4350,9 +4336,9 @@ async function generateQuotationPdf(opts: {
 
   const bdX = ptX + ptW + 3;
   const bdW = W - margin - bdX;
-  doc.setFillColor(240, 253, 244);
+  doc.setFillColor(247, 248, 250);
   doc.rect(bdX, boxY, bdW, boxH, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(22, 101, 52);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(80, 80, 80);
   doc.text('BANK TRANSFER', bdX + 3, boxY + 6);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(20, 20, 20);
   doc.text("TAJALLI'S HOME COLLECTION", bdX + 3, boxY + 12);
@@ -4368,8 +4354,18 @@ async function generateQuotationPdf(opts: {
   y = boxY + boxH + 6;
 
   // ── 8. CTA line ───────────────────────────────────────────────────────────
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(234, 88, 12);
-  doc.text('To confirm order, share deposit slip on WhatsApp: +92 370 2578788', W / 2, y, { align: 'center' });
+  doc.setFontSize(8); doc.setTextColor(234, 88, 12);
+  const ctaPrefix = 'To confirm order, share deposit slip on WhatsApp: ';
+  const ctaPhone  = '+92 370 2578788';
+  doc.setFont('helvetica', 'normal');
+  const prefixW = doc.getTextWidth(ctaPrefix);
+  doc.setFont('helvetica', 'bold');
+  const phoneW = doc.getTextWidth(ctaPhone);
+  const ctaStartX = W / 2 - (prefixW + phoneW) / 2;
+  doc.setFont('helvetica', 'normal');
+  doc.text(ctaPrefix, ctaStartX, y);
+  doc.setFont('helvetica', 'bold');
+  doc.text(ctaPhone, ctaStartX + prefixW, y);
 
   // ── 9. Footer ─────────────────────────────────────────────────────────────
   const footerY = 282;
