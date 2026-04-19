@@ -19,7 +19,7 @@ import { getProducts, fmtPKR, roundTo100 as r100, calcAllPlans, submitSolarLead 
 import { checkCompatibility, parseBatteryVoltage, filterCompatibleBatteries, type CompatibilityResult } from '../lib/compatibility'
 import {
   UNIT_RATE_PKR, BATTERY_PKR_PER_KWH, INVERTER_PKR_PER_KW,
-  PANEL_WATTS, PANEL_PRICE_PER_W,
+  PANEL_WATTS, PANEL_PRICE_PKR,
   WIRING_PER_W, LABOR_PER_W, ELEVATED_FRAME_PER_W,
   UPS_WIRING_PER_W, UPS_LABOR_PER_W,
   NET_METERING_MIN_KW, NET_METERING_COST_PKR,
@@ -93,10 +93,11 @@ const UPGRADE_SUGGESTIONS: Record<string, { label: string; savingsW: number; cat
 // ── Pricing constants — all canonical values from src/lib/solarRules.ts ────────
 // Do NOT redeclare these here. Edit solarRules.ts to change them.
 
-const UNIT_RATE    = UNIT_RATE_PKR
-const BATTERY_PER_KWH = BATTERY_PKR_PER_KWH
-const ELEVATED_FRAME_W = ELEVATED_FRAME_PER_W
+const UNIT_RATE         = UNIT_RATE_PKR
+const BATTERY_PER_KWH   = BATTERY_PKR_PER_KWH
+const ELEVATED_FRAME_W  = ELEVATED_FRAME_PER_W
 const NET_METERING_COST = NET_METERING_COST_PKR
+const PANEL_PRICE       = PANEL_PRICE_PKR   // PKR 30,000 per panel (flat)
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -130,6 +131,12 @@ interface Quote {
   dailyU:      number
   withInstallments: boolean
   noInstallReason:  string
+  /** kWh consumed after solar production hours — basis for battery sizing. */
+  afterDarkKWh: number
+  /** Battery kWh needed if running partially off-grid (nighttime only). */
+  partialOffGridBatKWh: number
+  /** Battery kWh needed if running completely off-grid (full autonomy). */
+  fullOffGridBatKWh: number
   /** Inverter/battery compatibility result — only set when both are present. */
   batteryCompatStatus?: CompatibilityResult
 }
@@ -152,13 +159,16 @@ function noInstallReason(total: number, systemKW: number): string {
 
 // ── Best product matcher ───────────────────────────────────────────────────────
 
+const isCrown = (p: Product) => (p.brand ?? '').toLowerCase().includes('crown')
+
 function bestPanel(panels: Product[]): Product | null {
-  return panels.sort((a, b) => b.price.cash_floor - a.price.cash_floor)[0] || null
+  const crowns = panels.filter(isCrown)
+  const pool   = crowns.length > 0 ? crowns : panels
+  return pool.sort((a, b) => b.price.cash_floor - a.price.cash_floor)[0] || null
 }
 
 function bestInverter(inverters: Product[], targetKW: number): Product | null {
-  // Pick the inverter whose model number is closest to targetKW but >= targetKW
-  return inverters
+  const suited = inverters
     .filter(p => {
       const m = p.simplified_name.match(/(\d+(?:\.\d)?)\s*kw/i)
       return m && parseFloat(m[1]) >= targetKW
@@ -166,8 +176,11 @@ function bestInverter(inverters: Product[], targetKW: number): Product | null {
     .sort((a, b) => {
       const kwa = parseFloat(a.simplified_name.match(/(\d+(?:\.\d)?)\s*kw/i)?.[1] || '99')
       const kwb = parseFloat(b.simplified_name.match(/(\d+(?:\.\d)?)\s*kw/i)?.[1] || '99')
-      return kwa - kwb
-    })[0] || inverters[0] || null
+      if (kwa !== kwb) return kwa - kwb
+      // Tie-break: Crown first
+      return (isCrown(a) ? 0 : 1) - (isCrown(b) ? 0 : 1)
+    })
+  return suited[0] || inverters[0] || null
 }
 
 interface BatteryBank {
@@ -218,9 +231,14 @@ function bestBatteryBank(batteries: Product[], targetKWh: number, inverterKw?: n
 
   const valid = candidates.filter(p => kwhOf(p) > 0)
   if (!valid.length) return null
+
+  // Prefer Crown batteries; fall back to all compatible if no Crown in pool
+  const crownValid = valid.filter(isCrown)
+  const pool = crownValid.length > 0 ? crownValid : valid
+
   // Pick the option with lowest total cost to cover targetKWh
   let best: BatteryBank | null = null
-  for (const p of valid) {
+  for (const p of pool) {
     const unitKWh = kwhOf(p)
     const qty = Math.ceil(targetKWh / unitKWh)
     const totalCost = p.price.cash_floor * qty
@@ -337,12 +355,27 @@ export default function SolarCalculator() {
       const activeType = mode === 'ups' ? 'ups-only' : sysType
       const refU = effectiveDailyU || dailyU
 
+      // ── After-dark kWh — appliances running beyond solar production hours ──────
+      // Appliances with more daily hours than peakHrs draw from battery at night.
+      // In bill mode (no items), estimate 40% of daily usage is after dark.
+      const afterDarkFromItems = items.reduce((s, i) => {
+        const nightHrs = Math.max(0, i.hours - peakHrs)
+        return s + (i.watts * i.qty * nightHrs / 1000)
+      }, 0)
+      const afterDarkKWh = afterDarkFromItems > 0 ? afterDarkFromItems : refU * 0.4
+
+      // Partially off-grid: battery covers nighttime only
+      const partialOffGridBatKWh = Math.max(0.5, Math.ceil(afterDarkKWh / 0.85 * 1.2 * 10) / 10)
+      // Completely off-grid: full daily autonomy (1.5× for cloudy-day reserve)
+      const fullOffGridBatKWh   = Math.max(1, Math.ceil(refU / 0.85 * 1.5 * 10) / 10)
+
       // ── UPS mode: size by load × backup hours ──────────────────────────────
       if (mode === 'ups') {
-        const batKWh  = Math.ceil(totalW * backupHrs / 1000 * 1.2)  // 20% buffer
-        const invKW   = Math.ceil(totalW / 100) / 10                 // round up to 0.1kW
-        const batBank = bestBatteryBank(solarProds.batteries, batKWh, invKW)
-        const batCost = batBank ? batBank.totalCost : r100(batKWh * BATTERY_PER_KWH)
+        // Battery must deliver totalW for backupHrs at 85% inverter efficiency
+        const batKWh     = Math.max(0.5, Math.ceil(totalW * backupHrs / 1000 / 0.85 * 1.2 * 10) / 10)
+        const invKW      = Math.ceil(totalW / 100) / 10
+        const batBank    = bestBatteryBank(solarProds.batteries, batKWh, invKW)
+        const batCost    = batBank ? batBank.totalCost : r100(batKWh * BATTERY_PER_KWH)
         const invProduct = bestInverter(solarProds.inverters, invKW)
         const invCost    = invProduct ? invProduct.price.cash_floor : r100(invKW * INVERTER_PKR_PER_KW)
         const wiringCost = r100(totalW * (UPS_WIRING_PER_W + UPS_LABOR_PER_W))
@@ -358,6 +391,7 @@ export default function SolarCalculator() {
           plans, totalW, dailyU: +refU.toFixed(2),
           withInstallments: Object.keys(plans).length > 0,
           noInstallReason: noInstallReason(total, invKW),
+          afterDarkKWh: 0, partialOffGridBatKWh: 0, fullOffGridBatKWh: 0,
           batteryCompatStatus: calcBatteryCompat(invKW, batBank, invProduct),
         })
         setStep(3)
@@ -370,12 +404,12 @@ export default function SolarCalculator() {
         ? Math.max(0.5, parseFloat(directKW) || 5)
         : Math.ceil(refU * 1.25 / peakHrs * 10) / 10
 
-      // Panels
+      // Panels — PKR 30,000 flat per panel when no catalog product
       const panelCount  = activeType === 'ups-only' ? 0 : Math.ceil(sysKW * 1000 / PANEL_WATTS)
       const panProduct  = activeType === 'ups-only' ? null : bestPanel(solarProds.panels)
       const panelCost   = panProduct
         ? panProduct.price.cash_floor * panelCount
-        : r100(panelCount * PANEL_WATTS * PANEL_PRICE_PER_W)
+        : r100(panelCount * PANEL_PRICE)
 
       // Inverter — use same ±0.5kW band thresholds as SolarCompatibilityPanel to avoid
       // over-specifying (e.g. 5.58kW array should recommend 5kW, not 8kW inverter).
@@ -383,9 +417,14 @@ export default function SolarCalculator() {
       const invProduct = bestInverter(solarProds.inverters, invKW)
       const invCost    = invProduct ? invProduct.price.cash_floor : r100(invKW * INVERTER_PKR_PER_KW)
 
-      // Battery bank (supports stacking multiple units)
+      // Battery bank — sized by actual after-dark requirement, not an arbitrary %
+      // hybrid:   cover nighttime load only (partially off-grid)
+      // off-grid: cover full daily autonomy with 50% reserve for cloudy days
       const needBat = activeType !== 'on-grid'
-      const batKWh  = needBat ? Math.ceil(refU * 0.6) : 0   // cover 60% of daily from battery
+      const batKWh  = !needBat ? 0
+        : activeType === 'off-grid'
+          ? fullOffGridBatKWh
+          : partialOffGridBatKWh
       const batBank = needBat ? bestBatteryBank(solarProds.batteries, batKWh, invKW) : null
       const batCost = needBat
         ? (batBank ? batBank.totalCost : r100(batKWh * BATTERY_PER_KWH))
@@ -422,6 +461,9 @@ export default function SolarCalculator() {
         plans, totalW, dailyU: +refU.toFixed(2),
         withInstallments: Object.keys(plans).length > 0,
         noInstallReason: noInstallReason(total, sysKW),
+        afterDarkKWh: +afterDarkKWh.toFixed(2),
+        partialOffGridBatKWh,
+        fullOffGridBatKWh,
         batteryCompatStatus: calcBatteryCompat(invKW, batBank, invProduct),
       })
       setStep(3)

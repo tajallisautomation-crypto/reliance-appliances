@@ -37,8 +37,11 @@ export const INVERTER_PKR_PER_KW = 55_000;
  *  Used in panel count calculations and PDF line items. */
 export const PANEL_WATTS = 620;
 
-/** Panel cost fallback (PKR per watt) when no catalog product is matched. */
-export const PANEL_PRICE_PER_W = 48;
+/** Flat per-panel price (PKR) — canonical pricing across all calculators. */
+export const PANEL_PRICE_PKR = 30_000;
+
+/** Panel cost fallback per watt — derived from flat per-panel price. */
+export const PANEL_PRICE_PER_W = PANEL_PRICE_PKR / PANEL_WATTS;
 
 // ── Installation cost rates ───────────────────────────────────────────────────
 

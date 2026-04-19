@@ -276,7 +276,7 @@ export default function InstallmentsPage() {
               <div className="text-sm">
                 <p className="font-bold text-amber-900 mb-1">Guarantor must be a homeowner</p>
                 <p className="text-amber-700">
-                  Your guarantor must own their home. A utility bill in the guarantor's name is accepted as proof. If you are a tenant, two guarantors (both homeowners) are required.
+                  Your guarantor must own their home. A utility bill in the guarantor's name is accepted as proof. If you are a tenant, <strong>two guarantors (both homeowners)</strong> are required.
                   The guarantor takes legal responsibility for the installment payments.
                 </p>
               </div>

@@ -51,7 +51,7 @@ function ResultCard({ icon, label, value, sub, color = 'brand' }: {
     purple: 'bg-purple-50 border-purple-200 text-purple-700',
   }
   return (
-    <div className={`rounded-2xl border p-4 ${colors[color]}`}>
+    <div className={`rounded-2xl border p-4 h-full ${colors[color]}`}>
       <div className="flex items-center gap-2 mb-1">{icon}<span className="text-xs font-medium opacity-70">{label}</span></div>
       <div className="text-xl font-black">{value}</div>
       {sub && <div className="text-xs opacity-60 mt-0.5">{sub}</div>}
@@ -790,7 +790,7 @@ function ShirtCalculator() {
             </Tip>
 
             <InlineProductStrip
-              category="washing-machines"
+              category={result.categorySlug}
               label={result.type}
               accentColor="violet"
               viewAllHref={`/products/category/${result.categorySlug}`}

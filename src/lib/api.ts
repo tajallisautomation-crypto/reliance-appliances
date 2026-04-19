@@ -49,11 +49,12 @@ const _PLAN_MONTHS: Record<string, number> = { '2m': 2, '3m': 3, '6m': 6, '12m':
 export function calcPlan(basePrice: number, key: string): InstallmentPlan {
   const ratios = _getActivePlanRatios();            // live rates from settingsStore / Supabase
   const c = ratios[key as keyof typeof ratios]; if (!c) throw new Error('Unknown plan: ' + key);
-  const total   = roundTo100(basePrice * c.markup); // markup is a multiplier e.g. 1.15
-  const advance = roundTo100(total * c.advRatio);
+  const contractTotal = roundTo100(basePrice * c.markup); // markup is a multiplier e.g. 1.15
+  const advance = roundTo100(contractTotal * c.advRatio);
   const n       = c.installments || 1;
-  // Round UP so advance + monthly×n always covers total (never short-collects)
-  const monthly = Math.ceil((total - advance) / n / 100) * 100;
+  // Round UP so collection never falls short; then derive total from actual payments
+  const monthly = Math.ceil((contractTotal - advance) / n / 100) * 100;
+  const total   = advance + monthly * n; // actual amount collected — displayed total matches sum of payments
   return { months: _PLAN_MONTHS[key] ?? 0, total, advance, monthly, advancePct: c.advRatio, monthlyPayments: n };
 }
 
