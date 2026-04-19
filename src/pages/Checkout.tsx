@@ -19,8 +19,6 @@ const BANK_DETAILS = [
     title:   "Tajalli's Home Collection",
     qr:      '/meezan-qr.jpeg',
   },
-  { bank: 'JazzCash',  account: '03702578788', iban: '', branch: '', title: 'Reliance by Tajallis', qr: '' },
-  { bank: 'EasyPaisa', account: '03702578788', iban: '', branch: '', title: 'Reliance by Tajallis', qr: '' },
 ]
 
 export default function Checkout() {
