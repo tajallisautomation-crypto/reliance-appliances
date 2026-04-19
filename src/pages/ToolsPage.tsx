@@ -5,27 +5,69 @@ import { Link } from 'react-router-dom'
 function roundTo100(n: number) { return Math.round(n / 100) * 100 }
 function fmtPKR(n: number) { return 'PKR ' + Math.round(n).toLocaleString('en-PK') }
 
+const UNIT_RATE = 70  // PKR/kWh — K-Electric Karachi average (matches Solar Calculator)
+const STD_SIZES = [1, 1.5, 2, 3, 5, 6, 8, 10, 12, 15, 20]
+function recSystemKW(offsetKwh: number) {
+  const raw = offsetKwh / (4.5 * 30 * 0.80)
+  return STD_SIZES.find(s => s >= raw) ?? Math.ceil(raw)
+}
+
 function BillSavingsCalc() {
   const [bill, setBill] = useState('')
   const [units, setUnits] = useState('')
+  const [offset, setOffset] = useState(80)
   const [result, setResult] = useState<any>(null)
-  const SLABS = [{max:50,rate:3.95},{max:100,rate:7.74},{max:200,rate:10.06},{max:300,rate:14.39},{max:400,rate:18.18},{max:500,rate:20.63},{max:600,rate:22.69},{max:700,rate:23.58},{max:Infinity,rate:24.16}]
-  const calcBillFromUnits = (u: number) => { let rem=u,b=0,prev=0; for(const s of SLABS){if(rem<=0)break;const inS=Math.min(rem,s.max-prev);b+=inS*s.rate;rem-=inS;prev=s.max} return b }
+
   const calculate = () => {
-    const u = parseFloat(units); if(!u) return
-    const currentBill = parseFloat(bill) || calcBillFromUnits(u)
-    const savedAmount = roundTo100(calcBillFromUnits(u*0.85))
-    const remainingBill = roundTo100(Math.max(0,currentBill-savedAmount))
-    setResult({ currentBill:roundTo100(currentBill), savedAmount, remainingBill, annualSaving:roundTo100(savedAmount*12) })
+    const u = parseFloat(units); if (!u || u <= 0) return
+    const billEntered = !!parseFloat(bill)
+    const currentBill = billEntered ? parseFloat(bill) : roundTo100(u * UNIT_RATE)
+    const offsetUnits = u * offset / 100
+    const savedAmount = roundTo100(offsetUnits * UNIT_RATE)
+    const remainingBill = roundTo100(Math.max(0, currentBill - savedAmount))
+    setResult({ currentBill, savedAmount, remainingBill, annualSaving: roundTo100(savedAmount * 12), sysKW: recSystemKW(offsetUnits), billEntered, offset })
   }
+
   return (
     <div className="space-y-4">
       <div className="grid md:grid-cols-2 gap-4">
         <div><label className="text-sm font-medium text-gray-700 block mb-1">Monthly Units (kWh)</label><input type="number" value={units} onChange={e=>setUnits(e.target.value)} placeholder="e.g. 400" className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-orange-400"/></div>
-        <div><label className="text-sm font-medium text-gray-700 block mb-1">Current Bill (optional)</label><input type="number" value={bill} onChange={e=>setBill(e.target.value)} placeholder="PKR" className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-orange-400"/></div>
+        <div><label className="text-sm font-medium text-gray-700 block mb-1">Actual Bill Amount (optional)</label><input type="number" value={bill} onChange={e=>setBill(e.target.value)} placeholder="PKR — leave blank to estimate" className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-orange-400"/></div>
+      </div>
+      <div>
+        <div className="flex justify-between items-center mb-1">
+          <label className="text-sm font-medium text-gray-700">Solar Offset</label>
+          <span className="text-sm font-bold text-orange-600">{offset}%</span>
+        </div>
+        <input type="range" min={25} max={100} step={5} value={offset} onChange={e=>setOffset(+e.target.value)} className="w-full accent-orange-500"/>
+        <div className="flex justify-between text-xs text-gray-400 mt-1"><span>25% partial</span><span>50% half</span><span>75%</span><span>100% full</span></div>
       </div>
       <button onClick={calculate} className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl py-3 font-semibold">Calculate My Savings</button>
-      {result && <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">{[{label:'Current Bill',val:fmtPKR(result.currentBill),cls:'bg-red-50 text-red-700'},{label:'Monthly Saving',val:fmtPKR(result.savedAmount),cls:'bg-green-50 text-green-700'},{label:'New Bill',val:fmtPKR(result.remainingBill),cls:'bg-blue-50 text-blue-700'},{label:'Annual Saving',val:fmtPKR(result.annualSaving),cls:'bg-orange-50 text-orange-700'}].map((s,i)=><div key={i} className={`${s.cls} rounded-xl p-4 text-center`}><div className={`font-bold text-lg`}>{s.val}</div><div className="text-xs text-gray-500 mt-1">{s.label}</div></div>)}</div>}
+      {result && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { label: result.billEntered ? 'Current Bill' : 'Est. Current Bill', val: fmtPKR(result.currentBill), cls: 'bg-red-50 text-red-700' },
+              { label: 'Monthly Saving', val: fmtPKR(result.savedAmount), cls: 'bg-green-50 text-green-700' },
+              { label: 'New Bill', val: fmtPKR(result.remainingBill), cls: 'bg-blue-50 text-blue-700' },
+              { label: 'Annual Saving', val: fmtPKR(result.annualSaving), cls: 'bg-orange-50 text-orange-700' },
+            ].map((s, i) => (
+              <div key={i} className={`${s.cls} rounded-xl p-4 text-center`}>
+                <div className="font-bold text-lg">{s.val}</div>
+                <div className="text-xs text-gray-500 mt-1">{s.label}</div>
+              </div>
+            ))}
+          </div>
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between gap-3">
+            <div>
+              <div className="font-semibold text-emerald-800 text-sm">Recommended System Size</div>
+              <div className="text-emerald-700 text-xs mt-0.5">To offset {result.offset}% of your {result.billEntered ? 'actual' : 'estimated'} consumption</div>
+            </div>
+            <div className="text-2xl font-bold text-emerald-700 whitespace-nowrap">{result.sysKW} kW</div>
+          </div>
+          <p className="text-xs text-gray-400">Based on PKR {UNIT_RATE}/kWh (K-Electric Karachi avg.). Fixed charges, taxes, and fuel price adjustments (FPA) are not included — actual savings may vary.</p>
+        </div>
+      )}
     </div>
   )
 }
