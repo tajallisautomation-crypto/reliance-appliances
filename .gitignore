@@ -16,3 +16,4 @@ check_api.mjs
 diag_products.js
 Appliance Reliance
 test-project
+.worktrees/
