@@ -4105,6 +4105,7 @@ async function generateQuotationPdf(opts: {
   installationLines: Array<{ name: string; amount: number }>;
   advancePct: number;
   balanceNote: string;
+  showNtn?: boolean;
 }): Promise<Blob> {
   const ORANGE = '#EA580C';
   const DARK   = '#1A1A1A';
@@ -4358,29 +4359,36 @@ async function generateQuotationPdf(opts: {
 
   if (qrData) {
     const qrSize = 18;
-    doc.addImage(qrData, 'JPEG', bdX + bdW - qrSize - 2, boxY + 3, qrSize, qrSize);
+    const qrX = bdX + bdW - qrSize - 2;
+    doc.addImage(qrData, 'JPEG', qrX, boxY + 3, qrSize, qrSize);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(120, 120, 120);
+    doc.text('Scan to Pay (Raast)', qrX + qrSize / 2, boxY + 3 + qrSize + 3, { align: 'center' });
   }
 
   y = boxY + boxH + 6;
 
-  // ── 8. CTA line ───────────────────────────────────────────────────────────
-  doc.setFontSize(8); doc.setTextColor(234, 88, 12);
-  const ctaPrefix = 'To confirm order, share deposit slip on WhatsApp: ';
-  const ctaPhone  = '+92 370 2578788';
-  doc.setFont('helvetica', 'normal');
-  const prefixW = doc.getTextWidth(ctaPrefix);
-  doc.setFont('helvetica', 'bold');
-  const phoneW = doc.getTextWidth(ctaPhone);
-  const ctaStartX = W / 2 - (prefixW + phoneW) / 2;
-  doc.setFont('helvetica', 'normal');
-  doc.text(ctaPrefix, ctaStartX, y);
-  doc.setFont('helvetica', 'bold');
-  doc.text(ctaPhone, ctaStartX + prefixW, y);
+  // ── 8. CTA line (only when balance is still outstanding) ─────────────────
+  if (balanceAmt > 0) {
+    doc.setFontSize(8); doc.setTextColor(234, 88, 12);
+    const ctaPrefix = 'To confirm payment, share deposit slip on WhatsApp: ';
+    const ctaPhone  = '+92 370 2578788';
+    doc.setFont('helvetica', 'normal');
+    const prefixW = doc.getTextWidth(ctaPrefix);
+    doc.setFont('helvetica', 'bold');
+    const phoneW = doc.getTextWidth(ctaPhone);
+    const ctaStartX = W / 2 - (prefixW + phoneW) / 2;
+    doc.setFont('helvetica', 'normal');
+    doc.text(ctaPrefix, ctaStartX, y);
+    doc.setFont('helvetica', 'bold');
+    doc.text(ctaPhone, ctaStartX + prefixW, y);
+  }
 
   // ── 9. T&C + Footer ───────────────────────────────────────────────────────
   const tcItems = [
     '1. Warranty: All products carry official brand warranty. Tajalli\'s facilitates claims; final approval rests with the manufacturer.',
-    '2. After-Sales: Units installed by our team receive complete 360° support including repair and parts facilitation.',
+    opts.installationType === 'installation-included'
+      ? '2. After-Sales: Units installed by our team receive complete 360° support including repair and parts facilitation.'
+      : '2. After-Sales: Tajalli\'s provides facilitation support for warranty claims and spare parts coordination.',
     '3. Delivery Risk: For Supply Only orders, customer assumes liability upon secure handover at delivery address.',
     '4. Returns: Physical damage claims must be reported within 24 hours of delivery. Goods are non-refundable once unboxed.',
     opts.docType === 'invoice'
@@ -4401,7 +4409,10 @@ async function generateQuotationPdf(opts: {
     });
   }
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
-  doc.text('tajallis.com.pk  |  support@tajallis.com.pk  |  NTN: 42101-3836602-3', W / 2, footerY + 6, { align: 'center' });
+  const footerText = opts.showNtn
+    ? 'tajallis.com.pk  |  support@tajallis.com.pk  |  NTN: 42101-3836602-3'
+    : 'tajallis.com.pk  |  support@tajallis.com.pk';
+  doc.text(footerText, W / 2, footerY + 6, { align: 'center' });
 
   return doc.output('blob');
 }
@@ -4422,6 +4433,7 @@ async function generateInstallmentAdvancePdf(opts: {
   instMonths: number;
   instMonthlyAmt: number;
   instFirstDate: string;
+  showNtn?: boolean;
 }): Promise<Blob> {
   const ORANGE = '#EA580C';
   const DARK   = '#1A1A1A';
@@ -4607,7 +4619,7 @@ async function generateInstallmentAdvancePdf(opts: {
     margin, footerY, { maxWidth: printW }
   );
   doc.setFontSize(7);
-  doc.text('tajallis.com.pk  |  support@tajallis.com.pk  |  NTN: 42101-3836602-3', W / 2, footerY + 6, { align: 'center' });
+  doc.text(opts.showNtn ? 'tajallis.com.pk  |  support@tajallis.com.pk  |  NTN: 42101-3836602-3' : 'tajallis.com.pk  |  support@tajallis.com.pk', W / 2, footerY + 6, { align: 'center' });
 
   return doc.output('blob');
 }
@@ -4627,6 +4639,7 @@ async function generateInstallmentPaymentPdf(opts: {
   instMonthlyAmt: number;
   instFirstDate: string;
   paymentNumber: number;
+  showNtn?: boolean;
 }): Promise<Blob> {
   const ORANGE = '#EA580C';
   const DARK   = '#1A1A1A';
@@ -4814,7 +4827,7 @@ async function generateInstallmentPaymentPdf(opts: {
     margin, footerY, { maxWidth: printW }
   );
   doc.setFontSize(7);
-  doc.text('tajallis.com.pk  |  support@tajallis.com.pk  |  NTN: 42101-3836602-3', W / 2, footerY + 6, { align: 'center' });
+  doc.text(opts.showNtn ? 'tajallis.com.pk  |  support@tajallis.com.pk  |  NTN: 42101-3836602-3' : 'tajallis.com.pk  |  support@tajallis.com.pk', W / 2, footerY + 6, { align: 'center' });
 
   return doc.output('blob');
 }
@@ -4935,6 +4948,7 @@ function QuotationTab({ products }: { products: Product[] }) {
   const [laborAmt, setLaborAmt]       = useState(0);
   const [advancePct, setAdvancePct]   = useState(70);
   const [balanceNote, setBalanceNote] = useState('delivery');
+  const [showNtn, setShowNtn]         = useState(false);
   // ── Installment invoice state ──
   const [instTotalPrice, setInstTotalPrice]     = useState(0);
   const [instAdvanceAmt, setInstAdvanceAmt]     = useState(0);
@@ -5141,7 +5155,7 @@ function QuotationTab({ products }: { products: Product[] }) {
             ...(laborAmt > 0 ? [{ name: 'Installation Labour', amount: laborAmt }] : []),
           ]
         : [];
-      const blob = await generateQuotationPdf({ customerName, customerPhone: customerPhone.replace(/\D/g, ''), customerEmail, customerAddress, customerCnic, lines, discount, docType: docType as 'quotation' | 'invoice', refNumber, installationType, installationLines: instLines, advancePct, balanceNote });
+      const blob = await generateQuotationPdf({ customerName, customerPhone: customerPhone.replace(/\D/g, ''), customerEmail, customerAddress, customerCnic, lines, discount, docType: docType as 'quotation' | 'invoice', refNumber, installationType, installationLines: instLines, advancePct, balanceNote, showNtn });
       clearTimeout(timeout);
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
@@ -5166,7 +5180,7 @@ function QuotationTab({ products }: { products: Product[] }) {
         customerName, customerPhone: customerPhone.replace(/\D/g, ''),
         customerEmail, customerAddress, customerCnic,
         lines, discount, refNumber,
-        instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate,
+        instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, showNtn,
       });
       clearTimeout(timeout);
       const url = URL.createObjectURL(blob);
@@ -5191,7 +5205,7 @@ function QuotationTab({ products }: { products: Product[] }) {
         customerEmail, customerAddress, customerCnic,
         lines, discount, refNumber,
         instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate,
-        paymentNumber: instPaymentNumber,
+        paymentNumber: instPaymentNumber, showNtn,
       });
       clearTimeout(timeout);
       const url = URL.createObjectURL(blob);
@@ -5388,6 +5402,11 @@ function QuotationTab({ products }: { products: Product[] }) {
                   className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
                 />
               </div>
+              <label className="flex items-center gap-2 cursor-pointer w-fit">
+                <input type="checkbox" checked={showNtn} onChange={e => setShowNtn(e.target.checked)}
+                  className="w-4 h-4 accent-orange-500 rounded" />
+                <span className="text-xs text-gray-500">Include NTN in footer</span>
+              </label>
             </div>
           )}
 
