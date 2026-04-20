@@ -4321,7 +4321,28 @@ async function generateQuotationPdf(opts: {
         margin + 3, y + 15, { maxWidth: printW - 6 }
       );
     }
-    y += disclaimerH + 5;
+    y += disclaimerH + 2;
+
+    // ── Green Corridor block ──────────────────────────────────────────────────
+    const annualUnits   = Math.round(inverterKW * 1500);           // kWh/yr (5 peak hrs × 300 days)
+    const annualCO2     = (inverterKW * 1500 * 0.42 / 1000).toFixed(2); // tons CO2/yr (Pak grid factor)
+    const annualSavings = Math.round(inverterKW * 1500 * 55);      // PKR/yr @ PKR 55/kWh blended
+    const gcH = 18;
+    doc.setFillColor(240, 253, 244);
+    doc.rect(margin, y, printW, gcH, 'F');
+    doc.setDrawColor(22, 163, 74); doc.setLineWidth(0.8);
+    doc.line(margin, y, margin, y + gcH);
+    doc.setLineWidth(0.2);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(22, 101, 52);
+    doc.text('Green Corridor — Est. Annual Impact', margin + 3, y + 5);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(21, 128, 61);
+    doc.text(
+      `~${annualUnits} kWh generated/yr  ·  ${annualCO2} tons CO₂ offset  ·  est. PKR ${annualSavings.toLocaleString('en-PK')} saved on electricity bills`,
+      margin + 3, y + 10, { maxWidth: printW - 60 }
+    );
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(6.5); doc.setTextColor(100, 150, 100);
+    doc.text('Full ROI simulation → tajallis.com.pk/solar', margin + 3, y + 15);
+    y += gcH + 5;
   }
 
   // ── 7. Scope of Work + Payment Terms + Bank Details ────────────────────────
