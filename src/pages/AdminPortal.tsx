@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useDeferredValue, useCallback } from 'react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import QRCode from 'qrcode';
 import { signIn, signUp, resetPasswordForEmail, updatePassword } from '@/lib/auth';
 import { useAuthStore } from '@/store/authStore';
 import { supabase } from '@/lib/supabase';
@@ -4091,6 +4092,10 @@ async function loadQrBase64(): Promise<string> {
   });
 }
 
+async function generateQrDataUrl(text: string): Promise<string> {
+  return QRCode.toDataURL(text, { width: 120, margin: 1, color: { dark: '#1A1A1A', light: '#FFFFFF' } });
+}
+
 async function generateQuotationPdf(opts: {
   customerName: string;
   customerPhone: string;
@@ -4125,6 +4130,9 @@ async function generateQuotationPdf(opts: {
 
   let qrData: string | null = null;
   try { qrData = await loadQrBase64(); } catch { /* skip QR */ }
+
+  let fbQrData: string | null = null;
+  try { fbQrData = await generateQrDataUrl('https://www.facebook.com/share/g/18be5ayTCF/'); } catch { /* skip */ }
 
   // ── 1. Header band (40mm) ──────────────────────────────────────────────────
   doc.setFillColor(ORANGE);
@@ -4229,6 +4237,7 @@ async function generateQuotationPdf(opts: {
     for (const inst of opts.installationLines) {
       tableBody.push([inst.name, 'Professional setup', '1 yr workmanship', '1', PKR(inst.amount), PKR(inst.amount)]);
     }
+    tableBody.push(['Complimentary Post-Installation Check', 'Site inspection & performance verification', 'N/A', '1', 'Complimentary', 'PKR 0']);
   }
 
   autoTable(doc, {
@@ -4342,7 +4351,7 @@ async function generateQuotationPdf(opts: {
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(40, 40, 40);
   doc.text(`Advance: ${opts.advancePct}%  —  ${PKR(advanceAmt)}`, ptX + 3, boxY + 13);
   doc.text(`Balance: ${100 - opts.advancePct}%  —  ${PKR(balanceAmt)}`, ptX + 3, boxY + 19);
-  doc.setTextColor(120, 120, 120);
+  doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 20, 20);
   doc.text(`Due on ${opts.balanceNote || 'delivery'}`, ptX + 3, boxY + 25);
 
   const bdX = ptX + ptW + 3;
@@ -4398,15 +4407,27 @@ async function generateQuotationPdf(opts: {
   const footerY = 282;
   const tcStartY = Math.min(y + 4, footerY - 28);
   if (tcStartY < footerY - 8) {
+    const fbQrSize = 20;
+    const tcH = Math.min(footerY - tcStartY - 2, 28);
     doc.setFillColor(249, 250, 251);
-    doc.rect(margin, tcStartY, printW, Math.min(footerY - tcStartY - 2, 28), 'F');
+    doc.rect(margin, tcStartY, printW, tcH, 'F');
     doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(100, 100, 100);
     doc.text('TERMS & CONDITIONS', margin + 3, tcStartY + 5);
+    const tcTextMaxW = fbQrData ? printW - fbQrSize - 10 : printW - 6;
     doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(120, 120, 120);
     tcItems.forEach((t, i) => {
       const lineY = tcStartY + 10 + i * 4;
-      if (lineY < footerY - 4) doc.text(t, margin + 3, lineY, { maxWidth: printW - 6 });
+      if (lineY < footerY - 4) doc.text(t, margin + 3, lineY, { maxWidth: tcTextMaxW });
     });
+    if (fbQrData) {
+      const fbQrX = margin + printW - fbQrSize - 2;
+      const fbQrY = tcStartY + (tcH - fbQrSize - 6) / 2;
+      doc.addImage(fbQrData, 'PNG', fbQrX, fbQrY, fbQrSize, fbQrSize);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(24, 119, 242);
+      doc.text('Join Community', fbQrX + fbQrSize / 2, fbQrY + fbQrSize + 3, { align: 'center' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(120, 120, 120);
+      doc.text('1,600+ members', fbQrX + fbQrSize / 2, fbQrY + fbQrSize + 6.5, { align: 'center' });
+    }
   }
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
   const footerText = opts.showNtn
