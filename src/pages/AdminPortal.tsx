@@ -4094,6 +4094,9 @@ async function loadQrBase64(): Promise<string> {
 async function generateQuotationPdf(opts: {
   customerName: string;
   customerPhone: string;
+  customerEmail: string;
+  customerAddress: string;
+  customerCnic: string;
   lines: QuoteLine[];
   discount: number;
   docType: 'quotation' | 'invoice';
@@ -4161,15 +4164,19 @@ async function generateQuotationPdf(opts: {
   y += 14;
 
   // ── 3. Customer block ──────────────────────────────────────────────────────
+  const extraLines = [opts.customerEmail, opts.customerAddress, opts.customerCnic ? `CNIC: ${opts.customerCnic}` : ''].filter(Boolean);
+  const custH = 20 + extraLines.length * 5;
   doc.setFillColor(255, 247, 237);
-  doc.rect(margin, y, printW, 20, 'F');
+  doc.rect(margin, y, printW, custH, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(234, 88, 12);
   doc.text('BILL TO', margin + 4, y + 6);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(20, 20, 20);
   doc.text(opts.customerName || '—', margin + 4, y + 13);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(100, 100, 100);
-  if (opts.customerPhone) doc.text(opts.customerPhone, margin + 4, y + 18);
-  y += 24;
+  let custY = y + 18;
+  if (opts.customerPhone) { doc.text(opts.customerPhone, margin + 4, custY); custY += 5; }
+  for (const line of extraLines) { doc.text(line, margin + 4, custY); custY += 5; }
+  y += custH + 4;
 
   // ── 4. Item table (grouped by category) ───────────────────────────────────
   const productSubtotal  = opts.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
@@ -4209,14 +4216,17 @@ async function generateQuotationPdf(opts: {
     }
   }
 
+  // Delivery service row (always shown)
+  tableBody.push([{
+    content: 'SERVICES',
+    colSpan: 6,
+    styles: { fillColor: [26, 26, 26], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 } },
+  }]);
+  tableBody.push(['Delivery & Last-Mile Logistics', 'Secure transit to premises', 'N/A', '1', 'Included', 'PKR 0']);
+
   if (opts.installationType === 'installation-included' && opts.installationLines.length > 0) {
-    tableBody.push([{
-      content: 'INSTALLATION',
-      colSpan: 6,
-      styles: { fillColor: [26, 26, 26], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 } },
-    }]);
     for (const inst of opts.installationLines) {
-      tableBody.push([inst.name, '—', '—', '1', PKR(inst.amount), PKR(inst.amount)]);
+      tableBody.push([inst.name, 'Professional setup', '1 yr workmanship', '1', PKR(inst.amount), PKR(inst.amount)]);
     }
   }
 
@@ -4367,15 +4377,30 @@ async function generateQuotationPdf(opts: {
   doc.setFont('helvetica', 'bold');
   doc.text(ctaPhone, ctaStartX + prefixW, y);
 
-  // ── 9. Footer ─────────────────────────────────────────────────────────────
+  // ── 9. T&C + Footer ───────────────────────────────────────────────────────
+  const tcItems = [
+    '1. Warranty: All products carry official brand warranty. Tajalli\'s facilitates claims; final approval rests with the manufacturer.',
+    '2. After-Sales: Units installed by our team receive complete 360° support including repair and parts facilitation.',
+    '3. Delivery Risk: For Supply Only orders, customer assumes liability upon secure handover at delivery address.',
+    '4. Returns: Physical damage claims must be reported within 24 hours of delivery. Goods are non-refundable once unboxed.',
+    opts.docType === 'invoice'
+      ? '5. Payment: Thank you for your business. Payment terms as agreed at time of sale.'
+      : '5. Validity: This quotation is valid for 7 days. Prices subject to availability. Advance required to confirm order.',
+  ];
   const footerY = 282;
-  const terms = opts.docType === 'invoice'
-    ? 'Thank you for your business. All products carry official brand warranty. Payment terms as agreed.'
-    : 'This quotation is valid for 7 days. Prices subject to availability. Advance payment required to confirm order.';
-
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(150, 150, 150);
-  doc.text(terms, margin, footerY, { maxWidth: printW });
-  doc.setFontSize(7);
+  const tcStartY = Math.min(y + 4, footerY - 28);
+  if (tcStartY < footerY - 8) {
+    doc.setFillColor(249, 250, 251);
+    doc.rect(margin, tcStartY, printW, Math.min(footerY - tcStartY - 2, 28), 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(100, 100, 100);
+    doc.text('TERMS & CONDITIONS', margin + 3, tcStartY + 5);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(120, 120, 120);
+    tcItems.forEach((t, i) => {
+      const lineY = tcStartY + 10 + i * 4;
+      if (lineY < footerY - 4) doc.text(t, margin + 3, lineY, { maxWidth: printW - 6 });
+    });
+  }
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
   doc.text('tajallis.com.pk  |  support@tajallis.com.pk  |  NTN: 42101-3836602-3', W / 2, footerY + 6, { align: 'center' });
 
   return doc.output('blob');
@@ -4386,6 +4411,9 @@ async function generateQuotationPdf(opts: {
 async function generateInstallmentAdvancePdf(opts: {
   customerName: string;
   customerPhone: string;
+  customerEmail: string;
+  customerAddress: string;
+  customerCnic: string;
   lines: QuoteLine[];
   discount: number;
   refNumber: string;
@@ -4448,15 +4476,19 @@ async function generateInstallmentAdvancePdf(opts: {
   y += 14;
 
   // ── 3. Customer block ──────────────────────────────────────────────────────
+  const extraLinesAdv = [opts.customerEmail, opts.customerAddress, opts.customerCnic ? `CNIC: ${opts.customerCnic}` : ''].filter(Boolean);
+  const custHAdv = 20 + extraLinesAdv.length * 5;
   doc.setFillColor(255, 247, 237);
-  doc.rect(margin, y, printW, 20, 'F');
+  doc.rect(margin, y, printW, custHAdv, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(234, 88, 12);
   doc.text('BILL TO', margin + 4, y + 6);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(20, 20, 20);
   doc.text(opts.customerName || '—', margin + 4, y + 13);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(100, 100, 100);
-  if (opts.customerPhone) doc.text(opts.customerPhone, margin + 4, y + 18);
-  y += 24;
+  let custYAdv = y + 18;
+  if (opts.customerPhone) { doc.text(opts.customerPhone, margin + 4, custYAdv); custYAdv += 5; }
+  for (const line of extraLinesAdv) { doc.text(line, margin + 4, custYAdv); custYAdv += 5; }
+  y += custHAdv + 4;
 
   // ── 4. Products table ──────────────────────────────────────────────────────
   const productSubtotal = opts.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
@@ -4583,6 +4615,9 @@ async function generateInstallmentAdvancePdf(opts: {
 async function generateInstallmentPaymentPdf(opts: {
   customerName: string;
   customerPhone: string;
+  customerEmail: string;
+  customerAddress: string;
+  customerCnic: string;
   lines: QuoteLine[];
   discount: number;
   refNumber: string;
@@ -4652,15 +4687,19 @@ async function generateInstallmentPaymentPdf(opts: {
   y += 14;
 
   // ── 3. Customer block ──────────────────────────────────────────────────────
+  const extraLinesPay = [opts.customerEmail, opts.customerAddress, opts.customerCnic ? `CNIC: ${opts.customerCnic}` : ''].filter(Boolean);
+  const custHPay = 20 + extraLinesPay.length * 5;
   doc.setFillColor(255, 247, 237);
-  doc.rect(margin, y, printW, 20, 'F');
+  doc.rect(margin, y, printW, custHPay, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(234, 88, 12);
   doc.text('BILL TO', margin + 4, y + 6);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(20, 20, 20);
   doc.text(opts.customerName || '—', margin + 4, y + 13);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(100, 100, 100);
-  if (opts.customerPhone) doc.text(opts.customerPhone, margin + 4, y + 18);
-  y += 24;
+  let custYPay = y + 18;
+  if (opts.customerPhone) { doc.text(opts.customerPhone, margin + 4, custYPay); custYPay += 5; }
+  for (const line of extraLinesPay) { doc.text(line, margin + 4, custYPay); custYPay += 5; }
+  y += custHPay + 4;
 
   // ── 4. Payment highlight box ───────────────────────────────────────────────
   const phH = 28;
@@ -4873,9 +4912,12 @@ function isValidPhone(phone: string): boolean {
 }
 
 function QuotationTab({ products }: { products: Product[] }) {
-  const [customerName,  setCustomerName]  = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [docType, setDocType]             = useState<'quotation' | 'invoice' | 'installment-invoice'>('quotation');
+  const [customerName,    setCustomerName]    = useState('');
+  const [customerPhone,   setCustomerPhone]   = useState('');
+  const [customerEmail,   setCustomerEmail]   = useState('');
+  const [customerAddress, setCustomerAddress] = useState('');
+  const [customerCnic,    setCustomerCnic]    = useState('');
+  const [docType, setDocType]                 = useState<'quotation' | 'invoice' | 'installment-invoice'>('quotation');
   const [discount, setDiscount]           = useState(0);
   const [discountRaw, setDiscountRaw]     = useState('0');
   const [lines, setLines]                 = useState<QuoteLine[]>([]);
@@ -4953,7 +4995,8 @@ function QuotationTab({ products }: { products: Product[] }) {
     autosaveRef.current = setTimeout(() => {
       if (lines.length > 0 || customerName || customerPhone) {
         localStorage.setItem('reliance-invoice-draft', JSON.stringify({
-          lines, customerName, customerPhone, discount, discountRaw, docType, refNumber,
+          lines, customerName, customerPhone, customerEmail, customerAddress, customerCnic,
+          discount, discountRaw, docType, refNumber,
           installationType, elevatedStructureOn, elevatedStructureAmt, wiringAmt, laborAmt,
           advancePct, balanceNote,
           instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber,
@@ -4961,7 +5004,8 @@ function QuotationTab({ products }: { products: Product[] }) {
       }
     }, 1000);
     return () => { if (autosaveRef.current) clearTimeout(autosaveRef.current); };
-  }, [lines, customerName, customerPhone, discount, discountRaw, docType, refNumber,
+  }, [lines, customerName, customerPhone, customerEmail, customerAddress, customerCnic,
+      discount, discountRaw, docType, refNumber,
       installationType, elevatedStructureOn, elevatedStructureAmt, wiringAmt, laborAmt, advancePct, balanceNote,
       instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber]);
 
@@ -4971,8 +5015,11 @@ function QuotationTab({ products }: { products: Product[] }) {
       if (!saved) return;
       const draft = JSON.parse(saved);
       if (draft.lines)         setLines(draft.lines);
-      if (draft.customerName)  setCustomerName(draft.customerName);
-      if (draft.customerPhone) setCustomerPhone(draft.customerPhone);
+      if (draft.customerName)    setCustomerName(draft.customerName);
+      if (draft.customerPhone)   setCustomerPhone(draft.customerPhone);
+      if (draft.customerEmail)   setCustomerEmail(draft.customerEmail);
+      if (draft.customerAddress) setCustomerAddress(draft.customerAddress);
+      if (draft.customerCnic)    setCustomerCnic(draft.customerCnic);
       if (typeof draft.discount === 'number') { setDiscount(draft.discount); setDiscountRaw(String(draft.discount)); }
       if (draft.docType)       setDocType(draft.docType);
       if (draft.installationType) setInstallationType(draft.installationType);
@@ -5094,7 +5141,7 @@ function QuotationTab({ products }: { products: Product[] }) {
             ...(laborAmt > 0 ? [{ name: 'Installation Labour', amount: laborAmt }] : []),
           ]
         : [];
-      const blob = await generateQuotationPdf({ customerName, customerPhone: customerPhone.replace(/\D/g, ''), lines, discount, docType: docType as 'quotation' | 'invoice', refNumber, installationType, installationLines: instLines, advancePct, balanceNote });
+      const blob = await generateQuotationPdf({ customerName, customerPhone: customerPhone.replace(/\D/g, ''), customerEmail, customerAddress, customerCnic, lines, discount, docType: docType as 'quotation' | 'invoice', refNumber, installationType, installationLines: instLines, advancePct, balanceNote });
       clearTimeout(timeout);
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
@@ -5117,6 +5164,7 @@ function QuotationTab({ products }: { products: Product[] }) {
     try {
       const blob = await generateInstallmentAdvancePdf({
         customerName, customerPhone: customerPhone.replace(/\D/g, ''),
+        customerEmail, customerAddress, customerCnic,
         lines, discount, refNumber,
         instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate,
       });
@@ -5140,6 +5188,7 @@ function QuotationTab({ products }: { products: Product[] }) {
     try {
       const blob = await generateInstallmentPaymentPdf({
         customerName, customerPhone: customerPhone.replace(/\D/g, ''),
+        customerEmail, customerAddress, customerCnic,
         lines, discount, refNumber,
         instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate,
         paymentNumber: instPaymentNumber,
@@ -5247,6 +5296,18 @@ function QuotationTab({ products }: { products: Product[] }) {
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-red-400 text-xs font-bold">✗</span>
             )}
           </div>
+          <input value={customerEmail} onChange={e => setCustomerEmail(e.target.value)}
+            placeholder="Email (optional)"
+            type="email"
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          <input value={customerAddress} onChange={e => setCustomerAddress(e.target.value)}
+            placeholder="Delivery address (optional)"
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          {docType === 'installment-invoice' && (
+            <input value={customerCnic} onChange={e => setCustomerCnic(e.target.value)}
+              placeholder="CNIC (required for installment)"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          )}
           {/* Discount input with normalization */}
           <div className="flex items-center gap-3">
             <label className="text-xs font-semibold text-gray-600 shrink-0">Discount %</label>
