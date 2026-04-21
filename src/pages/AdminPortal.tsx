@@ -4051,6 +4051,78 @@ const LEAD_STATUS_COLORS: Record<string, string> = {
 // Generates branded PDF quotations and invoices, shareable via WhatsApp.
 // Uses the same jsPDF pattern as the solar proposal generator.
 
+interface InvoiceLogPayload {
+  refNumber:      string;
+  docType:        'quotation' | 'invoice' | 'installment-invoice';
+  customerName:   string;
+  customerPhone:  string;
+  customerEmail:  string;
+  customerAddress:string;
+  customerCnic:   string;
+  lines:          QuoteLine[];
+  discount:       number;
+  discountType:   string;
+  grandTotal:     number;
+  advancePct:     number;
+  instTotalPrice: number;
+  instAdvanceAmt: number;
+  instMonths:     number;
+  instMonthlyAmt: number;
+}
+
+async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<void> {
+  try {
+    const subtotal = payload.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+    const { data: inv, error: invErr } = await supabase
+      .from('invoices')
+      .insert({
+        ref_number:       payload.refNumber,
+        doc_type:         payload.docType,
+        customer_name:    payload.customerName || null,
+        customer_phone:   payload.customerPhone || null,
+        customer_email:   payload.customerEmail || null,
+        customer_address: payload.customerAddress || null,
+        customer_cnic:    payload.customerCnic || null,
+        subtotal,
+        discount_pct:     payload.discount,
+        discount_type:    payload.discountType,
+        grand_total:      payload.grandTotal,
+        advance_pct:      payload.advancePct,
+        inst_total_price: payload.instTotalPrice || null,
+        inst_advance_amt: payload.instAdvanceAmt || null,
+        inst_months:      payload.instMonths || null,
+        inst_monthly_amt: payload.instMonthlyAmt || null,
+        payment_status:   'pending',
+      })
+      .select('id')
+      .single();
+
+    if (invErr || !inv) {
+      console.warn('[invoice-log] Failed to log invoice header:', invErr?.message);
+      return;
+    }
+
+    const lineRows = payload.lines.map(l => ({
+      invoice_id:    inv.id,
+      product_id:    l.id,
+      name:          l.name,
+      model:         l.model,
+      category:      l.category,
+      qty:           l.qty,
+      unit_price:    l.unitPrice,
+      line_total:    l.qty * l.unitPrice,
+      kwh_per_month: l.kwhPerMonth || null,
+      warranty:      l.warranty || null,
+      key_spec:      l.keySpec || null,
+    }));
+
+    const { error: lineErr } = await supabase.from('invoice_lines').insert(lineRows);
+    if (lineErr) console.warn('[invoice-log] Failed to log invoice lines:', lineErr.message);
+  } catch (e) {
+    console.warn('[invoice-log] Unexpected error:', e);
+  }
+}
+
 interface QuoteLine {
   id: string;
   name: string;
@@ -5022,6 +5094,248 @@ function isValidPhone(phone: string): boolean {
   return digits.length === 12 && digits.startsWith('923');
 }
 
+// ── Invoice History Tab ───────────────────────────────────────────────────────
+
+type InvoiceRow = {
+  id: string;
+  ref_number: string;
+  doc_type: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  customer_email: string | null;
+  subtotal: number;
+  discount_pct: number;
+  discount_type: string | null;
+  grand_total: number;
+  payment_status: string;
+  created_at: string;
+  invoice_lines?: Array<{ name: string; qty: number; unit_price: number }>;
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  pending:  'bg-yellow-100 text-yellow-800',
+  partial:  'bg-blue-100 text-blue-800',
+  paid:     'bg-green-100 text-green-800',
+  overdue:  'bg-red-100 text-red-800',
+};
+
+function InvoiceHistoryTab() {
+  const [rows, setRows]               = useState<InvoiceRow[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState('');
+  const [dateFrom, setDateFrom]       = useState('');
+  const [dateTo, setDateTo]           = useState('');
+  const [search, setSearch]           = useState('');
+  const [docTypeFilter, setDocTypeFilter] = useState('');
+  const [statusFilter, setStatusFilter]   = useState('');
+  const [expanded, setExpanded]       = useState<string | null>(null);
+  const [updatingId, setUpdatingId]   = useState<string | null>(null);
+
+  async function fetchInvoices() {
+    setLoading(true); setError('');
+    try {
+      let q = supabase
+        .from('invoices')
+        .select('*, invoice_lines(name, qty, unit_price)')
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      if (dateFrom) q = q.gte('created_at', dateFrom);
+      if (dateTo)   q = q.lte('created_at', dateTo + 'T23:59:59');
+      if (docTypeFilter) q = q.eq('doc_type', docTypeFilter);
+      if (statusFilter)  q = q.eq('payment_status', statusFilter);
+
+      const { data, error: err } = await q;
+      if (err) { setError(err.message); setLoading(false); return; }
+
+      let filtered = (data ?? []) as InvoiceRow[];
+      if (search.trim()) {
+        const q2 = search.toLowerCase();
+        filtered = filtered.filter(r =>
+          (r.customer_name?.toLowerCase().includes(q2)) ||
+          (r.customer_phone?.includes(q2)) ||
+          (r.ref_number?.toLowerCase().includes(q2))
+        );
+      }
+      setRows(filtered);
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to load invoices');
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => { fetchInvoices(); }, [dateFrom, dateTo, docTypeFilter, statusFilter]);
+
+  async function updateStatus(id: string, status: string) {
+    setUpdatingId(id);
+    await supabase.from('invoices').update({ payment_status: status }).eq('id', id);
+    setRows(rs => rs.map(r => r.id === id ? { ...r, payment_status: status } : r));
+    setUpdatingId(null);
+  }
+
+  const PKR = (n: number) => `PKR ${Math.round(n).toLocaleString('en-PK')}`;
+
+  const filtered = search.trim()
+    ? rows.filter(r => {
+        const q2 = search.toLowerCase();
+        return (r.customer_name?.toLowerCase().includes(q2)) ||
+               (r.customer_phone?.includes(q2)) ||
+               (r.ref_number?.toLowerCase().includes(q2));
+      })
+    : rows;
+
+  const totalRevenue = filtered
+    .filter(r => r.payment_status === 'paid')
+    .reduce((s, r) => s + (r.grand_total ?? 0), 0);
+
+  return (
+    <div className="space-y-5">
+      {/* ── Filters ── */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-4">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Filter Invoices</p>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+            placeholder="From"
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+            placeholder="To"
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Name / phone / ref…"
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          <select value={docTypeFilter} onChange={e => setDocTypeFilter(e.target.value)}
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
+            <option value="">All types</option>
+            <option value="quotation">Quotation</option>
+            <option value="invoice">Invoice</option>
+            <option value="installment-invoice">Installment</option>
+          </select>
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
+            <option value="">All statuses</option>
+            <option value="pending">Pending</option>
+            <option value="partial">Partial</option>
+            <option value="paid">Paid</option>
+            <option value="overdue">Overdue</option>
+          </select>
+        </div>
+        <button onClick={fetchInvoices}
+          className="mt-3 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-xl transition-colors">
+          Refresh
+        </button>
+      </div>
+
+      {/* ── Summary bar ── */}
+      {filtered.length > 0 && (
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            { label: 'Documents', value: filtered.length },
+            { label: 'Paid Revenue', value: PKR(totalRevenue) },
+            { label: 'Pending / Overdue', value: filtered.filter(r => r.payment_status === 'pending' || r.payment_status === 'overdue').length },
+          ].map(s => (
+            <div key={s.label} className="bg-white rounded-2xl border border-gray-100 p-4">
+              <p className="text-xs text-gray-400 font-medium">{s.label}</p>
+              <p className="text-xl font-black text-gray-900 mt-1">{s.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Table ── */}
+      {error ? (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
+          <p className="text-red-700 font-semibold text-sm">Failed to load: {error}</p>
+          <p className="text-red-500 text-xs mt-1">Run the migration <code>20260420_invoice_log.sql</code> in Supabase first.</p>
+        </div>
+      ) : loading ? (
+        <div className="text-center py-12 text-gray-400 text-sm">Loading invoice history…</div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-12 text-gray-400 text-sm">No invoices match your filters.</div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                {['Ref', 'Date', 'Customer', 'Type', 'Total', 'Status', 'Actions'].map(h => (
+                  <th key={h} className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(row => (
+                <>
+                  <tr key={row.id}
+                    className="border-b border-gray-50 hover:bg-orange-50/30 transition-colors cursor-pointer"
+                    onClick={() => setExpanded(expanded === row.id ? null : row.id)}>
+                    <td className="px-4 py-3 font-mono text-xs text-gray-700">{row.ref_number}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500">
+                      {new Date(row.created_at).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="font-semibold text-gray-900 text-xs">{row.customer_name || '—'}</p>
+                      {row.customer_phone && <p className="text-[10px] text-gray-400">{row.customer_phone}</p>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-block bg-gray-100 text-gray-600 text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize">
+                        {row.doc_type?.replace('-', ' ')}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-bold text-gray-900 text-xs">{PKR(row.grand_total ?? 0)}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${STATUS_COLORS[row.payment_status] ?? 'bg-gray-100 text-gray-500'}`}>
+                        {row.payment_status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={row.payment_status}
+                        onClick={e => e.stopPropagation()}
+                        onChange={e => updateStatus(row.id, e.target.value)}
+                        disabled={updatingId === row.id}
+                        className="border border-gray-200 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-orange-400">
+                        <option value="pending">Pending</option>
+                        <option value="partial">Partial</option>
+                        <option value="paid">Paid</option>
+                        <option value="overdue">Overdue</option>
+                      </select>
+                    </td>
+                  </tr>
+                  {expanded === row.id && (
+                    <tr key={`${row.id}-exp`} className="bg-orange-50/40">
+                      <td colSpan={7} className="px-6 py-4">
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-xs font-bold text-gray-500 mb-2">LINE ITEMS</p>
+                            <div className="space-y-1">
+                              {(row.invoice_lines ?? []).map((l, i) => (
+                                <div key={i} className="flex justify-between text-xs text-gray-700">
+                                  <span>{l.name} × {l.qty}</span>
+                                  <span className="font-semibold">{PKR(l.qty * l.unit_price)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="space-y-1 text-xs">
+                            <p className="font-bold text-gray-500 mb-2">DETAILS</p>
+                            {row.discount_pct > 0 && (
+                              <p className="text-orange-600">{row.discount_type ?? 'Discount'}: {row.discount_pct}% — saving {PKR((row.subtotal ?? 0) * row.discount_pct / 100)}</p>
+                            )}
+                            {row.customer_email && <p className="text-gray-600">Email: {row.customer_email}</p>}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function QuotationTab({ products }: { products: Product[] }) {
   const [customerName,    setCustomerName]    = useState('');
   const [customerPhone,   setCustomerPhone]   = useState('');
@@ -5272,6 +5586,14 @@ function QuotationTab({ products }: { products: Product[] }) {
       setPdfUrl(url);
       const a = document.createElement('a');
       a.href = url; a.download = `tajallis_${docType}_${refNumber}.pdf`; a.click();
+      const logPayload: InvoiceLogPayload = {
+        refNumber, docType: docType as 'quotation' | 'invoice',
+        customerName, customerPhone: customerPhone.replace(/\D/g, ''),
+        customerEmail, customerAddress, customerCnic,
+        lines, discount, discountType, grandTotal, advancePct,
+        instTotalPrice: 0, instAdvanceAmt: 0, instMonths: 0, instMonthlyAmt: 0,
+      };
+      logInvoiceToSupabase(logPayload); // fire-and-forget
       setPdfState('success');
       setGenerating(false);
       setTimeout(() => setPdfState('idle'), 3000);
@@ -5298,6 +5620,14 @@ function QuotationTab({ products }: { products: Product[] }) {
       const a = document.createElement('a');
       a.href = url; a.download = `tajallis_advance_invoice_${refNumber}.pdf`; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
+      const instGrandTotal = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0) * (1 - discount / 100);
+      logInvoiceToSupabase({
+        refNumber, docType: 'installment-invoice',
+        customerName, customerPhone: customerPhone.replace(/\D/g, ''),
+        customerEmail, customerAddress, customerCnic,
+        lines, discount, discountType: discountType, grandTotal: Math.round(instGrandTotal), advancePct: 0,
+        instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt,
+      });
       setInstAdvPdfState('success');
       setTimeout(() => setInstAdvPdfState('idle'), 3000);
     } catch {
@@ -7634,8 +7964,8 @@ export default function AdminPortal() {
   const [deleteId, setDeleteId]   = useState<string | null>(null);
   const [deleting, setDeleting]   = useState(false);
   const [quickImg, setQuickImg]   = useState<Product | null>(null);
-  type AdminTab = 'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'quotation' | 'settings' | 'schema' | 'audit' | 'catalog' | 'solar' | 'compatibility';
-  const VALID_TABS: AdminTab[] = ['products','images','import','tools','qc','reviews','leads','orders','enquiries','quotation','settings','schema','audit','catalog','solar','compatibility'];
+  type AdminTab = 'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'quotation' | 'invoices' | 'settings' | 'schema' | 'audit' | 'catalog' | 'solar' | 'compatibility';
+  const VALID_TABS: AdminTab[] = ['products','images','import','tools','qc','reviews','leads','orders','enquiries','quotation','invoices','settings','schema','audit','catalog','solar','compatibility'];
   const tabFromHash = (): AdminTab => {
     const h = window.location.hash.slice(1) as AdminTab;
     return VALID_TABS.includes(h) ? h : 'products';
@@ -7906,6 +8236,7 @@ export default function AdminPortal() {
             { id: 'orders',    label: 'Orders',      group: 'crm' },
             { id: 'enquiries', label: 'Enquiries',   group: 'crm' },
             { id: 'quotation', label: '📄 Quotation', group: 'crm' },
+            { id: 'invoices',  label: '🗂 Invoice Log', group: 'crm' },
             { id: 'reviews',   label: 'Reviews',     group: 'crm' },
             { id: 'solar',     label: '☀️ Solar Leads', group: 'crm' },
             { id: 'leads',     label: 'Partners',    group: 'crm' },
@@ -7945,6 +8276,8 @@ export default function AdminPortal() {
           <EnquiriesTab />
         ) : tab === 'quotation' ? (
           <QuotationTab products={products} />
+        ) : tab === 'invoices' ? (
+          <InvoiceHistoryTab />
         ) : tab === 'reviews' ? (
           <ReviewsTab />
         ) : tab === 'solar' ? (
