@@ -5350,6 +5350,14 @@ function QuotationTab({ products }: { products: Product[] }) {
   const [productSearch, setProductSearch] = useState('');
   const [generating, setGenerating]       = useState(false);
   const [pdfState, setPdfState]           = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
+  // ── Package templates state ──
+  type PkgTemplate = { id: string; name: string; description: string | null; category_tag: string | null; lines: QuoteLine[]; discount: number; discount_type: string };
+  const [templates, setTemplates]         = useState<PkgTemplate[]>([]);
+  const [pkgPanelOpen, setPkgPanelOpen]   = useState(false);
+  const [savingPkg, setSavingPkg]         = useState(false);
+  const [pkgName, setPkgName]             = useState('');
+  const [pkgDesc, setPkgDesc]             = useState('');
+  const [pkgTag, setPkgTag]               = useState('');
   const [pdfUrl, setPdfUrl]               = useState<string | null>(null);
   const [toastMsg, setToastMsg]           = useState('');
   const [draftBanner, setDraftBanner]     = useState(false);
@@ -5489,6 +5497,55 @@ function QuotationTab({ products }: { products: Product[] }) {
       .slice(0, 20)
       .map(({ p }) => p);
   }, [products, productSearch]);
+
+  // ── Package template helpers ──────────────────────────────────────────────
+  async function fetchTemplates() {
+    const { data } = await supabase
+      .from('package_templates')
+      .select('id,name,description,category_tag,lines,discount,discount_type')
+      .eq('is_active', true)
+      .order('sort_order')
+      .order('created_at');
+    if (data) setTemplates(data as PkgTemplate[]);
+  }
+
+  useEffect(() => { fetchTemplates(); }, []);
+
+  async function saveAsPackage() {
+    if (!pkgName.trim() || !lines.length) return;
+    setSavingPkg(true);
+    const { error } = await supabase.from('package_templates').insert({
+      name:          pkgName.trim(),
+      description:   pkgDesc.trim() || null,
+      category_tag:  pkgTag.trim() || null,
+      lines:         JSON.stringify(lines),
+      discount,
+      discount_type: discountType,
+    });
+    setSavingPkg(false);
+    if (!error) {
+      setPkgName(''); setPkgDesc(''); setPkgTag('');
+      setPkgPanelOpen(false);
+      setToastMsg('Package saved!');
+      fetchTemplates();
+    } else {
+      setToastMsg('Save failed — run migration 20260420_package_templates.sql first');
+    }
+  }
+
+  function loadTemplate(tmpl: PkgTemplate) {
+    setLines(tmpl.lines.map(l => ({ ...l })));
+    setDiscount(tmpl.discount ?? 0);
+    setDiscountRaw(String(tmpl.discount ?? 0));
+    setDiscountType(tmpl.discount_type ?? 'Promotional');
+    setToastMsg(`"${tmpl.name}" loaded — ${tmpl.lines.length} items`);
+  }
+
+  async function deleteTemplate(id: string) {
+    await supabase.from('package_templates').update({ is_active: false }).eq('id', id);
+    setTemplates(ts => ts.filter(t => t.id !== id));
+    setToastMsg('Package removed');
+  }
 
   function addLine(p: Product) {
     const specEntries = Object.entries(p.specs ?? {}).slice(0, 2);
@@ -5922,6 +5979,90 @@ function QuotationTab({ products }: { products: Product[] }) {
                   <span className="text-xs text-gray-400">of {instMonths}</span>
                 </div>
               </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Package Templates panel ── */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Packages</p>
+            <div className="flex gap-2">
+              {lines.length > 0 && (
+                <button onClick={() => setPkgPanelOpen(o => !o)}
+                  className="px-3 py-1.5 text-xs font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors">
+                  {pkgPanelOpen ? 'Cancel' : 'Save as Package'}
+                </button>
+              )}
+              <button onClick={fetchTemplates}
+                className="px-3 py-1.5 text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-colors">
+                ↻ Refresh
+              </button>
+            </div>
+          </div>
+
+          {/* Save form */}
+          {pkgPanelOpen && (
+            <div className="bg-orange-50 rounded-xl p-4 space-y-2 border border-orange-100">
+              <p className="text-xs font-bold text-orange-700 mb-1">Save current {lines.length} items as a package</p>
+              <input value={pkgName} onChange={e => setPkgName(e.target.value)}
+                placeholder="Package name  e.g. Home Starter Bundle"
+                className="w-full border border-orange-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+              <input value={pkgDesc} onChange={e => setPkgDesc(e.target.value)}
+                placeholder="Description (optional)"
+                className="w-full border border-orange-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+              <select value={pkgTag} onChange={e => setPkgTag(e.target.value)}
+                className="w-full border border-orange-200 rounded-lg px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
+                <option value="">Category tag (optional)</option>
+                {['home-starter','kitchen','solar','office','commercial','bedroom'].map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+              <button onClick={saveAsPackage} disabled={!pkgName.trim() || savingPkg}
+                className="w-full py-2 text-xs font-bold bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white rounded-lg transition-colors">
+                {savingPkg ? 'Saving…' : 'Save Package'}
+              </button>
+            </div>
+          )}
+
+          {/* Template list */}
+          {templates.length === 0 ? (
+            <p className="text-xs text-gray-400 text-center py-3">
+              No packages saved yet. Build a quote and click "Save as Package".
+            </p>
+          ) : (
+            <div className="space-y-2 max-h-56 overflow-y-auto">
+              {templates.map(tmpl => {
+                const total = (tmpl.lines as QuoteLine[]).reduce((s, l) => s + l.qty * l.unitPrice, 0);
+                const discountedTotal = Math.round(total * (1 - (tmpl.discount ?? 0) / 100));
+                return (
+                  <div key={tmpl.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-orange-200 hover:bg-orange-50/30 transition-all group">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-bold text-gray-800 truncate">{tmpl.name}</p>
+                        {tmpl.category_tag && (
+                          <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full shrink-0">{tmpl.category_tag}</span>
+                        )}
+                      </div>
+                      {tmpl.description && <p className="text-[10px] text-gray-400 truncate mt-0.5">{tmpl.description}</p>}
+                      <p className="text-[10px] text-gray-500 mt-0.5">
+                        {(tmpl.lines as QuoteLine[]).length} items · PKR {discountedTotal.toLocaleString('en-PK')}
+                        {tmpl.discount > 0 && <span className="text-orange-500 ml-1">({tmpl.discount}% off)</span>}
+                      </p>
+                    </div>
+                    <div className="flex gap-1.5 shrink-0">
+                      <button onClick={() => loadTemplate(tmpl)}
+                        className="px-3 py-1.5 text-xs font-semibold bg-gray-900 hover:bg-orange-500 text-white rounded-lg transition-colors">
+                        Load
+                      </button>
+                      <button onClick={() => deleteTemplate(tmpl.id)}
+                        className="px-2 py-1.5 text-xs text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
