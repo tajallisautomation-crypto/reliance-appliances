@@ -4060,6 +4060,7 @@ interface QuoteLine {
   category: string;   // normalized category for PDF grouping
   warranty: string;   // from product.warranty, editable
   keySpec: string;    // top 2 spec fields joined, editable
+  kwhPerMonth: number; // estimated monthly consumption; 0 = not set
 }
 
 async function loadLogoWhite(): Promise<string> {
@@ -4104,6 +4105,7 @@ async function generateQuotationPdf(opts: {
   customerCnic: string;
   lines: QuoteLine[];
   discount: number;
+  discountType: string;
   docType: 'quotation' | 'invoice';
   refNumber: string;
   installationType: 'supply-only' | 'installation-included';
@@ -4271,7 +4273,7 @@ async function generateQuotationPdf(opts: {
 
   if (opts.discount > 0) {
     doc.setTextColor(234, 88, 12); doc.setFont('helvetica', 'italic');
-    doc.text(`Discount (${opts.discount}%)`, totalsX, y);
+    doc.text(`${opts.discountType} Discount (${opts.discount}%)`, totalsX, y);
     doc.text(`- ${PKR(discountAmt)}`, valX, y, { align: 'right' });
     doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 80);
     y += 8;
@@ -4283,6 +4285,59 @@ async function generateQuotationPdf(opts: {
   doc.text('Grand Total', totalsX, y + 6);
   doc.text(PKR(grandTotal), valX, y + 6, { align: 'right' });
   y += 17;
+
+  // ── 5b. Energy Efficiency block ───────────────────────────────────────────
+  const KE_RATE_PKR = 50; // avg PKR per kWh across KE slabs
+  const effLines = opts.lines.filter(l => l.kwhPerMonth > 0);
+  if (effLines.length > 0) {
+    const effH = 8 + effLines.length * 8;
+    doc.setFillColor(240, 249, 255);
+    doc.rect(margin, y, printW, effH, 'F');
+    doc.setDrawColor(59, 130, 246); doc.setLineWidth(0.8);
+    doc.line(margin, y, margin, y + effH);
+    doc.setLineWidth(0.2);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(29, 78, 216);
+    doc.text('ENERGY EFFICIENCY IMPACT', margin + 3, y + 5.5);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(55, 65, 81);
+    effLines.forEach((l, i) => {
+      const savedKwh = Math.round(l.kwhPerMonth * 0.42); // inverter ~42% more efficient
+      const billSaving = Math.round(savedKwh * KE_RATE_PKR);
+      doc.text(
+        `${l.name}: ~${l.kwhPerMonth} units/mo consumed. Inverter tech saves ~${savedKwh} units vs conventional — offset: ~PKR ${billSaving.toLocaleString('en-PK')}/mo on KE bill.`,
+        margin + 3, y + 10 + i * 8, { maxWidth: printW - 6 }
+      );
+    });
+    y += effH + 5;
+  }
+
+  // ── 5c. Solar Cross-Sell block ────────────────────────────────────────────
+  const hasSolarProduct = opts.lines.some(l =>
+    l.category.toLowerCase().includes('solar') || l.category.toLowerCase().includes('inverter')
+  );
+  const totalMonthlyKwh = opts.lines.reduce((s, l) => s + l.kwhPerMonth * l.qty, 0);
+  if (!hasSolarProduct && totalMonthlyKwh >= 50) {
+    const systemKw = totalMonthlyKwh >= 100 ? 5 : 3;
+    const monthlyGen = systemKw * 4 * 30; // 4 peak sun hrs
+    const offsetUnits = Math.min(totalMonthlyKwh, monthlyGen);
+    const billOffset = Math.round(offsetUnits * KE_RATE_PKR);
+    const solarH = 24;
+    doc.setFillColor(240, 253, 244);
+    doc.rect(margin, y, printW, solarH, 'F');
+    doc.setDrawColor(22, 163, 74); doc.setLineWidth(0.8);
+    doc.line(margin, y, margin, y + solarH);
+    doc.setLineWidth(0.2);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(21, 128, 61);
+    doc.text(`SOLAR RECOMMENDATION  —  ${systemKw}kW Hybrid Setup`, margin + 3, y + 6);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(55, 65, 81);
+    doc.text(
+      `Your appliances draw ~${totalMonthlyKwh} units/mo. A ${systemKw}kW hybrid solar system generates ~${monthlyGen} units/mo, ` +
+      `offsetting ~PKR ${billOffset.toLocaleString('en-PK')}/mo on your KE bill. Cash & installment packages available.`,
+      margin + 3, y + 12, { maxWidth: printW - 6 }
+    );
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(21, 128, 61);
+    doc.text('Ask us for a free solar proposal: +92 370 2578788', margin + 3, y + 20);
+    y += solarH + 5;
+  }
 
   // ── 6. Solar disclaimer (conditional) ─────────────────────────────────────
   const solarInv = opts.lines.find(l =>
@@ -4397,20 +4452,21 @@ async function generateQuotationPdf(opts: {
 
   y = boxY + boxH + 6;
 
-  // ── 8. CTA line (only when balance is still outstanding) ─────────────────
+  // ── 8. CTA box ────────────────────────────────────────────────────────────
   if (balanceAmt > 0) {
-    doc.setFontSize(8); doc.setTextColor(234, 88, 12);
-    const ctaPrefix = 'To confirm payment, share deposit slip on WhatsApp: ';
-    const ctaPhone  = '+92 370 2578788';
-    doc.setFont('helvetica', 'normal');
-    const prefixW = doc.getTextWidth(ctaPrefix);
-    doc.setFont('helvetica', 'bold');
-    const phoneW = doc.getTextWidth(ctaPhone);
-    const ctaStartX = W / 2 - (prefixW + phoneW) / 2;
-    doc.setFont('helvetica', 'normal');
-    doc.text(ctaPrefix, ctaStartX, y);
-    doc.setFont('helvetica', 'bold');
-    doc.text(ctaPhone, ctaStartX + prefixW, y);
+    const ctaBoxH = 12;
+    doc.setFillColor(255, 237, 213); // light orange
+    doc.rect(margin, y, printW, ctaBoxH, 'F');
+    doc.setDrawColor(234, 88, 12); doc.setLineWidth(0.5);
+    doc.rect(margin, y, printW, ctaBoxH, 'S');
+    doc.setLineWidth(0.2);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(154, 52, 18);
+    doc.text('To confirm order, share deposit slip on WhatsApp:', margin + 4, y + 5);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(234, 88, 12);
+    doc.text('+92 370 2578788', margin + 4, y + 10);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(154, 52, 18);
+    doc.text('or scan the QR code on the right  \u2192', W - margin - 4, y + 7.5, { align: 'right' });
+    y += ctaBoxH + 4;
   }
 
   // ── 9. T&C + Footer ───────────────────────────────────────────────────────
@@ -4420,24 +4476,24 @@ async function generateQuotationPdf(opts: {
       ? '2. After-Sales: Units installed by our team receive complete 360° support including repair and parts facilitation.'
       : '2. After-Sales: Tajalli\'s provides facilitation support for warranty claims and spare parts coordination.',
     '3. Delivery Risk: For Supply Only orders, customer assumes liability upon secure handover at delivery address.',
-    '4. Returns: Physical damage claims must be reported within 24 hours of delivery. Goods are non-refundable once unboxed.',
+    '4. Returns: Physical damage must be reported within 24 hours of delivery. Goods are non-refundable once unboxed.',
     opts.docType === 'invoice'
       ? '5. Payment: Thank you for your business. Payment terms as agreed at time of sale.'
       : '5. Validity: This quotation is valid for 7 days. Prices subject to availability. Advance required to confirm order.',
   ];
   const footerY = 282;
-  const tcStartY = Math.min(y + 4, footerY - 28);
+  const tcStartY = Math.min(y + 2, footerY - 32);
   if (tcStartY < footerY - 8) {
     const fbQrSize = 20;
-    const tcH = Math.min(footerY - tcStartY - 2, 28);
+    const tcH = Math.min(footerY - tcStartY - 2, 32);
     doc.setFillColor(249, 250, 251);
     doc.rect(margin, tcStartY, printW, tcH, 'F');
     doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(100, 100, 100);
-    doc.text('TERMS & CONDITIONS', margin + 3, tcStartY + 5);
+    doc.text('TERMS & CONDITIONS', margin + 3, tcStartY + 5.5);
     const tcTextMaxW = fbQrData ? printW - fbQrSize - 10 : printW - 6;
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(120, 120, 120);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(120, 120, 120);
     tcItems.forEach((t, i) => {
-      const lineY = tcStartY + 10 + i * 4;
+      const lineY = tcStartY + 11 + i * 4.5;
       if (lineY < footerY - 4) doc.text(t, margin + 3, lineY, { maxWidth: tcTextMaxW });
     });
     if (fbQrData) {
@@ -4975,6 +5031,7 @@ function QuotationTab({ products }: { products: Product[] }) {
   const [docType, setDocType]                 = useState<'quotation' | 'invoice' | 'installment-invoice'>('quotation');
   const [discount, setDiscount]           = useState(0);
   const [discountRaw, setDiscountRaw]     = useState('0');
+  const [discountType, setDiscountType]   = useState('Promotional');
   const [lines, setLines]                 = useState<QuoteLine[]>([]);
   const [productSearch, setProductSearch] = useState('');
   const [generating, setGenerating]       = useState(false);
@@ -5052,7 +5109,7 @@ function QuotationTab({ products }: { products: Product[] }) {
       if (lines.length > 0 || customerName || customerPhone) {
         localStorage.setItem('reliance-invoice-draft', JSON.stringify({
           lines, customerName, customerPhone, customerEmail, customerAddress, customerCnic,
-          discount, discountRaw, docType, refNumber,
+          discount, discountRaw, discountType, docType, refNumber,
           installationType, elevatedStructureOn, elevatedStructureAmt, wiringAmt, laborAmt,
           advancePct, balanceNote,
           instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber,
@@ -5061,7 +5118,7 @@ function QuotationTab({ products }: { products: Product[] }) {
     }, 1000);
     return () => { if (autosaveRef.current) clearTimeout(autosaveRef.current); };
   }, [lines, customerName, customerPhone, customerEmail, customerAddress, customerCnic,
-      discount, discountRaw, docType, refNumber,
+      discount, discountRaw, discountType, docType, refNumber,
       installationType, elevatedStructureOn, elevatedStructureAmt, wiringAmt, laborAmt, advancePct, balanceNote,
       instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber]);
 
@@ -5077,6 +5134,7 @@ function QuotationTab({ products }: { products: Product[] }) {
       if (draft.customerAddress) setCustomerAddress(draft.customerAddress);
       if (draft.customerCnic)    setCustomerCnic(draft.customerCnic);
       if (typeof draft.discount === 'number') { setDiscount(draft.discount); setDiscountRaw(String(draft.discount)); }
+      if (draft.discountType)  setDiscountType(draft.discountType);
       if (draft.docType)       setDocType(draft.docType);
       if (draft.installationType) setInstallationType(draft.installationType);
       if (typeof draft.elevatedStructureOn === 'boolean') setElevatedStructureOn(draft.elevatedStructureOn);
@@ -5121,6 +5179,12 @@ function QuotationTab({ products }: { products: Product[] }) {
   function addLine(p: Product) {
     const specEntries = Object.entries(p.specs ?? {}).slice(0, 2);
     const keySpec = specEntries.map(([k, v]) => `${k}: ${v}`).join(', ');
+    // Auto-detect monthly kWh from specs (keys like "Annual Energy", "Energy Consumption")
+    const kwhEntry = Object.entries(p.specs ?? {}).find(([k]) =>
+      /energy|kwh|consumption/i.test(k)
+    );
+    const kwhRaw = kwhEntry ? parseFloat(String(kwhEntry[1])) : 0;
+    const kwhPerMonth = kwhRaw > 0 ? Math.round(kwhRaw / 12) : 0;
     setLines(ls => ls.some(l => l.id === p.id) ? ls : [...ls, {
       id: p.id,
       name: p.simplified_name || p.model,
@@ -5130,6 +5194,7 @@ function QuotationTab({ products }: { products: Product[] }) {
       category: p.normalized_category || p.category || 'Other',
       warranty: p.warranty || '1 year manufacturer warranty',
       keySpec,
+      kwhPerMonth,
     }]);
     setProductSearch('');
     setToastMsg(`${p.brand || ''} ${p.model} added`.trim());
@@ -5141,6 +5206,10 @@ function QuotationTab({ products }: { products: Product[] }) {
 
   function updateLineText(id: string, field: 'warranty' | 'keySpec', val: string) {
     setLines(ls => ls.map(l => l.id === id ? { ...l, [field]: val } : l));
+  }
+
+  function updateLineKwh(id: string, val: number) {
+    setLines(ls => ls.map(l => l.id === id ? { ...l, kwhPerMonth: val } : l));
   }
 
   function removeLine(id: string) { setLines(ls => ls.filter(l => l.id !== id)); }
@@ -5197,7 +5266,7 @@ function QuotationTab({ products }: { products: Product[] }) {
             ...(laborAmt > 0 ? [{ name: 'Installation Labour', amount: laborAmt }] : []),
           ]
         : [];
-      const blob = await generateQuotationPdf({ customerName, customerPhone: customerPhone.replace(/\D/g, ''), customerEmail, customerAddress, customerCnic, lines, discount, docType: docType as 'quotation' | 'invoice', refNumber, installationType, installationLines: instLines, advancePct, balanceNote, showNtn });
+      const blob = await generateQuotationPdf({ customerName, customerPhone: customerPhone.replace(/\D/g, ''), customerEmail, customerAddress, customerCnic, lines, discount, discountType, docType: docType as 'quotation' | 'invoice', refNumber, installationType, installationLines: instLines, advancePct, balanceNote, showNtn });
       clearTimeout(timeout);
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
@@ -5387,6 +5456,12 @@ function QuotationTab({ products }: { products: Product[] }) {
               }}
               className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
             />
+            <select value={discountType} onChange={e => setDiscountType(e.target.value)}
+              className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+              {['Promotional', 'Exchange Credit', 'Seasonal Sale', "Founder's Special", 'Clearance', 'Volume', 'Custom'].map(t => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
           </div>
           {/* ── Installation scope (solar items only) ── */}
           {hasSolarItems && (
@@ -5582,6 +5657,24 @@ function QuotationTab({ products }: { products: Product[] }) {
                         placeholder="Key spec"
                         className="flex-1 border border-gray-100 rounded-lg px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-orange-300 bg-gray-50"
                       />
+                    </div>
+                    {/* Monthly kWh for efficiency block */}
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-[10px] text-blue-400 shrink-0">⚡ units/mo</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={line.kwhPerMonth || ''}
+                        onChange={e => updateLineKwh(line.id, Math.max(0, Number(e.target.value) || 0))}
+                        placeholder="0"
+                        title="Monthly energy consumption in kWh (units) — enables efficiency block in PDF"
+                        className="w-16 border border-blue-100 rounded-lg px-2 py-0.5 text-xs text-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-300 bg-blue-50"
+                      />
+                      {line.kwhPerMonth > 0 && (
+                        <span className="text-[10px] text-blue-400">
+                          saves ~{Math.round(line.kwhPerMonth * 0.42)} units/mo
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-2.5">
