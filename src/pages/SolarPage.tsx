@@ -54,7 +54,7 @@ const ZN_BAT_ZB512:  ComponentOption = zn('Ziewnic Z Box European 5.12kWh',250_0
 
 // ── Package definitions ───────────────────────────────────────────────────────
 
-interface SolarPackage {
+export interface SolarPackage {
   id:              string;
   name:            string;
   kw:              string;

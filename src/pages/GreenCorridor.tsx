@@ -63,7 +63,7 @@ const JOURNEY_STEPS = [
 // Only the 12kW Industrial Freedom package qualifies for KE net metering.
 const NET_METERING_ADDON_PRICE = NET_METERING_COST_PKR
 
-interface GCPackage {
+export interface GCPackage {
   id: string
   name: string
   tagline: string
@@ -89,7 +89,7 @@ interface GCPackage {
   workmanshipWarranty: string
 }
 
-const PACKAGES: GCPackage[] = [
+export const GC_PACKAGES: GCPackage[] = [
   {
     id: 'starter',
     name: 'Starter',
@@ -233,10 +233,10 @@ export default function GreenCorridor() {
 
   // Bill is the primary signal for system size — avoids over-recommending large systems to low-bill users
   const matchedPackage = (() => {
-    if (monthlyBill < BILL_THRESHOLD_SMALL)      return PACKAGES.find(p => p.solarKw === 3)  ?? PACKAGES[0]
-    if (monthlyBill < BILL_THRESHOLD_LARGE)      return PACKAGES.find(p => p.solarKw === 5)  ?? PACKAGES[1]
-    if (monthlyBill < BILL_THRESHOLD_INDUSTRIAL) return PACKAGES.find(p => p.solarKw === 8)  ?? PACKAGES[2]
-    return PACKAGES.find(p => p.solarKw === 12) ?? PACKAGES[3]
+    if (monthlyBill < BILL_THRESHOLD_SMALL)      return GC_PACKAGES.find(p => p.solarKw === 3)  ?? GC_PACKAGES[0]
+    if (monthlyBill < BILL_THRESHOLD_LARGE)      return GC_PACKAGES.find(p => p.solarKw === 5)  ?? GC_PACKAGES[1]
+    if (monthlyBill < BILL_THRESHOLD_INDUSTRIAL) return GC_PACKAGES.find(p => p.solarKw === 8)  ?? GC_PACKAGES[2]
+    return GC_PACKAGES.find(p => p.solarKw === 12) ?? GC_PACKAGES[3]
   })()
 
   // Input sanity: flag combos that don't make physical sense
@@ -541,7 +541,7 @@ export default function GreenCorridor() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
-            {PACKAGES.map(pkg => {
+            {GC_PACKAGES.map(pkg => {
               const plan3mPkg = calcPlan(pkg.price, '3m')
               return (
                 <div key={pkg.id}

@@ -25,6 +25,8 @@ import {
   BILL_THRESHOLD_SMALL, BILL_THRESHOLD_LARGE,
   ELEVATED_FRAME_PER_PANEL, WIRING_PER_W, LABOR_PER_W,
 } from '@/lib/solarRules';
+import { GC_PACKAGES, type GCPackage } from './GreenCorridor';
+import { PACKAGES as SOLAR_PACKAGES, type SolarPackage } from './SolarPage';
 import {
   LogOut, Plus, Pencil, Trash2, Upload, Search, X, Check,
   ChevronDown, ChevronUp, Package, FileUp, Loader2, Sparkles, Image as ImageIcon,
@@ -4133,6 +4135,7 @@ interface QuoteLine {
   warranty: string;   // from product.warranty, editable
   keySpec: string;    // top 2 spec fields joined, editable
   kwhPerMonth: number; // estimated monthly consumption; 0 = not set
+  savingsPct: number;  // inverter saving % vs conventional; 0 = not applicable
 }
 
 async function loadLogoWhite(): Promise<string> {
@@ -4372,7 +4375,8 @@ async function generateQuotationPdf(opts: {
     doc.text('ENERGY EFFICIENCY IMPACT', margin + 3, y + 5.5);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(55, 65, 81);
     effLines.forEach((l, i) => {
-      const savedKwh = Math.round(l.kwhPerMonth * 0.42); // inverter ~42% more efficient
+      const effPct = (l.savingsPct || 42) / 100;
+      const savedKwh = Math.round(l.kwhPerMonth * effPct);
       const billSaving = Math.round(savedKwh * KE_RATE_PKR);
       doc.text(
         `${l.name}: ~${l.kwhPerMonth} units/mo consumed. Inverter tech saves ~${savedKwh} units vs conventional — offset: ~PKR ${billSaving.toLocaleString('en-PK')}/mo on KE bill.`,
@@ -5550,12 +5554,42 @@ function QuotationTab({ products }: { products: Product[] }) {
   function addLine(p: Product) {
     const specEntries = Object.entries(p.specs ?? {}).slice(0, 2);
     const keySpec = specEntries.map(([k, v]) => `${k}: ${v}`).join(', ');
-    // Auto-detect monthly kWh from specs (keys like "Annual Energy", "Energy Consumption")
-    const kwhEntry = Object.entries(p.specs ?? {}).find(([k]) =>
-      /energy|kwh|consumption/i.test(k)
-    );
-    const kwhRaw = kwhEntry ? parseFloat(String(kwhEntry[1])) : 0;
-    const kwhPerMonth = kwhRaw > 0 ? Math.round(kwhRaw / 12) : 0;
+
+    // ── Auto-parse energy data from product specs ──────────────────────────
+    const specs = p.specs ?? {};
+    let kwhPerMonth = 0;
+
+    // 1. "Power Consumption" → "XXW (avg. annual: YYYY kWh/yr)" pattern from api.ts enrichment
+    const pwrConsumption = specs['Power Consumption'] ?? '';
+    const annualMatch = pwrConsumption.match(/(\d+(?:\.\d+)?)\s*kWh\/yr/i);
+    if (annualMatch) {
+      kwhPerMonth = Math.round(parseFloat(annualMatch[1]) / 12);
+    }
+
+    // 2. Dedicated "Annual Energy Consumption" key (some brands store this directly)
+    if (!kwhPerMonth) {
+      for (const [k, v] of Object.entries(specs)) {
+        if (/annual.*energy|energy.*consumption/i.test(k)) {
+          const n = parseFloat(String(v));
+          if (n > 0) { kwhPerMonth = Math.round(n / 12); break; }
+        }
+      }
+    }
+
+    // 3. "Estimated Daily Output" for solar (kWh/day × 30)
+    if (!kwhPerMonth && specs['Estimated Daily Output']) {
+      const m = String(specs['Estimated Daily Output']).match(/(\d+(?:\.\d+)?)/);
+      if (m) kwhPerMonth = Math.round(parseFloat(m[1]) * 30);
+    }
+
+    // Inverter savings %: parse from "Inverter Technology" spec or "Inverter" compressor tag
+    let savingsPct = 0;
+    const invTech = specs['Inverter Technology'] ?? '';
+    if (/40%/i.test(invTech))      savingsPct = 40;
+    else if (/35%/i.test(invTech)) savingsPct = 35;
+    else if (/60%/i.test(invTech)) savingsPct = 60;
+    else if (/inverter/i.test(invTech) || /inverter/i.test(specs['Compressor'] ?? '')) savingsPct = 40;
+
     setLines(ls => ls.some(l => l.id === p.id) ? ls : [...ls, {
       id: p.id,
       name: p.simplified_name || p.model,
@@ -5566,6 +5600,7 @@ function QuotationTab({ products }: { products: Product[] }) {
       warranty: p.warranty || '1 year manufacturer warranty',
       keySpec,
       kwhPerMonth,
+      savingsPct,
     }]);
     setProductSearch('');
     setToastMsg(`${p.brand || ''} ${p.model} added`.trim());
@@ -5918,6 +5953,28 @@ function QuotationTab({ products }: { products: Product[] }) {
           {docType === 'installment-invoice' && (
             <div className="space-y-3 pt-1 border-t border-gray-100">
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Installment Plan</p>
+              {/* Quick-select plan buttons from calcAllPlans */}
+              {grandTotal > 0 && (() => {
+                const plans = calcAllPlans(grandTotal);
+                return Object.keys(plans).length > 0 ? (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] text-gray-400 font-medium">Auto-fill from installment rates:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(plans).map(([key, plan]) => (
+                        <button key={key} onClick={() => {
+                          setInstTotalPrice(plan.total);
+                          setInstAdvanceAmt(plan.advance);
+                          setInstMonths(plan.months);
+                          setInstMonthlyAmt(plan.monthly);
+                        }}
+                          className="px-3 py-1.5 text-xs font-semibold bg-orange-50 hover:bg-orange-500 hover:text-white text-orange-700 border border-orange-200 rounded-lg transition-colors">
+                          {key} · PKR {plan.monthly.toLocaleString('en-PK')}/mo
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null;
+              })()}
               <div className="flex items-center gap-3">
                 <label className="text-xs font-semibold text-gray-600 w-40 shrink-0">Total Installment Price</label>
                 <span className="text-xs text-gray-400 shrink-0">PKR</span>
@@ -6065,6 +6122,71 @@ function QuotationTab({ products }: { products: Product[] }) {
               })}
             </div>
           )}
+
+          {/* ── Website Packages ── */}
+          <div className="pt-3 border-t border-gray-100 space-y-2">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Website Packages</p>
+            <p className="text-[10px] text-gray-400">Green Corridor</p>
+            <div className="space-y-1.5">
+              {GC_PACKAGES.map(pkg => (
+                <div key={pkg.id} className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-gray-100 hover:border-green-200 hover:bg-green-50/30 transition-all">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-gray-800">{pkg.name}</p>
+                    <p className="text-[10px] text-gray-400 truncate">{pkg.solarKw}kW · {pkg.acCount}× {pkg.acTonnage} AC · {pkg.billReduction} bill saving</p>
+                    <p className="text-[10px] text-green-700 font-semibold">PKR {pkg.price.toLocaleString('en-PK')}</p>
+                  </div>
+                  <button onClick={() => {
+                    const line: QuoteLine = {
+                      id: `gc-${pkg.id}`,
+                      name: `${pkg.name} — Green Corridor Package`,
+                      model: `GC-${pkg.id.toUpperCase()}`,
+                      qty: 1,
+                      unitPrice: pkg.price,
+                      category: 'Solar',
+                      warranty: `${pkg.workmanshipWarranty} workmanship · ${pkg.inverterWarranty} inverter${pkg.batteryWarranty ? ` · ${pkg.batteryWarranty} battery` : ''}`,
+                      keySpec: `${pkg.solarKw}kW solar · ${pkg.acCount}× ${pkg.acTonnage} AC · ${pkg.billReduction} bill reduction`,
+                      kwhPerMonth: Math.round((pkg.monthlyUnitsMin + pkg.monthlyUnitsMax) / 2),
+                      savingsPct: 60,
+                    };
+                    setLines(ls => ls.some(l => l.id === line.id) ? ls : [...ls, line]);
+                  }}
+                    className="px-3 py-1.5 text-xs font-semibold bg-gray-900 hover:bg-green-600 text-white rounded-lg transition-colors shrink-0">
+                    Add
+                  </button>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-gray-400 pt-1">Solar / UPS Systems</p>
+            <div className="space-y-1.5">
+              {SOLAR_PACKAGES.map(pkg => (
+                <div key={pkg.id} className="flex items-center justify-between gap-2 p-2.5 rounded-xl border border-gray-100 hover:border-amber-200 hover:bg-amber-50/30 transition-all">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-gray-800">{pkg.name}</p>
+                    <p className="text-[10px] text-gray-400 truncate">{pkg.badge} · {pkg.kw}</p>
+                    <p className="text-[10px] text-amber-700 font-semibold">PKR {pkg.total.toLocaleString('en-PK')}</p>
+                  </div>
+                  <button onClick={() => {
+                    const line: QuoteLine = {
+                      id: `solar-${pkg.id}`,
+                      name: pkg.name,
+                      model: pkg.id.toUpperCase(),
+                      qty: 1,
+                      unitPrice: pkg.total,
+                      category: pkg.type === 'solar' ? 'Solar' : 'Inverter/UPS',
+                      warranty: pkg.warranties.join(' · '),
+                      keySpec: `${pkg.kw} ${pkg.badge}`,
+                      kwhPerMonth: 0,
+                      savingsPct: pkg.type === 'solar' ? 60 : 0,
+                    };
+                    setLines(ls => ls.some(l => l.id === line.id) ? ls : [...ls, line]);
+                  }}
+                    className="px-3 py-1.5 text-xs font-semibold bg-gray-900 hover:bg-amber-500 text-white rounded-lg transition-colors shrink-0">
+                    Add
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
@@ -6143,7 +6265,7 @@ function QuotationTab({ products }: { products: Product[] }) {
                       />
                       {line.kwhPerMonth > 0 && (
                         <span className="text-[10px] text-blue-400">
-                          saves ~{Math.round(line.kwhPerMonth * 0.42)} units/mo
+                          saves ~{Math.round(line.kwhPerMonth * ((line.savingsPct || 42) / 100))} units/mo
                         </span>
                       )}
                     </div>
