@@ -59,11 +59,12 @@ export default function App() {
             <Route path="/products"                         element={<Products />} />
             <Route path="/products/category/:categorySlug"  element={<Products />} />
             <Route path="/products/:slug"                   element={<ProductDetail />} />
-            <Route path="/cart"                             element={<Cart />} />
-            <Route path="/checkout"                         element={<Checkout />} />
+            {/* Per-route boundaries on high-risk pages — error in one doesn't crash navigation */}
+            <Route path="/cart"                             element={<ErrorBoundary><Cart /></ErrorBoundary>} />
+            <Route path="/checkout"                         element={<ErrorBoundary><Checkout /></ErrorBoundary>} />
             <Route path="/installments"                     element={<Installments />} />
             <Route path="/solar"                            element={<SolarPage />} />
-            <Route path="/solar-calculator"                 element={<SolarCalculator />} />
+            <Route path="/solar-calculator"                 element={<ErrorBoundary><SolarCalculator /></ErrorBoundary>} />
             <Route path="/solar/off-grid"                   element={<OffGridSolar />} />
             <Route path="/tools"                            element={<ToolsPage />} />
             <Route path="/services"                         element={<Services />} />
@@ -71,7 +72,7 @@ export default function App() {
             <Route path="/partner"                          element={<Partner />} />
             <Route path="/corporate"                        element={<Corporate />} />
             <Route path="/portal"                           element={<Portal />} />
-            <Route path="/admin"                            element={<AdminPortal />} />
+            <Route path="/admin"                            element={<ErrorBoundary><AdminPortal /></ErrorBoundary>} />
             <Route path="/about"                            element={<About />} />
             <Route path="/contact"                          element={<Contact />} />
             <Route path="/search"                           element={<SearchResults />} />
