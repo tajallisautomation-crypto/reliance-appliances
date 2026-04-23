@@ -25,6 +25,7 @@ import ProductCard from '../components/products/ProductCard'
 import SEO from '../components/ui/SEO'
 import OfferBannerSlider from '../components/OfferBannerSlider'
 import { getInstallationImages, type MediaItem } from '../lib/gallery'
+import SocialProofLoop from '../components/ui/SocialProofLoop'
 
 // Brand list — preferred brands (Haier, Crown, Westpoint) listed first for merchandising visibility
 const BRANDS = [
@@ -516,6 +517,8 @@ export default function Home() {
           </Link>
         </div>
       </section>
+
+      <SocialProofLoop />
     </div>
   )
 }

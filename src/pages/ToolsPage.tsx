@@ -65,7 +65,10 @@ function BillSavingsCalc() {
             </div>
             <div className="text-2xl font-bold text-emerald-700 whitespace-nowrap">{result.sysKW} kW</div>
           </div>
-          <p className="text-xs text-gray-400">Based on PKR {UNIT_RATE}/kWh (K-Electric Karachi avg.). Fixed charges, taxes, and fuel price adjustments (FPA) are not included — actual savings may vary.</p>
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-800 space-y-1">
+            <p><strong>Assumptions:</strong> PKR {UNIT_RATE}/kWh average unit rate (K-Electric Karachi). Actual rate varies by slab — higher users save more per unit. Fixed charges, taxes, and Fuel Price Adjustments (FPA) are <em>not included</em> in this estimate.</p>
+            {!result.billEntered && <p><strong>Note:</strong> No bill amount entered — monthly saving is estimated from units × PKR {UNIT_RATE}/kWh. Enter your actual bill amount above for a more accurate figure.</p>}
+          </div>
         </div>
       )}
     </div>

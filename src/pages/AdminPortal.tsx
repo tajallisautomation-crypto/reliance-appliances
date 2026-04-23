@@ -4188,6 +4188,7 @@ async function generateQuotationPdf(opts: {
   advancePct: number;
   balanceNote: string;
   showNtn?: boolean;
+  isApartmentClient?: boolean;
 }): Promise<Blob> {
   const ORANGE = '#EA580C';
   const DARK   = '#1A1A1A';
@@ -4224,15 +4225,15 @@ async function generateQuotationPdf(opts: {
 
   const badgeLabel = opts.docType === 'invoice' ? 'INVOICE' : 'QUOTATION';
 
-  // Doc type as large clean heading — top right, no button box
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
-  doc.text(badgeLabel, W - margin, 14, { align: 'right' });
+  // Doc type — large, bold, right-aligned in header
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(22); doc.setTextColor(255, 255, 255);
+  doc.text(badgeLabel, W - margin, 16, { align: 'right' });
 
   // Address/contact right-aligned below the doc type label
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(255, 214, 176);
-  doc.text('Home & Commercial Solutions', W - margin, 21, { align: 'right' });
-  doc.text('+92 370 2578788  |  tajallis.com.pk', W - margin, 27, { align: 'right' });
-  doc.text('L-152 & 153, Sector 11C-1, North Karachi', W - margin, 33, { align: 'right' });
+  doc.text('Home & Commercial Solutions', W - margin, 23, { align: 'right' });
+  doc.text('+92 370 2578788  |  tajallis.com.pk', W - margin, 29, { align: 'right' });
+  doc.text('L-152 & 153, Sector 11C-1, North Karachi', W - margin, 35, { align: 'right' });
 
   let y = 46;
 
@@ -4386,36 +4387,58 @@ async function generateQuotationPdf(opts: {
     y += effH + 5;
   }
 
-  // ── 5c. Solar Cross-Sell block ────────────────────────────────────────────
+  // ── 5c. Solar Cross-Sell / UPS recommendation block ──────────────────────
   const hasSolarProduct = opts.lines.some(l =>
     l.category.toLowerCase().includes('solar') || l.category.toLowerCase().includes('inverter')
   );
   const totalMonthlyKwh = opts.lines.reduce((s, l) => s + l.kwhPerMonth * l.qty, 0);
   if (!hasSolarProduct && totalMonthlyKwh >= 50) {
-    const systemKw = totalMonthlyKwh >= 100 ? 5 : 3;
-    const monthlyGen = systemKw * 4 * 30; // 4 peak sun hrs
-    const offsetUnits = Math.min(totalMonthlyKwh, monthlyGen);
-    const billOffset = Math.round(offsetUnits * KE_RATE_PKR);
-    const solarH = 24;
-    doc.setFillColor(240, 253, 244);
-    doc.rect(margin, y, printW, solarH, 'F');
-    doc.setDrawColor(22, 163, 74); doc.setLineWidth(0.8);
-    doc.line(margin, y, margin, y + solarH);
-    doc.setLineWidth(0.2);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(21, 128, 61);
-    doc.text(`SOLAR RECOMMENDATION  —  ${systemKw}kW Hybrid Setup`, margin + 3, y + 6);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(55, 65, 81);
-    doc.text(
-      `Your appliances draw ~${totalMonthlyKwh} units/mo. A ${systemKw}kW hybrid solar system generates ~${monthlyGen} units/mo, ` +
-      `offsetting ~PKR ${billOffset.toLocaleString('en-PK')}/mo on your KE bill. Cash & installment packages available.`,
-      margin + 3, y + 12, { maxWidth: printW - 6 }
-    );
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(21, 128, 61);
-    doc.text('Ask us for a free solar proposal: +92 370 2578788', margin + 3, y + 20);
-    y += solarH + 5;
+    if (opts.isApartmentClient) {
+      // Apartment clients: recommend UPS/backup instead of solar
+      const upsKw = totalMonthlyKwh >= 100 ? 5 : 3.6;
+      const upsH = 24;
+      doc.setFillColor(239, 246, 255);
+      doc.rect(margin, y, printW, upsH, 'F');
+      doc.setDrawColor(59, 130, 246); doc.setLineWidth(0.8);
+      doc.line(margin, y, margin, y + upsH);
+      doc.setLineWidth(0.2);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(29, 78, 216);
+      doc.text(`UPS / BACKUP RECOMMENDATION  —  ${upsKw}kW System`, margin + 3, y + 6);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(55, 65, 81);
+      doc.text(
+        `Your appliances draw ~${totalMonthlyKwh} units/mo. A ${upsKw}kW UPS/inverter + LiFePO4 battery provides reliable ` +
+        `backup power during load shedding — ideal for apartment setups. Cash & installment options available.`,
+        margin + 3, y + 12, { maxWidth: printW - 6 }
+      );
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(29, 78, 216);
+      doc.text('Ask us for a free UPS package quote: +92 370 2578788', margin + 3, y + 20);
+      y += upsH + 5;
+    } else {
+      const systemKw = totalMonthlyKwh >= 100 ? 5 : 3;
+      const monthlyGen = systemKw * 4 * 30; // 4 peak sun hrs
+      const offsetUnits = Math.min(totalMonthlyKwh, monthlyGen);
+      const billOffset = Math.round(offsetUnits * KE_RATE_PKR);
+      const solarH = 24;
+      doc.setFillColor(240, 253, 244);
+      doc.rect(margin, y, printW, solarH, 'F');
+      doc.setDrawColor(22, 163, 74); doc.setLineWidth(0.8);
+      doc.line(margin, y, margin, y + solarH);
+      doc.setLineWidth(0.2);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(21, 128, 61);
+      doc.text(`SOLAR RECOMMENDATION  —  ${systemKw}kW Hybrid Setup`, margin + 3, y + 6);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(55, 65, 81);
+      doc.text(
+        `Your appliances draw ~${totalMonthlyKwh} units/mo. A ${systemKw}kW hybrid solar system generates ~${monthlyGen} units/mo, ` +
+        `offsetting ~PKR ${billOffset.toLocaleString('en-PK')}/mo on your KE bill. Cash & installment packages available.`,
+        margin + 3, y + 12, { maxWidth: printW - 6 }
+      );
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(21, 128, 61);
+      doc.text('Ask us for a free solar proposal: +92 370 2578788', margin + 3, y + 20);
+      y += solarH + 5;
+    }
   }
 
-  // ── 6. Solar disclaimer (conditional) ─────────────────────────────────────
+  // ── 6. Solar / UPS capacity disclaimer (conditional) ─────────────────────
   const solarInv = opts.lines.find(l =>
     l.category.toLowerCase().includes('solar inverter') || l.category.toLowerCase().includes('solar & power')
   );
@@ -4454,26 +4477,46 @@ async function generateQuotationPdf(opts: {
     }
     y += disclaimerH + 2;
 
-    // ── Green Corridor block ──────────────────────────────────────────────────
-    const annualUnits   = Math.round(inverterKW * 1500);           // kWh/yr (5 peak hrs × 300 days)
-    const annualCO2     = (inverterKW * 1500 * 0.42 / 1000).toFixed(2); // tons CO2/yr (Pak grid factor)
-    const annualSavings = Math.round(inverterKW * 1500 * 55);      // PKR/yr @ PKR 55/kWh blended
-    const gcH = 18;
-    doc.setFillColor(240, 253, 244);
-    doc.rect(margin, y, printW, gcH, 'F');
-    doc.setDrawColor(22, 163, 74); doc.setLineWidth(0.8);
-    doc.line(margin, y, margin, y + gcH);
-    doc.setLineWidth(0.2);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(22, 101, 52);
-    doc.text('Green Corridor — Est. Annual Impact', margin + 3, y + 5);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(21, 128, 61);
-    doc.text(
-      `~${annualUnits} kWh generated/yr  ·  ${annualCO2} tons CO₂ offset  ·  est. PKR ${annualSavings.toLocaleString('en-PK')} saved on electricity bills`,
-      margin + 3, y + 10, { maxWidth: printW - 60 }
-    );
-    doc.setFont('helvetica', 'italic'); doc.setFontSize(6.5); doc.setTextColor(100, 150, 100);
-    doc.text('Full ROI simulation → tajallis.com.pk/solar', margin + 3, y + 15);
-    y += gcH + 5;
+    if (opts.isApartmentClient) {
+      // Apartment: replace Green Corridor with UPS reliability note
+      const upsH = 18;
+      doc.setFillColor(239, 246, 255);
+      doc.rect(margin, y, printW, upsH, 'F');
+      doc.setDrawColor(59, 130, 246); doc.setLineWidth(0.8);
+      doc.line(margin, y, margin, y + upsH);
+      doc.setLineWidth(0.2);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(29, 78, 216);
+      doc.text('UPS Backup — Load Shedding Coverage', margin + 3, y + 5);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(37, 99, 235);
+      const upsBackupNote = batteryKWh > 0
+        ? `${batteryKWh}kWh LiFePO4 battery provides reliable load-shedding backup. Ideal for apartment use — no rooftop access required.`
+        : `LiFePO4 battery provides reliable load-shedding backup. Ideal for apartment use — no rooftop access required.`;
+      doc.text(upsBackupNote, margin + 3, y + 10, { maxWidth: printW - 60 });
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(6.5); doc.setTextColor(100, 130, 200);
+      doc.text('Package options & pricing → tajallis.com.pk', margin + 3, y + 15);
+      y += upsH + 5;
+    } else {
+      // ── Green Corridor block ────────────────────────────────────────────────
+      const annualUnits   = Math.round(inverterKW * 1500);           // kWh/yr (5 peak hrs × 300 days)
+      const annualCO2     = (inverterKW * 1500 * 0.42 / 1000).toFixed(2); // tons CO2/yr (Pak grid factor)
+      const annualSavings = Math.round(inverterKW * 1500 * 55);      // PKR/yr @ PKR 55/kWh blended
+      const gcH = 18;
+      doc.setFillColor(240, 253, 244);
+      doc.rect(margin, y, printW, gcH, 'F');
+      doc.setDrawColor(22, 163, 74); doc.setLineWidth(0.8);
+      doc.line(margin, y, margin, y + gcH);
+      doc.setLineWidth(0.2);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(22, 101, 52);
+      doc.text('Green Corridor — Est. Annual Impact', margin + 3, y + 5);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(21, 128, 61);
+      doc.text(
+        `~${annualUnits} kWh generated/yr  ·  ${annualCO2} tons CO₂ offset  ·  est. PKR ${annualSavings.toLocaleString('en-PK')} saved on electricity bills`,
+        margin + 3, y + 10, { maxWidth: printW - 60 }
+      );
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(6.5); doc.setTextColor(100, 150, 100);
+      doc.text('Full ROI simulation → tajallis.com.pk/solar', margin + 3, y + 15);
+      y += gcH + 5;
+    }
   }
 
   // ── 7. Scope of Work + Payment Terms + Bank Details ────────────────────────
@@ -4641,11 +4684,9 @@ async function generateInstallmentAdvancePdf(opts: {
   doc.text('Home & Commercial Solutions', textX, 19);
   doc.text('+92 370 2578788  |  tajallis.com.pk', textX, 25);
   doc.text('L-152 & 153, Sector 11C-1, North Karachi', textX, 31);
-  const bW = 44; const bH = 11;
-  doc.setFillColor(DARK);
-  doc.roundedRect(W - margin - bW, 10, bW, bH, 2, 2, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
-  doc.text('ADVANCE INVOICE', W - margin - bW / 2, 17, { align: 'center' });
+  // Advance invoice label — right-aligned, large and prominent
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(255, 255, 255);
+  doc.text('ADVANCE INVOICE', W - margin, 16, { align: 'right' });
 
   let y = 46;
 
@@ -4658,7 +4699,7 @@ async function generateInstallmentAdvancePdf(opts: {
   doc.text(`Date: ${dateStr}`, margin + colW + 2, y + 6.5);
   doc.text('Advance Due: Today', margin + colW * 2 + 2, y + 6.5);
   doc.setFont('helvetica', 'bold');
-  doc.text('ADVANCE INVOICE', margin + colW * 3 + 2, y + 6.5);
+  doc.text('Supply + Installment', margin + colW * 3 + 2, y + 6.5);
   y += 14;
 
   // ── 3. Customer block ──────────────────────────────────────────────────────
@@ -4853,11 +4894,9 @@ async function generateInstallmentPaymentPdf(opts: {
   doc.text('Home & Commercial Solutions', textX, 19);
   doc.text('+92 370 2578788  |  tajallis.com.pk', textX, 25);
   doc.text('L-152 & 153, Sector 11C-1, North Karachi', textX, 31);
-  const bW = 48; const bH = 11;
-  doc.setFillColor(DARK);
-  doc.roundedRect(W - margin - bW, 10, bW, bH, 2, 2, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
-  doc.text('INSTALLMENT INVOICE', W - margin - bW / 2, 17, { align: 'center' });
+  // Installment invoice label — right-aligned, large and prominent
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(255, 255, 255);
+  doc.text('INSTALLMENT INVOICE', W - margin, 16, { align: 'right' });
 
   let y = 46;
 
@@ -5374,6 +5413,7 @@ function QuotationTab({ products }: { products: Product[] }) {
   const [advancePct, setAdvancePct]   = useState(70);
   const [balanceNote, setBalanceNote] = useState('delivery');
   const [showNtn, setShowNtn]         = useState(false);
+  const [isApartmentClient, setIsApartmentClient] = useState(false);
   // ── Installment invoice state ──
   const [instTotalPrice, setInstTotalPrice]     = useState(0);
   const [instAdvanceAmt, setInstAdvanceAmt]     = useState(0);
@@ -5672,7 +5712,7 @@ function QuotationTab({ products }: { products: Product[] }) {
             ...(laborAmt > 0 ? [{ name: 'Installation Labour', amount: laborAmt }] : []),
           ]
         : [];
-      const blob = await generateQuotationPdf({ customerName, customerPhone: customerPhone.replace(/\D/g, ''), customerEmail, customerAddress, customerCnic, lines, discount, discountType, docType: docType as 'quotation' | 'invoice', refNumber, installationType, installationLines: instLines, advancePct, balanceNote, showNtn });
+      const blob = await generateQuotationPdf({ customerName, customerPhone: customerPhone.replace(/\D/g, ''), customerEmail, customerAddress, customerCnic, lines, discount, discountType, docType: docType as 'quotation' | 'invoice', refNumber, installationType, installationLines: instLines, advancePct, balanceNote, showNtn, isApartmentClient });
       clearTimeout(timeout);
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
@@ -5745,6 +5785,16 @@ function QuotationTab({ products }: { products: Product[] }) {
       const a = document.createElement('a');
       a.href = url; a.download = `tajallis_installment_${instPaymentNumber}_${refNumber}.pdf`; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
+      // Log payment invoice to DB with products sold and installment details
+      const instGrandTotal = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0) * (1 - discount / 100);
+      logInvoiceToSupabase({
+        refNumber: `${refNumber}-P${instPaymentNumber}`,
+        docType: 'installment-invoice',
+        customerName, customerPhone: customerPhone.replace(/\D/g, ''),
+        customerEmail, customerAddress, customerCnic,
+        lines, discount, discountType, grandTotal: Math.round(instGrandTotal), advancePct: 0,
+        instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt,
+      });
       setInstPayPdfState('success');
       setTimeout(() => setInstPayPdfState('idle'), 3000);
     } catch {
@@ -5755,13 +5805,22 @@ function QuotationTab({ products }: { products: Product[] }) {
 
   const phoneDigits = customerPhone.replace(/\D/g, '');
   const waFallbackPhone = phoneDigits.length >= 10 ? phoneDigits : '';
+  const waDocLabel = docType === 'invoice' ? 'Invoice' : docType === 'installment-invoice' ? 'Installment Invoice' : 'Quotation';
   const waText = encodeURIComponent(
-    `*Tajalli's ${docType === 'invoice' ? 'Invoice' : 'Quotation'} — ${refNumber}*\n\n` +
-    `Customer: ${customerName}\n` +
-    lines.map(l => `• ${l.name} × ${l.qty} — PKR ${(l.qty * l.unitPrice).toLocaleString('en-PK')}`).join('\n') +
-    `\n\n*Grand Total: PKR ${grandTotal.toLocaleString('en-PK')}*` +
-    (discount > 0 ? `\n_Discount ${discount}% applied_` : '') +
-    `\n\nValid for 7 days. tajallis.com.pk`
+    `*Tajalli's ${waDocLabel} — ${refNumber}*\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n` +
+    (customerName ? `*Customer:* ${customerName}\n` : '') +
+    (customerPhone ? `*Phone:* ${customerPhone}\n` : '') +
+    (customerAddress ? `*Address:* ${customerAddress}\n` : '') +
+    `\n*Items:*\n` +
+    lines.map(l => `• ${l.name}${l.model && l.model !== l.name ? ` (${l.model})` : ''} × ${l.qty} — PKR ${(l.qty * l.unitPrice).toLocaleString('en-PK')}`).join('\n') +
+    (discount > 0 ? `\nDiscount (${discount}%): - PKR ${Math.round(subtotal * discount / 100).toLocaleString('en-PK')}` : '') +
+    `\n━━━━━━━━━━━━━━━━━━━━\n` +
+    `*Total: PKR ${grandTotal.toLocaleString('en-PK')}*` +
+    (docType === 'installment-invoice' && instTotalPrice > 0
+      ? `\n\n*Installment Plan:*\nInstallment Total: PKR ${instTotalPrice.toLocaleString('en-PK')}\nAdvance: PKR ${instAdvanceAmt.toLocaleString('en-PK')}\nMonthly: PKR ${instMonthlyAmt.toLocaleString('en-PK')} × ${instMonths} months`
+      : '') +
+    `\n\n_${docType === 'quotation' ? 'Valid for 7 days. ' : ''}tajallis.com.pk_`
   );
   const waErrorText = encodeURIComponent(
     `Invoice #${refNumber} — ${customerName || 'Customer'}\n` +
@@ -5850,6 +5909,11 @@ function QuotationTab({ products }: { products: Product[] }) {
           <input value={customerAddress} onChange={e => setCustomerAddress(e.target.value)}
             placeholder="Delivery address (optional)"
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" checked={isApartmentClient} onChange={e => setIsApartmentClient(e.target.checked)}
+              className="accent-blue-500 w-4 h-4 shrink-0" />
+            <span className="text-xs text-gray-600">Apartment / Flat client <span className="text-gray-400">(replaces solar content with UPS info on PDF)</span></span>
+          </label>
           {docType === 'installment-invoice' && (
             <input value={customerCnic} onChange={e => setCustomerCnic(e.target.value)}
               placeholder="CNIC (required for installment)"
@@ -5975,42 +6039,30 @@ function QuotationTab({ products }: { products: Product[] }) {
                   </div>
                 ) : null;
               })()}
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-gray-600 w-40 shrink-0">Total Installment Price</label>
-                <span className="text-xs text-gray-400 shrink-0">PKR</span>
-                <input type="number" min={0} value={instTotalPrice || ''}
-                  onChange={e => setInstTotalPrice(Math.max(0, Number(e.target.value) || 0))}
-                  placeholder="0"
-                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: 'Total Price (PKR)', value: instTotalPrice || '', setter: (v: number) => setInstTotalPrice(v), unit: 'PKR', wide: true },
+                  { label: 'Advance (PKR)',     value: instAdvanceAmt || '', setter: (v: number) => setInstAdvanceAmt(v), unit: 'PKR', wide: true },
+                  { label: 'Monthly Amount (PKR)', value: instMonthlyAmt || '', setter: (v: number) => setInstMonthlyAmt(v), unit: 'PKR', wide: true },
+                  { label: 'Months',            value: instMonths,           setter: (v: number) => setInstMonths(Math.max(1, Math.min(24, v))), unit: 'mo', wide: false },
+                ].map(({ label, value, setter, unit }) => (
+                  <div key={label}>
+                    <label className="text-[10px] font-bold text-gray-500 block mb-1">{label}</label>
+                    <div className="flex items-center gap-1">
+                      <input type="number" min={0} value={value as number}
+                        onChange={e => setter(Math.max(0, Number(e.target.value) || 0))}
+                        placeholder="0"
+                        className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                      <span className="text-xs text-gray-400 shrink-0">{unit}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-gray-600 w-40 shrink-0">Advance Amount</label>
-                <span className="text-xs text-gray-400 shrink-0">PKR</span>
-                <input type="number" min={0} value={instAdvanceAmt || ''}
-                  onChange={e => setInstAdvanceAmt(Math.max(0, Number(e.target.value) || 0))}
-                  placeholder="0"
-                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-              </div>
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-gray-600 w-40 shrink-0">Monthly Installments</label>
-                <input type="number" min={1} max={24} value={instMonths}
-                  onChange={e => setInstMonths(Math.max(1, Math.min(24, Number(e.target.value) || 1)))}
-                  className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-                <span className="text-xs text-gray-400">months</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-gray-600 w-40 shrink-0">Monthly Amount</label>
-                <span className="text-xs text-gray-400 shrink-0">PKR</span>
-                <input type="number" min={0} value={instMonthlyAmt || ''}
-                  onChange={e => setInstMonthlyAmt(Math.max(0, Number(e.target.value) || 0))}
-                  placeholder="0"
-                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-              </div>
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-gray-600 w-40 shrink-0">First Installment Date</label>
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 block mb-1">First Installment Date</label>
                 <input type="date" value={instFirstDate}
                   onChange={e => setInstFirstDate(e.target.value)}
-                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
               </div>
               {/* Plan summary + mismatch warning */}
               {(instTotalPrice > 0 || instAdvanceAmt > 0 || instMonthlyAmt > 0) && (
@@ -6028,12 +6080,11 @@ function QuotationTab({ products }: { products: Product[] }) {
               {/* Payment invoice selector */}
               <div className="pt-1 border-t border-gray-100 space-y-2">
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Payment Invoice</p>
-                <div className="flex items-center gap-3">
-                  <label className="text-xs font-semibold text-gray-600 shrink-0">Installment #</label>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 block mb-1">Installment # (of {instMonths})</label>
                   <input type="number" min={1} max={instMonths} value={instPaymentNumber}
                     onChange={e => setInstPaymentNumber(Math.max(1, Math.min(instMonths, Number(e.target.value) || 1)))}
-                    className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-                  <span className="text-xs text-gray-400">of {instMonths}</span>
+                    className="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
                 </div>
               </div>
             </div>

@@ -622,7 +622,8 @@ export default function Products() {
   const [showFilters, setShowFilters] = useState(false)
   const [specFilters, setSpecFilters] = useState<Record<string, string>>({})
   const [budgetIdx, setBudgetIdx] = useState<number | null>(null)
-  const [inStockOnly, setInStockOnly] = useState(false)
+  const [inStockOnly, setInStockOnly]       = useState(false)
+  const [solarReadyOnly, setSolarReadyOnly] = useState(false)
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     budget: true, brand: true, specs: true, stock: true,
   })
@@ -674,7 +675,7 @@ export default function Products() {
   useEffect(() => { fetchProducts() }, [fetchProducts])
 
   // Reset client-side filters when category changes
-  useEffect(() => { setSpecFilters({}); setBudgetIdx(null); setInStockOnly(false) }, [category])
+  useEffect(() => { setSpecFilters({}); setBudgetIdx(null); setInStockOnly(false); setSolarReadyOnly(false) }, [category])
 
   // Apply deep subcategory preset when ?sub= param changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -699,6 +700,12 @@ export default function Products() {
     if (inStockOnly) {
       list = list.filter(p => p.stock_status === 'In Stock')
     }
+    if (solarReadyOnly) {
+      list = list.filter(p => {
+        const src = (p.simplified_name || '') + ' ' + (p.tags || '') + ' ' + (p.category || '')
+        return /inverter/i.test(src) || /solar/i.test(p.category || '')
+      })
+    }
     for (const [key, val] of Object.entries(specFilters)) {
       if (!val) continue
       const filterGroup = catSpecFilters.find(f => f.key === key)
@@ -706,7 +713,7 @@ export default function Products() {
       if (option) list = list.filter(option.match)
     }
     return list
-  }, [products, budgetIdx, inStockOnly, specFilters, catSpecFilters, sort, category, search])
+  }, [products, budgetIdx, inStockOnly, solarReadyOnly, specFilters, catSpecFilters, sort, category, search])
 
   function goToCategory(catId: string) {
     setSpecFilters({}); setBudgetIdx(null); setInStockOnly(false)
@@ -739,7 +746,7 @@ export default function Products() {
   }
 
   function clearAll() {
-    setSpecFilters({}); setBudgetIdx(null); setInStockOnly(false)
+    setSpecFilters({}); setBudgetIdx(null); setInStockOnly(false); setSolarReadyOnly(false)
     if (categorySlug) { navigate('/products'); return }
     setSp({})
   }
@@ -748,9 +755,9 @@ export default function Products() {
     setExpandedSections(s => ({ ...s, [key]: !s[key] }))
   }
 
-  const hasFilters = !!(category || brand || search || budgetIdx !== null || inStockOnly || Object.values(specFilters).some(Boolean))
+  const hasFilters = !!(category || brand || search || budgetIdx !== null || inStockOnly || solarReadyOnly || Object.values(specFilters).some(Boolean))
   const activeFilterCount = [
-    brand, budgetIdx !== null ? 'b' : '', inStockOnly ? 's' : '',
+    brand, budgetIdx !== null ? 'b' : '', inStockOnly ? 's' : '', solarReadyOnly ? 'r' : '',
     ...Object.values(specFilters).filter(Boolean)
   ].filter(Boolean).length
 
@@ -996,16 +1003,26 @@ export default function Products() {
                   </FilterSection>
                 ))}
 
-                {/* In Stock */}
+                {/* In Stock + Solar Ready */}
                 <FilterSection label="Availability" expanded={expandedSections.stock} onToggle={() => toggleSection('stock')}>
-                  <label className="flex items-center gap-2.5 cursor-pointer group">
-                    <input type="checkbox" checked={inStockOnly}
-                      onChange={() => setInStockOnly(v => !v)}
-                      className="accent-brand-500 w-3.5 h-3.5 cursor-pointer rounded" />
-                    <span className={`text-sm ${inStockOnly ? 'text-brand-600 font-semibold' : 'text-gray-600 group-hover:text-gray-900'}`}>
-                      In Stock only
-                    </span>
-                  </label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2.5 cursor-pointer group">
+                      <input type="checkbox" checked={inStockOnly}
+                        onChange={() => setInStockOnly(v => !v)}
+                        className="accent-brand-500 w-3.5 h-3.5 cursor-pointer rounded" />
+                      <span className={`text-sm ${inStockOnly ? 'text-brand-600 font-semibold' : 'text-gray-600 group-hover:text-gray-900'}`}>
+                        In Stock only
+                      </span>
+                    </label>
+                    <label className="flex items-center gap-2.5 cursor-pointer group">
+                      <input type="checkbox" checked={solarReadyOnly}
+                        onChange={() => setSolarReadyOnly(v => !v)}
+                        className="accent-amber-500 w-3.5 h-3.5 cursor-pointer rounded" />
+                      <span className={`text-sm ${solarReadyOnly ? 'text-amber-600 font-semibold' : 'text-gray-600 group-hover:text-gray-900'}`}>
+                        ☀️ Solar / Inverter Ready
+                      </span>
+                    </label>
+                  </div>
                 </FilterSection>
               </div>
 
@@ -1018,6 +1035,7 @@ export default function Products() {
                   {brand && <FilterChip label={`Brand: ${brand}`} onRemove={() => setFilter('brand', '')} />}
                   {budgetIdx !== null && <FilterChip label={`Budget: ${BUDGET_RANGES[budgetIdx].label}`} onRemove={() => setBudgetIdx(null)} />}
                   {inStockOnly && <FilterChip label="In Stock" onRemove={() => setInStockOnly(false)} />}
+                  {solarReadyOnly && <FilterChip label="☀️ Solar / Inverter Ready" onRemove={() => setSolarReadyOnly(false)} />}
                   {Object.entries(specFilters).filter(([,v]) => v).map(([k, v]) => {
                     const sf = catSpecFilters.find(f => f.key === k)
                     const opt = sf?.options.find(o => o.value === v)

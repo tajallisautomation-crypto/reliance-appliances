@@ -349,7 +349,7 @@ export const PACKAGE_COMPATIBILITY_REGISTRY: Record<string, PackageValidationRes
     { type: 'panel',    brand: 'Crown', model: 'Bi-Facial 620W ×14' },
   ]),
   'solar-12kw': validatePackage([
-    { type: 'inverter', brand: 'Ziewnic', model: 'RouX Ultra 12kW', powerKw: 12.0 },
+    { type: 'inverter', brand: 'Crown', model: '12kW 3-Phase Hybrid Inverter', powerKw: 12.0 },
     { type: 'battery',  brand: 'Crown', model: 'LiFePO4 5.12kWh', batteryVoltage: 48 },
     { type: 'panel',    brand: 'Crown', model: 'Bi-Facial 620W ×20' },
   ]),

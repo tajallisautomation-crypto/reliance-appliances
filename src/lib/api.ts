@@ -3552,6 +3552,7 @@ export async function processCSVImport(
       const model    = (row.Model || '').trim();
       const category = (row.Category || '').trim();
       const price    = Number(row.Retail_Price || row['Retail Price'] || row['Price'] || 0);
+      const minPrice = Number(row.Min_Price || row['Min_Price'] || row['min_price'] || row['Minimum Price'] || 0);
       if (!brand || !model || !category) {
         const missing = [!brand && 'Brand', !model && 'Model', !category && 'Category'].filter(Boolean).join(', ');
         summary.errors.push(`Skipped: Brand="${brand}" Model="${model}" Cat="${category}" — missing: ${missing}`);
@@ -3564,7 +3565,9 @@ export async function processCSVImport(
       const id       = existingIdMap.get(bKey) || slugify(`${brand}-${model}`);
       const isUpdate = existingIdMap.has(bKey);
 
-      const cashFloor = roundUp500(price);
+      const cashFloor = minPrice > 0
+        ? Math.max(roundUp500(price), roundUp500(minPrice * 1.10))
+        : roundUp500(price);
       const rowCC = resolveCanonicalCategory(brand, model, category);
       // Unknown taxonomy: flag for admin review. Product is still inserted but
       // marked taxonomy_status='review' so it is excluded from the public catalog
