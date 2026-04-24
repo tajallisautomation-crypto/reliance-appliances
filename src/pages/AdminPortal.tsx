@@ -2264,6 +2264,125 @@ function BulkEditPanel({
 
 // ── Audit Log Tab ─────────────────────────────────────────────────────────────
 
+interface PriceAuditRow {
+  id: string;
+  brand: string;
+  model: string;
+  category: string;
+  previous_price: number;
+  reference_price: number;
+  adjusted_price: number | null;
+  reason: string | null;
+  action: 'no_change' | 'flagged' | 'adjusted';
+  applied: boolean;
+  created_at: string;
+}
+
+function PriceAuditPanel() {
+  const [rows, setRows] = useState<PriceAuditRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.from('price_audit_log' as any)
+      .select('*').in('action', ['flagged', 'adjusted']).order('created_at', { ascending: false }).limit(200)
+      .then(({ data, error }) => {
+        if (error) { setErr(error.message); }
+        else { setRows((data || []) as PriceAuditRow[]); }
+        setLoading(false);
+      });
+  }, []);
+
+  function exportCSV() {
+    const lines = [
+      'brand,model,category,previous_price,reference_price,adjusted_price,action,applied,created_at',
+      ...rows.map(r =>
+        [r.brand, r.model, r.category, r.previous_price, r.reference_price,
+          r.adjusted_price ?? '', r.action, r.applied, r.created_at].join(',')
+      ),
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `price_audit_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+  }
+
+  if (loading) return <div className="py-6 text-center text-sm text-gray-400">Loading price audit data…</div>;
+  if (err) {
+    if (err.includes('does not exist') || err.includes('PGRST205')) {
+      return (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+          <strong>price_audit_log table not yet created.</strong> Apply the migration
+          (<code>supabase/migrations/20260424_price_audit_log.sql</code>) in the Supabase dashboard,
+          then run <code>node audit_prices.mjs</code> from the repo root to populate it.
+        </div>
+      );
+    }
+    return <div className="text-sm text-red-500 py-4">{err}</div>;
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-gray-800 text-sm">Price Audit — Flagged SKUs</h3>
+          <p className="text-xs text-gray-400 mt-0.5">{rows.length} flagged across all runs · populated by <code>node audit_prices.mjs</code></p>
+        </div>
+        {rows.length > 0 && (
+          <button onClick={exportCSV}
+            className="text-xs font-semibold border border-blue-200 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-50">
+            Export CSV
+          </button>
+        )}
+      </div>
+      {rows.length === 0 ? (
+        <div className="bg-gray-50 rounded-xl p-8 text-center text-gray-400 text-sm">
+          No flagged SKUs yet. Run <code>node audit_prices.mjs</code> after filling in <code>price_audit_reference.csv</code>.
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-gray-100">
+          <table className="w-full text-xs">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                <th className="text-left px-3 py-2 font-medium text-gray-500">Brand / Model</th>
+                <th className="text-left px-3 py-2 font-medium text-gray-500">Category</th>
+                <th className="text-right px-3 py-2 font-medium text-gray-500">Site Price</th>
+                <th className="text-right px-3 py-2 font-medium text-gray-500">Reference</th>
+                <th className="text-right px-3 py-2 font-medium text-gray-500">Adjusted</th>
+                <th className="text-center px-3 py-2 font-medium text-gray-500">Applied</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {rows.map(r => (
+                <tr key={r.id} className="hover:bg-gray-50">
+                  <td className="px-3 py-2">
+                    <div className="font-medium text-gray-800">{r.brand}</div>
+                    <div className="text-gray-400">{r.model}</div>
+                  </td>
+                  <td className="px-3 py-2 text-gray-500">{r.category}</td>
+                  <td className="px-3 py-2 text-right font-mono text-gray-700">
+                    {r.previous_price?.toLocaleString()}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono text-green-700">
+                    {r.reference_price?.toLocaleString()}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono text-blue-700">
+                    {r.adjusted_price?.toLocaleString() ?? '—'}
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <span className={`inline-block w-2 h-2 rounded-full ${r.applied ? 'bg-green-400' : 'bg-gray-300'}`} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AuditLogTab() {
   const [log, setLog]     = useState<AuditLogEntry[]>([]);
   const [cleared, setCleared] = useState(false);
@@ -2342,6 +2461,10 @@ function AuditLogTab() {
           </div>
         </div>
       )}
+
+      <div className="border-t border-gray-100 pt-6">
+        <PriceAuditPanel />
+      </div>
     </div>
   );
 }
@@ -5718,11 +5841,13 @@ function QuotationTab({ products }: { products: Product[] }) {
       setPdfUrl(url);
       const a = document.createElement('a');
       a.href = url; a.download = `tajallis_${docType}_${refNumber}.pdf`; a.click();
+      const instSubtotal = instLines.reduce((s, i) => s + i.amount, 0);
+      const logGrandTotal = (subtotal + instSubtotal) - Math.round((subtotal + instSubtotal) * discount / 100);
       const logPayload: InvoiceLogPayload = {
         refNumber, docType: docType as 'quotation' | 'invoice',
         customerName, customerPhone: customerPhone.replace(/\D/g, ''),
         customerEmail, customerAddress, customerCnic,
-        lines, discount, discountType, grandTotal, advancePct,
+        lines, discount, discountType, grandTotal: logGrandTotal, advancePct,
         instTotalPrice: 0, instAdvanceAmt: 0, instMonths: 0, instMonthlyAmt: 0,
       };
       logInvoiceToSupabase(logPayload); // fire-and-forget
