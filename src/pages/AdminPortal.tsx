@@ -18,6 +18,7 @@ import {
   type ProductGalleryImage, type AuditLogEntry,
 } from '@/lib/api';
 import { buildSearchIndex, adminSearch } from '@/lib/search';
+import { calcGrandTotal, validateFloor, generateWhatsAppSummary } from '@/lib/invoiceLogic';
 import {
   PANEL_WATTS, PANEL_PRICE_PER_W, INVERTER_PKR_PER_KW, BATTERY_PKR_PER_KWH,
   UNIT_RATE_PKR, NET_METERING_COST_PKR, DEFAULT_BATTERY_CHEMISTRY,
@@ -5557,6 +5558,25 @@ function QuotationTab({ products }: { products: Product[] }) {
   const [instAdvPdfState, setInstAdvPdfState]   = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
   const [instPayPdfState, setInstPayPdfState]   = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
 
+  interface InvoiceService {
+    service_type: string;
+    service_name: string;
+    description: string;
+    status: 'included' | 'charged' | 'not_selected';
+    visible_value: number;
+    charged_amount: number;
+  }
+
+  const DEFAULT_SERVICES: InvoiceService[] = [
+    { service_type: 'delivery',     service_name: 'Delivery & Logistics', description: 'Secure last-mile delivery to premises', status: 'included', visible_value: 3000, charged_amount: 0 },
+    { service_type: 'installation', service_name: 'Installation',         description: 'Professional setup and testing',        status: 'not_selected', visible_value: 0, charged_amount: 0 },
+    { service_type: 'site_survey',  service_name: 'Site Survey',          description: 'Pre-installation site assessment',      status: 'not_selected', visible_value: 0, charged_amount: 0 },
+    { service_type: 'maintenance',  service_name: 'Maintenance Visit',    description: 'Scheduled servicing visit',             status: 'not_selected', visible_value: 0, charged_amount: 0 },
+    { service_type: 'ups_setup',    service_name: 'UPS / Battery Setup',  description: 'Inverter + battery installation',       status: 'not_selected', visible_value: 0, charged_amount: 0 },
+  ];
+
+  const [services, setServices] = useState<InvoiceService[]>(DEFAULT_SERVICES);
+
   const autosaveRef                        = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const solarInverterLine = useMemo(() =>
@@ -5800,9 +5820,15 @@ function QuotationTab({ products }: { products: Product[] }) {
 
   function removeLine(id: string) { setLines(ls => ls.filter(l => l.id !== id)); }
 
-  const subtotal = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
-  const discountAmt = Math.round(subtotal * discount / 100);
-  const grandTotal = subtotal - discountAmt;
+  function updateService(index: number, patch: Partial<InvoiceService>) {
+    setServices(prev => prev.map((s, i) => i === index ? { ...s, ...patch } : s));
+  }
+
+  const totals = calcGrandTotal(lines, services, 'percentage', discount);
+  const subtotal = totals.subtotal;
+  const serviceTotal = totals.serviceTotal;
+  const discountAmt = totals.discountAmt;
+  const grandTotal = totals.grandTotal;
 
   // If the quote contains a solar inverter + solar battery, validate their compatibility
   const solarCompatCheck = useMemo(() => {
@@ -6527,6 +6553,67 @@ function QuotationTab({ products }: { products: Product[] }) {
           </div>
         </div>
       )}
+
+      {/* ── Services Panel ── */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Services</p>
+        {services.map((svc, i) => (
+          <div key={svc.service_type} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-800">{svc.service_name}</p>
+              <p className="text-xs text-gray-400">{svc.description}</p>
+            </div>
+            <div className="flex gap-1 shrink-0">
+              {(['not_selected', 'included', 'charged'] as const).map(opt => (
+                <button
+                  key={opt}
+                  onClick={() => updateService(i, { status: opt })}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                    svc.status === opt
+                      ? opt === 'charged' ? 'bg-orange-500 text-white'
+                        : opt === 'included' ? 'bg-green-500 text-white'
+                        : 'bg-gray-200 text-gray-600'
+                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`}
+                >
+                  {opt === 'not_selected' ? '—' : opt.charAt(0).toUpperCase() + opt.slice(1)}
+                </button>
+              ))}
+            </div>
+            {svc.status === 'included' && (
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="text-xs text-gray-400">Value: PKR</span>
+                <input
+                  type="number"
+                  value={svc.visible_value}
+                  onChange={e => updateService(i, { visible_value: Number(e.target.value) })}
+                  className="w-24 border border-gray-200 rounded-lg px-2 py-1 text-xs text-right focus:outline-none focus:ring-1 focus:ring-orange-400"
+                />
+              </div>
+            )}
+            {svc.status === 'charged' && (
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="text-xs text-gray-400">PKR</span>
+                <input
+                  type="number"
+                  value={svc.charged_amount}
+                  onChange={e => updateService(i, {
+                    charged_amount: Number(e.target.value),
+                    visible_value: Number(e.target.value),
+                  })}
+                  className="w-24 border border-orange-200 rounded-lg px-2 py-1 text-xs text-right focus:outline-none focus:ring-1 focus:ring-orange-400"
+                />
+              </div>
+            )}
+          </div>
+        ))}
+        {serviceTotal > 0 && (
+          <div className="flex justify-between text-sm text-gray-500">
+            <span>Services</span>
+            <span>+ {fmtPKR(serviceTotal)}</span>
+          </div>
+        )}
+      </div>
 
       {solarCompatCheck && (
         <div className={`rounded-xl px-4 py-3 flex gap-3 text-sm items-start ${
