@@ -4381,6 +4381,7 @@ async function generateQuotationPdf(opts: {
   customerAddress: string;
   customerCnic: string;
   lines: QuoteLine[];
+  services: Array<{ service_type: string; service_name: string; description: string; status: 'included' | 'charged' | 'not_selected'; visible_value: number; charged_amount: number }>;
   discount: number;
   discountType: string;
   docType: 'quotation' | 'invoice';
@@ -4390,7 +4391,7 @@ async function generateQuotationPdf(opts: {
   advancePct: number;
   balanceNote: string;
   showNtn?: boolean;
-  isApartmentClient?: boolean;
+  customerType: 'house' | 'apartment' | 'commercial';
 }): Promise<Blob> {
   const ORANGE = '#EA580C';
   const DARK   = '#1A1A1A';
@@ -4470,7 +4471,8 @@ async function generateQuotationPdf(opts: {
   // ── 4. Item table (grouped by category) ───────────────────────────────────
   const productSubtotal  = opts.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
   const installSubtotal  = opts.installationLines.reduce((s, i) => s + i.amount, 0);
-  const subtotalBeforeDiscount = productSubtotal + installSubtotal;
+  const chargedServiceTotal = opts.services.filter(s => s.status === 'charged').reduce((sum, s) => sum + s.charged_amount, 0);
+  const subtotalBeforeDiscount = productSubtotal + installSubtotal + chargedServiceTotal;
   const discountAmt  = Math.round(subtotalBeforeDiscount * opts.discount / 100);
   const grandTotal   = subtotalBeforeDiscount - discountAmt;
 
@@ -4505,19 +4507,26 @@ async function generateQuotationPdf(opts: {
     }
   }
 
-  // Delivery service row (always shown)
-  tableBody.push([{
-    content: 'SERVICES',
-    colSpan: 6,
-    styles: { fillColor: [26, 26, 26], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 } },
-  }]);
-  tableBody.push(['Delivery & Last-Mile Logistics', 'Secure transit to premises', 'N/A', '1', 'Included', 'PKR 0']);
-
-  if (opts.installationType === 'installation-included' && opts.installationLines.length > 0) {
-    for (const inst of opts.installationLines) {
-      tableBody.push([inst.name, 'Professional setup', '1 yr workmanship', '1', PKR(inst.amount), PKR(inst.amount)]);
+  // Services section — driven by the admin panel services state
+  const activeServices = opts.services.filter(s => s.status !== 'not_selected');
+  const hasInstallLines = opts.installationType === 'installation-included' && opts.installationLines.length > 0;
+  if (activeServices.length > 0 || hasInstallLines) {
+    tableBody.push([{
+      content: 'SERVICES',
+      colSpan: 6,
+      styles: { fillColor: [26, 26, 26], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 } },
+    }]);
+    for (const svc of activeServices) {
+      const priceLabel = svc.status === 'included' ? 'Included' : PKR(svc.charged_amount);
+      const totalLabel = svc.status === 'included' ? 'PKR 0' : PKR(svc.charged_amount);
+      tableBody.push([svc.service_name, svc.description, 'N/A', '1', priceLabel, totalLabel]);
     }
-    tableBody.push(['Complimentary Post-Installation Check', 'Site inspection & performance verification', 'N/A', '1', 'Complimentary', 'PKR 0']);
+    if (hasInstallLines) {
+      for (const inst of opts.installationLines) {
+        tableBody.push([inst.name, 'Professional setup', '1 yr workmanship', '1', PKR(inst.amount), PKR(inst.amount)]);
+      }
+      tableBody.push(['Complimentary Post-Installation Check', 'Site inspection & performance verification', 'N/A', '1', 'Complimentary', 'PKR 0']);
+    }
   }
 
   autoTable(doc, {
@@ -4546,8 +4555,14 @@ async function generateQuotationPdf(opts: {
 
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(80, 80, 80);
   doc.text('Subtotal', totalsX, y);
-  doc.text(PKR(subtotalBeforeDiscount), valX, y, { align: 'right' });
+  doc.text(PKR(subtotalBeforeDiscount - chargedServiceTotal), valX, y, { align: 'right' });
   y += 7;
+
+  if (chargedServiceTotal > 0) {
+    doc.text('Services', totalsX, y);
+    doc.text(PKR(chargedServiceTotal), valX, y, { align: 'right' });
+    y += 7;
+  }
 
   if (opts.discount > 0) {
     doc.setTextColor(234, 88, 12); doc.setFont('helvetica', 'italic');
@@ -4594,9 +4609,10 @@ async function generateQuotationPdf(opts: {
     l.category.toLowerCase().includes('solar') || l.category.toLowerCase().includes('inverter')
   );
   const totalMonthlyKwh = opts.lines.reduce((s, l) => s + l.kwhPerMonth * l.qty, 0);
-  if (!hasSolarProduct && totalMonthlyKwh >= 50) {
-    if (opts.isApartmentClient) {
-      // Apartment clients: recommend UPS/backup instead of solar
+  // Show advisory for house/apartment customers even when kWh data isn't populated
+  if (!hasSolarProduct && opts.customerType !== 'commercial') {
+    const isApartment = opts.customerType === 'apartment';
+    if (isApartment) {
       const upsKw = totalMonthlyKwh >= 100 ? 5 : 3.6;
       const upsH = 24;
       doc.setFillColor(239, 246, 255);
@@ -4605,19 +4621,18 @@ async function generateQuotationPdf(opts: {
       doc.line(margin, y, margin, y + upsH);
       doc.setLineWidth(0.2);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(29, 78, 216);
-      doc.text(`UPS / BACKUP RECOMMENDATION  —  ${upsKw}kW System`, margin + 3, y + 6);
+      doc.text('UPS / BACKUP RECOMMENDATION', margin + 3, y + 6);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(55, 65, 81);
-      doc.text(
-        `Your appliances draw ~${totalMonthlyKwh} units/mo. A ${upsKw}kW UPS/inverter + LiFePO4 battery provides reliable ` +
-        `backup power during load shedding — ideal for apartment setups. Cash & installment options available.`,
-        margin + 3, y + 12, { maxWidth: printW - 6 }
-      );
+      const upsBody = totalMonthlyKwh >= 50
+        ? `Your appliances draw ~${totalMonthlyKwh} units/mo. A ${upsKw}kW UPS/inverter + LiFePO4 battery provides reliable backup power during load shedding — ideal for apartment setups. Cash & installment options available.`
+        : 'For apartment customers, UPS backup is more practical than rooftop solar. Ask us for compatible inverter and battery sizing to cover load shedding. Cash & installment options available.';
+      doc.text(upsBody, margin + 3, y + 12, { maxWidth: printW - 6 });
       doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(29, 78, 216);
       doc.text('Ask us for a free UPS package quote: +92 370 2578788', margin + 3, y + 20);
       y += upsH + 5;
     } else {
       const systemKw = totalMonthlyKwh >= 100 ? 5 : 3;
-      const monthlyGen = systemKw * 4 * 30; // 4 peak sun hrs
+      const monthlyGen = systemKw * 4 * 30;
       const offsetUnits = Math.min(totalMonthlyKwh, monthlyGen);
       const billOffset = Math.round(offsetUnits * KE_RATE_PKR);
       const solarH = 24;
@@ -4627,13 +4642,12 @@ async function generateQuotationPdf(opts: {
       doc.line(margin, y, margin, y + solarH);
       doc.setLineWidth(0.2);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(21, 128, 61);
-      doc.text(`SOLAR RECOMMENDATION  —  ${systemKw}kW Hybrid Setup`, margin + 3, y + 6);
+      doc.text('SOLAR RECOMMENDATION — GREEN CORRIDOR', margin + 3, y + 6);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(55, 65, 81);
-      doc.text(
-        `Your appliances draw ~${totalMonthlyKwh} units/mo. A ${systemKw}kW hybrid solar system generates ~${monthlyGen} units/mo, ` +
-        `offsetting ~PKR ${billOffset.toLocaleString('en-PK')}/mo on your KE bill. Cash & installment packages available.`,
-        margin + 3, y + 12, { maxWidth: printW - 6 }
-      );
+      const solarBody = totalMonthlyKwh >= 50
+        ? `Your appliances draw ~${totalMonthlyKwh} units/mo. A ${systemKw}kW hybrid solar system generates ~${monthlyGen} units/mo, offsetting ~PKR ${billOffset.toLocaleString('en-PK')}/mo on your KE bill. Cash & installment packages available.`
+        : 'This purchase can be paired with a solar package to reduce monthly electricity costs. Ask us for a free solar proposal tailored to your home. Cash & installment packages available.';
+      doc.text(solarBody, margin + 3, y + 12, { maxWidth: printW - 6 });
       doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(21, 128, 61);
       doc.text('Ask us for a free solar proposal: +92 370 2578788', margin + 3, y + 20);
       y += solarH + 5;
@@ -4679,7 +4693,7 @@ async function generateQuotationPdf(opts: {
     }
     y += disclaimerH + 2;
 
-    if (opts.isApartmentClient) {
+    if (opts.customerType === 'apartment') {
       // Apartment: replace Green Corridor with UPS reliability note
       const upsH = 18;
       doc.setFillColor(239, 246, 255);
@@ -5962,7 +5976,7 @@ function QuotationTab({ products }: { products: Product[] }) {
             ...(laborAmt > 0 ? [{ name: 'Installation Labour', amount: laborAmt }] : []),
           ]
         : [];
-      const blob = await generateQuotationPdf({ customerName, customerPhone: customerPhone.replace(/\D/g, ''), customerEmail, customerAddress, customerCnic, lines, discount, discountType, docType: docType as 'quotation' | 'invoice', refNumber, installationType, installationLines: instLines, advancePct, balanceNote, showNtn, isApartmentClient: customerType === 'apartment' });
+      const blob = await generateQuotationPdf({ customerName, customerPhone: customerPhone.replace(/\D/g, ''), customerEmail, customerAddress, customerCnic, lines, services, discount, discountType, docType: docType as 'quotation' | 'invoice', refNumber, installationType, installationLines: instLines, advancePct, balanceNote, showNtn, customerType });
       clearTimeout(timeout);
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
