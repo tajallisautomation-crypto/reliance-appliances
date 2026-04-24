@@ -90,7 +90,7 @@ export function validateFloor(unitPrice: number, minPrice: number): FloorValidat
 export function calcGrandTotal(
   lines: TotalLine[],
   services: ServiceLine[],
-  discountType: DiscountType | string,
+  discountType: DiscountType,
   discountValue: number
 ): GrandTotalResult {
   const subtotal = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
@@ -112,11 +112,12 @@ export function calcGrandTotal(
   };
 }
 
+/** Caller must handle DB unique constraint violation on rare same-day collision. */
 export function generateRefNumber(): string {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
   const date = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
-  const rand = Math.floor(Math.random() * 9000) + 1000;
+  const rand = Math.floor(Math.random() * 900000) + 100000;
   return `TJ-${date}-${rand}`;
 }
 

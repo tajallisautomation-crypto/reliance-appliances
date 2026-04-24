@@ -136,7 +136,7 @@ describe('calcGrandTotal', () => {
 describe('generateRefNumber', () => {
   it('matches TJ-YYYYMMDD-NNNN format', () => {
     const ref = generateRefNumber();
-    expect(ref).toMatch(/^TJ-\d{8}-\d{4}$/);
+    expect(ref).toMatch(/^TJ-\d{8}-\d{6}$/);
   });
 
   it('generates different refs on successive calls', () => {
