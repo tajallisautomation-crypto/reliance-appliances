@@ -6058,22 +6058,25 @@ function QuotationTab({ products }: { products: Product[] }) {
 
   const phoneDigits = customerPhone.replace(/\D/g, '');
   const waFallbackPhone = phoneDigits.length >= 10 ? phoneDigits : '';
-  const waDocLabel = docType === 'invoice' ? 'Invoice' : docType === 'installment-invoice' ? 'Installment Invoice' : 'Quotation';
+  const waDocLabel = docType === 'invoice' ? 'Invoice'
+    : docType === 'installment-invoice' ? 'Installment Invoice'
+    : 'Quotation';
   const waText = encodeURIComponent(
-    `*Tajalli's ${waDocLabel} — ${refNumber}*\n` +
-    `━━━━━━━━━━━━━━━━━━━━\n` +
-    (customerName ? `*Customer:* ${customerName}\n` : '') +
-    (customerPhone ? `*Phone:* ${customerPhone}\n` : '') +
-    (customerAddress ? `*Address:* ${customerAddress}\n` : '') +
-    `\n*Items:*\n` +
-    lines.map(l => `• ${l.name}${l.model && l.model !== l.name ? ` (${l.model})` : ''} × ${l.qty} — PKR ${(l.qty * l.unitPrice).toLocaleString('en-PK')}`).join('\n') +
-    (discount > 0 ? `\nDiscount (${discount}%): - PKR ${Math.round(subtotal * discount / 100).toLocaleString('en-PK')}` : '') +
-    `\n━━━━━━━━━━━━━━━━━━━━\n` +
-    `*Total: PKR ${grandTotal.toLocaleString('en-PK')}*` +
-    (docType === 'installment-invoice' && instTotalPrice > 0
-      ? `\n\n*Installment Plan:*\nInstallment Total: PKR ${instTotalPrice.toLocaleString('en-PK')}\nAdvance: PKR ${instAdvanceAmt.toLocaleString('en-PK')}\nMonthly: PKR ${instMonthlyAmt.toLocaleString('en-PK')} × ${instMonths} months`
-      : '') +
-    `\n\n_${docType === 'quotation' ? 'Valid for 7 days. ' : ''}tajallis.com.pk_`
+    generateWhatsAppSummary({
+      refNumber,
+      docLabel:        waDocLabel,
+      customerName,
+      customerPhone,
+      customerAddress,
+      lines:           lines.map(l => ({ name: l.name, model: l.model, qty: l.qty, unitPrice: l.unitPrice })),
+      services,
+      discountAmt,
+      grandTotal,
+      instTotalPrice,
+      instAdvanceAmt,
+      instMonths,
+      instMonthlyAmt,
+    })
   );
   const waErrorText = encodeURIComponent(
     `Invoice #${refNumber} — ${customerName || 'Customer'}\n` +
