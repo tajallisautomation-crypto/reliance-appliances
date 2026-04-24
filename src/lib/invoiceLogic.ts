@@ -168,3 +168,113 @@ export function generateWhatsAppSummary(input: WhatsAppSummaryInput): string {
 
   return lines.join('\n');
 }
+
+export interface AdvisoryLine {
+  name: string;
+  category: string;
+  kwhPerMonth: number;
+  qty: number;
+}
+
+export interface DetailedAdvisory {
+  sectionLabel: string;         // "FOR APARTMENT CUSTOMERS"
+  color: 'blue' | 'green' | 'gray';
+  paragraphs: string[];         // each string is one paragraph block
+}
+
+export function buildDetailedAdvisory(
+  customerType: CustomerType,
+  lines: AdvisoryLine[]
+): DetailedAdvisory | null {
+  if (customerType === 'commercial') return null;
+
+  const totalKwh = lines.reduce((s, l) => s + l.kwhPerMonth * l.qty, 0);
+  const hasSolar = lines.some(l =>
+    /solar|inverter/i.test(l.category)
+  );
+
+  if (customerType === 'apartment') {
+    const paras: string[] = [];
+    paras.push(
+      'UPS / inverter backup is usually more practical than rooftop solar for your address. ' +
+      'A 1–1.2 kVA inverter with 1× tall-tubular battery typically runs one freezer + 3 fans + lights for ~3–4 hrs of load-shed.'
+    );
+
+    for (const l of lines) {
+      const cat = l.category.toLowerCase();
+      if (/freezer|refrigerator|fridge/i.test(cat) || /freezer|fridge/i.test(l.name)) {
+        const isInverter = /inverter/i.test(l.name) || /inverter/i.test(cat);
+        if (isInverter) {
+          paras.push(
+            `This is an inverter ${/freezer/i.test(l.name) ? 'freezer' : 'refrigerator'} — ` +
+            `energy-efficient and well-suited for future solar or UPS integration. Ask us to size a compatible backup.`
+          );
+        } else {
+          paras.push(
+            `A standard ${/freezer/i.test(l.name) ? 'freezer' : 'refrigerator'} draws ~${l.kwhPerMonth || 30}–${(l.kwhPerMonth || 30) + 10} units/mo. ` +
+            `Upgrading to an inverter model can cut consumption by up to 40%.`
+          );
+        }
+      } else if (/air.?condition|ac/i.test(cat)) {
+        paras.push(
+          `Air conditioners are high-load appliances. A 1.5-ton inverter AC draws ~${l.kwhPerMonth || 120} units/mo under typical use. ` +
+          `A 3–5 kVA UPS/inverter would be needed for uninterrupted cooling during load-shedding.`
+        );
+      }
+    }
+
+    return { sectionLabel: 'FOR APARTMENT CUSTOMERS', color: 'blue', paragraphs: paras };
+  }
+
+  // house
+  const paras: string[] = [];
+  if (!hasSolar && totalKwh >= 50) {
+    const systemKw = totalKwh >= 150 ? 5 : totalKwh >= 80 ? 3 : 2;
+    const monthlyGen = systemKw * 4 * 30;
+    const offsetUnits = Math.min(totalKwh, monthlyGen);
+    const billSaving = Math.round(offsetUnits * 50);
+    paras.push(
+      `Your selected appliances draw approximately ${totalKwh} units/month. ` +
+      `A ${systemKw}kW hybrid solar system generates ~${monthlyGen} units/month, ` +
+      `offsetting ~${offsetUnits} units and saving ~PKR ${billSaving.toLocaleString('en-PK')}/month on your KE bill. ` +
+      `Cash and 12–36 month installment packages available.`
+    );
+  } else if (!hasSolar) {
+    paras.push(
+      'A solar package can significantly reduce your monthly electricity bill. ' +
+      'Ask us for a free solar proposal — we design systems for 1–3 bedroom homes starting at 1.5kW. ' +
+      'Cash and installment options available.'
+    );
+  }
+
+  for (const l of lines) {
+    const cat = l.category.toLowerCase();
+    if (/freezer|refrigerator|fridge/i.test(cat) || /freezer|fridge/i.test(l.name)) {
+      const isInverter = /inverter/i.test(l.name) || /inverter/i.test(cat);
+      if (isInverter) {
+        paras.push(
+          `This inverter ${/freezer/i.test(l.name) ? 'freezer' : 'refrigerator'} is solar-compatible — ` +
+          `low inrush current and stable load make it ideal for pairing with a hybrid or off-grid solar setup.`
+        );
+      }
+    } else if (/air.?condition|ac/i.test(cat)) {
+      const isInverter = /inverter/i.test(l.name);
+      paras.push(
+        isInverter
+          ? `Inverter ACs are solar-ready and pair well with hybrid systems. ` +
+            `A ${l.kwhPerMonth || 120}-unit/month load from this AC can be largely offset by a 2–3kW panel array.`
+          : `Standard ACs have high inrush current. Consider upgrading to an inverter model before adding solar for best ROI.`
+      );
+    }
+  }
+
+  if (paras.length === 0) {
+    paras.push(
+      'Solar energy can offset a significant portion of your monthly electricity bill. ' +
+      'Ask us for a free sizing proposal tailored to your home. ' +
+      'We install 1.5kW–10kW hybrid and off-grid systems with 12–36 month installment options.'
+    );
+  }
+
+  return { sectionLabel: 'FOR HOUSE / INDEPENDENT UNIT CUSTOMERS', color: 'green', paragraphs: paras };
+}
