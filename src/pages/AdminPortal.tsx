@@ -4178,27 +4178,36 @@ const LEAD_STATUS_COLORS: Record<string, string> = {
 // Uses the same jsPDF pattern as the solar proposal generator.
 
 interface InvoiceLogPayload {
-  refNumber:      string;
-  docType:        'quotation' | 'invoice' | 'installment-invoice';
-  customerName:   string;
-  customerPhone:  string;
-  customerEmail:  string;
-  customerAddress:string;
-  customerCnic:   string;
-  lines:          QuoteLine[];
-  discount:       number;
-  discountType:   string;
-  grandTotal:     number;
-  advancePct:     number;
-  instTotalPrice: number;
-  instAdvanceAmt: number;
-  instMonths:     number;
-  instMonthlyAmt: number;
+  refNumber:       string;
+  docType:         'quotation' | 'invoice' | 'installment-invoice' | 'installment_payment_receipt';
+  customerName:    string;
+  customerPhone:   string;
+  customerEmail:   string;
+  customerAddress: string;
+  customerCnic:    string;
+  customerType:    'house' | 'apartment' | 'commercial';
+  serviceLevel:    'supply_only' | 'supply_install' | 'full_service';
+  discountReason:  string;
+  lines:           QuoteLine[];
+  services:        Array<{ service_type: string; service_name: string; description: string; status: 'included' | 'charged' | 'not_selected'; visible_value: number; charged_amount: number }>;
+  discount:        number;
+  discountType:    string;
+  grandTotal:      number;
+  serviceTotal:    number;
+  advancePct:      number;
+  instTotalPrice:  number;
+  instAdvanceAmt:  number;
+  instMonths:      number;
+  instMonthlyAmt:  number;
+  instFirstDate:   string;
 }
 
 async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<void> {
   try {
     const subtotal = payload.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+    const saleType = (payload.docType === 'installment-invoice' || payload.docType === 'installment_payment_receipt')
+      ? 'installment' : 'cash';
+
     const { data: inv, error: invErr } = await supabase
       .from('invoices')
       .insert({
@@ -4209,9 +4218,14 @@ async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<void> {
         customer_email:   payload.customerEmail || null,
         customer_address: payload.customerAddress || null,
         customer_cnic:    payload.customerCnic || null,
+        customer_type:    payload.customerType,
+        service_level:    payload.serviceLevel,
+        sale_type:        saleType,
         subtotal,
+        service_total:    payload.serviceTotal || null,
         discount_pct:     payload.discount,
         discount_type:    payload.discountType,
+        discount_reason:  payload.discountReason || null,
         grand_total:      payload.grandTotal,
         advance_pct:      payload.advancePct,
         inst_total_price: payload.instTotalPrice || null,
@@ -4228,22 +4242,83 @@ async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<void> {
       return;
     }
 
+    // ── invoice_lines ──────────────────────────────────────────────────────
     const lineRows = payload.lines.map(l => ({
-      invoice_id:    inv.id,
-      product_id:    l.id,
-      name:          l.name,
-      model:         l.model,
-      category:      l.category,
-      qty:           l.qty,
-      unit_price:    l.unitPrice,
-      line_total:    l.qty * l.unitPrice,
-      kwh_per_month: l.kwhPerMonth || null,
-      warranty:      l.warranty || null,
-      key_spec:      l.keySpec || null,
+      invoice_id:             inv.id,
+      product_id:             l.id,
+      name:                   l.name,
+      model:                  l.model,
+      category:               l.category,
+      qty:                    l.qty,
+      unit_price:             l.unitPrice,
+      line_total:             l.qty * l.unitPrice,
+      min_price:              l.minPrice || null,
+      approved_floor_price:   l.floorPrice || null,
+      override_reason:        l.overrideReason || null,
+      kwh_per_month:          l.kwhPerMonth || null,
+      warranty:               l.warranty || null,
+      key_spec:               l.keySpec || null,
     }));
 
-    const { error: lineErr } = await supabase.from('invoice_lines').insert(lineRows);
+    const { data: insertedLines, error: lineErr } = await supabase
+      .from('invoice_lines')
+      .insert(lineRows)
+      .select('id, product_id');
     if (lineErr) console.warn('[invoice-log] Failed to log invoice lines:', lineErr.message);
+
+    // ── price_overrides ────────────────────────────────────────────────────
+    if (insertedLines) {
+      const overrideRows = payload.lines
+        .map((l, idx) => ({ l, lineId: insertedLines[idx]?.id }))
+        .filter(({ l }) => l.overrideReason.trim())
+        .map(({ l, lineId }) => ({
+          invoice_id:      inv.id,
+          invoice_line_id: lineId ?? null,
+          product_id:      l.id,
+          floor_price:     l.floorPrice,
+          attempted_price: l.unitPrice,
+          approved_price:  l.unitPrice,
+          reason:          l.overrideReason,
+        }));
+      if (overrideRows.length > 0) {
+        const { error: ovErr } = await supabase.from('price_overrides').insert(overrideRows);
+        if (ovErr) console.warn('[invoice-log] Failed to log price overrides:', ovErr.message);
+      }
+    }
+
+    // ── invoice_services ───────────────────────────────────────────────────
+    const serviceRows = payload.services
+      .filter(s => s.status !== 'not_selected')
+      .map(s => ({
+        invoice_id:     inv.id,
+        service_type:   s.service_type,
+        service_name:   s.service_name,
+        description:    s.description,
+        status:         s.status,
+        visible_value:  s.visible_value,
+        charged_amount: s.charged_amount,
+      }));
+    if (serviceRows.length > 0) {
+      const { error: svcErr } = await supabase.from('invoice_services').insert(serviceRows);
+      if (svcErr) console.warn('[invoice-log] Failed to log services:', svcErr.message);
+    }
+
+    // ── installment_schedules ──────────────────────────────────────────────
+    if (payload.docType === 'installment-invoice' && payload.instMonths > 0 && payload.instFirstDate) {
+      const scheduleRows = Array.from({ length: payload.instMonths }, (_, i) => {
+        const due = new Date(payload.instFirstDate);
+        due.setMonth(due.getMonth() + i);
+        return {
+          invoice_id:     inv.id,
+          installment_no: i + 1,
+          due_date:       due.toISOString().slice(0, 10),
+          amount_due:     payload.instMonthlyAmt,
+          status:         'pending',
+        };
+      });
+      const { error: schedErr } = await supabase.from('installment_schedules').insert(scheduleRows);
+      if (schedErr) console.warn('[invoice-log] Failed to log installment schedule:', schedErr.message);
+    }
   } catch (e) {
     console.warn('[invoice-log] Unexpected error:', e);
   }
@@ -5893,15 +5968,15 @@ function QuotationTab({ products }: { products: Product[] }) {
       setPdfUrl(url);
       const a = document.createElement('a');
       a.href = url; a.download = `tajallis_${docType}_${refNumber}.pdf`; a.click();
-      const logGrandTotal = grandTotal;
-      const logPayload: InvoiceLogPayload = {
+      logInvoiceToSupabase({
         refNumber, docType: docType as 'quotation' | 'invoice',
         customerName, customerPhone: customerPhone.replace(/\D/g, ''),
         customerEmail, customerAddress, customerCnic,
-        lines, discount, discountType, grandTotal: logGrandTotal, advancePct,
-        instTotalPrice: 0, instAdvanceAmt: 0, instMonths: 0, instMonthlyAmt: 0,
-      };
-      logInvoiceToSupabase(logPayload); // fire-and-forget
+        customerType, serviceLevel, discountReason,
+        lines, services, discount, discountType,
+        grandTotal, serviceTotal, advancePct,
+        instTotalPrice: 0, instAdvanceAmt: 0, instMonths: 0, instMonthlyAmt: 0, instFirstDate,
+      }); // fire-and-forget
       setPdfState('success');
       setGenerating(false);
       setTimeout(() => setPdfState('idle'), 3000);
@@ -5929,13 +6004,14 @@ function QuotationTab({ products }: { products: Product[] }) {
       const a = document.createElement('a');
       a.href = url; a.download = `tajallis_advance_invoice_${refNumber}.pdf`; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
-      const instGrandTotal = grandTotal;
       logInvoiceToSupabase({
         refNumber, docType: 'installment-invoice',
         customerName, customerPhone: customerPhone.replace(/\D/g, ''),
         customerEmail, customerAddress, customerCnic,
-        lines, discount, discountType: discountType, grandTotal: Math.round(instGrandTotal), advancePct: 0,
-        instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt,
+        customerType, serviceLevel, discountReason,
+        lines, services, discount, discountType,
+        grandTotal, serviceTotal, advancePct: 0,
+        instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate,
       });
       setInstAdvPdfState('success');
       setTimeout(() => setInstAdvPdfState('idle'), 3000);
@@ -5962,15 +6038,15 @@ function QuotationTab({ products }: { products: Product[] }) {
       const a = document.createElement('a');
       a.href = url; a.download = `tajallis_installment_${instPaymentNumber}_${refNumber}.pdf`; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
-      // Log payment invoice to DB with products sold and installment details
-      const instGrandTotal = grandTotal;
       logInvoiceToSupabase({
         refNumber: `${refNumber}-P${instPaymentNumber}`,
-        docType: 'installment-invoice',
+        docType: 'installment_payment_receipt',
         customerName, customerPhone: customerPhone.replace(/\D/g, ''),
         customerEmail, customerAddress, customerCnic,
-        lines, discount, discountType, grandTotal: Math.round(instGrandTotal), advancePct: 0,
-        instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt,
+        customerType, serviceLevel, discountReason,
+        lines, services, discount, discountType,
+        grandTotal, serviceTotal, advancePct: 0,
+        instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate,
       });
       setInstPayPdfState('success');
       setTimeout(() => setInstPayPdfState('idle'), 3000);
