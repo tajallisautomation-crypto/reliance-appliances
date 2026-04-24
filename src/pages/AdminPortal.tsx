@@ -4259,6 +4259,9 @@ interface QuoteLine {
   keySpec: string;    // top 2 spec fields joined, editable
   kwhPerMonth: number; // estimated monthly consumption; 0 = not set
   savingsPct: number;  // inverter saving % vs conventional; 0 = not applicable
+  minPrice: number;
+  floorPrice: number;
+  overrideReason: string;
 }
 
 async function loadLogoWhite(): Promise<string> {
@@ -5530,7 +5533,6 @@ function QuotationTab({ products }: { products: Product[] }) {
   const [toastMsg, setToastMsg]           = useState('');
   const [draftBanner, setDraftBanner]     = useState(false);
   // ── Quotation meta state ──
-  const [installationType, setInstallationType] = useState<'supply-only' | 'installation-included'>('supply-only');
   const [elevatedStructureOn, setElevatedStructureOn]   = useState(true);
   const [elevatedStructureAmt, setElevatedStructureAmt] = useState(0);
   const [wiringAmt, setWiringAmt]     = useState(0);
@@ -5538,7 +5540,9 @@ function QuotationTab({ products }: { products: Product[] }) {
   const [advancePct, setAdvancePct]   = useState(70);
   const [balanceNote, setBalanceNote] = useState('delivery');
   const [showNtn, setShowNtn]         = useState(false);
-  const [isApartmentClient, setIsApartmentClient] = useState(false);
+  const [customerType, setCustomerType] = useState<'house' | 'apartment' | 'commercial'>('house');
+  const [serviceLevel, setServiceLevel] = useState<'supply_only' | 'supply_install' | 'full_service'>('supply_only');
+  const [discountReason, setDiscountReason] = useState('');
   // ── Installment invoice state ──
   const [instTotalPrice, setInstTotalPrice]     = useState(0);
   const [instAdvanceAmt, setInstAdvanceAmt]     = useState(0);
@@ -5563,6 +5567,7 @@ function QuotationTab({ products }: { products: Product[] }) {
     [lines]
   );
   const hasSolarItems = !!(solarInverterLine || solarPanelLine);
+  const installationType = serviceLevel === 'supply_install' ? 'installation-included' : 'supply-only';
 
   useEffect(() => {
     if (!hasSolarItems) return;
@@ -5601,7 +5606,8 @@ function QuotationTab({ products }: { products: Product[] }) {
         localStorage.setItem('reliance-invoice-draft', JSON.stringify({
           lines, customerName, customerPhone, customerEmail, customerAddress, customerCnic,
           discount, discountRaw, discountType, docType, refNumber,
-          installationType, elevatedStructureOn, elevatedStructureAmt, wiringAmt, laborAmt,
+          serviceLevel, elevatedStructureOn, elevatedStructureAmt, wiringAmt, laborAmt,
+          customerType, discountReason,
           advancePct, balanceNote,
           instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber,
         }));
@@ -5610,7 +5616,8 @@ function QuotationTab({ products }: { products: Product[] }) {
     return () => { if (autosaveRef.current) clearTimeout(autosaveRef.current); };
   }, [lines, customerName, customerPhone, customerEmail, customerAddress, customerCnic,
       discount, discountRaw, discountType, docType, refNumber,
-      installationType, elevatedStructureOn, elevatedStructureAmt, wiringAmt, laborAmt, advancePct, balanceNote,
+      serviceLevel, elevatedStructureOn, elevatedStructureAmt, wiringAmt, laborAmt, advancePct, balanceNote,
+      customerType, serviceLevel, discountReason,
       instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber]);
 
   function restoreDraft() {
@@ -5627,7 +5634,9 @@ function QuotationTab({ products }: { products: Product[] }) {
       if (typeof draft.discount === 'number') { setDiscount(draft.discount); setDiscountRaw(String(draft.discount)); }
       if (draft.discountType)  setDiscountType(draft.discountType);
       if (draft.docType)       setDocType(draft.docType);
-      if (draft.installationType) setInstallationType(draft.installationType);
+      if (draft.customerType) setCustomerType(draft.customerType);
+      if (draft.serviceLevel) setServiceLevel(draft.serviceLevel);
+      if (draft.discountReason) setDiscountReason(draft.discountReason);
       if (typeof draft.elevatedStructureOn === 'boolean') setElevatedStructureOn(draft.elevatedStructureOn);
       if (typeof draft.elevatedStructureAmt === 'number') setElevatedStructureAmt(draft.elevatedStructureAmt);
       if (typeof draft.wiringAmt === 'number') setWiringAmt(draft.wiringAmt);
@@ -5766,6 +5775,9 @@ function QuotationTab({ products }: { products: Product[] }) {
       keySpec,
       kwhPerMonth,
       savingsPct,
+      minPrice: p.price.min || 0,
+      floorPrice: p.price.cash_floor,
+      overrideReason: '',
     }]);
     setProductSearch('');
     setToastMsg(`${p.brand || ''} ${p.model} added`.trim());
@@ -5837,7 +5849,7 @@ function QuotationTab({ products }: { products: Product[] }) {
             ...(laborAmt > 0 ? [{ name: 'Installation Labour', amount: laborAmt }] : []),
           ]
         : [];
-      const blob = await generateQuotationPdf({ customerName, customerPhone: customerPhone.replace(/\D/g, ''), customerEmail, customerAddress, customerCnic, lines, discount, discountType, docType: docType as 'quotation' | 'invoice', refNumber, installationType, installationLines: instLines, advancePct, balanceNote, showNtn, isApartmentClient });
+      const blob = await generateQuotationPdf({ customerName, customerPhone: customerPhone.replace(/\D/g, ''), customerEmail, customerAddress, customerCnic, lines, discount, discountType, docType: docType as 'quotation' | 'invoice', refNumber, installationType, installationLines: instLines, advancePct, balanceNote, showNtn, isApartmentClient: customerType === 'apartment' });
       clearTimeout(timeout);
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
@@ -6036,11 +6048,32 @@ function QuotationTab({ products }: { products: Product[] }) {
           <input value={customerAddress} onChange={e => setCustomerAddress(e.target.value)}
             placeholder="Delivery address (optional)"
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input type="checkbox" checked={isApartmentClient} onChange={e => setIsApartmentClient(e.target.checked)}
-              className="accent-blue-500 w-4 h-4 shrink-0" />
-            <span className="text-xs text-gray-600">Apartment / Flat client <span className="text-gray-400">(replaces solar content with UPS info on PDF)</span></span>
-          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Property Type</label>
+              <select
+                value={customerType}
+                onChange={e => setCustomerType(e.target.value as 'house' | 'apartment' | 'commercial')}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
+              >
+                <option value="house">House</option>
+                <option value="apartment">Apartment / Flat</option>
+                <option value="commercial">Commercial</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Service Level</label>
+              <select
+                value={serviceLevel}
+                onChange={e => setServiceLevel(e.target.value as 'supply_only' | 'supply_install' | 'full_service')}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
+              >
+                <option value="supply_only">Supply Only</option>
+                <option value="supply_install">Supply + Install</option>
+                <option value="full_service">360° Full Service</option>
+              </select>
+            </div>
+          </div>
           {docType === 'installment-invoice' && (
             <input value={customerCnic} onChange={e => setCustomerCnic(e.target.value)}
               placeholder="CNIC (required for installment)"
@@ -6076,19 +6109,27 @@ function QuotationTab({ products }: { products: Product[] }) {
               ))}
             </select>
           </div>
+          {discount > 0 && (
+            <input
+              value={discountReason}
+              onChange={e => setDiscountReason(e.target.value)}
+              placeholder="Discount reason (required)"
+              className={`w-full border rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 ${
+                discount > 0 && !discountReason.trim() ? 'border-red-300' : 'border-gray-200'
+              }`}
+            />
+          )}
           {/* ── Installation scope (solar items only) ── */}
           {hasSolarItems && (
             <div className="space-y-2 pt-1 border-t border-gray-100">
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Installation</p>
               <div className="flex gap-2">
-                {(['supply-only', 'installation-included'] as const).map(t => (
-                  <button key={t} onClick={() => setInstallationType(t)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                      installationType === t ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}>
-                    {t === 'supply-only' ? 'Supply Only' : 'With Installation'}
-                  </button>
-                ))}
+                <span className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                  installationType === 'supply-only' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {installationType === 'supply-only' ? 'Supply Only' : 'With Installation'}
+                </span>
+                <span className="text-xs text-gray-400 self-center">(set via Service Level above)</span>
               </div>
               {installationType === 'installation-included' && (
                 <div className="bg-orange-50 rounded-xl p-3 space-y-2">
@@ -6325,6 +6366,9 @@ function QuotationTab({ products }: { products: Product[] }) {
                       keySpec: `${pkg.solarKw}kW solar · ${pkg.acCount}× ${pkg.acTonnage} AC · ${pkg.billReduction} bill reduction`,
                       kwhPerMonth: Math.round((pkg.monthlyUnitsMin + pkg.monthlyUnitsMax) / 2),
                       savingsPct: 60,
+                      minPrice: pkg.price,
+                      floorPrice: pkg.price,
+                      overrideReason: '',
                     };
                     setLines(ls => ls.some(l => l.id === line.id) ? ls : [...ls, line]);
                   }}
@@ -6355,6 +6399,9 @@ function QuotationTab({ products }: { products: Product[] }) {
                       keySpec: `${pkg.kw} ${pkg.badge}`,
                       kwhPerMonth: 0,
                       savingsPct: pkg.type === 'solar' ? 60 : 0,
+                      minPrice: pkg.total,
+                      floorPrice: pkg.total,
+                      overrideReason: '',
                     };
                     setLines(ls => ls.some(l => l.id === line.id) ? ls : [...ls, line]);
                   }}
