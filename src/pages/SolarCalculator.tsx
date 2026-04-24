@@ -509,7 +509,7 @@ export default function SolarCalculator() {
       <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 text-white py-14 px-4">
         <div className="max-w-4xl mx-auto text-center">
           {/* Mode toggle */}
-          <div className="inline-flex bg-white/20 rounded-2xl p-1 mb-6">
+          <div className="inline-flex bg-white/20 rounded-2xl p-1 mb-3">
             <button onClick={() => { setMode('solar'); setQuote(null); setStep(1); }}
               className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${mode === 'solar' ? 'bg-white text-orange-600 shadow' : 'text-white/80 hover:text-white'}`}>
               ☀️ Solar Calculator
@@ -519,6 +519,15 @@ export default function SolarCalculator() {
               🔌 UPS Calculator
             </button>
           </div>
+          {mode === 'solar' && (
+            <p className="text-white/60 text-xs mb-6">
+              In a flat or apartment?{' '}
+              <button onClick={() => { setMode('ups'); setQuote(null); setStep(1); }}
+                className="text-white underline underline-offset-2 hover:text-amber-200 font-medium">
+                Use UPS Calculator instead →
+              </button>
+            </p>
+          )}
           {mode === 'solar' ? (
             <>
               <h1 className="text-3xl md:text-5xl font-bold mb-3">How much solar do you need?</h1>

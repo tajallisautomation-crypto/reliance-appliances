@@ -76,8 +76,8 @@ export interface SolarPackage {
 export const PACKAGES: SolarPackage[] = [
   {
     id: 'ups-3.6kw', name: '3.6kW UPS System', kw: '3.6kW',
-    type: 'ups', badge: 'Backup Only', badgeColor: 'bg-gray-700', popular: false,
-    includes: ['All wiring & electrical equipment', 'Professional installation & transport'],
+    type: 'ups', badge: 'Apartment Friendly', badgeColor: 'bg-blue-600', popular: false,
+    includes: ['No rooftop needed — works in flats & apartments', 'All wiring & electrical equipment', 'Professional installation & transport'],
     warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
     total: 285000, frameDeduction: 0,
     inverterOptions: [CROWN_INV_36, ZN_INV_MINI35, ZN_INV_MAX35],
@@ -100,8 +100,8 @@ export const PACKAGES: SolarPackage[] = [
   },
   {
     id: 'ups-5kw', name: '5kW UPS System', kw: '5kW',
-    type: 'ups', badge: 'Backup Only', badgeColor: 'bg-gray-700', popular: false,
-    includes: ['All wiring & electrical equipment', 'Professional installation & transport'],
+    type: 'ups', badge: 'Apartment Friendly', badgeColor: 'bg-blue-600', popular: false,
+    includes: ['No rooftop needed — works in flats & apartments', 'All wiring & electrical equipment', 'Professional installation & transport'],
     warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
     total: 475000, frameDeduction: 0,
     inverterOptions: [CROWN_INV_5, ZN_INV_MAX55, ZN_INV_LITE59, ZN_INV_ROUX67],
