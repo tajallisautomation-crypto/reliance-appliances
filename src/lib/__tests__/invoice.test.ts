@@ -5,6 +5,7 @@ import {
   calcGrandTotal,
   generateRefNumber,
   generateWhatsAppSummary,
+  buildDetailedAdvisory,
 } from '../invoiceLogic';
 
 describe('getAdvisoryBlock', () => {
@@ -206,5 +207,111 @@ describe('generateWhatsAppSummary', () => {
     });
     expect(text).toContain('25,000');
     expect(text).toContain('6');
+  });
+});
+
+describe('buildDetailedAdvisory', () => {
+  const emptyLines: Parameters<typeof buildDetailedAdvisory>[1] = [];
+
+  const freezerInverter = { name: 'Dawlance Inverter Freezer', category: 'Deep Freezers', kwhPerMonth: 30, qty: 1 };
+  const freezerStandard = { name: 'PEL Freezer', category: 'Deep Freezers', kwhPerMonth: 45, qty: 1 };
+  const acInverter      = { name: 'Haier 1-Ton Inverter AC', category: 'Air Conditioners', kwhPerMonth: 90, qty: 1 };
+  const acStandard      = { name: 'PEL Split AC', category: 'Air Conditioners', kwhPerMonth: 150, qty: 1 };
+  const solarInverter   = { name: 'Inverex 3.6kW Inverter', category: 'Solar Inverter', kwhPerMonth: 0, qty: 1 };
+
+  it('returns null for commercial customers', () => {
+    expect(buildDetailedAdvisory('commercial', emptyLines)).toBeNull();
+  });
+
+  it('apartment: sectionLabel and color are correct', () => {
+    const result = buildDetailedAdvisory('apartment', emptyLines);
+    expect(result?.sectionLabel).toBe('FOR APARTMENT CUSTOMERS');
+    expect(result?.color).toBe('blue');
+  });
+
+  it('apartment: first paragraph mentions 1–1.2 kVA and 3–4 hrs', () => {
+    const result = buildDetailedAdvisory('apartment', emptyLines);
+    expect(result?.paragraphs[0]).toMatch(/1–1\.2 kVA/);
+    expect(result?.paragraphs[0]).toMatch(/3–4 hrs/);
+  });
+
+  it('apartment with inverter freezer: mentions inverter freezer and UPS integration', () => {
+    const result = buildDetailedAdvisory('apartment', [freezerInverter]);
+    const allText = result!.paragraphs.join(' ');
+    expect(allText).toMatch(/inverter freezer/i);
+    expect(allText).toMatch(/solar or UPS/i);
+  });
+
+  it('apartment with standard freezer: mentions inverter model and 40%', () => {
+    const result = buildDetailedAdvisory('apartment', [freezerStandard]);
+    const allText = result!.paragraphs.join(' ');
+    expect(allText).toMatch(/inverter model/i);
+    expect(allText).toMatch(/40%/);
+  });
+
+  it('apartment with AC: mentions kVA and load-shedding', () => {
+    const result = buildDetailedAdvisory('apartment', [acInverter]);
+    const allText = result!.paragraphs.join(' ');
+    expect(allText).toMatch(/kVA/i);
+    expect(allText).toMatch(/load-shedding/i);
+  });
+
+  it('house: sectionLabel and color are correct', () => {
+    const result = buildDetailedAdvisory('house', emptyLines);
+    expect(result?.sectionLabel).toBe('FOR HOUSE / INDEPENDENT UNIT CUSTOMERS');
+    expect(result?.color).toBe('green');
+  });
+
+  it('house with high-kWh appliance (≥50 units): mentions kW hybrid and PKR saving', () => {
+    const highLoad = { name: 'Haier 2-Ton AC', category: 'Air Conditioners', kwhPerMonth: 100, qty: 1 };
+    const result = buildDetailedAdvisory('house', [highLoad]);
+    const allText = result!.paragraphs.join(' ');
+    expect(allText).toMatch(/kW hybrid/i);
+    expect(allText).toMatch(/PKR/);
+  });
+
+  it('house with low kWh (<50): generic solar pitch', () => {
+    const lowLoad = { name: 'LED TV', category: 'Electronics', kwhPerMonth: 10, qty: 1 };
+    const result = buildDetailedAdvisory('house', [lowLoad]);
+    const allText = result!.paragraphs.join(' ');
+    expect(allText).toMatch(/A solar package can significantly/);
+  });
+
+  it('house with solar product: skips generic solar pitch', () => {
+    const result = buildDetailedAdvisory('house', [solarInverter]);
+    const allText = result!.paragraphs.join(' ');
+    expect(allText).not.toMatch(/A solar package can significantly/);
+  });
+
+  it('house with inverter freezer: mentions solar-compatible', () => {
+    const result = buildDetailedAdvisory('house', [freezerInverter]);
+    const allText = result!.paragraphs.join(' ');
+    expect(allText).toMatch(/solar-compatible/i);
+  });
+
+  it('house with inverter AC: mentions solar-ready', () => {
+    const result = buildDetailedAdvisory('house', [acInverter]);
+    const allText = result!.paragraphs.join(' ');
+    expect(allText).toMatch(/solar-ready/i);
+  });
+
+  it('house with standard AC: mentions high inrush current', () => {
+    const result = buildDetailedAdvisory('house', [acStandard]);
+    const allText = result!.paragraphs.join(' ');
+    expect(allText).toMatch(/high inrush current/i);
+  });
+
+  it('house with empty lines: fallback paragraph about solar pitch', () => {
+    const result = buildDetailedAdvisory('house', emptyLines);
+    const allText = result!.paragraphs.join(' ');
+    expect(allText).toMatch(/A solar package can significantly/);
+  });
+
+  it('apartment: does not return null', () => {
+    expect(buildDetailedAdvisory('apartment', emptyLines)).not.toBeNull();
+  });
+
+  it('house: does not return null', () => {
+    expect(buildDetailedAdvisory('house', emptyLines)).not.toBeNull();
   });
 });
