@@ -5810,7 +5810,7 @@ function QuotationTab({ products }: { products: Product[] }) {
       if (typeof draft.advancePaid === 'boolean') setAdvancePaid(draft.advancePaid);
       if (draft.customerArea !== undefined) setCustomerArea(draft.customerArea);
       if (draft.isExistingCustomer !== undefined) setIsExistingCustomer(draft.isExistingCustomer);
-      if (draft.validityHours) setValidityHours(draft.validityHours);
+      if (typeof draft.validityHours === 'number') setValidityHours(draft.validityHours);
       if (typeof draft.elevatedStructureOn === 'boolean') setElevatedStructureOn(draft.elevatedStructureOn);
       if (typeof draft.elevatedStructureAmt === 'number') setElevatedStructureAmt(draft.elevatedStructureAmt);
       if (typeof draft.wiringAmt === 'number') setWiringAmt(draft.wiringAmt);
