@@ -18,7 +18,7 @@ import {
   type ProductGalleryImage, type AuditLogEntry,
 } from '@/lib/api';
 import { buildSearchIndex, adminSearch } from '@/lib/search';
-import { calcGrandTotal, validateFloor, generateWhatsAppSummary } from '@/lib/invoiceLogic';
+import { calcGrandTotal, validateFloor, generateWhatsAppSummary, buildDetailedAdvisory } from '@/lib/invoiceLogic';
 import {
   PANEL_WATTS, PANEL_PRICE_PER_W, INVERTER_PKR_PER_KW, BATTERY_PKR_PER_KWH,
   UNIT_RATE_PKR, NET_METERING_COST_PKR, DEFAULT_BATTERY_CHEMISTRY,
@@ -4380,18 +4380,34 @@ async function generateQuotationPdf(opts: {
   customerEmail: string;
   customerAddress: string;
   customerCnic: string;
+  customerType: 'house' | 'apartment' | 'commercial';
+  customerArea: string;
+  isExistingCustomer: boolean | null;
   lines: QuoteLine[];
-  services: Array<{ service_type: string; service_name: string; description: string; status: 'included' | 'charged' | 'not_selected'; visible_value: number; charged_amount: number }>;
+  services: Array<{
+    service_type: string; service_name: string; description: string;
+    status: 'included' | 'charged' | 'not_selected';
+    visible_value: number; display_value?: string; charged_amount: number;
+  }>;
   discount: number;
+  discountMode: 'percentage' | 'fixed';
   discountType: string;
+  discountReason: string;
   docType: 'quotation' | 'invoice';
+  saleType: 'cash' | 'installment';
   refNumber: string;
+  preparedBy: string;
+  stockStatus: string;
+  validityHours: number;
   installationType: 'supply-only' | 'installation-included';
   installationLines: Array<{ name: string; amount: number }>;
   advancePct: number;
   balanceNote: string;
+  advancePaid: boolean;
+  deliveryEta: string;
   showNtn?: boolean;
-  customerType: 'house' | 'apartment' | 'commercial';
+  instTeaserMonthly?: number;
+  instTeaserMonths?: number;
 }): Promise<Blob> {
   const ORANGE = '#EA580C';
   const DARK   = '#1A1A1A';
@@ -4403,80 +4419,128 @@ async function generateQuotationPdf(opts: {
   const now = new Date();
   const fmtDate = (d: Date) => d.toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' });
   const dateStr = fmtDate(now);
-  const validUntilStr = fmtDate(new Date(now.getTime() + 7 * 86400_000));
+  const validUntil = new Date(now.getTime() + opts.validityHours * 3_600_000);
+  const validUntilStr = fmtDate(validUntil);
 
-  // ── Load assets ────────────────────────────────────────────────────────────
+  // ── Load assets ──────────────────────────────────────────────────────────────
   let logoData: string | null = null;
-  try { logoData = await loadLogoWhite(); } catch { /* fallback to text */ }
-
+  try { logoData = await loadLogoWhite(); } catch { /* fallback */ }
   let qrData: string | null = null;
-  try { qrData = await loadQrBase64(); } catch { /* skip QR */ }
-
+  try { qrData = await loadQrBase64(); } catch { /* skip */ }
   let fbQrData: string | null = null;
   try { fbQrData = await generateQrDataUrl('https://www.facebook.com/share/g/18be5ayTCF/'); } catch { /* skip */ }
 
-  // ── 1. Header band (40mm) ──────────────────────────────────────────────────
+  // ── Totals ───────────────────────────────────────────────────────────────────
+  const productSubtotal   = opts.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+  const installSubtotal   = opts.installationLines.reduce((s, i) => s + i.amount, 0);
+  const chargedSvcTotal   = opts.services.filter(s => s.status === 'charged').reduce((sum, s) => sum + s.charged_amount, 0);
+  const baseBeforeDisc    = productSubtotal + installSubtotal + chargedSvcTotal;
+  let discountAmt = 0;
+  if (opts.discountMode === 'fixed') {
+    discountAmt = Math.min(opts.discount, baseBeforeDisc);
+  } else {
+    discountAmt = Math.round(baseBeforeDisc * opts.discount / 100);
+  }
+  const grandTotal = baseBeforeDisc - discountAmt;
+
+  // ── ① HEADER (54mm) ─────────────────────────────────────────────────────────
+  const HEADER_H = 54;
   doc.setFillColor(ORANGE);
-  doc.rect(0, 0, W, 40, 'F');
+  doc.rect(0, 0, W, HEADER_H, 'F');
 
   if (logoData) {
-    doc.addImage(logoData, 'PNG', margin, 5, 0, 30);
+    doc.addImage(logoData, 'PNG', margin, 5, 0, 32);
   } else {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(255, 255, 255);
-    doc.text("Tajalli's", margin, 24);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(22); doc.setTextColor(255, 255, 255);
+    doc.text("Tajalli's", margin, 22);
   }
 
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(255, 214, 176);
+  doc.text('HOME & COMMERCIAL SOLUTIONS · FROM HOMES TO CORPORATES', margin, 41);
+
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(255, 200, 160);
+  doc.text('L-152 & 153, Sector 11C-1, North Karachi  ·  +92 370 2578788  ·  tajallis.com.pk', margin, 46.5);
+  const footerContactLine = opts.showNtn
+    ? 'support@tajallis.com.pk  ·  NTN: 42101-3836602-3'
+    : 'support@tajallis.com.pk';
+  doc.text(footerContactLine, margin, 51.5);
+
   const badgeLabel = opts.docType === 'invoice' ? 'INVOICE' : 'QUOTATION';
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(24); doc.setTextColor(255, 255, 255);
+  doc.text(badgeLabel, W - margin, 20, { align: 'right' });
 
-  // Doc type — large, bold, right-aligned in header
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(22); doc.setTextColor(255, 255, 255);
-  doc.text(badgeLabel, W - margin, 16, { align: 'right' });
+  let y = HEADER_H + 4;
 
-  // Address/contact right-aligned below the doc type label
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(255, 214, 176);
-  doc.text('Home & Commercial Solutions', W - margin, 23, { align: 'right' });
-  doc.text('+92 370 2578788  |  tajallis.com.pk', W - margin, 29, { align: 'right' });
-  doc.text('L-152 & 153, Sector 11C-1, North Karachi', W - margin, 35, { align: 'right' });
-
-  let y = 46;
-
-  // ── 2. Info bar ────────────────────────────────────────────────────────────
+  // ── ② META INFO BAR ──────────────────────────────────────────────────────────
+  const META_H = 22;
   doc.setFillColor(243, 244, 246);
-  doc.rect(margin, y, printW, 10, 'F');
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(80, 80, 80);
-  const colW = printW / 4;
-  const col3Label = opts.docType === 'quotation' ? `Expires: ${validUntilStr}` : `Advance: ${opts.advancePct}%`;
-  const col4Label = opts.installationType === 'installation-included' ? 'Supply + Install' : 'Supply Only';
-  doc.text(`Ref: ${opts.refNumber}`,    margin + 2,            y + 6.5);
-  doc.text(`Date: ${dateStr}`,           margin + colW + 2,     y + 6.5);
-  doc.text(col3Label,                    margin + colW * 2 + 2, y + 6.5);
-  doc.text(col4Label,                    margin + colW * 3 + 2, y + 6.5);
-  y += 14;
+  doc.rect(margin, y, printW, META_H, 'F');
 
-  // ── 3. Customer block ──────────────────────────────────────────────────────
-  const extraLines = [opts.customerEmail, opts.customerAddress, opts.customerCnic ? `CNIC: ${opts.customerCnic}` : ''].filter(Boolean);
-  const custH = 20 + extraLines.length * 5;
+  const colW4 = printW / 4;
+  const setMeta = (label: string, value: string, x: number, rowY: number) => {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(150, 150, 150);
+    doc.text(label, x, rowY);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(30, 30, 30);
+    const lines = doc.splitTextToSize(value, colW4 - 4);
+    doc.text(lines, x, rowY + 4.5);
+  };
+
+  const row1Y = y + 5;
+  const row2Y = y + 13;
+  setMeta('REF', opts.refNumber, margin + 2, row1Y);
+  setMeta('DATE', dateStr, margin + colW4 + 2, row1Y);
+  setMeta('PREPARED BY', opts.preparedBy || '—', margin + colW4 * 2 + 2, row1Y);
+  setMeta('VALID UNTIL', `${validUntilStr} · ${opts.validityHours}h`, margin + colW4 * 3 + 2, row1Y);
+  setMeta('SALE TYPE', opts.saleType === 'cash' ? 'Cash' : 'Installment', margin + 2, row2Y);
+  setMeta('SERVICE LEVEL', opts.installationType === 'installation-included' ? 'Supply + Install' : 'Supply Only', margin + colW4 + 2, row2Y);
+  setMeta('STOCK', opts.stockStatus, margin + colW4 * 2 + 2, row2Y);
+
+  y += META_H + 5;
+
+  // ── ③ 01 CUSTOMER ────────────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(ORANGE);
+  doc.text('01  CUSTOMER', margin, y + 1);
+  y += 5;
+
+  const custFields: Array<[string, string]> = [
+    ['NAME', opts.customerName || '—'],
+    ['PHONE', opts.customerPhone || '—'],
+    ...(opts.customerEmail ? [['EMAIL', opts.customerEmail] as [string, string]] : []),
+    ['ADDRESS', opts.customerAddress || '—'],
+    ...(opts.customerArea ? [['AREA', opts.customerArea] as [string, string]] : []),
+    ['TYPE', opts.customerType === 'apartment' ? 'Flat / Apartment'
+      : opts.customerType === 'house' ? 'House / Independent Unit'
+      : 'Commercial'],
+    ['EXISTING', opts.isExistingCustomer === true ? 'Yes · Returning customer'
+      : opts.isExistingCustomer === false ? 'No · New customer'
+      : '—'],
+    ['DELIVERY ETA', opts.deliveryEta || '—'],
+  ];
+
+  // Estimate height
+  const custH = 8 + custFields.length * 5.5;
   doc.setFillColor(255, 247, 237);
   doc.rect(margin, y, printW, custH, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(234, 88, 12);
-  doc.text('BILL TO', margin + 4, y + 6);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(20, 20, 20);
-  doc.text(opts.customerName || '—', margin + 4, y + 13);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(100, 100, 100);
-  let custY = y + 18;
-  if (opts.customerPhone) { doc.text(opts.customerPhone, margin + 4, custY); custY += 5; }
-  for (const line of extraLines) { doc.text(line, margin + 4, custY); custY += 5; }
-  y += custH + 4;
+  doc.setDrawColor(234, 88, 12); doc.setLineWidth(0.6);
+  doc.line(margin, y, margin, y + custH);
+  doc.setLineWidth(0.2);
 
-  // ── 4. Item table (grouped by category) ───────────────────────────────────
-  const productSubtotal  = opts.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
-  const installSubtotal  = opts.installationLines.reduce((s, i) => s + i.amount, 0);
-  const chargedServiceTotal = opts.services.filter(s => s.status === 'charged').reduce((sum, s) => sum + s.charged_amount, 0);
-  const subtotalBeforeDiscount = productSubtotal + installSubtotal + chargedServiceTotal;
-  const discountAmt  = Math.round(subtotalBeforeDiscount * opts.discount / 100);
-  const grandTotal   = subtotalBeforeDiscount - discountAmt;
+  let cy = y + 5.5;
+  for (const [label, value] of custFields) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(180, 100, 50);
+    doc.text(label, margin + 4, cy);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(30, 30, 30);
+    const vlines = doc.splitTextToSize(value, printW - 40);
+    doc.text(vlines, margin + 28, cy);
+    cy += 5.5;
+  }
+  y += custH + 6;
 
-  // Group product lines by category
+  // ── ④ 02 ITEMS ───────────────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(ORANGE);
+  doc.text('02  ITEMS', margin, y + 1);
+  y += 5;
+
   const categoryOrder: string[] = [];
   const grouped: Record<string, QuoteLine[]> = {};
   for (const line of opts.lines) {
@@ -4485,20 +4549,20 @@ async function generateQuotationPdf(opts: {
     grouped[cat].push(line);
   }
 
-  const tableBody: any[] = [];
+  const itemsBody: any[] = [];
   for (const cat of categoryOrder) {
-    const catLines = grouped[cat];
-
-    tableBody.push([{
+    itemsBody.push([{
       content: cat.toUpperCase(),
-      colSpan: 6,
-      styles: { fillColor: [26, 26, 26], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 } },
+      colSpan: 5,
+      styles: { fillColor: [26, 26, 26], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7, cellPadding: { top: 2, bottom: 2, left: 3 } },
     }]);
-
-    for (const line of catLines) {
-      tableBody.push([
-        line.model ? `${line.name}\n${line.model}` : line.name,
-        line.keySpec || '—',
+    for (const line of grouped[cat]) {
+      const nameParts = [line.name];
+      if (line.model) nameParts.push(`Model: ${line.model}`);
+      if (line.keySpec) nameParts.push(line.keySpec);
+      if (line.kwhPerMonth > 0) nameParts.push(`Est. ${line.kwhPerMonth} units/mo`);
+      itemsBody.push([
+        nameParts.join('\n'),
         line.warranty || '—',
         String(line.qty),
         PKR(line.unitPrice),
@@ -4507,348 +4571,358 @@ async function generateQuotationPdf(opts: {
     }
   }
 
-  // Services section — driven by the admin panel services state
-  const activeServices = opts.services.filter(s => s.status !== 'not_selected');
-  const hasInstallLines = opts.installationType === 'installation-included' && opts.installationLines.length > 0;
-  if (activeServices.length > 0 || hasInstallLines) {
-    tableBody.push([{
-      content: 'SERVICES',
-      colSpan: 6,
-      styles: { fillColor: [26, 26, 26], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 } },
+  if (opts.installationLines.length > 0) {
+    itemsBody.push([{
+      content: 'INSTALLATION',
+      colSpan: 5,
+      styles: { fillColor: [26, 26, 26], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7, cellPadding: { top: 2, bottom: 2, left: 3 } },
     }]);
-    for (const svc of activeServices) {
-      const priceLabel = svc.status === 'included' ? 'Included' : PKR(svc.charged_amount);
-      const totalLabel = svc.status === 'included' ? 'PKR 0' : PKR(svc.charged_amount);
-      tableBody.push([svc.service_name, svc.description, 'N/A', '1', priceLabel, totalLabel]);
+    for (const inst of opts.installationLines) {
+      itemsBody.push([inst.name, '1 yr workmanship', '1', PKR(inst.amount), PKR(inst.amount)]);
     }
-    if (hasInstallLines) {
-      for (const inst of opts.installationLines) {
-        tableBody.push([inst.name, 'Professional setup', '1 yr workmanship', '1', PKR(inst.amount), PKR(inst.amount)]);
-      }
-      tableBody.push(['Complimentary Post-Installation Check', 'Site inspection & performance verification', 'N/A', '1', 'Complimentary', 'PKR 0']);
-    }
+    itemsBody.push(['Complimentary Post-Installation Check', 'N/A', '1', 'Complimentary', 'PKR 0']);
   }
 
   autoTable(doc, {
-    startY: y,
-    margin: { left: margin, right: margin },
-    head: [['Item / Description', 'Key Spec', 'Warranty', 'Qty', 'Unit Price', 'Total']],
-    body: tableBody,
+    startY: y, margin: { left: margin, right: margin },
+    head: [['PRODUCT', 'WARRANTY', 'QTY', 'UNIT', 'TOTAL']],
+    body: itemsBody,
     columnStyles: {
-      0: { cellWidth: 65 },
-      1: { cellWidth: 28 },
-      2: { cellWidth: 22 },
-      3: { cellWidth: 10, halign: 'right' },
-      4: { cellWidth: 26, halign: 'right' },
-      5: { cellWidth: 23, halign: 'right', fontStyle: 'bold' },
+      0: { cellWidth: 80 },
+      1: { cellWidth: 36 },
+      2: { cellWidth: 10, halign: 'right' },
+      3: { cellWidth: 24, halign: 'right' },
+      4: { cellWidth: 24, halign: 'right', fontStyle: 'bold' },
     },
     headStyles: { fillColor: ORANGE, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
     bodyStyles: { fontSize: 7.5, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.2 },
     alternateRowStyles: { fillColor: [250, 250, 250] },
     styles: { overflow: 'linebreak', cellPadding: 2.5 },
   });
-
-  // ── 5. Totals block ────────────────────────────────────────────────────────
   // @ts-ignore
   y = (doc as any).lastAutoTable.finalY + 6;
-  const totalsX = W - margin - 72; const valX = W - margin;
 
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(80, 80, 80);
-  doc.text('Subtotal', totalsX, y);
-  doc.text(PKR(subtotalBeforeDiscount - chargedServiceTotal), valX, y, { align: 'right' });
-  y += 7;
+  // ── ⑤ 03 SERVICES ────────────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(ORANGE);
+  doc.text('03  SERVICES', margin, y + 1);
+  y += 5;
 
-  if (chargedServiceTotal > 0) {
-    doc.text('Services', totalsX, y);
-    doc.text(PKR(chargedServiceTotal), valX, y, { align: 'right' });
-    y += 7;
+  const svcBody: any[] = [];
+  for (const svc of opts.services) {
+    const statusLabel = svc.status === 'included' ? 'INCLUDED'
+      : svc.status === 'charged' ? 'CHARGED'
+      : (svc.visible_value > 0 || svc.display_value) ? 'OPTIONAL'
+      : 'NOT SELECTED';
+    const statusColor: [number, number, number] = svc.status === 'included' ? [22, 163, 74]
+      : svc.status === 'charged' ? [234, 88, 12]
+      : [120, 120, 120];
+    const valueLabel = svc.display_value
+      ? svc.display_value
+      : svc.visible_value > 0
+        ? PKR(svc.visible_value)
+        : '—';
+    const chargedLabel = svc.status === 'included' ? 'PKR 0'
+      : svc.status === 'charged' ? PKR(svc.charged_amount)
+      : (svc.visible_value > 0 || svc.display_value) ? 'Ask to add'
+      : '—';
+    svcBody.push([
+      { content: svc.service_name, styles: { fontStyle: 'bold' as const } },
+      svc.description,
+      { content: statusLabel, styles: { textColor: statusColor, fontStyle: 'bold' as const } },
+      valueLabel,
+      chargedLabel,
+    ]);
   }
 
-  if (opts.discount > 0) {
+  autoTable(doc, {
+    startY: y, margin: { left: margin, right: margin },
+    head: [['SERVICE', 'DESCRIPTION', 'STATUS', 'VALUE', 'CHARGED']],
+    body: svcBody,
+    columnStyles: {
+      0: { cellWidth: 44 },
+      1: { cellWidth: 60 },
+      2: { cellWidth: 26, halign: 'center' },
+      3: { cellWidth: 22, halign: 'right' },
+      4: { cellWidth: 22, halign: 'right' },
+    },
+    headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+    bodyStyles: { fontSize: 7, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.2 },
+    alternateRowStyles: { fillColor: [250, 250, 250] },
+    styles: { overflow: 'linebreak', cellPadding: 2.5 },
+  });
+  // @ts-ignore
+  y = (doc as any).lastAutoTable.finalY + 6;
+
+  // ── ⑥ 04 ENERGY ADVISORY ─────────────────────────────────────────────────────
+  const hasSolarProduct = opts.lines.some(l => /solar|inverter/i.test(l.category));
+  if (!hasSolarProduct && opts.customerType !== 'commercial') {
+    const advisory = buildDetailedAdvisory(
+      opts.customerType,
+      opts.lines.map(l => ({ name: l.name, category: l.category, kwhPerMonth: l.kwhPerMonth, qty: l.qty }))
+    );
+    if (advisory && advisory.paragraphs.length > 0) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(ORANGE);
+      doc.text('04  ENERGY ADVISORY', margin, y + 1);
+      y += 5;
+
+      const bgColor: [number, number, number] = advisory.color === 'blue' ? [239, 246, 255]
+        : advisory.color === 'green' ? [240, 253, 244]
+        : [248, 248, 248];
+      const borderColor: [number, number, number] = advisory.color === 'blue' ? [59, 130, 246]
+        : advisory.color === 'green' ? [22, 163, 74]
+        : [150, 150, 150];
+      const textColor: [number, number, number] = advisory.color === 'blue' ? [29, 78, 216]
+        : advisory.color === 'green' ? [21, 128, 61]
+        : [80, 80, 80];
+
+      // Measure total text height
+      doc.setFontSize(7);
+      let totalLines = 0;
+      for (const para of advisory.paragraphs) {
+        totalLines += doc.splitTextToSize(para, printW - 6).length + 1;
+      }
+      const advH = 10 + totalLines * 4;
+
+      doc.setFillColor(...bgColor);
+      doc.rect(margin, y, printW, advH, 'F');
+      doc.setDrawColor(...borderColor); doc.setLineWidth(0.8);
+      doc.line(margin, y, margin, y + advH);
+      doc.setLineWidth(0.2);
+
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...textColor);
+      doc.text(advisory.sectionLabel, margin + 3, y + 5.5);
+
+      let ay = y + 11;
+      for (const para of advisory.paragraphs) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(55, 65, 81);
+        const paraLines = doc.splitTextToSize(para, printW - 6);
+        doc.text(paraLines, margin + 3, ay);
+        ay += paraLines.length * 4 + 3;
+      }
+
+      y += advH + 5;
+    }
+  }
+
+  // ── ⑦ 05 PRICING & PAYMENT ───────────────────────────────────────────────────
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(ORANGE);
+  doc.text('05  PRICING & PAYMENT', margin, y + 1);
+  y += 5;
+
+  const totalsX = W - margin - 80; const valX = W - margin;
+
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(80, 80, 80);
+  doc.text('Product subtotal', totalsX, y);
+  doc.text(PKR(productSubtotal), valX, y, { align: 'right' });
+  y += 6;
+
+  if (installSubtotal > 0) {
+    doc.text('Installation', totalsX, y);
+    doc.text(PKR(installSubtotal), valX, y, { align: 'right' });
+    y += 6;
+  }
+
+  if (chargedSvcTotal > 0) {
+    doc.text('Service total', totalsX, y);
+    doc.text(PKR(chargedSvcTotal), valX, y, { align: 'right' });
+    y += 6;
+  }
+
+  if (discountAmt > 0) {
+    const discLabel = opts.discountMode === 'fixed'
+      ? `${opts.discountType} Discount (fixed)`
+      : `${opts.discountType} Discount (${opts.discount}%)`;
     doc.setTextColor(234, 88, 12); doc.setFont('helvetica', 'italic');
-    doc.text(`${opts.discountType} Discount (${opts.discount}%)`, totalsX, y);
-    doc.text(`- ${PKR(discountAmt)}`, valX, y, { align: 'right' });
-    doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 80);
-    y += 8;
+    doc.text(discLabel, totalsX, y);
+    doc.text(`− ${PKR(discountAmt)}`, valX, y, { align: 'right' });
+    if (opts.discountReason) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(160, 80, 20);
+      doc.text(`Reason: ${opts.discountReason}`, totalsX, y + 4.5);
+      y += 4.5;
+    }
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(80, 80, 80);
+    y += 7;
   }
 
   doc.setFillColor(ORANGE);
   doc.rect(totalsX - 4, y - 2, valX - totalsX + 4 + margin, 12, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
-  doc.text('Grand Total', totalsX, y + 6);
+  doc.text('GRAND TOTAL', totalsX, y + 6);
   doc.text(PKR(grandTotal), valX, y + 6, { align: 'right' });
   y += 17;
 
-  // ── 5b. Energy Efficiency block ───────────────────────────────────────────
-  const KE_RATE_PKR = 50; // avg PKR per kWh across KE slabs
-  const effLines = opts.lines.filter(l => l.kwhPerMonth > 0);
-  if (effLines.length > 0) {
-    const effH = 8 + effLines.length * 8;
-    doc.setFillColor(240, 249, 255);
-    doc.rect(margin, y, printW, effH, 'F');
-    doc.setDrawColor(59, 130, 246); doc.setLineWidth(0.8);
-    doc.line(margin, y, margin, y + effH);
-    doc.setLineWidth(0.2);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(29, 78, 216);
-    doc.text('ENERGY EFFICIENCY IMPACT', margin + 3, y + 5.5);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(55, 65, 81);
-    effLines.forEach((l, i) => {
-      const effPct = (l.savingsPct || 42) / 100;
-      const savedKwh = Math.round(l.kwhPerMonth * effPct);
-      const billSaving = Math.round(savedKwh * KE_RATE_PKR);
-      doc.text(
-        `${l.name}: ~${l.kwhPerMonth} units/mo consumed. Inverter tech saves ~${savedKwh} units vs conventional — offset: ~PKR ${billSaving.toLocaleString('en-PK')}/mo on KE bill.`,
-        margin + 3, y + 10 + i * 8, { maxWidth: printW - 6 }
-      );
-    });
-    y += effH + 5;
-  }
-
-  // ── 5c. Solar Cross-Sell / UPS recommendation block ──────────────────────
-  const hasSolarProduct = opts.lines.some(l =>
-    l.category.toLowerCase().includes('solar') || l.category.toLowerCase().includes('inverter')
-  );
-  const totalMonthlyKwh = opts.lines.reduce((s, l) => s + l.kwhPerMonth * l.qty, 0);
-  // Show advisory for house/apartment customers even when kWh data isn't populated
-  if (!hasSolarProduct && opts.customerType !== 'commercial') {
-    const isApartment = opts.customerType === 'apartment';
-    if (isApartment) {
-      const upsKw = totalMonthlyKwh >= 100 ? 5 : 3.6;
-      const upsH = 24;
-      doc.setFillColor(239, 246, 255);
-      doc.rect(margin, y, printW, upsH, 'F');
-      doc.setDrawColor(59, 130, 246); doc.setLineWidth(0.8);
-      doc.line(margin, y, margin, y + upsH);
-      doc.setLineWidth(0.2);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(29, 78, 216);
-      doc.text('UPS / BACKUP RECOMMENDATION', margin + 3, y + 6);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(55, 65, 81);
-      const upsBody = totalMonthlyKwh >= 50
-        ? `Your appliances draw ~${totalMonthlyKwh} units/mo. A ${upsKw}kW UPS/inverter + LiFePO4 battery provides reliable backup power during load shedding — ideal for apartment setups. Cash & installment options available.`
-        : 'For apartment customers, UPS backup is more practical than rooftop solar. Ask us for compatible inverter and battery sizing to cover load shedding. Cash & installment options available.';
-      doc.text(upsBody, margin + 3, y + 12, { maxWidth: printW - 6 });
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(29, 78, 216);
-      doc.text('Ask us for a free UPS package quote: +92 370 2578788', margin + 3, y + 20);
-      y += upsH + 5;
-    } else {
-      const systemKw = totalMonthlyKwh >= 100 ? 5 : 3;
-      const monthlyGen = systemKw * 4 * 30;
-      const offsetUnits = Math.min(totalMonthlyKwh, monthlyGen);
-      const billOffset = Math.round(offsetUnits * KE_RATE_PKR);
-      const solarH = 24;
-      doc.setFillColor(240, 253, 244);
-      doc.rect(margin, y, printW, solarH, 'F');
-      doc.setDrawColor(22, 163, 74); doc.setLineWidth(0.8);
-      doc.line(margin, y, margin, y + solarH);
-      doc.setLineWidth(0.2);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(21, 128, 61);
-      doc.text('SOLAR RECOMMENDATION — GREEN CORRIDOR', margin + 3, y + 6);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(55, 65, 81);
-      const solarBody = totalMonthlyKwh >= 50
-        ? `Your appliances draw ~${totalMonthlyKwh} units/mo. A ${systemKw}kW hybrid solar system generates ~${monthlyGen} units/mo, offsetting ~PKR ${billOffset.toLocaleString('en-PK')}/mo on your KE bill. Cash & installment packages available.`
-        : 'This purchase can be paired with a solar package to reduce monthly electricity costs. Ask us for a free solar proposal tailored to your home. Cash & installment packages available.';
-      doc.text(solarBody, margin + 3, y + 12, { maxWidth: printW - 6 });
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(21, 128, 61);
-      doc.text('Ask us for a free solar proposal: +92 370 2578788', margin + 3, y + 20);
-      y += solarH + 5;
-    }
-  }
-
-  // ── 6. Solar / UPS capacity disclaimer (conditional) ─────────────────────
-  const solarInv = opts.lines.find(l =>
-    l.category.toLowerCase().includes('solar inverter') || l.category.toLowerCase().includes('solar & power')
-  );
-  if (solarInv) {
-    const extractNum = (s: string, fallback: number) => { const m = s.match(/(\d+\.?\d*)/); return m ? parseFloat(m[1]) : fallback; };
-    const inverterKW    = extractNum(solarInv.keySpec + ' ' + solarInv.name, 3.6);
-    const maxLoad       = (inverterKW * 0.8).toFixed(1);
-    const batLine       = opts.lines.find(l => l.category.toLowerCase().includes('batter'));
-    const batteryKWh    = batLine ? extractNum(batLine.keySpec + ' ' + batLine.name, 2.4) : 0;
-    const acs           = opts.lines.filter(l => l.category.toLowerCase().includes('air conditioner'));
-    const totalTons     = acs.reduce((s, l) => s + extractNum(l.keySpec + ' ' + l.name, 1) * l.qty, 0);
-    const estimatedDraw = (totalTons * 1.2).toFixed(1);
-    const backupHrs     = batteryKWh > 0 && totalTons > 0
-      ? ((batteryKWh * 0.5) / (totalTons * 1.2)).toFixed(1)
-      : null;
-
-    const disclaimerH = backupHrs ? 20 : 16;
-    doc.setFillColor(255, 251, 235);
-    doc.rect(margin, y, printW, disclaimerH, 'F');
-    doc.setDrawColor(245, 158, 11); doc.setLineWidth(0.8);
-    doc.line(margin, y, margin, y + disclaimerH);
-    doc.setLineWidth(0.2);
-
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(146, 64, 14);
-    doc.text('System Capacity Note', margin + 3, y + 5);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(120, 80, 20);
-    doc.text(
-      `${inverterKW}kW inverter — recommended max simultaneous load ${maxLoad}kW. Startup surge may trip if all units run together.`,
-      margin + 3, y + 10, { maxWidth: printW - 6 }
-    );
-    if (backupHrs) {
-      doc.text(
-        `Est. battery backup: ~${backupHrs} hrs at 50% load (${batteryKWh}kWh / ${estimatedDraw}kW draw).`,
-        margin + 3, y + 15, { maxWidth: printW - 6 }
-      );
-    }
-    y += disclaimerH + 2;
-
-    if (opts.customerType === 'apartment') {
-      // Apartment: replace Green Corridor with UPS reliability note
-      const upsH = 18;
-      doc.setFillColor(239, 246, 255);
-      doc.rect(margin, y, printW, upsH, 'F');
-      doc.setDrawColor(59, 130, 246); doc.setLineWidth(0.8);
-      doc.line(margin, y, margin, y + upsH);
-      doc.setLineWidth(0.2);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(29, 78, 216);
-      doc.text('UPS Backup — Load Shedding Coverage', margin + 3, y + 5);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(37, 99, 235);
-      const upsBackupNote = batteryKWh > 0
-        ? `${batteryKWh}kWh LiFePO4 battery provides reliable load-shedding backup. Ideal for apartment use — no rooftop access required.`
-        : `LiFePO4 battery provides reliable load-shedding backup. Ideal for apartment use — no rooftop access required.`;
-      doc.text(upsBackupNote, margin + 3, y + 10, { maxWidth: printW - 60 });
-      doc.setFont('helvetica', 'italic'); doc.setFontSize(6.5); doc.setTextColor(100, 130, 200);
-      doc.text('Package options & pricing → tajallis.com.pk', margin + 3, y + 15);
-      y += upsH + 5;
-    } else {
-      // ── Green Corridor block ────────────────────────────────────────────────
-      const annualUnits   = Math.round(inverterKW * 1500);           // kWh/yr (5 peak hrs × 300 days)
-      const annualCO2     = (inverterKW * 1500 * 0.42 / 1000).toFixed(2); // tons CO2/yr (Pak grid factor)
-      const annualSavings = Math.round(inverterKW * 1500 * 55);      // PKR/yr @ PKR 55/kWh blended
-      const gcH = 18;
-      doc.setFillColor(240, 253, 244);
-      doc.rect(margin, y, printW, gcH, 'F');
-      doc.setDrawColor(22, 163, 74); doc.setLineWidth(0.8);
-      doc.line(margin, y, margin, y + gcH);
-      doc.setLineWidth(0.2);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(22, 101, 52);
-      doc.text('Green Corridor — Est. Annual Impact', margin + 3, y + 5);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(21, 128, 61);
-      doc.text(
-        `~${annualUnits} kWh generated/yr  ·  ${annualCO2} tons CO₂ offset  ·  est. PKR ${annualSavings.toLocaleString('en-PK')} saved on electricity bills`,
-        margin + 3, y + 10, { maxWidth: printW - 60 }
-      );
-      doc.setFont('helvetica', 'italic'); doc.setFontSize(6.5); doc.setTextColor(100, 150, 100);
-      doc.text('Full ROI simulation → tajallis.com.pk/solar', margin + 3, y + 15);
-      y += gcH + 5;
-    }
-  }
-
-  // ── 7. Scope of Work + Payment Terms + Bank Details ────────────────────────
-  const boxY = y;
-  const boxH = 32;
-
-  if (opts.installationType === 'installation-included') {
-    doc.setFillColor(255, 247, 237);
-    doc.rect(margin, boxY, 55, boxH, 'F');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(234, 88, 12);
-    doc.text('SCOPE OF WORK', margin + 3, boxY + 6);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(40, 40, 40);
-    ['Supply & Delivery', 'Installation & Mounting', 'Testing & Commissioning'].forEach((item, i) => {
-      doc.text(`\u2713 ${item}`, margin + 3, boxY + 12 + i * 6);
-    });
-  }
-
-  const ptX = opts.installationType === 'installation-included' ? margin + 58 : margin;
-  const ptW = opts.installationType === 'installation-included' ? 52 : 80;
-
+  // Payment Terms block
   const advanceAmt = Math.round(grandTotal * opts.advancePct / 100);
   const balanceAmt = grandTotal - advanceAmt;
-  doc.setFillColor(249, 250, 251);
-  doc.rect(ptX, boxY, ptW, boxH, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(80, 80, 80);
-  doc.text('PAYMENT TERMS', ptX + 3, boxY + 6);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(40, 40, 40);
-  doc.text(`Advance: ${opts.advancePct}%  —  ${PKR(advanceAmt)}`, ptX + 3, boxY + 13);
-  doc.text(`Balance: ${100 - opts.advancePct}%  —  ${PKR(balanceAmt)}`, ptX + 3, boxY + 19);
-  doc.setFont('helvetica', 'bold'); doc.setTextColor(20, 20, 20);
-  doc.text(`Due on ${opts.balanceNote || 'delivery'}`, ptX + 3, boxY + 25);
+  const ptH = 33;
+  doc.setFillColor(243, 244, 246);
+  doc.rect(margin, y, printW, ptH, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(30, 30, 30);
+  doc.text(`PAYMENT TERMS · ${opts.saleType === 'installment' ? 'INSTALLMENT' : 'CASH'}`, margin + 4, y + 6);
 
-  const bdX = ptX + ptW + 3;
-  const bdW = W - margin - bdX;
-  doc.setFillColor(247, 248, 250);
-  doc.rect(bdX, boxY, bdW, boxH, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(80, 80, 80);
-  doc.text('BANK TRANSFER', bdX + 3, boxY + 6);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(20, 20, 20);
-  doc.text("TAJALLI'S HOME COLLECTION", bdX + 3, boxY + 12);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(60, 60, 60);
-  doc.text('IBAN: PK33MEZN0001060101874794', bdX + 3, boxY + 18);
-  doc.text('Meezan Bank — F.B Area Branch, KHI', bdX + 3, boxY + 23);
-
-  if (qrData) {
-    const qrSize = 18;
-    const qrX = bdX + bdW - qrSize - 2;
-    doc.addImage(qrData, 'JPEG', qrX, boxY + 3, qrSize, qrSize);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(120, 120, 120);
-    doc.text('Scan to Pay (Raast)', qrX + qrSize / 2, boxY + 3 + qrSize + 3, { align: 'center' });
-  }
-
-  y = boxY + boxH + 6;
-
-  // ── 8. CTA box ────────────────────────────────────────────────────────────
-  if (balanceAmt > 0) {
-    const ctaBoxH = 12;
-    doc.setFillColor(255, 237, 213); // light orange
-    doc.rect(margin, y, printW, ctaBoxH, 'F');
-    doc.setDrawColor(234, 88, 12); doc.setLineWidth(0.5);
-    doc.rect(margin, y, printW, ctaBoxH, 'S');
-    doc.setLineWidth(0.2);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(154, 52, 18);
-    doc.text('To confirm order, share deposit slip on WhatsApp:', margin + 4, y + 5);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(234, 88, 12);
-    doc.text('+92 370 2578788', margin + 4, y + 10);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(154, 52, 18);
-    doc.text('or scan the QR code on the right  \u2192', W - margin - 4, y + 7.5, { align: 'right' });
-    y += ctaBoxH + 4;
-  }
-
-  // ── 9. T&C + Footer ───────────────────────────────────────────────────────
-  const tcItems = [
-    '1. Warranty: All products carry official brand warranty. Tajalli\'s facilitates claims; final approval rests with the manufacturer.',
-    opts.installationType === 'installation-included'
-      ? '2. After-Sales: Units installed by our team receive complete 360° support including repair and parts facilitation.'
-      : '2. After-Sales: Tajalli\'s provides facilitation support for warranty claims and spare parts coordination.',
-    '3. Delivery Risk: For Supply Only orders, customer assumes liability upon secure handover at delivery address.',
-    '4. Returns: Physical damage must be reported within 24 hours of delivery. Goods are non-refundable once unboxed.',
-    opts.docType === 'invoice'
-      ? '5. Payment: Thank you for your business. Payment terms as agreed at time of sale.'
-      : '5. Validity: This quotation is valid for 7 days. Prices subject to availability. Advance required to confirm order.',
+  const ptRows: Array<[string, string]> = [
+    ['Advance required', `${opts.advancePct}% · ${PKR(advanceAmt)}`],
+    ['Balance', `${100 - opts.advancePct}% · ${PKR(balanceAmt)}`],
+    ['Due', opts.advancePct === 0 ? 'On delivery' : `Balance on ${opts.balanceNote || 'delivery'}`],
+    ['Validity', opts.validityHours >= 168 ? '7 days' : `${opts.validityHours}h`],
   ];
-  const footerY = 282;
-  const tcStartY = Math.min(y + 2, footerY - 32);
-  if (tcStartY < footerY - 8) {
-    const fbQrSize = 20;
-    const tcH = Math.min(footerY - tcStartY - 2, 32);
-    doc.setFillColor(249, 250, 251);
-    doc.rect(margin, tcStartY, printW, tcH, 'F');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(100, 100, 100);
-    doc.text('TERMS & CONDITIONS', margin + 3, tcStartY + 5.5);
-    const tcTextMaxW = fbQrData ? printW - fbQrSize - 10 : printW - 6;
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(120, 120, 120);
-    tcItems.forEach((t, i) => {
-      const lineY = tcStartY + 11 + i * 4.5;
-      if (lineY < footerY - 4) doc.text(t, margin + 3, lineY, { maxWidth: tcTextMaxW });
-    });
-    if (fbQrData) {
-      const fbQrX = margin + printW - fbQrSize - 2;
-      const fbQrY = tcStartY + (tcH - fbQrSize - 6) / 2;
-      doc.addImage(fbQrData, 'PNG', fbQrX, fbQrY, fbQrSize, fbQrSize);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(24, 119, 242);
-      doc.text('Join Community', fbQrX + fbQrSize / 2, fbQrY + fbQrSize + 3, { align: 'center' });
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(120, 120, 120);
-      doc.text('1,600+ members', fbQrX + fbQrSize / 2, fbQrY + fbQrSize + 6.5, { align: 'center' });
-    }
+  let pty = y + 11;
+  for (const [label, val] of ptRows) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(120, 120, 120);
+    doc.text(label, margin + 4, pty);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(30, 30, 30);
+    doc.text(val, margin + 50, pty);
+    pty += 5.5;
   }
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
-  const footerText = opts.showNtn
-    ? 'tajallis.com.pk  |  support@tajallis.com.pk  |  NTN: 42101-3836602-3'
-    : 'tajallis.com.pk  |  support@tajallis.com.pk';
-  doc.text(footerText, W / 2, footerY + 6, { align: 'center' });
+  y += ptH + 4;
+
+  // Installment teaser (only on cash quotations when not already installment)
+  if (opts.saleType === 'cash' && grandTotal > 0 && opts.instTeaserMonthly && opts.instTeaserMonths) {
+    const teaserH = 16;
+    doc.setFillColor(255, 247, 237);
+    doc.rect(margin, y, printW, teaserH, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(234, 88, 12);
+    doc.text('Want this on installments?', margin + 4, y + 6);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(80, 80, 80);
+    doc.text(
+      `From ~${PKR(opts.instTeaserMonthly)}/month · ${opts.instTeaserMonths} months · Advance ~25% · Verification & documents required`,
+      margin + 4, y + 11
+    );
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(234, 88, 12);
+    doc.text('WhatsApp +92 370 2578788', margin + printW - 4, y + 11, { align: 'right' });
+    y += teaserH + 4;
+  }
+
+  // ── ⑧ 06 BANK TRANSFER ───────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(ORANGE);
+  doc.text('06  BANK TRANSFER', margin, y + 1);
+  y += 5;
+
+  const QR_SIZE = 28;
+  const bdH = 34;
+  const bdTextW = printW - QR_SIZE - 8;
+
+  doc.setFillColor(240, 253, 244);
+  doc.rect(margin, y, printW, bdH, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(22, 101, 52);
+  doc.text('ACCOUNT DETAILS', margin + 4, y + 6);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(20, 20, 20);
+  doc.text("TAJALLI'S HOME COLLECTION", margin + 4, y + 13);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(60, 60, 60);
+  doc.text('PK33 MEZN 0001 0601 0187 4794', margin + 4, y + 19);
+  doc.text('Meezan Bank — F.B Area Branch, Karachi', margin + 4, y + 24);
+  if (!opts.advancePaid) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(22, 101, 52);
+    doc.text(
+      'Share deposit slip on WhatsApp: +92 370 2578788 to confirm order, or scan the Raast QR.',
+      margin + 4, y + 30, { maxWidth: bdTextW }
+    );
+  }
+
+  // Payment QR — right side, clearly labeled
+  if (qrData) {
+    const qrX = margin + printW - QR_SIZE - 1;
+    doc.addImage(qrData, 'JPEG', qrX, y + 2, QR_SIZE, QR_SIZE);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(22, 101, 52);
+    doc.text('SCAN FOR PAYMENT', qrX + QR_SIZE / 2, y + QR_SIZE + 4, { align: 'center' });
+    doc.text('(Raast / IBAN)', qrX + QR_SIZE / 2, y + QR_SIZE + 7.5, { align: 'center' });
+  }
+  y += bdH + 8;
+
+  // Stats row
+  const stats: Array<[string, string]> = [
+    ['11+\nyrs', 'IN BUSINESS'],
+    ['24,000+', 'ORDERS FULFILLED'],
+    ['14,000+', 'HOUSEHOLDS SERVED'],
+    ['1,600+', 'COMMUNITY MEMBERS'],
+  ];
+  const statsH = 16;
+  doc.setFillColor(26, 26, 26);
+  doc.rect(margin, y, printW, statsH, 'F');
+  stats.forEach(([num, label], i) => {
+    const sx = margin + i * colW4 + colW4 / 2;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(234, 88, 12);
+    doc.text(num, sx, y + 6, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(200, 200, 200);
+    doc.text(label, sx, y + 12, { align: 'center' });
+  });
+  y += statsH + 5;
+
+  // Community section — FB QR distinctly placed with its own coloured band
+  if (fbQrData) {
+    const FB_QR = 22;
+    const commH = FB_QR + 10;
+    doc.setFillColor(232, 240, 255);
+    doc.rect(margin, y, printW, commH, 'F');
+    doc.setDrawColor(24, 119, 242); doc.setLineWidth(0.6);
+    doc.line(margin, y, margin + printW, y);
+    doc.setLineWidth(0.2);
+
+    const fbQrX = margin + printW - FB_QR - 3;
+    doc.addImage(fbQrData, 'PNG', fbQrX, y + 4, FB_QR, FB_QR);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(24, 119, 242);
+    doc.text('FB COMMUNITY', fbQrX + FB_QR / 2, y + FB_QR + 6, { align: 'center' });
+
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(24, 119, 242);
+    doc.text('Join Appliance Reliance', margin + 4, y + 9);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(50, 80, 160);
+    doc.text(
+      '1,600+ members sharing appliance advice, support, and real customer experiences. Scan →',
+      margin + 4, y + 15, { maxWidth: fbQrX - margin - 8 }
+    );
+    y += commH + 5;
+  }
+
+  // ── ⑨ 07 TERMS & CONDITIONS ──────────────────────────────────────────────────
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(ORANGE);
+  doc.text('07  TERMS & CONDITIONS', margin, y + 1);
+  y += 5;
+
+  const tcItems = [
+    'Prices are valid only until the stated validity date.',
+    'Stock is subject to confirmation before payment.',
+    'Warranty is provided by the official brand / manufacturer.',
+    "Tajalli's facilitates warranty claims; final approval rests with the manufacturer.",
+    'Installation is included only if listed in the services section above.',
+    'Physical damage must be reported within 24 hours of delivery.',
+    'Goods once unboxed are non-refundable unless covered by approved warranty claim.',
+    'Payment terms apply as agreed before dispatch.',
+    'For installment sales, verification and documentation are mandatory.',
+    'For Supply Only, liability transfers after secure handover at the delivery address.',
+  ];
+
+  const tcH = 8 + tcItems.length * 4.5;
+  doc.setFillColor(249, 249, 249);
+  doc.rect(margin, y, printW, tcH, 'F');
+
+  let ty = y + 5.5;
+  tcItems.forEach((item, i) => {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(120, 120, 120);
+    doc.text(`${i + 1}.`, margin + 3, ty);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(80, 80, 80);
+    doc.text(item, margin + 8, ty, { maxWidth: printW - 12 });
+    ty += 4.5;
+  });
+  y += tcH + 4;
+
+  // ── ⑩ FOOTER ────────────────────────────────────────────────────────────────
+  const footerY = 285;
+  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.3);
+  doc.line(margin, footerY, W - margin, footerY);
+
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(120, 120, 120);
+  doc.text(
+    `${opts.refNumber}  ·  ${badgeLabel}  ·  PAGE 1 OF 1`,
+    margin, footerY + 5
+  );
+  doc.text(
+    'tajallis.com.pk  ·  support@tajallis.com.pk  ·  +92 370 2578788',
+    W - margin, footerY + 5, { align: 'right' }
+  );
 
   return doc.output('blob');
 }
+
 
 // ── Installment Invoice PDF Generators ────────────────────────────────────────
 
@@ -6042,7 +6116,37 @@ function QuotationTab({ products }: { products: Product[] }) {
             ...(laborAmt > 0 ? [{ name: 'Installation Labour', amount: laborAmt }] : []),
           ]
         : [];
-      const blob = await generateQuotationPdf({ customerName, customerPhone: customerPhone.replace(/\D/g, ''), customerEmail, customerAddress, customerCnic, lines, services, discount, discountType, docType: docType as 'quotation' | 'invoice', refNumber, installationType, installationLines: instLines, advancePct, balanceNote, showNtn, customerType });
+      const blob = await generateQuotationPdf({
+        customerName,
+        customerPhone: customerPhone.replace(/\D/g, ''),
+        customerEmail,
+        customerAddress,
+        customerCnic,
+        customerType,
+        customerArea,
+        isExistingCustomer,
+        lines,
+        services,
+        discount: discountMode === 'fixed' ? discountFixed : discount,
+        discountMode,
+        discountType,
+        discountReason,
+        docType: docType as 'quotation' | 'invoice',
+        saleType,
+        refNumber,
+        preparedBy,
+        stockStatus,
+        validityHours,
+        installationType,
+        installationLines: instLines,
+        advancePct,
+        balanceNote,
+        advancePaid,
+        deliveryEta,
+        showNtn,
+        instTeaserMonthly: grandTotal > 0 ? Math.round(grandTotal * 1.25 / 12) : undefined,
+        instTeaserMonths: 12,
+      });
       clearTimeout(timeout);
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
@@ -6276,46 +6380,148 @@ function QuotationTab({ products }: { products: Product[] }) {
               placeholder="CNIC (required for installment)"
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
           )}
-          {/* Discount input with normalization */}
-          <div className="flex items-center gap-3">
-            <label className="text-xs font-semibold text-gray-600 shrink-0">Discount %</label>
-            <input
-              type="text"
-              inputMode="numeric"
-              min={0}
-              max={100}
-              value={discountRaw}
-              onChange={e => {
-                const raw = e.target.value.replace(/[^0-9]/g, '');
-                setDiscountRaw(raw);
-                const n = Math.min(100, Math.max(0, Number(raw) || 0));
-                setDiscount(n);
-              }}
-              onBlur={() => {
-                // Remove leading zeros, clamp
-                const n = Math.min(100, Math.max(0, Number(discountRaw) || 0));
-                setDiscount(n);
-                setDiscountRaw(String(n));
-              }}
-              className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-            />
-            <select value={discountType} onChange={e => setDiscountType(e.target.value)}
-              className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
-              {['Promotional', 'Exchange Credit', 'Seasonal Sale', "Founder's Special", 'Clearance', 'Volume', 'Custom'].map(t => (
-                <option key={t} value={t}>{t}</option>
+          {/* Sale type */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">Sale Type</label>
+            <div className="flex rounded-xl overflow-hidden border border-gray-200 text-sm">
+              {(['cash', 'installment'] as const).map(t => (
+                <button key={t} onClick={() => setSaleType(t)}
+                  className={`flex-1 py-2 font-semibold transition-colors ${saleType === t ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                  {t === 'cash' ? 'Cash' : 'Installment'}
+                </button>
               ))}
-            </select>
+            </div>
           </div>
-          {discount > 0 && (
-            <input
-              value={discountReason}
-              onChange={e => setDiscountReason(e.target.value)}
-              placeholder="Discount reason (required)"
-              className={`w-full border rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 ${
-                discount > 0 && !discountReason.trim() ? 'border-red-300' : 'border-gray-200'
-              }`}
-            />
-          )}
+          {/* Prepared by + Stock status */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Prepared By</label>
+              <input value={preparedBy} onChange={e => setPreparedBy(e.target.value)}
+                placeholder="Staff name"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Stock Status</label>
+              <select value={stockStatus} onChange={e => setStockStatus(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
+                <option value="In stock · confirm before payment">In stock · confirm before payment</option>
+                <option value="In stock · ready to ship">In stock · ready to ship</option>
+                <option value="Limited stock · confirm urgently">Limited stock · confirm urgently</option>
+                <option value="Pre-order · 3–5 days">Pre-order · 3–5 days</option>
+                <option value="Check availability">Check availability</option>
+              </select>
+            </div>
+          </div>
+          {/* Customer area + Existing customer */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Area</label>
+              <input value={customerArea} onChange={e => setCustomerArea(e.target.value)}
+                placeholder="e.g. Malir · Karachi"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Existing Customer?</label>
+              <select value={isExistingCustomer === null ? '' : String(isExistingCustomer)}
+                onChange={e => setIsExistingCustomer(e.target.value === '' ? null : e.target.value === 'true')}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
+                <option value="">Unknown</option>
+                <option value="true">Yes · Returning</option>
+                <option value="false">No · New customer</option>
+              </select>
+            </div>
+          </div>
+          {/* Delivery ETA + Validity hours */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Delivery ETA</label>
+              <select value={deliveryEta} onChange={e => setDeliveryEta(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
+                <option value="24–48h after payment">24–48h after payment</option>
+                <option value="Same day (if ordered before 2pm)">Same day (if ordered before 2pm)</option>
+                <option value="3–5 business days">3–5 business days</option>
+                <option value="7–10 business days">7–10 business days</option>
+                <option value="On order placement">On order placement</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Validity</label>
+              <select value={validityHours} onChange={e => setValidityHours(Number(e.target.value) as 24 | 48 | 72 | 168)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
+                <option value={24}>24 hours</option>
+                <option value={48}>48 hours</option>
+                <option value={72}>72 hours</option>
+                <option value={168}>7 days</option>
+              </select>
+            </div>
+          </div>
+          {/* Advance paid toggle */}
+          <label className="flex items-center gap-2 cursor-pointer w-fit">
+            <input type="checkbox" checked={advancePaid} onChange={e => setAdvancePaid(e.target.checked)}
+              className="w-4 h-4 accent-orange-500 rounded" />
+            <span className="text-xs text-gray-500">Advance already paid (removes WA payment proof note)</span>
+          </label>
+          {/* Discount mode toggle + input */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-semibold text-gray-600 shrink-0">Discount</label>
+              <div className="flex rounded-lg overflow-hidden border border-gray-200 text-xs">
+                {(['percentage', 'fixed'] as const).map(mode => (
+                  <button key={mode} onClick={() => setDiscountMode(mode)}
+                    className={`px-3 py-1.5 font-semibold transition-colors ${discountMode === mode ? 'bg-orange-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                    {mode === 'percentage' ? '%' : 'PKR'}
+                  </button>
+                ))}
+              </div>
+              {discountMode === 'percentage' ? (
+                <input
+                  type="text" inputMode="numeric" value={discountRaw}
+                  onChange={e => {
+                    const raw = e.target.value.replace(/[^0-9]/g, '');
+                    setDiscountRaw(raw);
+                    setDiscount(Math.min(100, Math.max(0, Number(raw) || 0)));
+                  }}
+                  onBlur={() => {
+                    const n = Math.min(100, Math.max(0, Number(discountRaw) || 0));
+                    setDiscount(n); setDiscountRaw(String(n));
+                  }}
+                  placeholder="0"
+                  className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                />
+              ) : (
+                <input
+                  type="text" inputMode="numeric" value={discountFixedRaw}
+                  onChange={e => {
+                    const raw = e.target.value.replace(/[^0-9]/g, '');
+                    setDiscountFixedRaw(raw);
+                    setDiscountFixed(Math.max(0, Number(raw) || 0));
+                  }}
+                  onBlur={() => {
+                    const n = Math.max(0, Number(discountFixedRaw) || 0);
+                    setDiscountFixed(n); setDiscountFixedRaw(String(n));
+                  }}
+                  placeholder="0"
+                  className="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                />
+              )}
+              <select value={discountType} onChange={e => setDiscountType(e.target.value)}
+                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+                {["Promotional", "Exchange Credit", "Seasonal Sale", "Founder's Special", "Clearance", "Volume", "Custom"].map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+            {(discountMode === 'percentage' ? discount > 0 : discountFixed > 0) && (
+              <input
+                value={discountReason}
+                onChange={e => setDiscountReason(e.target.value)}
+                placeholder="Discount reason (required)"
+                className={`w-full border rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 ${
+                  !discountReason.trim() ? 'border-red-300' : 'border-gray-200'
+                }`}
+              />
+            )}
+          </div>
           {/* ── Installation scope (solar items only) ── */}
           {hasSolarItems && (
             <div className="space-y-2 pt-1 border-t border-gray-100">
