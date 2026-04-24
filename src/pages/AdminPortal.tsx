@@ -5884,8 +5884,7 @@ function QuotationTab({ products }: { products: Product[] }) {
       setPdfUrl(url);
       const a = document.createElement('a');
       a.href = url; a.download = `tajallis_${docType}_${refNumber}.pdf`; a.click();
-      const instSubtotal = instLines.reduce((s, i) => s + i.amount, 0);
-      const logGrandTotal = (subtotal + instSubtotal) - Math.round((subtotal + instSubtotal) * discount / 100);
+      const logGrandTotal = grandTotal;
       const logPayload: InvoiceLogPayload = {
         refNumber, docType: docType as 'quotation' | 'invoice',
         customerName, customerPhone: customerPhone.replace(/\D/g, ''),
@@ -5921,7 +5920,7 @@ function QuotationTab({ products }: { products: Product[] }) {
       const a = document.createElement('a');
       a.href = url; a.download = `tajallis_advance_invoice_${refNumber}.pdf`; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
-      const instGrandTotal = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0) * (1 - discount / 100);
+      const instGrandTotal = grandTotal;
       logInvoiceToSupabase({
         refNumber, docType: 'installment-invoice',
         customerName, customerPhone: customerPhone.replace(/\D/g, ''),
@@ -5955,7 +5954,7 @@ function QuotationTab({ products }: { products: Product[] }) {
       a.href = url; a.download = `tajallis_installment_${instPaymentNumber}_${refNumber}.pdf`; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
       // Log payment invoice to DB with products sold and installment details
-      const instGrandTotal = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0) * (1 - discount / 100);
+      const instGrandTotal = grandTotal;
       logInvoiceToSupabase({
         refNumber: `${refNumber}-P${instPaymentNumber}`,
         docType: 'installment-invoice',
