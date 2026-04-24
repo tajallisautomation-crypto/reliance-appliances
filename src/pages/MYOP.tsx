@@ -72,6 +72,37 @@ const TABS = [
   { id: 'small',   label: 'Small Appliances', icon: '🔌' },
 ]
 
+// Preset starter pack templates
+const PRESET_PACKS = [
+  { id: 'essential-home', name: 'Essential Home', desc: 'AC · Fridge · Washer',      icon: '🏠', tabs: ['ac', 'fridge', 'washing'] },
+  { id: 'new-home',       name: 'New Home',       desc: 'AC · Fridge · TV · Washer', icon: '✨', tabs: ['ac', 'fridge', 'tv', 'washing'] },
+  { id: 'solar-starter',  name: 'Solar Starter',  desc: 'Inverter · Battery',        icon: '☀️', tabs: ['solar'] },
+  { id: 'kitchen-basics', name: 'Kitchen Basics', desc: 'Microwave · Kettle · More', icon: '🍳', tabs: ['kitchen'] },
+]
+
+// Category → estimated monthly kWh for solar load bar
+function estimateKwhPerMonth(p: Product): number {
+  const nc = (p.normalized_category || p.category || '').toLowerCase()
+  if (nc.includes('air cond')) {
+    // Try to get tonnage from specs
+    let tons = 1.5
+    const specs = p.specs || {}
+    for (const [k, v] of Object.entries(specs)) {
+      if (/ton/i.test(k) || /capaci/i.test(k)) {
+        const m = String(v).match(/(\d+\.?\d*)/)
+        if (m) { tons = parseFloat(m[1]); break }
+      }
+    }
+    return Math.round(tons * 120)   // ~120 kWh/month per ton (8h/day summer)
+  }
+  if (nc.includes('refriger') || nc.includes('fridge')) return 45
+  if (nc.includes('washing') || nc.includes('washer')) return 8
+  if (nc.includes('television') || nc.includes('tv')) return 12
+  if (nc.includes('microwave')) return 6
+  if (nc.includes('kitchen') || nc.includes('small')) return 4
+  return 0
+}
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface PackageItem {
@@ -323,13 +354,17 @@ function PackageSummary({
   const [loading,    setLoading]    = useState(false)
   const [orderId,    setOrderId]    = useState('')
   const [submitErr,  setSubmitErr]  = useState('')
+  const [payMode,    setPayMode]    = useState<'cash' | '3m' | '6m' | '12m'>('cash')
 
   const totalItems = items.reduce((n, i) => n + i.qty, 0)
   const subtotal   = items.reduce((n, i) => n + i.product.price.cash_floor * i.qty, 0)
   const qualifies  = totalItems >= DISCOUNT_THRESHOLD
   const discount   = qualifies ? Math.round(subtotal * DISCOUNT_PCT) : 0
   const total      = subtotal - discount
-  const plan3m     = total > 0 ? calcPlan(total, '3m') : null
+  const plan3m     = total > 0 ? calcPlan(total, '3m')  : null
+  const plan6m     = total > 0 ? calcPlan(total, '6m')  : null
+  const plan12m    = total > 0 ? calcPlan(total, '12m') : null
+  const activePlan = payMode === '3m' ? plan3m : payMode === '6m' ? plan6m : payMode === '12m' ? plan12m : null
   const waMsg      = buildWAMessage(items, subtotal, discount, total)
 
   const phoneValid = /^(\+92|0)3\d{9}$/.test(form.phone.trim())
@@ -515,8 +550,37 @@ function PackageSummary({
               <div className="flex justify-between font-black text-gray-900 text-base border-t border-gray-100 pt-2">
                 <span>Total</span><span>PKR {formatPrice(total)}</span>
               </div>
-              {/* Note: installments not applicable to MYOP discounted packages */}
-              <p className="text-xs text-amber-600 font-medium text-right">Cash price — installments not available on discounted packages</p>
+
+              {/* Payment mode toggle */}
+              <div className="flex rounded-xl overflow-hidden border border-gray-200 text-[11px] font-bold mt-1">
+                {(['cash', '3m', '6m', '12m'] as const).map(mode => (
+                  <button key={mode} onClick={() => setPayMode(mode)}
+                    className={`flex-1 py-1.5 transition-colors ${payMode === mode ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                    {mode === 'cash' ? 'Cash' : mode.replace('m', 'M')}
+                  </button>
+                ))}
+              </div>
+
+              {/* Installment breakdown */}
+              {activePlan ? (
+                <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2.5 text-xs space-y-1">
+                  <div className="flex justify-between text-blue-800">
+                    <span>Advance ({Math.round(activePlan.advancePct * 100)}%)</span>
+                    <span className="font-bold">PKR {formatPrice(activePlan.advance)}</span>
+                  </div>
+                  <div className="flex justify-between text-blue-800">
+                    <span>Monthly × {activePlan.monthlyPayments}</span>
+                    <span className="font-bold">PKR {formatPrice(activePlan.monthly)}</span>
+                  </div>
+                  <div className="flex justify-between text-blue-900 font-black border-t border-blue-200 pt-1">
+                    <span>Total (installment)</span>
+                    <span>PKR {formatPrice(activePlan.total)}</span>
+                  </div>
+                  <p className="text-[10px] text-blue-500">Installment available — confirm with our team on WhatsApp</p>
+                </div>
+              ) : payMode === 'cash' ? (
+                <p className="text-xs text-gray-400 text-right">Cash price shown above</p>
+              ) : null}
 
               {/* Primary: website order */}
               <button onClick={() => setView('form')}
@@ -602,6 +666,17 @@ export default function MYOPPage() {
   const totalItems = store.itemCount()
   const qualifies  = totalItems >= DISCOUNT_THRESHOLD
 
+  // Solar load recommendation — only show when package has significant load + no inverter
+  const hasInverter       = selected.some(i => isSolarInverter(i.product))
+  const totalKwhPerMonth  = selected.reduce((sum, i) => sum + estimateKwhPerMonth(i.product) * i.qty, 0)
+  const avgDailyKwh       = +(totalKwhPerMonth / 30).toFixed(1)
+  const recommendedKw     = avgDailyKwh <= 0 ? 0
+                          : avgDailyKwh < 5  ? 3.5
+                          : avgDailyKwh < 10 ? 5
+                          : avgDailyKwh < 15 ? 8
+                          : 12
+  const showSolarBar = totalKwhPerMonth > 0 && !hasInverter
+
   return (
     <div className="min-h-screen bg-gray-50">
       <SEO
@@ -657,6 +732,26 @@ export default function MYOPPage() {
           {/* ── Left: Category tabs + product grid ── */}
           <div className="flex-1 min-w-0">
 
+            {/* Preset starter packs */}
+            <div className="mb-5">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Quick Start</p>
+              <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                {PRESET_PACKS.map(pack => (
+                  <button
+                    key={pack.id}
+                    onClick={() => setActiveTab(pack.tabs[0])}
+                    className="flex items-center gap-2 bg-white border-2 border-gray-200 hover:border-orange-400 hover:shadow-md rounded-2xl px-4 py-2.5 shrink-0 transition-all group"
+                  >
+                    <span className="text-lg leading-none">{pack.icon}</span>
+                    <div className="text-left">
+                      <p className="text-xs font-black text-gray-900 leading-tight group-hover:text-orange-600 whitespace-nowrap">{pack.name}</p>
+                      <p className="text-[10px] text-gray-400 whitespace-nowrap">{pack.desc}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Category tabs */}
             <div className="flex gap-2 overflow-x-auto pb-2 mb-6 no-scrollbar">
               {TABS.map(tab => (
@@ -692,6 +787,25 @@ export default function MYOPPage() {
                 </button>
               )}
             </div>
+
+            {/* Solar load recommendation bar */}
+            {showSolarBar && (
+              <div className="mb-4 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-3">
+                <span className="text-2xl leading-none mt-0.5">☀️</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-amber-900">
+                    Your package uses ~{totalKwhPerMonth} kWh/month ({avgDailyKwh} kWh/day)
+                  </p>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    A <strong>{recommendedKw} kW solar system</strong> would cover this load and reduce your electricity bill.
+                  </p>
+                </div>
+                <button onClick={() => setActiveTab('solar')}
+                  className="shrink-0 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-xl transition-colors whitespace-nowrap">
+                  Add Solar →
+                </button>
+              </div>
+            )}
 
             {/* Products grid */}
             {loading ? (
