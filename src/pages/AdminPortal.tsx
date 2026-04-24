@@ -5620,7 +5620,7 @@ function QuotationTab({ products }: { products: Product[] }) {
   }, [lines, customerName, customerPhone, customerEmail, customerAddress, customerCnic,
       discount, discountRaw, discountType, docType, refNumber,
       serviceLevel, elevatedStructureOn, elevatedStructureAmt, wiringAmt, laborAmt, advancePct, balanceNote,
-      customerType, serviceLevel, discountReason,
+      customerType, discountReason,
       instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber]);
 
   function restoreDraft() {
