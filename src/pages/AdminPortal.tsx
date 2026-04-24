@@ -4777,6 +4777,7 @@ async function generateInstallmentAdvancePdf(opts: {
   instMonthlyAmt: number;
   instFirstDate: string;
   showNtn?: boolean;
+  isApartmentClient?: boolean;
 }): Promise<Blob> {
   const ORANGE = '#EA580C';
   const DARK   = '#1A1A1A';
@@ -5567,7 +5568,9 @@ function QuotationTab({ products }: { products: Product[] }) {
     [lines]
   );
   const hasSolarItems = !!(solarInverterLine || solarPanelLine);
-  const installationType = serviceLevel === 'supply_install' ? 'installation-included' : 'supply-only';
+  const installationType = (serviceLevel === 'supply_install' || serviceLevel === 'full_service')
+    ? 'installation-included'
+    : 'supply-only';
 
   useEffect(() => {
     if (!hasSolarItems) return;
@@ -5885,6 +5888,7 @@ function QuotationTab({ products }: { products: Product[] }) {
         customerEmail, customerAddress, customerCnic,
         lines, discount, refNumber,
         instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, showNtn,
+        isApartmentClient: customerType === 'apartment',
       });
       clearTimeout(timeout);
       const url = URL.createObjectURL(blob);
