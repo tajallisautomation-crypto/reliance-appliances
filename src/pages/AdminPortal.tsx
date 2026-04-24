@@ -4490,7 +4490,7 @@ async function generateQuotationPdf(opts: {
   setMeta('REF', opts.refNumber, margin + 2, row1Y);
   setMeta('DATE', dateStr, margin + colW4 + 2, row1Y);
   setMeta('PREPARED BY', opts.preparedBy || '—', margin + colW4 * 2 + 2, row1Y);
-  setMeta('VALID UNTIL', `${validUntilStr} · ${opts.validityHours}h`, margin + colW4 * 3 + 2, row1Y);
+  if (opts.docType !== 'invoice') setMeta('VALID UNTIL', `${validUntilStr} · ${opts.validityHours}h`, margin + colW4 * 3 + 2, row1Y);
   setMeta('SALE TYPE', opts.saleType === 'cash' ? 'Cash' : 'Installment', margin + 2, row2Y);
   setMeta('SERVICE LEVEL', opts.installationType === 'installation-included' ? 'Supply + Install' : 'Supply Only', margin + colW4 + 2, row2Y);
   setMeta('STOCK', opts.stockStatus, margin + colW4 * 2 + 2, row2Y);
@@ -4764,7 +4764,7 @@ async function generateQuotationPdf(opts: {
     ['Advance required', `${opts.advancePct}% · ${PKR(advanceAmt)}`],
     ['Balance', `${100 - opts.advancePct}% · ${PKR(balanceAmt)}`],
     ['Due', opts.advancePct === 0 ? 'On delivery' : `Balance on ${opts.balanceNote || 'delivery'}`],
-    ['Validity', opts.validityHours >= 168 ? '7 days' : `${opts.validityHours}h`],
+    ...(opts.docType !== 'invoice' ? [['Validity', opts.validityHours >= 168 ? '7 days' : `${opts.validityHours}h`] as [string, string]] : []),
   ];
   let pty = y + 11;
   for (const [label, val] of ptRows) {
@@ -6431,8 +6431,8 @@ function QuotationTab({ products }: { products: Product[] }) {
               </select>
             </div>
           </div>
-          {/* Delivery ETA + Validity hours */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Delivery ETA + Validity hours (validity only for quotations) */}
+          <div className={docType === 'invoice' ? '' : 'grid grid-cols-2 gap-3'}>
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">Delivery ETA</label>
               <select value={deliveryEta} onChange={e => setDeliveryEta(e.target.value)}
@@ -6444,6 +6444,7 @@ function QuotationTab({ products }: { products: Product[] }) {
                 <option value="On order placement">On order placement</option>
               </select>
             </div>
+            {docType !== 'invoice' && (
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">Validity</label>
               <select value={validityHours} onChange={e => setValidityHours(Number(e.target.value) as 24 | 48 | 72 | 168)}
@@ -6454,6 +6455,7 @@ function QuotationTab({ products }: { products: Product[] }) {
                 <option value={168}>7 days</option>
               </select>
             </div>
+            )}
           </div>
           {/* Advance paid toggle */}
           <label className="flex items-center gap-2 cursor-pointer w-fit">
