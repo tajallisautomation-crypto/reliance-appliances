@@ -215,7 +215,7 @@ export function buildDetailedAdvisory(
             `Upgrading to an inverter model can cut consumption by up to 40%.`
           );
         }
-      } else if (/air.?condition|ac/i.test(cat)) {
+      } else if (/air.?condition|\bac\b/i.test(cat)) {
         paras.push(
           `Air conditioners are high-load appliances. A 1.5-ton inverter AC draws ~${l.kwhPerMonth || 120} units/mo under typical use. ` +
           `A 3–5 kVA UPS/inverter would be needed for uninterrupted cooling during load-shedding.`
@@ -257,8 +257,8 @@ export function buildDetailedAdvisory(
           `low inrush current and stable load make it ideal for pairing with a hybrid or off-grid solar setup.`
         );
       }
-    } else if (/air.?condition|ac/i.test(cat)) {
-      const isInverter = /inverter/i.test(l.name);
+    } else if (/air.?condition|\bac\b/i.test(cat)) {
+      const isInverter = /inverter/i.test(l.name) || /inverter/i.test(cat);
       paras.push(
         isInverter
           ? `Inverter ACs are solar-ready and pair well with hybrid systems. ` +
