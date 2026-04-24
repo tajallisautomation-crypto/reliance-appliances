@@ -5814,6 +5814,10 @@ function QuotationTab({ products }: { products: Product[] }) {
     setLines(ls => ls.map(l => l.id === id ? { ...l, [field]: val } : l));
   }
 
+  function updateLineOverride(id: string, val: string) {
+    setLines(ls => ls.map(l => l.id === id ? { ...l, overrideReason: val } : l));
+  }
+
   function updateLineKwh(id: string, val: number) {
     setLines(ls => ls.map(l => l.id === id ? { ...l, kwhPerMonth: val } : l));
   }
@@ -5829,6 +5833,11 @@ function QuotationTab({ products }: { products: Product[] }) {
   const serviceTotal = totals.serviceTotal;
   const discountAmt = totals.discountAmt;
   const grandTotal = totals.grandTotal;
+
+  const hasUnapprovedFloorViolation = lines.some(l => {
+    const r = validateFloor(l.unitPrice, l.minPrice);
+    return !r.valid && !l.overrideReason.trim();
+  });
 
   // If the quote contains a solar inverter + solar battery, validate their compatibility
   const solarCompatCheck = useMemo(() => {
@@ -6532,6 +6541,23 @@ function QuotationTab({ products }: { products: Product[] }) {
                   <td className="px-4 py-2.5">
                     <input type="number" min={0} value={line.unitPrice} onChange={e => updateLine(line.id, 'unitPrice', Math.max(0, Number(e.target.value)))}
                       className="w-32 border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                    {(() => {
+                      const fv = validateFloor(line.unitPrice, line.minPrice);
+                      if (fv.valid) return null;
+                      return (
+                        <div className="mt-1.5 space-y-1">
+                          <p className="text-xs text-red-500 font-semibold">
+                            Below floor: PKR {fv.floor.toLocaleString('en-PK')} (shortfall PKR {fv.shortfall.toLocaleString('en-PK')})
+                          </p>
+                          <input
+                            value={line.overrideReason}
+                            onChange={e => updateLineOverride(line.id, e.target.value)}
+                            placeholder="Override reason (required to generate)"
+                            className="w-full border border-red-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-red-400"
+                          />
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-2.5 font-bold text-xs text-gray-900">
                     PKR {(line.qty * line.unitPrice).toLocaleString('en-PK')}
@@ -6639,13 +6665,28 @@ function QuotationTab({ products }: { products: Product[] }) {
         <div className="flex flex-wrap gap-3">
           <button
             onClick={generate}
-            disabled={!lines.length || pdfState === 'generating' || solarCompatCheck?.status === 'incompatible'}
+            disabled={
+              !lines.length ||
+              pdfState === 'generating' ||
+              solarCompatCheck?.status === 'incompatible' ||
+              hasUnapprovedFloorViolation ||
+              (discount > 0 && !discountReason.trim())
+            }
+            title={
+              hasUnapprovedFloorViolation ? 'Enter override reason for all below-floor prices' :
+              (discount > 0 && !discountReason.trim()) ? 'Enter discount reason to proceed' :
+              ''
+            }
             className={`flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm disabled:opacity-40 transition-colors ${
               pdfState === 'success'
                 ? 'bg-green-600 hover:bg-green-700 text-white'
                 : pdfState === 'error'
                 ? 'bg-red-600 hover:bg-red-700 text-white'
                 : 'bg-gray-900 hover:bg-gray-800 text-white'
+            } ${
+              (hasUnapprovedFloorViolation || (discount > 0 && !discountReason.trim()))
+                ? 'opacity-50 cursor-not-allowed'
+                : ''
             }`}
           >
             {pdfState === 'generating'
@@ -6683,13 +6724,27 @@ function QuotationTab({ products }: { products: Product[] }) {
         <div className="flex flex-wrap gap-3 items-center">
           <button
             onClick={generateAdvanceInvoice}
-            disabled={!lines.length || instAdvPdfState === 'generating'}
+            disabled={
+              !lines.length ||
+              instAdvPdfState === 'generating' ||
+              hasUnapprovedFloorViolation ||
+              (discount > 0 && !discountReason.trim())
+            }
+            title={
+              hasUnapprovedFloorViolation ? 'Enter override reason for all below-floor prices' :
+              (discount > 0 && !discountReason.trim()) ? 'Enter discount reason to proceed' :
+              ''
+            }
             className={`flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm disabled:opacity-40 transition-colors ${
               instAdvPdfState === 'success'
                 ? 'bg-green-600 hover:bg-green-700 text-white'
                 : instAdvPdfState === 'error'
                 ? 'bg-red-600 hover:bg-red-700 text-white'
                 : 'bg-orange-600 hover:bg-orange-700 text-white'
+            } ${
+              (hasUnapprovedFloorViolation || (discount > 0 && !discountReason.trim()))
+                ? 'opacity-50 cursor-not-allowed'
+                : ''
             }`}
           >
             {instAdvPdfState === 'generating'
@@ -6701,13 +6756,27 @@ function QuotationTab({ products }: { products: Product[] }) {
 
           <button
             onClick={generatePaymentInvoice}
-            disabled={!lines.length || instPayPdfState === 'generating'}
+            disabled={
+              !lines.length ||
+              instPayPdfState === 'generating' ||
+              hasUnapprovedFloorViolation ||
+              (discount > 0 && !discountReason.trim())
+            }
+            title={
+              hasUnapprovedFloorViolation ? 'Enter override reason for all below-floor prices' :
+              (discount > 0 && !discountReason.trim()) ? 'Enter discount reason to proceed' :
+              ''
+            }
             className={`flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm disabled:opacity-40 transition-colors ${
               instPayPdfState === 'success'
                 ? 'bg-green-600 hover:bg-green-700 text-white'
                 : instPayPdfState === 'error'
                 ? 'bg-red-600 hover:bg-red-700 text-white'
                 : 'bg-gray-900 hover:bg-gray-800 text-white'
+            } ${
+              (hasUnapprovedFloorViolation || (discount > 0 && !discountReason.trim()))
+                ? 'opacity-50 cursor-not-allowed'
+                : ''
             }`}
           >
             {instPayPdfState === 'generating'
