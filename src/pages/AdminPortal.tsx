@@ -5393,15 +5393,15 @@ function InvoiceHistoryTab() {
 
       {/* ── Summary bar ── */}
       {filtered.length > 0 && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {[
             { label: 'Documents', value: filtered.length },
             { label: 'Paid Revenue', value: PKR(totalRevenue) },
             { label: 'Pending / Overdue', value: filtered.filter(r => r.payment_status === 'pending' || r.payment_status === 'overdue').length },
           ].map(s => (
-            <div key={s.label} className="bg-white rounded-2xl border border-gray-100 p-4">
+            <div key={s.label} className="bg-white rounded-2xl border border-gray-100 p-3 sm:p-4">
               <p className="text-xs text-gray-400 font-medium">{s.label}</p>
-              <p className="text-xl font-black text-gray-900 mt-1">{s.value}</p>
+              <p className="text-lg sm:text-xl font-black text-gray-900 mt-1 truncate">{s.value}</p>
             </div>
           ))}
         </div>
@@ -5419,6 +5419,7 @@ function InvoiceHistoryTab() {
         <div className="text-center py-12 text-gray-400 text-sm">No invoices match your filters.</div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
@@ -5496,6 +5497,7 @@ function InvoiceHistoryTab() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>
@@ -6394,7 +6396,8 @@ function QuotationTab({ products }: { products: Product[] }) {
 
       {lines.length > 0 && (
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[540px]">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-600">Item</th>
@@ -6466,6 +6469,7 @@ function QuotationTab({ products }: { products: Product[] }) {
               ))}
             </tbody>
           </table>
+          </div>
           <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-6 text-sm">
             {discount > 0 && <span className="text-gray-500">Subtotal: PKR {subtotal.toLocaleString('en-PK')} · Discount: − PKR {discountAmt.toLocaleString('en-PK')}</span>}
             <span className="font-black text-gray-900 text-base">Grand Total: PKR {grandTotal.toLocaleString('en-PK')}</span>
@@ -7500,7 +7504,7 @@ function OrdersTab() {
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[700px]">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-gray-600 w-28">Order</th>
@@ -7895,21 +7899,21 @@ function SettingsTab() {
     k: string; label: string; type?: string; min?: number; max?: number; step?: number; unit?: string; hint?: string;
   }) {
     return (
-      <div className="flex items-center gap-3">
-        <label className="text-sm font-medium text-gray-700 w-48 shrink-0">{label}</label>
-        <div className="flex items-center gap-2 flex-1">
-          {unit && <span className="text-xs text-gray-400">{unit}</span>}
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <label className="text-sm font-medium text-gray-700 w-full sm:w-48 sm:shrink-0">{label}</label>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {unit && <span className="text-xs text-gray-400 shrink-0">{unit}</span>}
           <input
             type={type}
             value={local[k] ?? ''}
             onChange={e => setField(k, e.target.value)}
             min={min} max={max} step={step}
-            className="w-36 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            className="w-full sm:w-36 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
           />
-          {hint && <span className="text-xs text-gray-400">{hint}</span>}
+          {hint && <span className="text-xs text-gray-400 hidden sm:inline">{hint}</span>}
         </div>
         <button onClick={() => saveSetting(k)} disabled={saving === k}
-          className="flex items-center gap-1 text-xs font-bold bg-orange-100 hover:bg-orange-200 disabled:opacity-50 text-orange-700 px-3 py-2 rounded-lg whitespace-nowrap">
+          className="flex items-center gap-1 text-xs font-bold bg-orange-100 hover:bg-orange-200 disabled:opacity-50 text-orange-700 px-3 py-2 rounded-lg whitespace-nowrap shrink-0">
           {saving === k ? <Loader2 className="w-3 h-3 animate-spin" /> : saved.has(k) ? <><Check className="w-3 h-3" /> Saved</> : 'Save'}
         </button>
       </div>
@@ -7937,12 +7941,12 @@ function SettingsTab() {
           <span className="text-xs text-gray-400 ml-auto">Shown sitewide above the navbar — dismissable by visitors</span>
         </div>
 
-        <div className="flex gap-3 items-center">
+        <div className="flex flex-wrap gap-3 items-center">
           <input
             value={local['announcement_text'] ?? ''}
             onChange={e => setField('announcement_text', e.target.value)}
             placeholder="e.g. Eid Sale — extra 5% off on all ACs this week only!"
-            className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            className="flex-1 min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
           />
           <label className="flex items-center gap-2 cursor-pointer select-none shrink-0">
             <input type="checkbox"
