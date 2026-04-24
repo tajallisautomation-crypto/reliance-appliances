@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS invoice_services (
 );
 
 ALTER TABLE invoice_services ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authenticated users only" ON invoice_services;
 CREATE POLICY "Authenticated users only" ON invoice_services
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
@@ -54,10 +55,12 @@ CREATE TABLE IF NOT EXISTS installment_schedules (
   amount_paid     numeric(12,2) DEFAULT 0,
   status          text DEFAULT 'pending' CHECK (status IN ('pending','paid','overdue')),
   paid_at         timestamptz,
-  created_at      timestamptz DEFAULT now()
+  created_at      timestamptz DEFAULT now(),
+  CONSTRAINT installment_schedules_uniq_no UNIQUE (invoice_id, installment_no)
 );
 
 ALTER TABLE installment_schedules ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authenticated users only" ON installment_schedules;
 CREATE POLICY "Authenticated users only" ON installment_schedules
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
@@ -71,10 +74,14 @@ CREATE TABLE IF NOT EXISTS price_overrides (
   attempted_price  numeric(12,2) NOT NULL,
   approved_price   numeric(12,2) NOT NULL,
   reason           text NOT NULL,
-  created_at       timestamptz DEFAULT now()
+  created_at       timestamptz DEFAULT now(),
+  CONSTRAINT price_overrides_must_link CHECK (
+    invoice_id IS NOT NULL OR invoice_line_id IS NOT NULL
+  )
 );
 
 ALTER TABLE price_overrides ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authenticated users only" ON price_overrides;
 CREATE POLICY "Authenticated users only" ON price_overrides
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
