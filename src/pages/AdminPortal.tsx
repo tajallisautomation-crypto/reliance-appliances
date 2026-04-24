@@ -5653,18 +5653,66 @@ function QuotationTab({ products }: { products: Product[] }) {
     description: string;
     status: 'included' | 'charged' | 'not_selected';
     visible_value: number;
+    display_value?: string;   // e.g. "Bundled", "Ask to add" — shown instead of PKR amount when set
     charged_amount: number;
   }
 
   const DEFAULT_SERVICES: InvoiceService[] = [
-    { service_type: 'delivery',     service_name: 'Delivery & Logistics', description: 'Secure last-mile delivery to premises', status: 'included', visible_value: 3000, charged_amount: 0 },
-    { service_type: 'installation', service_name: 'Installation',         description: 'Professional setup and testing',        status: 'not_selected', visible_value: 0, charged_amount: 0 },
-    { service_type: 'site_survey',  service_name: 'Site Survey',          description: 'Pre-installation site assessment',      status: 'not_selected', visible_value: 0, charged_amount: 0 },
-    { service_type: 'maintenance',  service_name: 'Maintenance Visit',    description: 'Scheduled servicing visit',             status: 'not_selected', visible_value: 0, charged_amount: 0 },
-    { service_type: 'ups_setup',    service_name: 'UPS / Battery Setup',  description: 'Inverter + battery installation',       status: 'not_selected', visible_value: 0, charged_amount: 0 },
+    {
+      service_type: 'delivery',
+      service_name: 'Delivery & Last-Mile Logistics',
+      description: 'Secure transit to premises, careful handover',
+      status: 'included',
+      visible_value: 3000,
+      charged_amount: 0,
+    },
+    {
+      service_type: 'installation',
+      service_name: 'Installation',
+      description: 'Positioning, levelling, first-run test',
+      status: 'not_selected',
+      visible_value: 2500,
+      charged_amount: 0,
+    },
+    {
+      service_type: 'warranty_facilitation',
+      service_name: 'Warranty Facilitation',
+      description: 'Claim coordination with brand service centre',
+      status: 'included',
+      visible_value: 0,
+      display_value: 'Bundled',
+      charged_amount: 0,
+    },
+    {
+      service_type: 'maintenance',
+      service_name: 'Annual Maintenance Package',
+      description: '2 visits/year · cleaning, gas check, diagnostics',
+      status: 'not_selected',
+      visible_value: 6500,
+      charged_amount: 0,
+    },
+    {
+      service_type: 'ups_setup',
+      service_name: 'UPS / Battery Setup',
+      description: 'Inverter + battery installation',
+      status: 'not_selected',
+      visible_value: 0,
+      charged_amount: 0,
+    },
   ];
 
   const [services, setServices] = useState<InvoiceService[]>(DEFAULT_SERVICES);
+  const [saleType, setSaleType]           = useState<'cash' | 'installment'>('cash');
+  const [discountMode, setDiscountMode]   = useState<'percentage' | 'fixed'>('percentage');
+  const [discountFixed, setDiscountFixed] = useState(0);
+  const [discountFixedRaw, setDiscountFixedRaw] = useState('0');
+  const [deliveryEta, setDeliveryEta]     = useState('24–48h after payment');
+  const [preparedBy, setPreparedBy]       = useState('');
+  const [stockStatus, setStockStatus]     = useState('In stock · confirm before payment');
+  const [advancePaid, setAdvancePaid]     = useState(false);
+  const [customerArea, setCustomerArea]   = useState('');
+  const [isExistingCustomer, setIsExistingCustomer] = useState<boolean | null>(null);
+  const [validityHours, setValidityHours] = useState<24 | 48 | 72 | 168>(48);
 
   const autosaveRef                        = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -5719,8 +5767,9 @@ function QuotationTab({ products }: { products: Product[] }) {
           lines, customerName, customerPhone, customerEmail, customerAddress, customerCnic,
           discount, discountRaw, discountType, docType, refNumber,
           serviceLevel, elevatedStructureOn, elevatedStructureAmt, wiringAmt, laborAmt,
-          customerType, discountReason,
+          customerType, discountReason, discountMode, discountFixed, discountFixedRaw,
           advancePct, balanceNote,
+          saleType, deliveryEta, preparedBy, stockStatus, advancePaid, customerArea, isExistingCustomer, validityHours,
           instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber,
         }));
       }
@@ -5730,6 +5779,9 @@ function QuotationTab({ products }: { products: Product[] }) {
       discount, discountRaw, discountType, docType, refNumber,
       serviceLevel, elevatedStructureOn, elevatedStructureAmt, wiringAmt, laborAmt, advancePct, balanceNote,
       customerType, discountReason,
+      discountMode, discountFixed, discountFixedRaw,
+      saleType, deliveryEta, preparedBy, stockStatus, advancePaid,
+      customerArea, isExistingCustomer, validityHours,
       instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber]);
 
   function restoreDraft() {
@@ -5749,6 +5801,16 @@ function QuotationTab({ products }: { products: Product[] }) {
       if (draft.customerType) setCustomerType(draft.customerType);
       if (draft.serviceLevel) setServiceLevel(draft.serviceLevel);
       if (draft.discountReason) setDiscountReason(draft.discountReason);
+      if (draft.discountMode) setDiscountMode(draft.discountMode);
+      if (typeof draft.discountFixed === 'number') { setDiscountFixed(draft.discountFixed); setDiscountFixedRaw(String(draft.discountFixed)); }
+      if (draft.saleType) setSaleType(draft.saleType);
+      if (draft.deliveryEta) setDeliveryEta(draft.deliveryEta);
+      if (draft.preparedBy !== undefined) setPreparedBy(draft.preparedBy);
+      if (draft.stockStatus) setStockStatus(draft.stockStatus);
+      if (typeof draft.advancePaid === 'boolean') setAdvancePaid(draft.advancePaid);
+      if (draft.customerArea !== undefined) setCustomerArea(draft.customerArea);
+      if (draft.isExistingCustomer !== undefined) setIsExistingCustomer(draft.isExistingCustomer);
+      if (draft.validityHours) setValidityHours(draft.validityHours);
       if (typeof draft.elevatedStructureOn === 'boolean') setElevatedStructureOn(draft.elevatedStructureOn);
       if (typeof draft.elevatedStructureAmt === 'number') setElevatedStructureAmt(draft.elevatedStructureAmt);
       if (typeof draft.wiringAmt === 'number') setWiringAmt(draft.wiringAmt);
@@ -5917,7 +5979,11 @@ function QuotationTab({ products }: { products: Product[] }) {
     setServices(prev => prev.map((s, i) => i === index ? { ...s, ...patch } : s));
   }
 
-  const totals = calcGrandTotal(lines, services, 'percentage', discount);
+  const totals = calcGrandTotal(
+    lines, services,
+    discountMode,
+    discountMode === 'fixed' ? discountFixed : discount
+  );
   const subtotal = totals.subtotal;
   const serviceTotal = totals.serviceTotal;
   const discountAmt = totals.discountAmt;
