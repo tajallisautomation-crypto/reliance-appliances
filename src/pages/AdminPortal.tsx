@@ -4374,6 +4374,28 @@ async function generateQrDataUrl(text: string): Promise<string> {
   return QRCode.toDataURL(text, { width: 120, margin: 1, color: { dark: '#1A1A1A', light: '#FFFFFF' } });
 }
 
+function normalizeAddress(raw: string): string {
+  if (!raw?.trim()) return raw;
+  let s = raw.trim();
+  // "near X" at end → "(Near X)"
+  s = s.replace(/,?\s*near\s+([^,]+)$/i, ' (Near $1)');
+  // Common substitutions
+  s = s.replace(/\bbufferzone\b/gi, 'Buffer Zone');
+  s = s.replace(/\bsector\b/gi, 'Sector');
+  // Title-case each word; preserve all-caps abbreviations (DHA, NTS, KDA)
+  s = s.replace(/\b\w+/g, w => {
+    if (/^[A-Z]{2,}$/.test(w) || /^\d/.test(w)) return w;
+    return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+  });
+  // Hyphenate single/double uppercase letter + number: "R 812" → "R-812"
+  s = s.replace(/\b([A-Z]{1,2}) (\d)/g, '$1-$2');
+  // Clean spacing
+  s = s.replace(/\s*,\s*/g, ', ').replace(/\s{2,}/g, ' ').trim();
+  // Remove trailing duplicate city: "...Karachi, Karachi" → "...Karachi"
+  s = s.replace(/, ([^,]+)(, \1)+$/i, ', $1');
+  return s;
+}
+
 async function generateQuotationPdf(opts: {
   customerName: string;
   customerPhone: string;
@@ -4463,30 +4485,33 @@ async function generateQuotationPdf(opts: {
     doc.text("Tajalli's", margin, 20);
   }
 
-  // ── RIGHT: brand first, doc type secondary (brand leads the hierarchy) ────
+  // ── RIGHT: brand dominant, doc-type as small chip label ─────────────────
   const badgeLabel = opts.docType === 'invoice' ? 'INVOICE' : 'QUOTATION';
 
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
+  // Brand — primary (largest element on the right)
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
   doc.text('HOME & COMMERCIAL SOLUTIONS', W - margin, 11, { align: 'right' });
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 225, 180);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(255, 225, 180);
   doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', W - margin, 18, { align: 'right' });
 
-  // Thin warm divider separating brand from doc type
-  doc.setDrawColor(255, 200, 140); doc.setLineWidth(0.3);
-  doc.line(W - margin - 68, 21.5, W - margin, 21.5);
-  doc.setLineWidth(0.2);
+  // Doc-type chip — small filled label, clearly secondary
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
+  const chipPad = 2.5;
+  const chipText = ' ' + badgeLabel + ' ';
+  const chipW = doc.getTextWidth(chipText) + chipPad;
+  doc.setFillColor(155, 40, 0);
+  doc.rect(W - margin - chipW, 21, chipW, 5.5, 'F');
+  doc.setTextColor(255, 230, 210);
+  doc.text(chipText, W - margin - chipW, 24.8);
 
-  // Doc type — secondary label, not dominant
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(255, 235, 210);
-  doc.text(badgeLabel, W - margin, 27, { align: 'right' });
-
+  // Contact info
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(255, 205, 165);
-  doc.text('L-152 & 153, Sector 11C-1, North Karachi', W - margin, 33, { align: 'right' });
-  doc.text('+92 370 2578788  ·  tajallis.com.pk', W - margin, 38, { align: 'right' });
+  doc.text('L-152 & 153, Sector 11C-1, North Karachi', W - margin, 32, { align: 'right' });
+  doc.text('+92 370 2578788  ·  tajallis.com.pk', W - margin, 37, { align: 'right' });
   if (opts.showNtn) {
-    doc.text('support@tajallis.com.pk  ·  NTN: 42101-3836602-3', W - margin, 43, { align: 'right' });
+    doc.text('support@tajallis.com.pk  ·  NTN: 42101-3836602-3', W - margin, 42, { align: 'right' });
   } else {
-    doc.text('support@tajallis.com.pk', W - margin, 43, { align: 'right' });
+    doc.text('support@tajallis.com.pk', W - margin, 42, { align: 'right' });
   }
 
   let y = HEADER_H + 4;
@@ -4533,7 +4558,7 @@ async function generateQuotationPdf(opts: {
     ['NAME', opts.customerName || '—'],
     ['PHONE', opts.customerPhone ? fmtPKPhone(opts.customerPhone) : '—'],
     ...(opts.customerEmail ? [['EMAIL', opts.customerEmail] as [string, string]] : []),
-    ['ADDRESS', opts.customerAddress || '—'],
+    ['ADDRESS', opts.customerAddress ? normalizeAddress(opts.customerAddress) : '—'],
     ...(opts.customerArea ? [['AREA', opts.customerArea] as [string, string]] : []),
     ['TYPE', opts.customerType === 'apartment' ? 'Flat / Apartment'
       : opts.customerType === 'house' ? 'House / Independent Unit'
@@ -4743,6 +4768,24 @@ async function generateQuotationPdf(opts: {
   doc.text('05  PRICING & PAYMENT', margin, y + 1);
   y += 5;
 
+  // Appliance load summary bar (when kWh data is available)
+  const totalKwhLoad = opts.lines.reduce((s, l) => s + (l.kwhPerMonth || 0) * l.qty, 0);
+  if (totalKwhLoad > 0) {
+    const lsH = 8;
+    doc.setFillColor(254, 252, 232);
+    doc.rect(margin, y, printW, lsH, 'F');
+    doc.setDrawColor(202, 138, 4); doc.setLineWidth(0.5);
+    doc.line(margin, y, margin, y + lsH);
+    doc.setLineWidth(0.2);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(120, 80, 0);
+    doc.text('APPLIANCE LOAD:', margin + 3, y + 5.5);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(101, 61, 0);
+    doc.text(`${totalKwhLoad} kWh/month`, margin + 34, y + 5.5);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(100, 70, 0);
+    doc.text(`· Est. electricity cost ~${PKR(Math.round(totalKwhLoad * 50))}/mo`, margin + 75, y + 5.5);
+    y += lsH + 3;
+  }
+
   const totalsX = W - margin - 80; const valX = W - margin;
 
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(80, 80, 80);
@@ -4794,21 +4837,30 @@ async function generateQuotationPdf(opts: {
     ['Balance', `${100 - opts.advancePct}% · ${PKR(balanceAmt)}`],
     ['Due', opts.advancePct === 0 ? 'On delivery' : `Balance on ${opts.balanceNote || 'delivery'}`],
     ...(opts.docType !== 'invoice' ? [['Validity', opts.validityHours >= 168 ? '7 days' : `${opts.validityHours}h`] as [string, string]] : []),
-    ...(showInstTeaser ? [['Installment option', `from ~${PKR(opts.instTeaserMonthly!)}/mo · ${opts.instTeaserMonths} months · enquire +92 370 2578788`] as [string, string]] : []),
+    ...(showInstTeaser ? [['OPTIONAL — Installment upgrade', `~${PKR(opts.instTeaserMonthly!)}/mo · ${opts.instTeaserMonths} months · +92 370 2578788`] as [string, string]] : []),
   ];
-  const ptH = 8 + ptRows.length * 5.5;
+  const ptH = 8 + ptRows.length * 5;
   doc.setFillColor(243, 244, 246);
   doc.rect(margin, y, printW, ptH, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(30, 30, 30);
   doc.text(`PAYMENT TERMS · ${opts.saleType === 'installment' ? 'INSTALLMENT' : 'CASH'}`, margin + 4, y + 6);
   let pty = y + 11;
   for (const [label, val] of ptRows) {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(120, 120, 120);
+    const isOpt = label.startsWith('OPTIONAL');
+    if (isOpt) {
+      doc.setDrawColor(234, 88, 12); doc.setLineWidth(0.25);
+      doc.setLineDashPattern([1, 1.5], 0);
+      doc.line(margin + 4, pty - 2.5, margin + printW - 4, pty - 2.5);
+      doc.setLineDashPattern([], 0); doc.setLineWidth(0.2);
+    }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5);
+    doc.setTextColor(...(isOpt ? [234, 88, 12] as [number, number, number] : [120, 120, 120] as [number, number, number]));
     doc.text(label, margin + 4, pty);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(30, 30, 30);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(isOpt ? 7 : 7.5);
+    doc.setTextColor(...(isOpt ? [180, 60, 0] as [number, number, number] : [30, 30, 30] as [number, number, number]));
     const ptLine = doc.splitTextToSize(val, printW - 56);
     doc.text(ptLine, margin + 50, pty);
-    pty += 5.5;
+    pty += 5;
   }
   y += ptH + 4;
 
@@ -4912,7 +4964,7 @@ async function generateQuotationPdf(opts: {
   }
 
   // ── ⑨ 07 TERMS & CONDITIONS ──────────────────────────────────────────────────
-  checkPageBreak(60);
+  checkPageBreak(53);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(ORANGE);
   doc.text('07  TERMS & CONDITIONS', margin, y + 1);
   y += 5;
@@ -4930,17 +4982,17 @@ async function generateQuotationPdf(opts: {
     'For Supply Only, liability transfers after secure handover at the delivery address.',
   ];
 
-  const tcH = 8 + tcItems.length * 4.5;
+  const tcH = 8 + tcItems.length * 4;
   doc.setFillColor(249, 249, 249);
   doc.rect(margin, y, printW, tcH, 'F');
 
-  let ty = y + 5.5;
+  let ty = y + 5;
   tcItems.forEach((item, i) => {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(120, 120, 120);
     doc.text(`${i + 1}.`, margin + 3, ty);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(80, 80, 80);
     doc.text(item, margin + 8, ty, { maxWidth: printW - 12 });
-    ty += 4.5;
+    ty += 4;
   });
   y += tcH + 4;
 
