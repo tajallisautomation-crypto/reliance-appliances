@@ -245,8 +245,8 @@ for (const p of haierFreezes) {
 
 // Dawlance VF-1035 names
 await fix('dawlance-vf-1035wb-gd',         { simplified_name:'Dawlance 12.7 Cu.Ft Glass Door Vertical Freezer VF-1035' }, 'VF-1035 GD name')
-await fix('dawlance-vf-1035wb-gd-cloud-white', { simplified_name:'Dawlance 12.7 Cu.Ft Glass Door Vertical Freezer VF-1035 (Cloud White)' }, 'VF-1035 Cloud White name')
-await fix('dawlance-vf-1035wb-gd-avante',  { simplified_name:'Dawlance 12.7 Cu.Ft Glass Door Avante+ Vertical Freezer VF-1035' }, 'VF-1035 Avante+ name')
+await fix('dawlance-vf-1035wb-gd-cloud-white', { simplified_name:'Dawlance 12.7 Cu.Ft Glass Door Inverter Vertical Freezer VF-1035 (Cloud White)' }, 'VF-1035 Cloud White name')
+await fix('dawlance-vf-1035wb-gd-avante',  { simplified_name:'Dawlance 12.7 Cu.Ft Glass Door Avante+ Inverter Vertical Freezer VF-1035' }, 'VF-1035 Avante+ name')
 
 
 // ════════════════════════════════════════════════════════════════
