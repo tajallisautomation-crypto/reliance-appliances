@@ -4433,7 +4433,7 @@ async function generateQuotationPdf(opts: {
 }): Promise<Blob> {
   const ORANGE = '#EA580C';
   const DARK   = '#1A1A1A';
-  const W = 210; const margin = 18;
+  const W = 210; const margin = 10;
   const printW = W - margin * 2;
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -4472,87 +4472,65 @@ async function generateQuotationPdf(opts: {
   }
   const grandTotal = baseBeforeDisc - discountAmt;
 
-  // ── ① HEADER (48mm) ─────────────────────────────────────────────────────────
-  const HEADER_H = 48;
+  // ── LAYOUT CONSTANTS ─────────────────────────────────────────────────────────
+  const colGap = 4;
+  const leftW = 112;
+  const rightW = printW - leftW - colGap;   // 74
+  const rightX = margin + leftW + colGap;
+  const leftAutoMarginRight = W - (margin + leftW); // autoTable right margin for left column
+
+  // ── ① HEADER STRIP (28mm) ─────────────────────────────────────────────────────
+  const HEADER_H = 28;
+  const badgeLabel = opts.docType === 'invoice' ? 'INVOICE' : 'QUOTATION';
   doc.setFillColor(ORANGE);
   doc.rect(0, 0, W, HEADER_H, 'F');
 
-  // ── LEFT: logo only ───────────────────────────────────────────────────────
+  // Logo — left
   if (logoData) {
-    doc.addImage(logoData, 'PNG', margin, 4, 0, 38);
+    doc.addImage(logoData, 'PNG', margin, 3, 0, 22);
   } else {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(22); doc.setTextColor(255, 255, 255);
-    doc.text("Tajalli's", margin, 20);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
+    doc.text("Tajalli's", margin, 16);
   }
 
-  // ── RIGHT: brand dominant, doc-type as small chip label ─────────────────
-  const badgeLabel = opts.docType === 'invoice' ? 'INVOICE' : 'QUOTATION';
+  // Brand + tagline — left-centre
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(255, 255, 255);
+  doc.text('HOME & COMMERCIAL SOLUTIONS', margin + 32, 11);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(255, 225, 180);
+  doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', margin + 32, 17);
 
-  // Brand — strong visual anchor
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(255, 255, 255);
-  doc.text('HOME & COMMERCIAL SOLUTIONS', W - margin, 11, { align: 'right' });
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(255, 225, 180);
-  doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', W - margin, 18, { align: 'right' });
-
-  // Doc-type chip — small filled label, clearly secondary
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
-  const chipPad = 2.5;
+  // Doc-type chip — far right top
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5);
+  const chipPad = 2;
   const chipText = ' ' + badgeLabel + ' ';
   const chipW = doc.getTextWidth(chipText) + chipPad;
   doc.setFillColor(155, 40, 0);
-  doc.rect(W - margin - chipW, 21, chipW, 5.5, 'F');
+  doc.rect(W - margin - chipW, 3, chipW, 5, 'F');
   doc.setTextColor(255, 230, 210);
-  doc.text(chipText, W - margin - chipW, 24.8);
+  doc.text(chipText, W - margin - chipW, 6.8);
 
-  // Contact info
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(255, 205, 165);
-  doc.text('L-152 & 153, Sector 11C-1, North Karachi', W - margin, 32, { align: 'right' });
-  doc.text('+92 370 2578788  ·  tajallis.com.pk', W - margin, 37, { align: 'right' });
-  if (opts.showNtn) {
-    doc.text('support@tajallis.com.pk  ·  NTN: 42101-3836602-3', W - margin, 42, { align: 'right' });
-  } else {
-    doc.text('support@tajallis.com.pk', W - margin, 42, { align: 'right' });
-  }
+  // REF number — far right below chip
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
+  doc.text(opts.refNumber, W - margin, 14, { align: 'right' });
 
-  let y = HEADER_H + 4;
-  const PAGE_BOTTOM = 275; // safe bottom margin before footer
-  const checkPageBreak = (neededMm: number) => {
-    if (y + neededMm > PAGE_BOTTOM) {
-      doc.addPage();
-      y = 15;
-    }
+  // Contact strip — bottom of header
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(255, 205, 165);
+  const contactParts = ['L-152 & 153, Sector 11C-1, North Karachi', '+92 370 2578788', 'support@tajallis.com.pk'];
+  if (opts.showNtn) contactParts.push('NTN: 42101-3836602-3');
+  doc.text(contactParts.join('  ·  '), margin, 24);
+
+  // ── TWO-COLUMN ZONE ───────────────────────────────────────────────────────────
+  let leftY = HEADER_H + 3;
+  let rightY = HEADER_H + 3;
+
+  const secLabel = (text: string, x: number, y: number) => {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
+    doc.text(text, x, y);
   };
 
-  // ── ② META INFO BAR ──────────────────────────────────────────────────────────
-  const META_H = 22;
-  doc.setFillColor(243, 244, 246);
-  doc.rect(margin, y, printW, META_H, 'F');
-
-  const colW4 = printW / 4;
-  const setMeta = (label: string, value: string, x: number, rowY: number) => {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(150, 150, 150);
-    doc.text(label, x, rowY);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(30, 30, 30);
-    const lines = doc.splitTextToSize(value, colW4 - 4);
-    doc.text(lines, x, rowY + 4.5);
-  };
-
-  const row1Y = y + 5;
-  const row2Y = y + 13;
-  setMeta('REF', opts.refNumber, margin + 2, row1Y);
-  setMeta('DATE', dateStr, margin + colW4 + 2, row1Y);
-  setMeta('PREPARED BY', opts.preparedBy || '—', margin + colW4 * 2 + 2, row1Y);
-  if (opts.docType !== 'invoice') setMeta('VALID UNTIL', `${validUntilStr} · ${opts.validityHours}h`, margin + colW4 * 3 + 2, row1Y);
-  setMeta('SALE TYPE', opts.saleType === 'cash' ? 'Cash' : 'Installment', margin + 2, row2Y);
-  setMeta('SERVICE LEVEL', opts.installationType === 'installation-included' ? 'Supply + Install' : 'Supply Only', margin + colW4 + 2, row2Y);
-  setMeta('STOCK', opts.stockStatus, margin + colW4 * 2 + 2, row2Y);
-
-  y += META_H + 5;
-
-  // ── ③ 01 CUSTOMER ────────────────────────────────────────────────────────────
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(ORANGE);
-  doc.text('01  CUSTOMER', margin, y + 1);
-  y += 5;
+  // ── ROW 1 LEFT: Customer ──────────────────────────────────────────────────────
+  secLabel('CUSTOMER', margin, leftY);
+  leftY += 3.5;
 
   const custFields: Array<[string, string]> = [
     ['NAME', opts.customerName || '—'],
@@ -4561,38 +4539,67 @@ async function generateQuotationPdf(opts: {
     ['ADDRESS', opts.customerAddress ? normalizeAddress(opts.customerAddress) : '—'],
     ...(opts.customerArea ? [['AREA', opts.customerArea] as [string, string]] : []),
     ['TYPE', opts.customerType === 'apartment' ? 'Flat / Apartment'
-      : opts.customerType === 'house' ? 'House / Independent Unit'
-      : 'Commercial'],
-    ['EXISTING', opts.isExistingCustomer === true ? 'Yes · Returning customer'
-      : opts.isExistingCustomer === false ? 'No · New customer'
-      : '—'],
-    ['DELIVERY ETA', opts.deliveryEta || '—'],
+      : opts.customerType === 'house' ? 'House / Independent Unit' : 'Commercial'],
+    ['EXISTING', opts.isExistingCustomer === true ? 'Yes — Returning'
+      : opts.isExistingCustomer === false ? 'No — New' : '—'],
+    ['ETA', opts.deliveryEta || '—'],
   ];
 
-  // Estimate height
-  const custH = 8 + custFields.length * 5.5;
+  const custBlockH = custFields.length * 4.5 + 5;
   doc.setFillColor(255, 247, 237);
-  doc.rect(margin, y, printW, custH, 'F');
-  doc.setDrawColor(234, 88, 12); doc.setLineWidth(0.6);
-  doc.line(margin, y, margin, y + custH);
+  doc.rect(margin, leftY, leftW, custBlockH, 'F');
+  doc.setDrawColor(234, 88, 12); doc.setLineWidth(0.5);
+  doc.line(margin, leftY, margin, leftY + custBlockH);
   doc.setLineWidth(0.2);
 
-  let cy = y + 5.5;
-  for (const [label, value] of custFields) {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(180, 100, 50);
-    doc.text(label, margin + 4, cy);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(30, 30, 30);
-    const vlines = doc.splitTextToSize(value, printW - 40);
-    doc.text(vlines, margin + 28, cy);
-    cy += 5.5;
+  let cy = leftY + 4.5;
+  for (const [lbl, val] of custFields) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(180, 100, 50);
+    doc.text(lbl, margin + 3, cy);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(30, 30, 30);
+    const vl = doc.splitTextToSize(val, leftW - 26);
+    doc.text(vl, margin + 22, cy);
+    cy += 4.5;
   }
-  y += custH + 6;
+  leftY += custBlockH + 3;
 
-  // ── ④ 02 ITEMS ───────────────────────────────────────────────────────────────
-  checkPageBreak(30);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(ORANGE);
-  doc.text('02  ITEMS', margin, y + 1);
-  y += 5;
+  // ── ROW 1 RIGHT: Invoice Meta ─────────────────────────────────────────────────
+  secLabel('INVOICE DETAILS', rightX, rightY);
+  rightY += 3.5;
+
+  const metaFields: Array<[string, string]> = [
+    ['REF', opts.refNumber],
+    ['DATE', dateStr],
+    ['PREPARED BY', opts.preparedBy || '—'],
+    ['SALE TYPE', opts.saleType === 'cash' ? 'Cash' : 'Installment'],
+    ['SERVICE', opts.installationType === 'installation-included' ? 'Supply + Install' : 'Supply Only'],
+    ['STOCK', opts.stockStatus],
+    ['ETA', opts.deliveryEta || '—'],
+    ...(opts.docType !== 'invoice' ? [['VALID', `${validUntilStr} (${opts.validityHours}h)`] as [string, string]] : []),
+  ];
+
+  const metaBlockH = metaFields.length * 4.5 + 5;
+  doc.setFillColor(243, 244, 246);
+  doc.rect(rightX, rightY, rightW, metaBlockH, 'F');
+
+  let my = rightY + 4.5;
+  for (const [lbl, val] of metaFields) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(120, 120, 120);
+    doc.text(lbl, rightX + 3, my);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(30, 30, 30);
+    const vl = doc.splitTextToSize(val, rightW - 26);
+    doc.text(vl, rightX + 22, my);
+    my += 4.5;
+  }
+  rightY += metaBlockH + 3;
+
+  // sync row 1
+  leftY = Math.max(leftY, rightY);
+  rightY = leftY;
+
+  // ── ROW 2 LEFT: Items table ───────────────────────────────────────────────────
+  secLabel('ITEMS', margin, leftY);
+  leftY += 3.5;
 
   const categoryOrder: string[] = [];
   const grouped: Record<string, QuoteLine[]> = {};
@@ -4605,9 +4612,8 @@ async function generateQuotationPdf(opts: {
   const itemsBody: any[] = [];
   for (const cat of categoryOrder) {
     itemsBody.push([{
-      content: cat.toUpperCase(),
-      colSpan: 5,
-      styles: { fillColor: [26, 26, 26], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7, cellPadding: { top: 2, bottom: 2, left: 3 } },
+      content: cat.toUpperCase(), colSpan: 5,
+      styles: { fillColor: [26, 26, 26], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellPadding: { top: 1.5, bottom: 1.5, left: 2 } },
     }]);
     for (const line of grouped[cat]) {
       const nameParts = [line.name];
@@ -4615,12 +4621,14 @@ async function generateQuotationPdf(opts: {
       if (line.keySpec) {
         line.keySpec.split(',').map((s: string) => s.trim())
           .filter((s: string) => s.length > 2 && !/:\s*(No|N\/A|None|—|NA|-)\s*$/i.test(s))
+          .slice(0, 3)
           .forEach((s: string) => nameParts.push(`· ${s}`));
       }
-      if (line.kwhPerMonth > 0) nameParts.push(`· Est. ${line.kwhPerMonth} units/mo`);
+      if (line.kwhPerMonth > 0) nameParts.push(`· ${line.kwhPerMonth} kWh/mo`);
+      const wty = (line.warranty || '—').replace(/manufacturer/i, 'Mfr').replace(/warranty/i, 'wty');
       itemsBody.push([
         nameParts.join('\n'),
-        line.warranty || '—',
+        wty,
         String(line.qty),
         PKR(line.unitPrice),
         PKR(line.qty * line.unitPrice),
@@ -4630,89 +4638,145 @@ async function generateQuotationPdf(opts: {
 
   if (opts.installationLines.length > 0) {
     itemsBody.push([{
-      content: 'INSTALLATION',
-      colSpan: 5,
-      styles: { fillColor: [26, 26, 26], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7, cellPadding: { top: 2, bottom: 2, left: 3 } },
+      content: 'INSTALLATION', colSpan: 5,
+      styles: { fillColor: [26, 26, 26], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellPadding: { top: 1.5, bottom: 1.5, left: 2 } },
     }]);
     for (const inst of opts.installationLines) {
-      itemsBody.push([inst.name, '1 yr workmanship', '1', PKR(inst.amount), PKR(inst.amount)]);
+      itemsBody.push([inst.name, '1yr work', '1', PKR(inst.amount), PKR(inst.amount)]);
     }
-    itemsBody.push(['Complimentary Post-Installation Check', 'N/A', '1', 'Complimentary', 'PKR 0']);
+    itemsBody.push(['Post-Install Check', 'N/A', '1', 'Complimentary', 'PKR 0']);
   }
 
   autoTable(doc, {
-    startY: y, margin: { left: margin, right: margin },
-    head: [['PRODUCT', 'WARRANTY', 'QTY', 'UNIT', 'TOTAL']],
+    startY: leftY,
+    margin: { left: margin, right: leftAutoMarginRight },
+    head: [['PRODUCT / SPECS', 'WARRANTY', 'QTY', 'UNIT', 'TOTAL']],
     body: itemsBody,
     columnStyles: {
-      0: { cellWidth: 80 },
-      1: { cellWidth: 36 },
-      2: { cellWidth: 10, halign: 'right' },
-      3: { cellWidth: 24, halign: 'right' },
-      4: { cellWidth: 24, halign: 'right', fontStyle: 'bold' },
-    },
-    headStyles: { fillColor: ORANGE, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
-    bodyStyles: { fontSize: 7.5, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.2 },
-    alternateRowStyles: { fillColor: [250, 250, 250] },
-    styles: { overflow: 'linebreak', cellPadding: 2.5 },
-  });
-  // @ts-ignore
-  y = (doc as any).lastAutoTable.finalY + 6;
-
-  // ── ⑤ 03 SERVICES ────────────────────────────────────────────────────────────
-  checkPageBreak(40);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(ORANGE);
-  doc.text('03  SERVICES', margin, y + 1);
-  y += 5;
-
-  const svcBody: any[] = [];
-  for (const svc of opts.services) {
-    const statusLabel = svc.status === 'included' ? 'INCLUDED'
-      : svc.status === 'charged' ? 'CHARGED'
-      : (svc.visible_value > 0 || svc.display_value) ? 'OPTIONAL'
-      : 'NOT SELECTED';
-    const statusColor: [number, number, number] = svc.status === 'included' ? [22, 163, 74]
-      : svc.status === 'charged' ? [234, 88, 12]
-      : [120, 120, 120];
-    const valueLabel = svc.display_value
-      ? svc.display_value
-      : svc.visible_value > 0
-        ? PKR(svc.visible_value)
-        : '—';
-    const chargedLabel = svc.status === 'included' ? 'PKR 0'
-      : svc.status === 'charged' ? PKR(svc.charged_amount)
-      : (svc.visible_value > 0 || svc.display_value) ? 'Ask to add'
-      : '—';
-    svcBody.push([
-      { content: svc.service_name, styles: { fontStyle: 'bold' as const } },
-      svc.description,
-      { content: statusLabel, styles: { textColor: statusColor, fontStyle: 'bold' as const } },
-      valueLabel,
-      chargedLabel,
-    ]);
-  }
-
-  autoTable(doc, {
-    startY: y, margin: { left: margin, right: margin },
-    head: [['SERVICE', 'DESCRIPTION', 'STATUS', 'VALUE', 'CHARGED']],
-    body: svcBody,
-    columnStyles: {
-      0: { cellWidth: 44 },
-      1: { cellWidth: 60 },
-      2: { cellWidth: 26, halign: 'center' },
+      0: { cellWidth: 'auto' },
+      1: { cellWidth: 20 },
+      2: { cellWidth: 7, halign: 'right' },
       3: { cellWidth: 22, halign: 'right' },
-      4: { cellWidth: 22, halign: 'right' },
+      4: { cellWidth: 22, halign: 'right', fontStyle: 'bold' },
     },
-    headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+    headStyles: { fillColor: ORANGE, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
     bodyStyles: { fontSize: 7, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.2 },
     alternateRowStyles: { fillColor: [250, 250, 250] },
-    styles: { overflow: 'linebreak', cellPadding: 2.5 },
+    styles: { overflow: 'linebreak', cellPadding: 1.8 },
   });
   // @ts-ignore
-  y = (doc as any).lastAutoTable.finalY + 6;
+  leftY = (doc as any).lastAutoTable.finalY + 3;
 
-  // ── ⑥ 04 ENERGY ADVISORY ─────────────────────────────────────────────────────
-  checkPageBreak(50);
+  // ── ROW 2 RIGHT: Pricing ──────────────────────────────────────────────────────
+  secLabel('PRICING', rightX, rightY);
+  rightY += 3.5;
+
+  const pricingRows: Array<[string, string]> = [
+    ['Product subtotal', PKR(productSubtotal)],
+    ...(installSubtotal > 0 ? [['Installation', PKR(installSubtotal)] as [string, string]] : []),
+    ...(chargedSvcTotal > 0 ? [['Services', PKR(chargedSvcTotal)] as [string, string]] : []),
+  ];
+
+  if (discountAmt > 0) {
+    const discLabel = opts.discountMode === 'fixed'
+      ? `${opts.discountType} Discount (fixed)`
+      : `${opts.discountType} Discount (${opts.discount}%)`;
+    pricingRows.push([discLabel, `- ${PKR(discountAmt)}`]);
+    if (opts.discountReason) pricingRows.push(['Reason', opts.discountReason]);
+  }
+
+  const pricingRowH = 5.5;
+  const pricingH = pricingRows.length * pricingRowH + 18; // rows + grand total (12) + padding (6)
+  doc.setFillColor(250, 250, 250);
+  doc.rect(rightX, rightY, rightW, pricingH, 'F');
+  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
+  doc.rect(rightX, rightY, rightW, pricingH, 'S');
+
+  let pry = rightY + 5;
+  for (const [lbl, val] of pricingRows) {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(80, 80, 80);
+    doc.text(lbl, rightX + 3, pry);
+    doc.text(val, rightX + rightW - 3, pry, { align: 'right' });
+    pry += pricingRowH;
+  }
+
+  doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
+  doc.line(rightX + 3, pry - 1, rightX + rightW - 3, pry - 1);
+
+  doc.setFillColor(ORANGE);
+  doc.rect(rightX, pry - 1, rightW, 11, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
+  doc.text('GRAND TOTAL', rightX + 3, pry + 7);
+  doc.text(PKR(grandTotal), rightX + rightW - 3, pry + 7, { align: 'right' });
+  rightY += pricingH + 3;
+
+  // Appliance load bar — right column, below pricing
+  const totalKwhLoad = opts.lines.reduce((s, l) => s + (l.kwhPerMonth || 0) * l.qty, 0);
+  if (totalKwhLoad > 0) {
+    const lsH = 7;
+    doc.setFillColor(254, 252, 232);
+    doc.rect(rightX, rightY, rightW, lsH, 'F');
+    doc.setDrawColor(202, 138, 4); doc.setLineWidth(0.4);
+    doc.line(rightX, rightY, rightX, rightY + lsH);
+    doc.setLineWidth(0.2);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(120, 80, 0);
+    doc.text('LOAD:', rightX + 2, rightY + 5);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(101, 61, 0);
+    doc.text(`${totalKwhLoad} kWh/mo`, rightX + 13, rightY + 5);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(100, 70, 0);
+    doc.text(`~${PKR(Math.round(totalKwhLoad * 50))}/mo`, rightX + rightW - 3, rightY + 5, { align: 'right' });
+    rightY += lsH + 2;
+  }
+
+  // sync row 2
+  leftY = Math.max(leftY, rightY);
+  rightY = leftY;
+
+  // ── ROW 3 LEFT: Services table ────────────────────────────────────────────────
+  secLabel('SERVICES', margin, leftY);
+  leftY += 3.5;
+
+  const svcBody: any[] = opts.services.map(svc => {
+    const sym = svc.status === 'included' ? '✓'
+      : svc.status === 'charged' ? '●'
+      : (svc.visible_value > 0 || svc.display_value) ? '○' : '—';
+    const symColor: [number, number, number] = svc.status === 'included' ? [22, 163, 74]
+      : svc.status === 'charged' ? [234, 88, 12]
+      : (svc.visible_value > 0 || svc.display_value) ? [100, 100, 100]
+      : [180, 180, 180];
+    const valueLabel = svc.display_value ? svc.display_value
+      : svc.visible_value > 0 ? PKR(svc.visible_value) : '—';
+    const chargedLabel = svc.status === 'included' ? 'PKR 0'
+      : svc.status === 'charged' ? PKR(svc.charged_amount)
+      : (svc.visible_value > 0 || svc.display_value) ? 'Ask' : '—';
+    return [
+      { content: svc.service_name, styles: { fontStyle: 'bold' as const } },
+      { content: sym, styles: { textColor: symColor, fontStyle: 'bold' as const, halign: 'center' as const } },
+      valueLabel,
+      chargedLabel,
+    ];
+  });
+
+  autoTable(doc, {
+    startY: leftY,
+    margin: { left: margin, right: leftAutoMarginRight },
+    head: [['SERVICE', 'STS', 'VALUE', 'CHARGED']],
+    body: svcBody,
+    columnStyles: {
+      0: { cellWidth: 'auto' },
+      1: { cellWidth: 8, halign: 'center' },
+      2: { cellWidth: 20, halign: 'right' },
+      3: { cellWidth: 20, halign: 'right' },
+    },
+    headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5 },
+    bodyStyles: { fontSize: 7, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.2 },
+    alternateRowStyles: { fillColor: [250, 250, 250] },
+    styles: { overflow: 'linebreak', cellPadding: 1.5 },
+  });
+  // @ts-ignore
+  leftY = (doc as any).lastAutoTable.finalY + 3;
+
+  // ── ROW 3 RIGHT: Energy Advisory ─────────────────────────────────────────────
   const hasSolarProduct = opts.lines.some(l => /solar|inverter/i.test(l.category));
   if (!hasSolarProduct && opts.customerType !== 'commercial') {
     const advisory = buildDetailedAdvisory(
@@ -4720,301 +4784,199 @@ async function generateQuotationPdf(opts: {
       opts.lines.map(l => ({ name: l.name, category: l.category, kwhPerMonth: l.kwhPerMonth, qty: l.qty, keySpec: l.keySpec }))
     );
     if (advisory && advisory.paragraphs.length > 0) {
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(ORANGE);
-      doc.text('04  ENERGY ADVISORY', margin, y + 1);
-      y += 5;
+      secLabel('ENERGY ADVISORY', rightX, rightY);
+      rightY += 3.5;
 
       const bgColor: [number, number, number] = advisory.color === 'blue' ? [239, 246, 255]
-        : advisory.color === 'green' ? [240, 253, 244]
-        : [248, 248, 248];
+        : advisory.color === 'green' ? [240, 253, 244] : [248, 248, 248];
       const borderColor: [number, number, number] = advisory.color === 'blue' ? [59, 130, 246]
-        : advisory.color === 'green' ? [22, 163, 74]
-        : [150, 150, 150];
+        : advisory.color === 'green' ? [22, 163, 74] : [150, 150, 150];
       const textColor: [number, number, number] = advisory.color === 'blue' ? [29, 78, 216]
-        : advisory.color === 'green' ? [21, 128, 61]
-        : [80, 80, 80];
+        : advisory.color === 'green' ? [21, 128, 61] : [80, 80, 80];
 
-      // Measure total text height
-      doc.setFontSize(7);
-      let totalLines = 0;
-      for (const para of advisory.paragraphs) {
-        totalLines += doc.splitTextToSize(para, printW - 6).length + 1;
-      }
-      const advH = 10 + totalLines * 4;
+      const paras = advisory.paragraphs.slice(0, 3);
+      doc.setFontSize(6.5);
+      let totalAdvLines = 1;
+      for (const para of paras) totalAdvLines += doc.splitTextToSize(para, rightW - 6).length + 1;
+      const advH = 7 + totalAdvLines * 3.8;
 
       doc.setFillColor(...bgColor);
-      doc.rect(margin, y, printW, advH, 'F');
-      doc.setDrawColor(...borderColor); doc.setLineWidth(0.8);
-      doc.line(margin, y, margin, y + advH);
+      doc.rect(rightX, rightY, rightW, advH, 'F');
+      doc.setDrawColor(...borderColor); doc.setLineWidth(0.6);
+      doc.line(rightX, rightY, rightX, rightY + advH);
       doc.setLineWidth(0.2);
 
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...textColor);
-      doc.text(advisory.sectionLabel, margin + 3, y + 5.5);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...textColor);
+      doc.text(advisory.sectionLabel, rightX + 3, rightY + 5);
 
-      let ay = y + 11;
-      for (const para of advisory.paragraphs) {
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(55, 65, 81);
-        const paraLines = doc.splitTextToSize(para, printW - 6);
-        doc.text(paraLines, margin + 3, ay);
-        ay += paraLines.length * 4 + 3;
+      let ay = rightY + 10;
+      for (const para of paras) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(55, 65, 81);
+        const paraLines = doc.splitTextToSize(para, rightW - 6);
+        doc.text(paraLines, rightX + 3, ay);
+        ay += paraLines.length * 3.8 + 2;
       }
-
-      y += advH + 5;
+      rightY += advH + 3;
     }
   }
 
-  // ── ⑦ 05 PRICING & PAYMENT ───────────────────────────────────────────────────
-  checkPageBreak(90);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(ORANGE);
-  doc.text('05  PRICING & PAYMENT', margin, y + 1);
-  y += 5;
+  // ── SYNC COLUMNS → FULL-WIDTH ZONE ───────────────────────────────────────────
+  let y = Math.max(leftY, rightY) + 2;
 
-  // Appliance load summary bar (when kWh data is available)
-  const totalKwhLoad = opts.lines.reduce((s, l) => s + (l.kwhPerMonth || 0) * l.qty, 0);
-  if (totalKwhLoad > 0) {
-    const lsH = 8;
-    doc.setFillColor(254, 252, 232);
-    doc.rect(margin, y, printW, lsH, 'F');
-    doc.setDrawColor(202, 138, 4); doc.setLineWidth(0.5);
-    doc.line(margin, y, margin, y + lsH);
-    doc.setLineWidth(0.2);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(120, 80, 0);
-    doc.text('APPLIANCE LOAD:', margin + 3, y + 5.5);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(101, 61, 0);
-    doc.text(`${totalKwhLoad} kWh/month`, margin + 34, y + 5.5);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(100, 70, 0);
-    doc.text(`· Est. electricity cost ~${PKR(Math.round(totalKwhLoad * 50))}/mo`, margin + 75, y + 5.5);
-    y += lsH + 3;
-  }
+  // ── PAYMENT + BANK + QR (merged full-width block) ─────────────────────────────
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
+  doc.text('PAYMENT & BANK TRANSFER', margin, y);
+  y += 3.5;
 
-  const totalsX = W - margin - 80; const valX = W - margin;
-
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(80, 80, 80);
-  doc.text('Product subtotal', totalsX, y);
-  doc.text(PKR(productSubtotal), valX, y, { align: 'right' });
-  y += 6;
-
-  if (installSubtotal > 0) {
-    doc.text('Installation', totalsX, y);
-    doc.text(PKR(installSubtotal), valX, y, { align: 'right' });
-    y += 6;
-  }
-
-  if (chargedSvcTotal > 0) {
-    doc.text('Service total', totalsX, y);
-    doc.text(PKR(chargedSvcTotal), valX, y, { align: 'right' });
-    y += 6;
-  }
-
-  if (discountAmt > 0) {
-    const discLabel = opts.discountMode === 'fixed'
-      ? `${opts.discountType} Discount (fixed)`
-      : `${opts.discountType} Discount (${opts.discount}%)`;
-    doc.setTextColor(234, 88, 12); doc.setFont('helvetica', 'italic');
-    doc.text(discLabel, totalsX, y);
-    doc.text(`- ${PKR(discountAmt)}`, valX, y, { align: 'right' });
-    if (opts.discountReason) {
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(160, 80, 20);
-      doc.text(`Reason: ${opts.discountReason}`, totalsX, y + 4.5);
-      y += 4.5;
-    }
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(80, 80, 80);
-    y += 7;
-  }
-
-  doc.setFillColor(ORANGE);
-  doc.rect(totalsX - 4, y - 2, valX - totalsX + 4 + margin, 12, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
-  doc.text('GRAND TOTAL', totalsX, y + 6);
-  doc.text(PKR(grandTotal), valX, y + 6, { align: 'right' });
-  y += 17;
-
-  // Payment Terms block
   const advanceAmt = Math.round(grandTotal * opts.advancePct / 100);
   const balanceAmt = grandTotal - advanceAmt;
   const showInstTeaser = opts.saleType === 'cash' && grandTotal > 0 && !!opts.instTeaserMonthly && !!opts.instTeaserMonths;
-  const ptRows: Array<[string, string]> = [
-    ['Advance required', `${opts.advancePct}% · ${PKR(advanceAmt)}`],
-    ['Balance', `${100 - opts.advancePct}% · ${PKR(balanceAmt)}`],
-    ['Due', opts.advancePct === 0 ? 'On delivery' : `Balance on ${opts.balanceNote || 'delivery'}`],
-    ...(opts.docType !== 'invoice' ? [['Validity', opts.validityHours >= 168 ? '7 days' : `${opts.validityHours}h`] as [string, string]] : []),
-    ...(showInstTeaser ? [['OPTIONAL — Installment upgrade', `~${PKR(opts.instTeaserMonthly!)}/mo · ${opts.instTeaserMonths} months · +92 370 2578788`] as [string, string]] : []),
-  ];
-  const ptH = 8 + ptRows.length * 5;
+
+  const payBankH = 42;
+  const payColW = Math.round(printW * 0.36);
+  const bankColW = Math.round(printW * 0.35);
+  const qrColW = printW - payColW - bankColW - 4;
+  const bankColX = margin + payColW + 2;
+  const qrColX = bankColX + bankColW + 2;
+
   doc.setFillColor(243, 244, 246);
-  doc.rect(margin, y, printW, ptH, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(30, 30, 30);
-  doc.text(`PAYMENT TERMS · ${opts.saleType === 'installment' ? 'INSTALLMENT' : 'CASH'}`, margin + 4, y + 6);
-  let pty = y + 11;
-  for (const [label, val] of ptRows) {
-    const isOpt = label.startsWith('OPTIONAL');
-    if (isOpt) {
-      doc.setDrawColor(234, 88, 12); doc.setLineWidth(0.25);
-      doc.setLineDashPattern([1, 1.5], 0);
-      doc.line(margin + 4, pty - 2.5, margin + printW - 4, pty - 2.5);
-      doc.setLineDashPattern([], 0); doc.setLineWidth(0.2);
-    }
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5);
-    doc.setTextColor(...(isOpt ? [234, 88, 12] as [number, number, number] : [120, 120, 120] as [number, number, number]));
-    doc.text(label, margin + 4, pty);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(isOpt ? 7 : 7.5);
-    doc.setTextColor(...(isOpt ? [180, 60, 0] as [number, number, number] : [30, 30, 30] as [number, number, number]));
-    const ptLine = doc.splitTextToSize(val, printW - 56);
-    doc.text(ptLine, margin + 50, pty);
-    pty += 5;
-  }
-  y += ptH + 4;
-
-  // ── ⑧ 06 BANK TRANSFER ───────────────────────────────────────────────────────
-  checkPageBreak(120);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(ORANGE);
-  doc.text('06  BANK TRANSFER', margin, y + 1);
-  y += 5;
-
-  const QR_SIZE = 26;
-  const bdH = 44;
-  const bdTextW = printW - QR_SIZE - 14;
-
+  doc.rect(margin, y, payColW, payBankH, 'F');
   doc.setFillColor(240, 253, 244);
-  doc.rect(margin, y, printW, bdH, 'F');
+  doc.rect(bankColX, y, bankColW, payBankH, 'F');
+  doc.setFillColor(248, 248, 248);
+  doc.rect(qrColX, y, qrColW, payBankH, 'F');
 
-  // Left: account details
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(22, 101, 52);
-  doc.text('BANK TRANSFER — RAAST / IBAN', margin + 4, y + 7);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(20, 20, 20);
-  doc.text("TAJALLI'S HOME COLLECTION", margin + 4, y + 14);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(40, 40, 40);
-  doc.text('PK33 MEZN 0001 0601 0187 4794', margin + 4, y + 21);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(80, 80, 80);
-  doc.text('Meezan Bank — F.B Area Branch, Karachi', margin + 4, y + 27);
-  if (!opts.advancePaid) {
-    doc.setFont('helvetica', 'italic'); doc.setFontSize(6.5); doc.setTextColor(22, 101, 52);
-    doc.text(
-      'Send deposit slip on WhatsApp +92 370 2578788 to confirm your order.',
-      margin + 4, y + 34, { maxWidth: bdTextW }
-    );
-    doc.text('Or use Raast QR ->', margin + 4, y + 40);
-  }
-
-  // Right: Payment QR with clear box + label
-  const qrX = margin + printW - QR_SIZE - 4;
-  if (qrData) {
-    // White inset box behind QR for clarity
-    doc.setFillColor(255, 255, 255);
-    doc.rect(qrX - 2, y + 3, QR_SIZE + 4, QR_SIZE + 4, 'F');
-    doc.setDrawColor(22, 101, 52); doc.setLineWidth(0.4);
-    doc.rect(qrX - 2, y + 3, QR_SIZE + 4, QR_SIZE + 4, 'S');
-    doc.setLineWidth(0.2);
-    doc.addImage(qrData, 'JPEG', qrX, y + 5, QR_SIZE, QR_SIZE);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(22, 101, 52);
-    doc.text('RAAST PAYMENT QR', qrX + QR_SIZE / 2, y + QR_SIZE + 12, { align: 'center' });
-  }
-  y += bdH + 5;
-
-  // Stats row — use string arrays, not \n, to avoid jsPDF rendering glitch
-  const stats: Array<[string[], string]> = [
-    [['11+', 'yrs'], 'IN BUSINESS'],
-    [['24,000+'], 'ORDERS FULFILLED'],
-    [['14,000+'], 'HOUSEHOLDS SERVED'],
-    [['1,600+'], 'COMMUNITY MEMBERS'],
+  // Payment col
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(80, 80, 80);
+  doc.text(opts.saleType === 'installment' ? 'INSTALLMENT PLAN' : 'CASH PAYMENT', margin + 3, y + 6);
+  const payRows: Array<[string, string]> = [
+    ['Advance', `${opts.advancePct}%  ${PKR(advanceAmt)}`],
+    ['Balance', `${100 - opts.advancePct}%  ${PKR(balanceAmt)}`],
+    ['Due on', opts.advancePct === 0 ? 'Delivery' : opts.balanceNote || 'Delivery'],
+    ...(opts.docType !== 'invoice' ? [['Valid', opts.validityHours >= 168 ? '7 days' : `${opts.validityHours}h`] as [string, string]] : []),
+    ...(showInstTeaser ? [['Install.', `~${PKR(opts.instTeaserMonthly!)}/mo · ${opts.instTeaserMonths}mo`] as [string, string]] : []),
   ];
-  const statsH = 18;
-  doc.setFillColor(26, 26, 26);
-  doc.rect(margin, y, printW, statsH, 'F');
-  stats.forEach(([numLines, label], i) => {
-    const sx = margin + i * colW4 + colW4 / 2;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(234, 88, 12);
-    if (numLines.length === 2) {
-      doc.text(numLines[0], sx, y + 5.5, { align: 'center' });
-      doc.text(numLines[1], sx, y + 10, { align: 'center' });
-    } else {
-      doc.text(numLines[0], sx, y + 8, { align: 'center' });
-    }
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(200, 200, 200);
-    doc.text(label, sx, y + 14.5, { align: 'center' });
-  });
-  y += statsH + 4;
-
-  // Community QR band - clearly separate from payment QR above
-  if (fbQrData) {
-    const FB_QR = 26;
-    const commH = FB_QR + 14;
-    doc.setFillColor(224, 236, 255);
-    doc.rect(margin, y, printW, commH, 'F');
-    doc.setDrawColor(24, 119, 242); doc.setLineWidth(1);
-    doc.line(margin, y, margin + printW, y);
-    doc.setLineWidth(0.2);
-
-    const fbQrX = margin + printW - FB_QR - 4;
-    doc.setFillColor(255, 255, 255);
-    doc.rect(fbQrX - 2, y + 4, FB_QR + 4, FB_QR + 4, 'F');
-    doc.setDrawColor(24, 119, 242); doc.setLineWidth(0.4);
-    doc.rect(fbQrX - 2, y + 4, FB_QR + 4, FB_QR + 4, 'S');
-    doc.setLineWidth(0.2);
-    doc.addImage(fbQrData, 'PNG', fbQrX, y + 6, FB_QR, FB_QR);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(24, 119, 242);
-    doc.text('FACEBOOK COMMUNITY', fbQrX + FB_QR / 2, y + FB_QR + 12, { align: 'center' });
-    doc.text('(Scan to join)', fbQrX + FB_QR / 2, y + FB_QR + 16, { align: 'center' });
-
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(24, 119, 242);
-    doc.text('Join Appliance Reliance Community', margin + 4, y + 11);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(30, 60, 160);
-    doc.text('1,600+ members  -  Appliance advice & real reviews', margin + 4, y + 18);
-    doc.text('Post questions, get owner feedback, claim deals.', margin + 4, y + 24);
-    y += commH + 4;
+  let ppy = y + 12;
+  for (const [lbl, val] of payRows) {
+    const isOpt = lbl === 'Install.';
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5);
+    doc.setTextColor(...(isOpt ? [234, 88, 12] as [number, number, number] : [120, 120, 120] as [number, number, number]));
+    doc.text(lbl, margin + 3, ppy);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+    doc.setTextColor(...(isOpt ? [180, 60, 0] as [number, number, number] : [30, 30, 30] as [number, number, number]));
+    doc.text(val, margin + payColW - 3, ppy, { align: 'right' });
+    ppy += 5.5;
   }
 
-  // ── ⑨ 07 TERMS & CONDITIONS ──────────────────────────────────────────────────
-  checkPageBreak(53);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(ORANGE);
-  doc.text('07  TERMS & CONDITIONS', margin, y + 1);
-  y += 5;
+  // Bank col
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
+  doc.text('BANK TRANSFER — RAAST / IBAN', bankColX + 3, y + 6);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(20, 20, 20);
+  doc.text("TAJALLI'S HOME COLLECTION", bankColX + 3, y + 12);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(40, 40, 40);
+  doc.text('PK33 MEZN 0001 0601 0187 4794', bankColX + 3, y + 18);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(80, 80, 80);
+  doc.text('Meezan Bank — F.B Area Branch', bankColX + 3, y + 24);
+  if (!opts.advancePaid) {
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
+    const instrLines = doc.splitTextToSize(
+      'Send deposit slip on WhatsApp +92 370 2578788 to confirm order.',
+      bankColW - 6
+    );
+    doc.text(instrLines, bankColX + 3, y + 30);
+  }
+
+  // QR col — Raast + Facebook side by side
+  const QR_S = 17;
+  const qr1X = qrColX + 2;
+  const qr2X = qrColX + 2 + QR_S + 3;
+  const qrY = y + 3;
+  if (qrData) {
+    doc.setFillColor(255, 255, 255);
+    doc.rect(qr1X - 1, qrY - 1, QR_S + 2, QR_S + 2, 'F');
+    doc.setDrawColor(22, 101, 52); doc.setLineWidth(0.3);
+    doc.rect(qr1X - 1, qrY - 1, QR_S + 2, QR_S + 2, 'S');
+    doc.setLineWidth(0.2);
+    doc.addImage(qrData, 'JPEG', qr1X, qrY, QR_S, QR_S);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(22, 101, 52);
+    doc.text('RAAST', qr1X + QR_S / 2, qrY + QR_S + 4, { align: 'center' });
+  }
+  if (fbQrData) {
+    doc.setFillColor(255, 255, 255);
+    doc.rect(qr2X - 1, qrY - 1, QR_S + 2, QR_S + 2, 'F');
+    doc.setDrawColor(24, 119, 242); doc.setLineWidth(0.3);
+    doc.rect(qr2X - 1, qrY - 1, QR_S + 2, QR_S + 2, 'S');
+    doc.setLineWidth(0.2);
+    doc.addImage(fbQrData, 'PNG', qr2X, qrY, QR_S, QR_S);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(24, 119, 242);
+    doc.text('COMMUNITY', qr2X + QR_S / 2, qrY + QR_S + 4, { align: 'center' });
+  }
+  y += payBankH + 3;
+
+  // ── TRUST STRIP (full-width dark bar) ─────────────────────────────────────────
+  const trustH = 14;
+  doc.setFillColor(26, 26, 26);
+  doc.rect(margin, y, printW, trustH, 'F');
+  const trustStats = [
+    ['11+ yrs', 'IN BUSINESS'],
+    ['24,000+', 'ORDERS FULFILLED'],
+    ['14,000+', 'HOUSEHOLDS SERVED'],
+    ['1,600+', 'COMMUNITY MEMBERS'],
+  ];
+  const segW = printW / trustStats.length;
+  trustStats.forEach(([num, lbl], i) => {
+    const sx = margin + i * segW + segW / 2;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(234, 88, 12);
+    doc.text(num, sx, y + 6.5, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(180, 180, 180);
+    doc.text(lbl, sx, y + 11, { align: 'center' });
+  });
+  y += trustH + 3;
+
+  // ── TERMS & CONDITIONS (2-column micro-text) ──────────────────────────────────
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
+  doc.text('TERMS & CONDITIONS', margin, y);
+  y += 3.5;
 
   const tcItems = [
     'Prices are valid only until the stated validity date.',
     'Stock is subject to confirmation before payment.',
     'Warranty is provided by the official brand / manufacturer.',
-    "Tajalli's facilitates warranty claims; final approval rests with the manufacturer.",
-    'Installation is included only if listed in the services section above.',
+    "Tajalli's facilitates warranty claims; manufacturer decides.",
+    'Installation is included only if listed in services above.',
     'Physical damage must be reported within 24 hours of delivery.',
-    'Goods once unboxed are non-refundable unless covered by approved warranty claim.',
+    'Goods once unboxed are non-refundable unless under warranty.',
     'Payment terms apply as agreed before dispatch.',
-    'For installment sales, verification and documentation are mandatory.',
-    'For Supply Only, liability transfers after secure handover at the delivery address.',
+    'Installment sales require verification and documentation.',
+    'Supply Only: liability transfers after handover at delivery address.',
   ];
 
-  const tcH = 8 + tcItems.length * 4;
+  const half = Math.ceil(tcItems.length / 2);
+  const colTcW = (printW - 4) / 2;
+  const tcRowH = 3.5;
+  const tcBgH = half * tcRowH + 6;
   doc.setFillColor(249, 249, 249);
-  doc.rect(margin, y, printW, tcH, 'F');
+  doc.rect(margin, y, printW, tcBgH, 'F');
 
-  let ty = y + 5;
-  tcItems.forEach((item, i) => {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(120, 120, 120);
-    doc.text(`${i + 1}.`, margin + 3, ty);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(80, 80, 80);
-    doc.text(item, margin + 8, ty, { maxWidth: printW - 12 });
-    ty += 4;
-  });
-  y += tcH + 4;
-
-  // ── ⑩ FOOTER ────────────────────────────────────────────────────────────────
-  const pageCount = doc.getNumberOfPages();
-  // Footer goes on each page at the bottom
-  for (let pg = 1; pg <= pageCount; pg++) {
-    doc.setPage(pg);
-    const footerY = 285;
-    doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.3);
-    doc.line(margin, footerY, W - margin, footerY);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(120, 120, 120);
-    doc.text(
-      `${opts.refNumber}  ·  ${badgeLabel}  ·  PAGE ${pg} OF ${pageCount}`,
-      margin, footerY + 5
-    );
-    doc.text(
-      'tajallis.com.pk  ·  support@tajallis.com.pk  ·  +92 370 2578788',
-      W - margin, footerY + 5, { align: 'right' }
-    );
+  for (let i = 0; i < tcItems.length; i++) {
+    const col = i < half ? 0 : 1;
+    const row = i < half ? i : i - half;
+    const tx = margin + 3 + col * (colTcW + 4);
+    const tcy = y + 4 + row * tcRowH;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(120, 120, 120);
+    doc.text(`${i + 1}.`, tx, tcy);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(80, 80, 80);
+    doc.text(tcItems[i], tx + 4, tcy, { maxWidth: colTcW - 5 });
   }
+  y += tcBgH + 3;
+
+  // ── FOOTER ────────────────────────────────────────────────────────────────────
+  const footerY = 285;
+  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.3);
+  doc.line(margin, footerY, W - margin, footerY);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(120, 120, 120);
+  doc.text(`${opts.refNumber}  ·  ${badgeLabel}  ·  PAGE 1 OF 1`, margin, footerY + 5);
+  doc.text('tajallis.com.pk  ·  support@tajallis.com.pk  ·  +92 370 2578788', W - margin, footerY + 5, { align: 'right' });
 
   return doc.output('blob');
 }
