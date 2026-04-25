@@ -5473,6 +5473,14 @@ function isValidPhone(phone: string): boolean {
 
 // ── Invoice History Tab ───────────────────────────────────────────────────────
 
+const REPRINT_DEFAULT_SERVICES = [
+  { service_type: 'delivery', service_name: 'Delivery & Last-Mile Logistics', description: 'Secure transit to premises, careful handover', status: 'included' as const, visible_value: 3000, charged_amount: 0 },
+  { service_type: 'installation', service_name: 'Installation', description: 'Positioning, levelling, first-run test', status: 'not_selected' as const, visible_value: 2500, charged_amount: 0 },
+  { service_type: 'warranty_facilitation', service_name: 'Warranty Facilitation', description: 'Claim coordination with brand service centre', status: 'included' as const, visible_value: 0, display_value: 'Bundled', charged_amount: 0 },
+  { service_type: 'maintenance', service_name: 'Annual Maintenance Package', description: '2 visits/year · cleaning, gas check, diagnostics', status: 'not_selected' as const, visible_value: 6500, charged_amount: 0 },
+  { service_type: 'ups_setup', service_name: 'UPS / Battery Setup', description: 'Inverter + battery installation', status: 'not_selected' as const, visible_value: 0, charged_amount: 0 },
+];
+
 type InvoiceRow = {
   id: string;
   ref_number: string;
@@ -5480,13 +5488,31 @@ type InvoiceRow = {
   customer_name: string | null;
   customer_phone: string | null;
   customer_email: string | null;
+  customer_address: string | null;
+  customer_cnic: string | null;
+  customer_type: string | null;
+  customer_area: string | null;
+  sale_type: string | null;
+  service_level: string | null;
+  discount_reason: string | null;
   subtotal: number;
   discount_pct: number;
   discount_type: string | null;
   grand_total: number;
+  advance_pct: number | null;
   payment_status: string;
   created_at: string;
-  invoice_lines?: Array<{ name: string; qty: number; unit_price: number }>;
+  invoice_lines?: Array<{
+    name: string;
+    model: string | null;
+    category: string | null;
+    qty: number;
+    unit_price: number;
+    kwh_per_month: number | null;
+    warranty: string | null;
+    key_spec: string | null;
+    product_id: string | null;
+  }>;
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -5507,13 +5533,79 @@ function InvoiceHistoryTab() {
   const [statusFilter, setStatusFilter]   = useState('');
   const [expanded, setExpanded]       = useState<string | null>(null);
   const [updatingId, setUpdatingId]   = useState<string | null>(null);
+  const [reprinting, setReprinting]   = useState<string | null>(null);
+
+  async function reprintInvoice(row: InvoiceRow) {
+    setReprinting(row.id);
+    try {
+      const lines: QuoteLine[] = (row.invoice_lines ?? []).map(l => ({
+        id: l.product_id ?? '',
+        name: l.name,
+        model: l.model ?? '',
+        category: l.category ?? 'General',
+        qty: l.qty,
+        unitPrice: l.unit_price,
+        kwhPerMonth: l.kwh_per_month ?? 0,
+        savingsPct: 0,
+        warranty: l.warranty ?? '',
+        keySpec: l.key_spec ?? '',
+        minPrice: 0,
+        floorPrice: 0,
+        overrideReason: '',
+      }));
+      const discountIsFixed = (row.discount_pct ?? 0) > 100;
+      const docType: 'quotation' | 'invoice' =
+        row.doc_type === 'quotation' ? 'quotation' : 'invoice';
+      const grandTotal = row.grand_total ?? 0;
+      const blob = await generateQuotationPdf({
+        customerName: row.customer_name ?? '',
+        customerPhone: (row.customer_phone ?? '').replace(/\D/g, ''),
+        customerEmail: row.customer_email ?? '',
+        customerAddress: row.customer_address ?? '',
+        customerCnic: row.customer_cnic ?? '',
+        customerType: (row.customer_type ?? 'house') as 'house' | 'apartment' | 'commercial',
+        customerArea: row.customer_area ?? '',
+        isExistingCustomer: null,
+        lines,
+        services: REPRINT_DEFAULT_SERVICES,
+        discount: row.discount_pct ?? 0,
+        discountMode: discountIsFixed ? 'fixed' : 'percentage',
+        discountType: row.discount_type ?? '',
+        discountReason: row.discount_reason ?? '',
+        docType,
+        saleType: (row.sale_type ?? 'cash') as 'cash' | 'installment',
+        refNumber: row.ref_number,
+        preparedBy: '',
+        stockStatus: 'Reprint copy',
+        validityHours: 72,
+        installationType: row.service_level === 'supply_install' ? 'installation-included' : 'supply-only',
+        installationLines: [],
+        advancePct: row.advance_pct ?? 50,
+        balanceNote: 'delivery',
+        advancePaid: false,
+        deliveryEta: '',
+        showNtn: true,
+        instTeaserMonthly: grandTotal > 0 ? Math.round(grandTotal * 1.25 / 12) : undefined,
+        instTeaserMonths: 12,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `tajallis_${docType}_${row.ref_number}_copy.pdf`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (e) {
+      console.error('[reprint]', e);
+    }
+    setReprinting(null);
+  }
 
   async function fetchInvoices() {
     setLoading(true); setError('');
     try {
       let q = supabase
         .from('invoices')
-        .select('*, invoice_lines(name, qty, unit_price)')
+        .select('*, invoice_lines(name, model, category, qty, unit_price, kwh_per_month, warranty, key_spec, product_id)')
         .order('created_at', { ascending: false })
         .limit(200);
 
@@ -5665,17 +5757,35 @@ function InvoiceHistoryTab() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <select
-                        value={row.payment_status}
-                        onClick={e => e.stopPropagation()}
-                        onChange={e => updateStatus(row.id, e.target.value)}
-                        disabled={updatingId === row.id}
-                        className="border border-gray-200 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-orange-400">
-                        <option value="pending">Pending</option>
-                        <option value="partial">Partial</option>
-                        <option value="paid">Paid</option>
-                        <option value="overdue">Overdue</option>
-                      </select>
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={row.payment_status}
+                          onClick={e => e.stopPropagation()}
+                          onChange={e => updateStatus(row.id, e.target.value)}
+                          disabled={updatingId === row.id}
+                          className="border border-gray-200 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-orange-400">
+                          <option value="pending">Pending</option>
+                          <option value="partial">Partial</option>
+                          <option value="paid">Paid</option>
+                          <option value="overdue">Overdue</option>
+                        </select>
+                        <button
+                          onClick={e => { e.stopPropagation(); reprintInvoice(row); }}
+                          disabled={reprinting === row.id}
+                          title="Download PDF copy"
+                          className="p-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-600 transition-colors disabled:opacity-40 flex-shrink-0">
+                          {reprinting === row.id ? (
+                            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                          ) : (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   {expanded === row.id && (
