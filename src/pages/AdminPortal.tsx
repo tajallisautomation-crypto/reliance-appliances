@@ -4450,39 +4450,43 @@ async function generateQuotationPdf(opts: {
   }
   const grandTotal = baseBeforeDisc - discountAmt;
 
-  // ── ① HEADER (50mm) ─────────────────────────────────────────────────────────
-  const HEADER_H = 50;
+  // ── ① HEADER (48mm) ─────────────────────────────────────────────────────────
+  const HEADER_H = 48;
   doc.setFillColor(ORANGE);
   doc.rect(0, 0, W, HEADER_H, 'F');
 
   // ── LEFT: logo only ───────────────────────────────────────────────────────
   if (logoData) {
-    doc.addImage(logoData, 'PNG', margin, 5, 0, 32);
+    doc.addImage(logoData, 'PNG', margin, 5, 0, 30);
   } else {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(24); doc.setTextColor(255, 255, 255);
-    doc.text("Tajalli's", margin, 22);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(22); doc.setTextColor(255, 255, 255);
+    doc.text("Tajalli's", margin, 20);
   }
 
-  // ── RIGHT: badge + taglines + ref + contact ───────────────────────────────
+  // ── RIGHT: brand first, doc type secondary (brand leads the hierarchy) ────
   const badgeLabel = opts.docType === 'invoice' ? 'INVOICE' : 'QUOTATION';
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(24); doc.setTextColor(255, 255, 255);
-  doc.text(badgeLabel, W - margin, 13, { align: 'right' });
 
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
-  doc.text('HOME & COMMERCIAL SOLUTIONS', W - margin, 20, { align: 'right' });
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(255, 220, 170);
-  doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', W - margin, 26, { align: 'right' });
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
+  doc.text('HOME & COMMERCIAL SOLUTIONS', W - margin, 11, { align: 'right' });
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 225, 180);
+  doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', W - margin, 18, { align: 'right' });
 
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(255, 210, 160);
-  doc.text(opts.refNumber, W - margin, 32, { align: 'right' });
+  // Thin warm divider separating brand from doc type
+  doc.setDrawColor(255, 200, 140); doc.setLineWidth(0.3);
+  doc.line(W - margin - 68, 21.5, W - margin, 21.5);
+  doc.setLineWidth(0.2);
 
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(255, 200, 160);
-  doc.text('L-152 & 153, Sector 11C-1, North Karachi', W - margin, 37, { align: 'right' });
-  doc.text('+92 370 2578788  ·  tajallis.com.pk', W - margin, 42, { align: 'right' });
+  // Doc type — secondary label, not dominant
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(255, 235, 210);
+  doc.text(badgeLabel, W - margin, 27, { align: 'right' });
+
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(255, 205, 165);
+  doc.text('L-152 & 153, Sector 11C-1, North Karachi', W - margin, 33, { align: 'right' });
+  doc.text('+92 370 2578788  ·  tajallis.com.pk', W - margin, 38, { align: 'right' });
   if (opts.showNtn) {
-    doc.text('support@tajallis.com.pk  ·  NTN: 42101-3836602-3', W - margin, 47, { align: 'right' });
+    doc.text('support@tajallis.com.pk  ·  NTN: 42101-3836602-3', W - margin, 43, { align: 'right' });
   } else {
-    doc.text('support@tajallis.com.pk', W - margin, 47, { align: 'right' });
+    doc.text('support@tajallis.com.pk', W - margin, 43, { align: 'right' });
   }
 
   let y = HEADER_H + 4;
@@ -4583,8 +4587,11 @@ async function generateQuotationPdf(opts: {
     for (const line of grouped[cat]) {
       const nameParts = [line.name];
       if (line.model) nameParts.push(`Model: ${line.model}`);
-      if (line.keySpec) nameParts.push(line.keySpec);
-      if (line.kwhPerMonth > 0) nameParts.push(`Est. ${line.kwhPerMonth} units/mo`);
+      if (line.keySpec) {
+        line.keySpec.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 2)
+          .forEach((s: string) => nameParts.push(`· ${s}`));
+      }
+      if (line.kwhPerMonth > 0) nameParts.push(`· Est. ${line.kwhPerMonth} units/mo`);
       itemsBody.push([
         nameParts.join('\n'),
         line.warranty || '—',
@@ -4679,6 +4686,7 @@ async function generateQuotationPdf(opts: {
   y = (doc as any).lastAutoTable.finalY + 6;
 
   // ── ⑥ 04 ENERGY ADVISORY ─────────────────────────────────────────────────────
+  checkPageBreak(50);
   const hasSolarProduct = opts.lines.some(l => /solar|inverter/i.test(l.category));
   if (!hasSolarProduct && opts.customerType !== 'commercial') {
     const advisory = buildDetailedAdvisory(
@@ -4780,54 +4788,29 @@ async function generateQuotationPdf(opts: {
   // Payment Terms block
   const advanceAmt = Math.round(grandTotal * opts.advancePct / 100);
   const balanceAmt = grandTotal - advanceAmt;
-  const ptH = 33;
-  doc.setFillColor(243, 244, 246);
-  doc.rect(margin, y, printW, ptH, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(30, 30, 30);
-  doc.text(`PAYMENT TERMS · ${opts.saleType === 'installment' ? 'INSTALLMENT' : 'CASH'}`, margin + 4, y + 6);
-
+  const showInstTeaser = opts.saleType === 'cash' && grandTotal > 0 && !!opts.instTeaserMonthly && !!opts.instTeaserMonths;
   const ptRows: Array<[string, string]> = [
     ['Advance required', `${opts.advancePct}% · ${PKR(advanceAmt)}`],
     ['Balance', `${100 - opts.advancePct}% · ${PKR(balanceAmt)}`],
     ['Due', opts.advancePct === 0 ? 'On delivery' : `Balance on ${opts.balanceNote || 'delivery'}`],
     ...(opts.docType !== 'invoice' ? [['Validity', opts.validityHours >= 168 ? '7 days' : `${opts.validityHours}h`] as [string, string]] : []),
+    ...(showInstTeaser ? [['Installment option', `from ~${PKR(opts.instTeaserMonthly!)}/mo · ${opts.instTeaserMonths} months · enquire +92 370 2578788`] as [string, string]] : []),
   ];
+  const ptH = 8 + ptRows.length * 5.5;
+  doc.setFillColor(243, 244, 246);
+  doc.rect(margin, y, printW, ptH, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(30, 30, 30);
+  doc.text(`PAYMENT TERMS · ${opts.saleType === 'installment' ? 'INSTALLMENT' : 'CASH'}`, margin + 4, y + 6);
   let pty = y + 11;
   for (const [label, val] of ptRows) {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(120, 120, 120);
     doc.text(label, margin + 4, pty);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(30, 30, 30);
-    doc.text(val, margin + 50, pty);
+    const ptLine = doc.splitTextToSize(val, printW - 56);
+    doc.text(ptLine, margin + 50, pty);
     pty += 5.5;
   }
   y += ptH + 4;
-
-  // Installment teaser — secondary CTA, visually detached from main payment block
-  if (opts.saleType === 'cash' && grandTotal > 0 && opts.instTeaserMonthly && opts.instTeaserMonths) {
-    y += 3; // breathing room above
-    const teaserH = 20;
-    // Dashed top border to signal "optional / secondary"
-    doc.setDrawColor(234, 88, 12); doc.setLineWidth(0.4);
-    doc.setLineDashPattern([1.5, 1.5], 0);
-    doc.line(margin, y, margin + printW, y);
-    doc.setLineDashPattern([], 0); doc.setLineWidth(0.2);
-
-    doc.setFillColor(255, 247, 237);
-    doc.rect(margin, y + 1, printW, teaserH, 'F');
-
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(180, 80, 10);
-    doc.text('OPTIONAL — INSTALLMENT UPGRADE', margin + 4, y + 6);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(234, 88, 12);
-    doc.text(`From ~${PKR(opts.instTeaserMonthly)}/month`, margin + 4, y + 12);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(100, 60, 20);
-    doc.text(
-      `${opts.instTeaserMonths} months  ·  Advance ~25%  ·  Verification & documents required`,
-      margin + 4, y + 17
-    );
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(234, 88, 12);
-    doc.text('Enquire: +92 370 2578788', margin + printW - 4, y + 12, { align: 'right' });
-    y += teaserH + 5;
-  }
 
   // ── ⑧ 06 BANK TRANSFER ───────────────────────────────────────────────────────
   checkPageBreak(120);
