@@ -4455,35 +4455,33 @@ async function generateQuotationPdf(opts: {
   doc.setFillColor(ORANGE);
   doc.rect(0, 0, W, HEADER_H, 'F');
 
-  // ── Logo left-column ─────────────────────────────────────────────────────────
+  // ── LEFT: logo + taglines ────────────────────────────────────────────────────
   if (logoData) {
-    doc.addImage(logoData, 'PNG', margin, 6, 0, 30);
+    doc.addImage(logoData, 'PNG', margin, 6, 0, 28);
   } else {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(26); doc.setTextColor(255, 255, 255);
-    doc.text("Tajalli's", margin, 24);
+    doc.text("Tajalli's", margin, 22);
   }
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
+  doc.text('HOME & COMMERCIAL SOLUTIONS', margin, 38);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 220, 170);
+  doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', margin, 45);
 
-  // English tagline — bold, bright white, larger
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(255, 255, 255);
-  doc.text('HOME & COMMERCIAL SOLUTIONS', margin, 40);
-
-  // Urdu tagline — bold, warm accent, slightly smaller
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(255, 220, 170);
-  doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', margin, 46);
-
-  // Contact line — normal weight, subdued
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(255, 200, 160);
-  const contactParts = ['L-152 & 153, Sector 11C-1, North Karachi', '+92 370 2578788', 'tajallis.com.pk'];
-  if (opts.showNtn) contactParts.push('NTN: 42101-3836602-3');
-  doc.text(contactParts.join('  ·  '), margin, 51.5);
-
-  // ── Doc type badge — right-aligned, large ─────────────────────────────────
+  // ── RIGHT: doc type + ref + contact block ────────────────────────────────
   const badgeLabel = opts.docType === 'invoice' ? 'INVOICE' : 'QUOTATION';
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(26); doc.setTextColor(255, 255, 255);
-  doc.text(badgeLabel, W - margin, 22, { align: 'right' });
-  // Ref number small under badge
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(28); doc.setTextColor(255, 255, 255);
+  doc.text(badgeLabel, W - margin, 17, { align: 'right' });
+
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(255, 210, 160);
-  doc.text(opts.refNumber, W - margin, 29, { align: 'right' });
+  doc.text(opts.refNumber, W - margin, 24, { align: 'right' });
+
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(255, 200, 160);
+  doc.text('L-152 & 153, Sector 11C-1, North Karachi', W - margin, 31, { align: 'right' });
+  doc.text('+92 370 2578788  ·  tajallis.com.pk', W - margin, 37, { align: 'right' });
+  doc.text('support@tajallis.com.pk', W - margin, 43, { align: 'right' });
+  if (opts.showNtn) {
+    doc.text('NTN: 42101-3836602-3', W - margin, 49, { align: 'right' });
+  }
 
   let y = HEADER_H + 4;
   const PAGE_BOTTOM = 275; // safe bottom margin before footer
@@ -4801,21 +4799,31 @@ async function generateQuotationPdf(opts: {
   }
   y += ptH + 4;
 
-  // Installment teaser (only on cash quotations when not already installment)
+  // Installment teaser — secondary CTA, visually detached from main payment block
   if (opts.saleType === 'cash' && grandTotal > 0 && opts.instTeaserMonthly && opts.instTeaserMonths) {
-    const teaserH = 16;
+    y += 3; // breathing room above
+    const teaserH = 20;
+    // Dashed top border to signal "optional / secondary"
+    doc.setDrawColor(234, 88, 12); doc.setLineWidth(0.4);
+    doc.setLineDashPattern([1.5, 1.5], 0);
+    doc.line(margin, y, margin + printW, y);
+    doc.setLineDashPattern([], 0); doc.setLineWidth(0.2);
+
     doc.setFillColor(255, 247, 237);
-    doc.rect(margin, y, printW, teaserH, 'F');
+    doc.rect(margin, y + 1, printW, teaserH, 'F');
+
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(180, 80, 10);
+    doc.text('OPTIONAL — INSTALLMENT UPGRADE', margin + 4, y + 6);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(234, 88, 12);
-    doc.text('Want this on installments?', margin + 4, y + 6);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(80, 80, 80);
+    doc.text(`From ~${PKR(opts.instTeaserMonthly)}/month`, margin + 4, y + 12);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(100, 60, 20);
     doc.text(
-      `From ~${PKR(opts.instTeaserMonthly)}/month · ${opts.instTeaserMonths} months · Advance ~25% · Verification & documents required`,
-      margin + 4, y + 11
+      `${opts.instTeaserMonths} months  ·  Advance ~25%  ·  Verification & documents required`,
+      margin + 4, y + 17
     );
     doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(234, 88, 12);
-    doc.text('WhatsApp +92 370 2578788', margin + printW - 4, y + 11, { align: 'right' });
-    y += teaserH + 4;
+    doc.text('Enquire: +92 370 2578788', margin + printW - 4, y + 12, { align: 'right' });
+    y += teaserH + 5;
   }
 
   // ── ⑧ 06 BANK TRANSFER ───────────────────────────────────────────────────────
@@ -4823,79 +4831,97 @@ async function generateQuotationPdf(opts: {
   doc.text('06  BANK TRANSFER', margin, y + 1);
   y += 5;
 
-  const QR_SIZE = 28;
-  const bdH = 34;
-  const bdTextW = printW - QR_SIZE - 8;
+  const QR_SIZE = 26;
+  const bdH = 44;
+  const bdTextW = printW - QR_SIZE - 14;
 
   doc.setFillColor(240, 253, 244);
   doc.rect(margin, y, printW, bdH, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(22, 101, 52);
-  doc.text('ACCOUNT DETAILS', margin + 4, y + 6);
+
+  // Left: account details
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(22, 101, 52);
+  doc.text('BANK TRANSFER — RAAST / IBAN', margin + 4, y + 7);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(20, 20, 20);
-  doc.text("TAJALLI'S HOME COLLECTION", margin + 4, y + 13);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(60, 60, 60);
-  doc.text('PK33 MEZN 0001 0601 0187 4794', margin + 4, y + 19);
-  doc.text('Meezan Bank — F.B Area Branch, Karachi', margin + 4, y + 24);
+  doc.text("TAJALLI'S HOME COLLECTION", margin + 4, y + 14);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(40, 40, 40);
+  doc.text('PK33 MEZN 0001 0601 0187 4794', margin + 4, y + 21);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(80, 80, 80);
+  doc.text('Meezan Bank — F.B Area Branch, Karachi', margin + 4, y + 27);
   if (!opts.advancePaid) {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(22, 101, 52);
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(6.5); doc.setTextColor(22, 101, 52);
     doc.text(
-      'Share deposit slip on WhatsApp: +92 370 2578788 to confirm order, or scan the Raast QR.',
-      margin + 4, y + 30, { maxWidth: bdTextW }
+      'Send deposit slip on WhatsApp +92 370 2578788 to confirm your order.',
+      margin + 4, y + 34, { maxWidth: bdTextW }
     );
+    doc.text('Or use Raast QR ->', margin + 4, y + 40);
   }
 
-  // Payment QR — right side, clearly labeled
+  // Right: Payment QR with clear box + label
+  const qrX = margin + printW - QR_SIZE - 4;
   if (qrData) {
-    const qrX = margin + printW - QR_SIZE - 1;
-    doc.addImage(qrData, 'JPEG', qrX, y + 2, QR_SIZE, QR_SIZE);
+    // White inset box behind QR for clarity
+    doc.setFillColor(255, 255, 255);
+    doc.rect(qrX - 2, y + 3, QR_SIZE + 4, QR_SIZE + 4, 'F');
+    doc.setDrawColor(22, 101, 52); doc.setLineWidth(0.4);
+    doc.rect(qrX - 2, y + 3, QR_SIZE + 4, QR_SIZE + 4, 'S');
+    doc.setLineWidth(0.2);
+    doc.addImage(qrData, 'JPEG', qrX, y + 5, QR_SIZE, QR_SIZE);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(22, 101, 52);
-    doc.text('SCAN FOR PAYMENT', qrX + QR_SIZE / 2, y + QR_SIZE + 4, { align: 'center' });
-    doc.text('(Raast / IBAN)', qrX + QR_SIZE / 2, y + QR_SIZE + 7.5, { align: 'center' });
+    doc.text('RAAST PAYMENT QR', qrX + QR_SIZE / 2, y + QR_SIZE + 12, { align: 'center' });
   }
-  y += bdH + 8;
+  y += bdH + 5;
 
-  // Stats row
-  const stats: Array<[string, string]> = [
-    ['11+\nyrs', 'IN BUSINESS'],
-    ['24,000+', 'ORDERS FULFILLED'],
-    ['14,000+', 'HOUSEHOLDS SERVED'],
-    ['1,600+', 'COMMUNITY MEMBERS'],
+  // Stats row — use string arrays, not \n, to avoid jsPDF rendering glitch
+  const stats: Array<[string[], string]> = [
+    [['11+', 'yrs'], 'IN BUSINESS'],
+    [['24,000+'], 'ORDERS FULFILLED'],
+    [['14,000+'], 'HOUSEHOLDS SERVED'],
+    [['1,600+'], 'COMMUNITY MEMBERS'],
   ];
-  const statsH = 16;
+  const statsH = 18;
   doc.setFillColor(26, 26, 26);
   doc.rect(margin, y, printW, statsH, 'F');
-  stats.forEach(([num, label], i) => {
+  stats.forEach(([numLines, label], i) => {
     const sx = margin + i * colW4 + colW4 / 2;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(234, 88, 12);
-    doc.text(num, sx, y + 6, { align: 'center' });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(234, 88, 12);
+    if (numLines.length === 2) {
+      doc.text(numLines[0], sx, y + 5.5, { align: 'center' });
+      doc.text(numLines[1], sx, y + 10, { align: 'center' });
+    } else {
+      doc.text(numLines[0], sx, y + 8, { align: 'center' });
+    }
     doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(200, 200, 200);
-    doc.text(label, sx, y + 12, { align: 'center' });
+    doc.text(label, sx, y + 14.5, { align: 'center' });
   });
-  y += statsH + 5;
+  y += statsH + 4;
 
-  // Community section — FB QR distinctly placed with its own coloured band
+  // Community QR band - clearly separate from payment QR above
   if (fbQrData) {
-    const FB_QR = 22;
-    const commH = FB_QR + 10;
-    doc.setFillColor(232, 240, 255);
+    const FB_QR = 26;
+    const commH = FB_QR + 14;
+    doc.setFillColor(224, 236, 255);
     doc.rect(margin, y, printW, commH, 'F');
-    doc.setDrawColor(24, 119, 242); doc.setLineWidth(0.6);
+    doc.setDrawColor(24, 119, 242); doc.setLineWidth(1);
     doc.line(margin, y, margin + printW, y);
     doc.setLineWidth(0.2);
 
-    const fbQrX = margin + printW - FB_QR - 3;
-    doc.addImage(fbQrData, 'PNG', fbQrX, y + 4, FB_QR, FB_QR);
+    const fbQrX = margin + printW - FB_QR - 4;
+    doc.setFillColor(255, 255, 255);
+    doc.rect(fbQrX - 2, y + 4, FB_QR + 4, FB_QR + 4, 'F');
+    doc.setDrawColor(24, 119, 242); doc.setLineWidth(0.4);
+    doc.rect(fbQrX - 2, y + 4, FB_QR + 4, FB_QR + 4, 'S');
+    doc.setLineWidth(0.2);
+    doc.addImage(fbQrData, 'PNG', fbQrX, y + 6, FB_QR, FB_QR);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(24, 119, 242);
-    doc.text('FB COMMUNITY', fbQrX + FB_QR / 2, y + FB_QR + 6, { align: 'center' });
+    doc.text('FACEBOOK COMMUNITY', fbQrX + FB_QR / 2, y + FB_QR + 12, { align: 'center' });
+    doc.text('(Scan to join)', fbQrX + FB_QR / 2, y + FB_QR + 16, { align: 'center' });
 
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(24, 119, 242);
-    doc.text('Join Appliance Reliance', margin + 4, y + 9);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(50, 80, 160);
-    doc.text(
-      '1,600+ members sharing appliance advice, support, and real customer experiences. Scan →',
-      margin + 4, y + 15, { maxWidth: fbQrX - margin - 8 }
-    );
-    y += commH + 5;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(24, 119, 242);
+    doc.text('Join Appliance Reliance Community', margin + 4, y + 11);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(30, 60, 160);
+    doc.text('1,600+ members  -  Appliance advice & real reviews', margin + 4, y + 18);
+    doc.text('Post questions, get owner feedback, claim deals.', margin + 4, y + 24);
+    y += commH + 4;
   }
 
   // ── ⑨ 07 TERMS & CONDITIONS ──────────────────────────────────────────────────
