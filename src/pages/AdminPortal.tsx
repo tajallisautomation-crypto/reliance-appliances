@@ -4508,43 +4508,50 @@ async function generateQuotationPdf(opts: {
   const rightX = margin + leftW + colGap;
   const leftAutoMarginRight = W - (margin + leftW); // autoTable right margin for left column
 
-  // ── ① HEADER STRIP (28mm) ─────────────────────────────────────────────────────
-  const HEADER_H = 28;
+  // ── ① HEADER STRIP (34mm) ─────────────────────────────────────────────────────
+  const HEADER_H = 34;
   const badgeLabel = opts.docType === 'invoice' ? 'INVOICE' : 'QUOTATION';
+
+  // Main orange band
   doc.setFillColor(ORANGE);
   doc.rect(0, 0, W, HEADER_H, 'F');
 
+  // Right meta zone — slightly darker tint to create structural zone
+  doc.setFillColor(200, 72, 8);
+  doc.rect(W - 58, 0, 58, HEADER_H, 'F');
+
   // Logo — left
   if (logoData) {
-    doc.addImage(logoData, 'PNG', margin, 3, 0, 22);
+    doc.addImage(logoData, 'PNG', margin, 4, 0, 26);
   } else {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
-    doc.text("Tajalli's", margin, 16);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(255, 255, 255);
+    doc.text("Tajalli's", margin, 18);
   }
 
-  // Brand — dominant visual anchor, full left-to-right below logo
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
-  doc.text('HOME & COMMERCIAL SOLUTIONS', margin + 32, 12);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(255, 225, 180);
-  doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', margin + 32, 19);
+  // Brand — dominant, large, left zone
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(255, 255, 255);
+  doc.text('HOME & COMMERCIAL SOLUTIONS', margin + 36, 16);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(255, 222, 188);
+  doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', margin + 36, 24);
 
-  // Doc-type inset — dark red pill at bottom-right, clearly below brand
-  const metaBoxW = 42;
-  const metaBoxH = 9;
-  const metaBoxX = W - margin - metaBoxW;
-  const metaBoxY = HEADER_H - metaBoxH - 2;
-  doc.setFillColor(120, 30, 0);
-  doc.rect(metaBoxX, metaBoxY, metaBoxW, metaBoxH, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(255, 190, 150);
-  doc.text(badgeLabel, metaBoxX + 3, metaBoxY + 4);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(255, 255, 255);
-  doc.text(opts.refNumber, metaBoxX + metaBoxW - 3, metaBoxY + 7.5, { align: 'right' });
+  // Right meta zone: doc-type (tiny label) + REF (prominent) + date (small)
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(255, 195, 155);
+  doc.text(badgeLabel, W - margin, 10, { align: 'right' });
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
+  doc.text(opts.refNumber, W - margin, 21, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(255, 210, 175);
+  doc.text(dateStr, W - margin, 29, { align: 'right' });
 
-  // Contact strip — bottom of header
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(255, 205, 165);
+  // Thin white separator between brand zone and meta zone
+  doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.4);
+  doc.line(W - 60, 5, W - 60, HEADER_H - 5);
+  doc.setLineWidth(0.2);
+
+  // Contact strip — full width at very bottom of header
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(255, 210, 175);
   const contactParts = ['L-152 & 153, Sector 11C-1, North Karachi', '+92 370 2578788', 'support@tajallis.com.pk'];
   if (opts.showNtn) contactParts.push('NTN: 42101-3836602-3');
-  doc.text(contactParts.join('  ·  '), margin, 24);
+  doc.text(contactParts.join('  ·  '), margin, HEADER_H - 2);
 
   // ── TWO-COLUMN ZONE ───────────────────────────────────────────────────────────
   let leftY = HEADER_H + 3;
@@ -4572,21 +4579,24 @@ async function generateQuotationPdf(opts: {
     ['ETA', opts.deliveryEta || '—'],
   ];
 
-  const custBlockH = custFields.length * 4.5 + 5;
+  const custRowH = 5.5;
+  const custBlockH = custFields.length * custRowH + 5;
   doc.setFillColor(255, 247, 237);
   doc.rect(margin, leftY, leftW, custBlockH, 'F');
   doc.setDrawColor(234, 88, 12); doc.setLineWidth(0.5);
   doc.line(margin, leftY, margin, leftY + custBlockH);
   doc.setLineWidth(0.2);
 
-  let cy = leftY + 4.5;
+  let cy = leftY + custRowH;
   for (const [lbl, val] of custFields) {
+    const isName = lbl === 'NAME';
     doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(180, 100, 50);
     doc.text(lbl, margin + 3, cy);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(30, 30, 30);
+    doc.setFont(isName ? 'helvetica' : 'helvetica', isName ? 'bold' : 'normal');
+    doc.setFontSize(isName ? 8 : 7); doc.setTextColor(isName ? 20 : 30, 20, 20);
     const vl = doc.splitTextToSize(val, leftW - 26);
     doc.text(vl, margin + 22, cy);
-    cy += 4.5;
+    cy += custRowH;
   }
   leftY += custBlockH + 3;
 
@@ -4787,7 +4797,7 @@ async function generateQuotationPdf(opts: {
     // ASCII-only labels — Unicode symbols corrupt in jsPDF Helvetica (Latin-1 only)
     const statusLabel = svc.status === 'included' ? 'INCL'
       : svc.status === 'charged' ? 'BILLED'
-      : (svc.visible_value > 0 || svc.display_value) ? 'OPT.' : 'N/A';
+      : (svc.visible_value > 0 || svc.display_value) ? 'OPT' : 'N/A';
     const statusColor: [number, number, number] = svc.status === 'included' ? [22, 163, 74]
       : svc.status === 'charged' ? [234, 88, 12]
       : (svc.visible_value > 0 || svc.display_value) ? [100, 100, 100]
@@ -4881,9 +4891,9 @@ async function generateQuotationPdf(opts: {
   const showInstTeaser = opts.saleType === 'cash' && grandTotal > 0 && !!opts.instTeaserMonthly && !!opts.instTeaserMonths;
 
   const payBankH = 42;
-  const payColW = Math.round(printW * 0.36);
-  const bankColW = Math.round(printW * 0.35);
-  const qrColW = printW - payColW - bankColW - 4;
+  const payColW = Math.round(printW * 0.37);
+  const bankColW = Math.round(printW * 0.40);
+  const qrColW = printW - payColW - bankColW - 4; // ~44mm, Raast QR only
   const bankColX = margin + payColW + 2;
   const qrColX = bankColX + bankColW + 2;
 
@@ -4891,7 +4901,7 @@ async function generateQuotationPdf(opts: {
   doc.rect(margin, y, payColW, payBankH, 'F');
   doc.setFillColor(240, 253, 244);
   doc.rect(bankColX, y, bankColW, payBankH, 'F');
-  doc.setFillColor(248, 248, 248);
+  doc.setFillColor(232, 248, 237);
   doc.rect(qrColX, y, qrColW, payBankH, 'F');
 
   // Payment col
@@ -4934,66 +4944,67 @@ async function generateQuotationPdf(opts: {
     doc.text(instrLines, bankColX + 3, y + 30);
   }
 
-  // QR col — Raast (payment) + Facebook (community) clearly separated
-  const QR_S = 17;
-  const qr1X = qrColX + 2;
-  const qr2X = qrColX + 2 + QR_S + 4;
-  const qrY = y + 8; // leave room for header label above each QR
-
-  // Header labels above each QR
+  // QR col — Raast payment QR only, centered
+  const QR_S = 20;
+  const qr1X = qrColX + (qrColW - QR_S) / 2;
+  const qrY = y + 5;
   if (qrData) {
     doc.setFillColor(22, 101, 52);
-    doc.rect(qr1X - 1, y + 1, QR_S + 2, 5, 'F');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(4.5); doc.setTextColor(255, 255, 255);
-    doc.text('PAYMENT', qr1X + QR_S / 2, y + 4.8, { align: 'center' });
-  }
-  if (fbQrData) {
-    doc.setFillColor(24, 119, 242);
-    doc.rect(qr2X - 1, y + 1, QR_S + 2, 5, 'F');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(4.5); doc.setTextColor(255, 255, 255);
-    doc.text('COMMUNITY', qr2X + QR_S / 2, y + 4.8, { align: 'center' });
-  }
+    doc.rect(qrColX + 2, y + 1, qrColW - 4, 5, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(255, 255, 255);
+    doc.text('SCAN TO PAY', qrColX + qrColW / 2, y + 4.8, { align: 'center' });
 
-  if (qrData) {
-    doc.setFillColor(240, 253, 244);
+    doc.setFillColor(255, 255, 255);
     doc.rect(qr1X - 1, qrY - 1, QR_S + 2, QR_S + 2, 'F');
-    doc.setDrawColor(22, 101, 52); doc.setLineWidth(0.3);
+    doc.setDrawColor(22, 101, 52); doc.setLineWidth(0.4);
     doc.rect(qr1X - 1, qrY - 1, QR_S + 2, QR_S + 2, 'S');
     doc.setLineWidth(0.2);
     doc.addImage(qrData, 'JPEG', qr1X, qrY, QR_S, QR_S);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(22, 101, 52);
-    doc.text('Scan to pay', qr1X + QR_S / 2, qrY + QR_S + 4, { align: 'center' });
-  }
-  if (fbQrData) {
-    doc.setFillColor(235, 242, 255);
-    doc.rect(qr2X - 1, qrY - 1, QR_S + 2, QR_S + 2, 'F');
-    doc.setDrawColor(24, 119, 242); doc.setLineWidth(0.3);
-    doc.rect(qr2X - 1, qrY - 1, QR_S + 2, QR_S + 2, 'S');
-    doc.setLineWidth(0.2);
-    doc.addImage(fbQrData, 'PNG', qr2X, qrY, QR_S, QR_S);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(24, 119, 242);
-    doc.text('Scan to join', qr2X + QR_S / 2, qrY + QR_S + 4, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(22, 101, 52);
+    doc.text('Raast / IBAN', qrColX + qrColW / 2, qrY + QR_S + 5, { align: 'center' });
   }
   y += payBankH + 3;
 
-  // ── TRUST STRIP (full-width dark bar) ─────────────────────────────────────────
-  const trustH = 14;
+  // ── TRUST + COMMUNITY STRIP ───────────────────────────────────────────────────
+  const trustH = 22;
+  const trustStatW = Math.round(printW * 0.74);
+  const commAreaX = margin + trustStatW;
+  const commAreaW = printW - trustStatW;
+
+  // Stats zone — dark
   doc.setFillColor(26, 26, 26);
-  doc.rect(margin, y, printW, trustH, 'F');
+  doc.rect(margin, y, trustStatW, trustH, 'F');
+
+  // Community zone — blue
+  doc.setFillColor(18, 90, 210);
+  doc.rect(commAreaX, y, commAreaW, trustH, 'F');
+
   const trustStats = [
     ['11+ yrs', 'IN BUSINESS'],
     ['24,000+', 'ORDERS FULFILLED'],
     ['14,000+', 'HOUSEHOLDS SERVED'],
-    ['1,600+', 'COMMUNITY MEMBERS'],
+    ['1,600+', 'COMMUNITY'],
   ];
-  const segW = printW / trustStats.length;
+  const segW = trustStatW / trustStats.length;
   trustStats.forEach(([num, lbl], i) => {
     const sx = margin + i * segW + segW / 2;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(234, 88, 12);
-    doc.text(num, sx, y + 6.5, { align: 'center' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(180, 180, 180);
-    doc.text(lbl, sx, y + 11, { align: 'center' });
+    doc.text(num, sx, y + 8, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(170, 170, 170);
+    doc.text(lbl, sx, y + 13.5, { align: 'center' });
   });
+
+  // Facebook community QR in blue zone
+  if (fbQrData) {
+    const FB_QR = 14;
+    const fbQrX = commAreaX + (commAreaW - FB_QR) / 2;
+    const fbQrY = y + 3;
+    doc.setFillColor(255, 255, 255);
+    doc.rect(fbQrX - 1, fbQrY - 1, FB_QR + 2, FB_QR + 2, 'F');
+    doc.addImage(fbQrData, 'PNG', fbQrX, fbQrY, FB_QR, FB_QR);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(4.5); doc.setTextColor(255, 255, 255);
+    doc.text('Join', commAreaX + commAreaW / 2, fbQrY + FB_QR + 4, { align: 'center' });
+  }
   y += trustH + 3;
 
   // ── TERMS & CONDITIONS (2-column micro-text) ──────────────────────────────────
