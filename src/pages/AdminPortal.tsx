@@ -4377,21 +4377,50 @@ async function generateQrDataUrl(text: string): Promise<string> {
 function normalizeAddress(raw: string): string {
   if (!raw?.trim()) return raw;
   let s = raw.trim();
+
+  // Fix common city typos first (before title-case changes the case)
+  s = s.replace(/\bkarach\b/gi, 'Karachi');
+  s = s.replace(/\blahroe\b/gi, 'Lahore');
+
   // "near X" at end → "(Near X)"
   s = s.replace(/,?\s*near\s+([^,]+)$/i, ' (Near $1)');
-  // Common substitutions
+
+  // Common word substitutions
   s = s.replace(/\bbufferzone\b/gi, 'Buffer Zone');
   s = s.replace(/\bsector\b/gi, 'Sector');
+
   // Title-case each word; preserve all-caps abbreviations (DHA, NTS, KDA)
   s = s.replace(/\b\w+/g, w => {
     if (/^[A-Z]{2,}$/.test(w) || /^\d/.test(w)) return w;
     return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
   });
-  // Hyphenate single/double uppercase letter + number: "R 812" → "R-812"
+
+  // Hyphenate letter(s)+digit: both adjacent (A366→A-366) and spaced (R 812→R-812)
+  // Avoid re-hyphenating already-hyphenated or slash-separated (15/A2 stays intact)
+  s = s.replace(/([^-\/\w])([A-Z]{1,2})(\d)/g, (_, pre, letters, digits) => pre + letters + '-' + digits);
   s = s.replace(/\b([A-Z]{1,2}) (\d)/g, '$1-$2');
-  // Clean spacing
+
+  // Known area name normalisation (post title-case)
+  s = s.replace(/Gulistan[- ]?E[- ]?Johar/gi, 'Gulistan-e-Johar');
+  s = s.replace(/\bFb\s+Area\b/gi, 'F.B. Area');
+  s = s.replace(/\bF\.?B\.?\s+Area\b/gi, 'F.B. Area');
+
+  // Insert comma before Block / Sector keywords if not already preceded by comma
+  s = s.replace(/([^,])\s+(Block\s+\w)/g, '$1, $2');
+  s = s.replace(/([^,])\s+(Sector\s+\S)/g, '$1, $2');
+
+  // Insert comma after "Block N" or "Sector N" when followed by an area name (uppercase word)
+  s = s.replace(/\b(Block\s+\S+),?\s+(?=[A-Z][a-z])/g, '$1, ');
+  s = s.replace(/\b(Sector\s+\S+),?\s+(?=[A-Z][a-z])/g, '$1, ');
+
+  // Insert comma before known city names at the end of the string
+  const cities = ['Karachi', 'Lahore', 'Islamabad', 'Rawalpindi', 'Multan', 'Faisalabad', 'Peshawar'];
+  for (const city of cities) {
+    s = s.replace(new RegExp(`([^,])\\s+(${city})\\s*$`), `$1, $2`);
+  }
+
+  // Clean spacing and trailing duplicate city
   s = s.replace(/\s*,\s*/g, ', ').replace(/\s{2,}/g, ' ').trim();
-  // Remove trailing duplicate city: "...Karachi, Karachi" → "...Karachi"
   s = s.replace(/, ([^,]+)(, \1)+$/i, ', $1');
   return s;
 }
@@ -4493,19 +4522,23 @@ async function generateQuotationPdf(opts: {
     doc.text("Tajalli's", margin, 16);
   }
 
-  // Brand — dominant visual anchor
+  // Brand — dominant visual anchor, full left-to-right below logo
   doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
-  doc.text('HOME & COMMERCIAL SOLUTIONS', margin + 32, 13);
+  doc.text('HOME & COMMERCIAL SOLUTIONS', margin + 32, 12);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(255, 225, 180);
-  doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', margin + 32, 20);
+  doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', margin + 32, 19);
 
-  // Doc-type — plain small text, clearly secondary to brand
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(255, 200, 170);
-  doc.text(badgeLabel, W - margin, 8, { align: 'right' });
-
-  // REF number — right, below doc-type
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(255, 255, 255);
-  doc.text(opts.refNumber, W - margin, 16, { align: 'right' });
+  // Doc-type inset — dark red pill at bottom-right, clearly below brand
+  const metaBoxW = 42;
+  const metaBoxH = 9;
+  const metaBoxX = W - margin - metaBoxW;
+  const metaBoxY = HEADER_H - metaBoxH - 2;
+  doc.setFillColor(120, 30, 0);
+  doc.rect(metaBoxX, metaBoxY, metaBoxW, metaBoxH, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(255, 190, 150);
+  doc.text(badgeLabel, metaBoxX + 3, metaBoxY + 4);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(255, 255, 255);
+  doc.text(opts.refNumber, metaBoxX + metaBoxW - 3, metaBoxY + 7.5, { align: 'right' });
 
   // Contact strip — bottom of header
   doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(255, 205, 165);
@@ -4594,12 +4627,21 @@ async function generateQuotationPdf(opts: {
   secLabel('ITEMS', margin, leftY);
   leftY += 3.5;
 
+  // Merge similar categories: "Solar Systems" → "Solar", "AC Systems" → "AC" etc.
+  const normCat = (c: string) => c.replace(/\s+systems?\s*$/i, '').replace(/\s+/g, ' ').trim() || c;
+
   const categoryOrder: string[] = [];
   const grouped: Record<string, QuoteLine[]> = {};
+  const categoryDisplayName: Record<string, string> = {};
   for (const line of opts.lines) {
-    const cat = line.category || 'Other';
-    if (!grouped[cat]) { grouped[cat] = []; categoryOrder.push(cat); }
-    grouped[cat].push(line);
+    const rawCat = line.category || 'Other';
+    const key = normCat(rawCat);
+    if (!grouped[key]) {
+      grouped[key] = [];
+      categoryOrder.push(key);
+      categoryDisplayName[key] = rawCat;
+    }
+    grouped[key].push(line);
   }
 
   const abbrevWty = (w: string) => w
@@ -4610,12 +4652,14 @@ async function generateQuotationPdf(opts: {
     .replace(/\bmanufactur\w*/gi, 'Mfr')
     .replace(/\bwarranty\b/gi, '')
     .replace(/\bonly\b/gi, '')
-    .replace(/\s{2,}/g, ' ').trim();
+    .replace(/\s{2,}/g, ' ').trim()
+    // Normalise digit-yr spacing: "5 yr" or "5yr" → "5-yr" for consistency
+    .replace(/(\d)\s*yr\b/g, '$1-yr');
 
   const itemsBody: any[] = [];
   for (const cat of categoryOrder) {
     itemsBody.push([{
-      content: cat.toUpperCase(), colSpan: 4,
+      content: (categoryDisplayName[cat] || cat).toUpperCase(), colSpan: 4,
       styles: { fillColor: [26, 26, 26], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellPadding: { top: 1.5, bottom: 1.5, left: 2 } },
     }]);
     for (const line of grouped[cat]) {
@@ -4741,9 +4785,9 @@ async function generateQuotationPdf(opts: {
 
   const svcBody: any[] = opts.services.map(svc => {
     // ASCII-only labels — Unicode symbols corrupt in jsPDF Helvetica (Latin-1 only)
-    const statusLabel = svc.status === 'included' ? 'INC'
-      : svc.status === 'charged' ? 'CHG'
-      : (svc.visible_value > 0 || svc.display_value) ? 'OPT' : 'N/S';
+    const statusLabel = svc.status === 'included' ? 'INCL'
+      : svc.status === 'charged' ? 'BILLED'
+      : (svc.visible_value > 0 || svc.display_value) ? 'OPT.' : 'N/A';
     const statusColor: [number, number, number] = svc.status === 'included' ? [22, 163, 74]
       : svc.status === 'charged' ? [234, 88, 12]
       : (svc.visible_value > 0 || svc.display_value) ? [100, 100, 100]
@@ -4858,7 +4902,7 @@ async function generateQuotationPdf(opts: {
     ['Balance', `${100 - opts.advancePct}%  ${PKR(balanceAmt)}`],
     ['Due on', opts.advancePct === 0 ? 'Delivery' : opts.balanceNote || 'Delivery'],
     ...(opts.docType !== 'invoice' ? [['Valid', opts.validityHours >= 168 ? '7 days' : `${opts.validityHours}h`] as [string, string]] : []),
-    ...(showInstTeaser ? [['Installment', `~${PKR(opts.instTeaserMonthly!)}/mo x ${opts.instTeaserMonths}mo`] as [string, string]] : []),
+    ...(showInstTeaser ? [['Installment', `~${PKR(opts.instTeaserMonthly!)}/mo  (${opts.instTeaserMonths} months)`] as [string, string]] : []),
   ];
   let ppy = y + 12;
   for (const [lbl, val] of payRows) {
