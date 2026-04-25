@@ -4494,10 +4494,10 @@ async function generateQuotationPdf(opts: {
   }
 
   // Brand + tagline — left-centre
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(255, 255, 255);
-  doc.text('HOME & COMMERCIAL SOLUTIONS', margin + 32, 11);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(255, 225, 180);
-  doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', margin + 32, 17);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
+  doc.text('HOME & COMMERCIAL SOLUTIONS', margin + 32, 12);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(255, 225, 180);
+  doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', margin + 32, 19);
 
   // Doc-type chip — far right top
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5);
@@ -4625,7 +4625,15 @@ async function generateQuotationPdf(opts: {
           .forEach((s: string) => nameParts.push(`· ${s}`));
       }
       if (line.kwhPerMonth > 0) nameParts.push(`· ${line.kwhPerMonth} kWh/mo`);
-      const wty = (line.warranty || '—').replace(/manufacturer/i, 'Mfr').replace(/warranty/i, 'wty');
+      const wty = (line.warranty || '—')
+        .replace(/\byears?\b/gi, 'yr')
+        .replace(/\bcompressor\b/gi, 'Comp')
+        .replace(/\bcomplete\b/gi, 'Full')
+        .replace(/\breplacement\b/gi, 'Rplc')
+        .replace(/\bmanufactur\w*/gi, 'Mfr')
+        .replace(/\bwarranty\b/gi, '')
+        .replace(/\bonly\b/gi, '')
+        .replace(/\s{2,}/g, ' ').trim();
       itemsBody.push([
         nameParts.join('\n'),
         wty,
@@ -4737,21 +4745,22 @@ async function generateQuotationPdf(opts: {
   leftY += 3.5;
 
   const svcBody: any[] = opts.services.map(svc => {
-    const sym = svc.status === 'included' ? '✓'
-      : svc.status === 'charged' ? '●'
-      : (svc.visible_value > 0 || svc.display_value) ? '○' : '—';
-    const symColor: [number, number, number] = svc.status === 'included' ? [22, 163, 74]
+    // ASCII-only labels — Unicode symbols corrupt in jsPDF Helvetica (Latin-1 only)
+    const statusLabel = svc.status === 'included' ? 'INC'
+      : svc.status === 'charged' ? 'CHG'
+      : (svc.visible_value > 0 || svc.display_value) ? 'OPT' : 'N/S';
+    const statusColor: [number, number, number] = svc.status === 'included' ? [22, 163, 74]
       : svc.status === 'charged' ? [234, 88, 12]
       : (svc.visible_value > 0 || svc.display_value) ? [100, 100, 100]
       : [180, 180, 180];
     const valueLabel = svc.display_value ? svc.display_value
-      : svc.visible_value > 0 ? PKR(svc.visible_value) : '—';
+      : svc.visible_value > 0 ? PKR(svc.visible_value) : '-';
     const chargedLabel = svc.status === 'included' ? 'PKR 0'
       : svc.status === 'charged' ? PKR(svc.charged_amount)
-      : (svc.visible_value > 0 || svc.display_value) ? 'Ask' : '—';
+      : (svc.visible_value > 0 || svc.display_value) ? 'Ask' : '-';
     return [
       { content: svc.service_name, styles: { fontStyle: 'bold' as const } },
-      { content: sym, styles: { textColor: symColor, fontStyle: 'bold' as const, halign: 'center' as const } },
+      { content: statusLabel, styles: { textColor: statusColor, fontStyle: 'bold' as const, halign: 'center' as const } },
       valueLabel,
       chargedLabel,
     ];
@@ -4760,11 +4769,11 @@ async function generateQuotationPdf(opts: {
   autoTable(doc, {
     startY: leftY,
     margin: { left: margin, right: leftAutoMarginRight },
-    head: [['SERVICE', 'STS', 'VALUE', 'CHARGED']],
+    head: [['SERVICE', 'STATUS', 'VALUE', 'CHARGED']],
     body: svcBody,
     columnStyles: {
       0: { cellWidth: 'auto' },
-      1: { cellWidth: 8, halign: 'center' },
+      1: { cellWidth: 14, halign: 'center' },
       2: { cellWidth: 20, halign: 'right' },
       3: { cellWidth: 20, halign: 'right' },
     },
@@ -4854,11 +4863,11 @@ async function generateQuotationPdf(opts: {
     ['Balance', `${100 - opts.advancePct}%  ${PKR(balanceAmt)}`],
     ['Due on', opts.advancePct === 0 ? 'Delivery' : opts.balanceNote || 'Delivery'],
     ...(opts.docType !== 'invoice' ? [['Valid', opts.validityHours >= 168 ? '7 days' : `${opts.validityHours}h`] as [string, string]] : []),
-    ...(showInstTeaser ? [['Install.', `~${PKR(opts.instTeaserMonthly!)}/mo · ${opts.instTeaserMonths}mo`] as [string, string]] : []),
+    ...(showInstTeaser ? [['Installment', `~${PKR(opts.instTeaserMonthly!)}/mo x ${opts.instTeaserMonths}mo`] as [string, string]] : []),
   ];
   let ppy = y + 12;
   for (const [lbl, val] of payRows) {
-    const isOpt = lbl === 'Install.';
+    const isOpt = lbl === 'Installment';
     doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5);
     doc.setTextColor(...(isOpt ? [234, 88, 12] as [number, number, number] : [120, 120, 120] as [number, number, number]));
     doc.text(lbl, margin + 3, ppy);
@@ -4886,30 +4895,45 @@ async function generateQuotationPdf(opts: {
     doc.text(instrLines, bankColX + 3, y + 30);
   }
 
-  // QR col — Raast + Facebook side by side
+  // QR col — Raast (payment) + Facebook (community) clearly separated
   const QR_S = 17;
   const qr1X = qrColX + 2;
-  const qr2X = qrColX + 2 + QR_S + 3;
-  const qrY = y + 3;
+  const qr2X = qrColX + 2 + QR_S + 4;
+  const qrY = y + 8; // leave room for header label above each QR
+
+  // Header labels above each QR
   if (qrData) {
-    doc.setFillColor(255, 255, 255);
+    doc.setFillColor(22, 101, 52);
+    doc.rect(qr1X - 1, y + 1, QR_S + 2, 5, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(4.5); doc.setTextColor(255, 255, 255);
+    doc.text('PAYMENT', qr1X + QR_S / 2, y + 4.8, { align: 'center' });
+  }
+  if (fbQrData) {
+    doc.setFillColor(24, 119, 242);
+    doc.rect(qr2X - 1, y + 1, QR_S + 2, 5, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(4.5); doc.setTextColor(255, 255, 255);
+    doc.text('COMMUNITY', qr2X + QR_S / 2, y + 4.8, { align: 'center' });
+  }
+
+  if (qrData) {
+    doc.setFillColor(240, 253, 244);
     doc.rect(qr1X - 1, qrY - 1, QR_S + 2, QR_S + 2, 'F');
     doc.setDrawColor(22, 101, 52); doc.setLineWidth(0.3);
     doc.rect(qr1X - 1, qrY - 1, QR_S + 2, QR_S + 2, 'S');
     doc.setLineWidth(0.2);
     doc.addImage(qrData, 'JPEG', qr1X, qrY, QR_S, QR_S);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(22, 101, 52);
-    doc.text('RAAST', qr1X + QR_S / 2, qrY + QR_S + 4, { align: 'center' });
+    doc.text('Scan to pay', qr1X + QR_S / 2, qrY + QR_S + 4, { align: 'center' });
   }
   if (fbQrData) {
-    doc.setFillColor(255, 255, 255);
+    doc.setFillColor(235, 242, 255);
     doc.rect(qr2X - 1, qrY - 1, QR_S + 2, QR_S + 2, 'F');
     doc.setDrawColor(24, 119, 242); doc.setLineWidth(0.3);
     doc.rect(qr2X - 1, qrY - 1, QR_S + 2, QR_S + 2, 'S');
     doc.setLineWidth(0.2);
     doc.addImage(fbQrData, 'PNG', qr2X, qrY, QR_S, QR_S);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(24, 119, 242);
-    doc.text('COMMUNITY', qr2X + QR_S / 2, qrY + QR_S + 4, { align: 'center' });
+    doc.text('Scan to join', qr2X + QR_S / 2, qrY + QR_S + 4, { align: 'center' });
   }
   y += payBankH + 3;
 
