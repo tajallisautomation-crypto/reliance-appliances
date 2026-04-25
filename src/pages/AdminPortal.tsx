@@ -4416,6 +4416,13 @@ async function generateQuotationPdf(opts: {
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const PKR = (n: number) => `PKR ${Math.round(n).toLocaleString('en-PK')}`;
+  const fmtPKPhone = (p: string) => {
+    const d = p.replace(/\D/g, '');
+    if (d.length === 11 && d.startsWith('0')) return '+92 ' + d.slice(1, 4) + ' ' + d.slice(4);
+    if (d.length === 12 && d.startsWith('92')) return '+92 ' + d.slice(2, 5) + ' ' + d.slice(5);
+    if (d.length === 10) return '+92 ' + d.slice(0, 3) + ' ' + d.slice(3);
+    return p;
+  };
   const now = new Date();
   const fmtDate = (d: Date) => d.toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' });
   const dateStr = fmtDate(now);
@@ -4448,28 +4455,44 @@ async function generateQuotationPdf(opts: {
   doc.setFillColor(ORANGE);
   doc.rect(0, 0, W, HEADER_H, 'F');
 
+  // ── Logo left-column ─────────────────────────────────────────────────────────
   if (logoData) {
-    doc.addImage(logoData, 'PNG', margin, 5, 0, 32);
+    doc.addImage(logoData, 'PNG', margin, 6, 0, 30);
   } else {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(22); doc.setTextColor(255, 255, 255);
-    doc.text("Tajalli's", margin, 22);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(26); doc.setTextColor(255, 255, 255);
+    doc.text("Tajalli's", margin, 24);
   }
 
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(255, 214, 176);
-  doc.text('HOME & COMMERCIAL SOLUTIONS · FROM HOMES TO CORPORATES', margin, 41);
+  // English tagline — bold, bright white, larger
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(255, 255, 255);
+  doc.text('HOME & COMMERCIAL SOLUTIONS', margin, 40);
 
+  // Urdu tagline — bold, warm accent, slightly smaller
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(255, 220, 170);
+  doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', margin, 46);
+
+  // Contact line — normal weight, subdued
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(255, 200, 160);
-  doc.text('L-152 & 153, Sector 11C-1, North Karachi  ·  +92 370 2578788  ·  tajallis.com.pk', margin, 46.5);
-  const footerContactLine = opts.showNtn
-    ? 'support@tajallis.com.pk  ·  NTN: 42101-3836602-3'
-    : 'support@tajallis.com.pk';
-  doc.text(footerContactLine, margin, 51.5);
+  const contactParts = ['L-152 & 153, Sector 11C-1, North Karachi', '+92 370 2578788', 'tajallis.com.pk'];
+  if (opts.showNtn) contactParts.push('NTN: 42101-3836602-3');
+  doc.text(contactParts.join('  ·  '), margin, 51.5);
 
+  // ── Doc type badge — right-aligned, large ─────────────────────────────────
   const badgeLabel = opts.docType === 'invoice' ? 'INVOICE' : 'QUOTATION';
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(24); doc.setTextColor(255, 255, 255);
-  doc.text(badgeLabel, W - margin, 20, { align: 'right' });
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(26); doc.setTextColor(255, 255, 255);
+  doc.text(badgeLabel, W - margin, 22, { align: 'right' });
+  // Ref number small under badge
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(255, 210, 160);
+  doc.text(opts.refNumber, W - margin, 29, { align: 'right' });
 
   let y = HEADER_H + 4;
+  const PAGE_BOTTOM = 275; // safe bottom margin before footer
+  const checkPageBreak = (neededMm: number) => {
+    if (y + neededMm > PAGE_BOTTOM) {
+      doc.addPage();
+      y = 15;
+    }
+  };
 
   // ── ② META INFO BAR ──────────────────────────────────────────────────────────
   const META_H = 22;
@@ -4504,7 +4527,7 @@ async function generateQuotationPdf(opts: {
 
   const custFields: Array<[string, string]> = [
     ['NAME', opts.customerName || '—'],
-    ['PHONE', opts.customerPhone || '—'],
+    ['PHONE', opts.customerPhone ? fmtPKPhone(opts.customerPhone) : '—'],
     ...(opts.customerEmail ? [['EMAIL', opts.customerEmail] as [string, string]] : []),
     ['ADDRESS', opts.customerAddress || '—'],
     ...(opts.customerArea ? [['AREA', opts.customerArea] as [string, string]] : []),
@@ -4537,6 +4560,7 @@ async function generateQuotationPdf(opts: {
   y += custH + 6;
 
   // ── ④ 02 ITEMS ───────────────────────────────────────────────────────────────
+  checkPageBreak(30);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(ORANGE);
   doc.text('02  ITEMS', margin, y + 1);
   y += 5;
@@ -4603,6 +4627,7 @@ async function generateQuotationPdf(opts: {
   y = (doc as any).lastAutoTable.finalY + 6;
 
   // ── ⑤ 03 SERVICES ────────────────────────────────────────────────────────────
+  checkPageBreak(40);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(ORANGE);
   doc.text('03  SERVICES', margin, y + 1);
   y += 5;
@@ -4658,7 +4683,7 @@ async function generateQuotationPdf(opts: {
   if (!hasSolarProduct && opts.customerType !== 'commercial') {
     const advisory = buildDetailedAdvisory(
       opts.customerType,
-      opts.lines.map(l => ({ name: l.name, category: l.category, kwhPerMonth: l.kwhPerMonth, qty: l.qty }))
+      opts.lines.map(l => ({ name: l.name, category: l.category, kwhPerMonth: l.kwhPerMonth, qty: l.qty, keySpec: l.keySpec }))
     );
     if (advisory && advisory.paragraphs.length > 0) {
       doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(ORANGE);
@@ -4734,7 +4759,7 @@ async function generateQuotationPdf(opts: {
       : `${opts.discountType} Discount (${opts.discount}%)`;
     doc.setTextColor(234, 88, 12); doc.setFont('helvetica', 'italic');
     doc.text(discLabel, totalsX, y);
-    doc.text(`− ${PKR(discountAmt)}`, valX, y, { align: 'right' });
+    doc.text(`- ${PKR(discountAmt)}`, valX, y, { align: 'right' });
     if (opts.discountReason) {
       doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(160, 80, 20);
       doc.text(`Reason: ${opts.discountReason}`, totalsX, y + 4.5);
@@ -4874,6 +4899,7 @@ async function generateQuotationPdf(opts: {
   }
 
   // ── ⑨ 07 TERMS & CONDITIONS ──────────────────────────────────────────────────
+  checkPageBreak(60);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(ORANGE);
   doc.text('07  TERMS & CONDITIONS', margin, y + 1);
   y += 5;
@@ -4906,19 +4932,23 @@ async function generateQuotationPdf(opts: {
   y += tcH + 4;
 
   // ── ⑩ FOOTER ────────────────────────────────────────────────────────────────
-  const footerY = 285;
-  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.3);
-  doc.line(margin, footerY, W - margin, footerY);
-
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(120, 120, 120);
-  doc.text(
-    `${opts.refNumber}  ·  ${badgeLabel}  ·  PAGE 1 OF 1`,
-    margin, footerY + 5
-  );
-  doc.text(
-    'tajallis.com.pk  ·  support@tajallis.com.pk  ·  +92 370 2578788',
-    W - margin, footerY + 5, { align: 'right' }
-  );
+  const pageCount = doc.getNumberOfPages();
+  // Footer goes on each page at the bottom
+  for (let pg = 1; pg <= pageCount; pg++) {
+    doc.setPage(pg);
+    const footerY = 285;
+    doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.3);
+    doc.line(margin, footerY, W - margin, footerY);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(120, 120, 120);
+    doc.text(
+      `${opts.refNumber}  ·  ${badgeLabel}  ·  PAGE ${pg} OF ${pageCount}`,
+      margin, footerY + 5
+    );
+    doc.text(
+      'tajallis.com.pk  ·  support@tajallis.com.pk  ·  +92 370 2578788',
+      W - margin, footerY + 5, { align: 'right' }
+    );
+  }
 
   return doc.output('blob');
 }

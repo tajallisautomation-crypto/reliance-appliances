@@ -174,6 +174,7 @@ export interface AdvisoryLine {
   category: string;
   kwhPerMonth: number;
   qty: number;
+  keySpec?: string;
 }
 
 export interface DetailedAdvisory {
@@ -203,7 +204,7 @@ export function buildDetailedAdvisory(
     for (const l of lines) {
       const cat = l.category.toLowerCase();
       if (/freezer|refrigerator|fridge/i.test(cat) || /freezer|fridge/i.test(l.name)) {
-        const isInverter = /inverter/i.test(l.name) || /inverter/i.test(cat);
+        const isInverter = /inverter/i.test(l.name) || /inverter/i.test(cat) || /inverter/i.test(l.keySpec ?? '');
         if (isInverter) {
           paras.push(
             `This is an inverter ${/freezer/i.test(l.name) ? 'freezer' : 'refrigerator'} — ` +
