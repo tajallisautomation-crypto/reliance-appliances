@@ -4450,37 +4450,39 @@ async function generateQuotationPdf(opts: {
   }
   const grandTotal = baseBeforeDisc - discountAmt;
 
-  // ── ① HEADER (54mm) ─────────────────────────────────────────────────────────
-  const HEADER_H = 54;
+  // ── ① HEADER (50mm) ─────────────────────────────────────────────────────────
+  const HEADER_H = 50;
   doc.setFillColor(ORANGE);
   doc.rect(0, 0, W, HEADER_H, 'F');
 
-  // ── LEFT: logo + taglines ────────────────────────────────────────────────────
+  // ── LEFT: logo only ───────────────────────────────────────────────────────
   if (logoData) {
-    doc.addImage(logoData, 'PNG', margin, 6, 0, 28);
+    doc.addImage(logoData, 'PNG', margin, 5, 0, 32);
   } else {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(26); doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(24); doc.setTextColor(255, 255, 255);
     doc.text("Tajalli's", margin, 22);
   }
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
-  doc.text('HOME & COMMERCIAL SOLUTIONS', margin, 38);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 220, 170);
-  doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', margin, 45);
 
-  // ── RIGHT: doc type + ref + contact block ────────────────────────────────
+  // ── RIGHT: badge + taglines + ref + contact ───────────────────────────────
   const badgeLabel = opts.docType === 'invoice' ? 'INVOICE' : 'QUOTATION';
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(28); doc.setTextColor(255, 255, 255);
-  doc.text(badgeLabel, W - margin, 17, { align: 'right' });
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(24); doc.setTextColor(255, 255, 255);
+  doc.text(badgeLabel, W - margin, 13, { align: 'right' });
 
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(255, 210, 160);
-  doc.text(opts.refNumber, W - margin, 24, { align: 'right' });
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
+  doc.text('HOME & COMMERCIAL SOLUTIONS', W - margin, 20, { align: 'right' });
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(255, 220, 170);
+  doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', W - margin, 26, { align: 'right' });
 
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(255, 200, 160);
-  doc.text('L-152 & 153, Sector 11C-1, North Karachi', W - margin, 31, { align: 'right' });
-  doc.text('+92 370 2578788  ·  tajallis.com.pk', W - margin, 37, { align: 'right' });
-  doc.text('support@tajallis.com.pk', W - margin, 43, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(255, 210, 160);
+  doc.text(opts.refNumber, W - margin, 32, { align: 'right' });
+
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(255, 200, 160);
+  doc.text('L-152 & 153, Sector 11C-1, North Karachi', W - margin, 37, { align: 'right' });
+  doc.text('+92 370 2578788  ·  tajallis.com.pk', W - margin, 42, { align: 'right' });
   if (opts.showNtn) {
-    doc.text('NTN: 42101-3836602-3', W - margin, 49, { align: 'right' });
+    doc.text('support@tajallis.com.pk  ·  NTN: 42101-3836602-3', W - margin, 47, { align: 'right' });
+  } else {
+    doc.text('support@tajallis.com.pk', W - margin, 47, { align: 'right' });
   }
 
   let y = HEADER_H + 4;
@@ -4728,6 +4730,7 @@ async function generateQuotationPdf(opts: {
   }
 
   // ── ⑦ 05 PRICING & PAYMENT ───────────────────────────────────────────────────
+  checkPageBreak(90);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(ORANGE);
   doc.text('05  PRICING & PAYMENT', margin, y + 1);
   y += 5;
@@ -4827,6 +4830,7 @@ async function generateQuotationPdf(opts: {
   }
 
   // ── ⑧ 06 BANK TRANSFER ───────────────────────────────────────────────────────
+  checkPageBreak(120);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(ORANGE);
   doc.text('06  BANK TRANSFER', margin, y + 1);
   y += 5;
