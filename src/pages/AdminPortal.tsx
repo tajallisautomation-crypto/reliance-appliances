@@ -4479,7 +4479,7 @@ async function generateQuotationPdf(opts: {
 
   // ── LEFT: logo only ───────────────────────────────────────────────────────
   if (logoData) {
-    doc.addImage(logoData, 'PNG', margin, 5, 0, 30);
+    doc.addImage(logoData, 'PNG', margin, 4, 0, 38);
   } else {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(22); doc.setTextColor(255, 255, 255);
     doc.text("Tajalli's", margin, 20);
@@ -4488,10 +4488,10 @@ async function generateQuotationPdf(opts: {
   // ── RIGHT: brand dominant, doc-type as small chip label ─────────────────
   const badgeLabel = opts.docType === 'invoice' ? 'INVOICE' : 'QUOTATION';
 
-  // Brand — primary (largest element on the right)
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
+  // Brand — strong visual anchor
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(255, 255, 255);
   doc.text('HOME & COMMERCIAL SOLUTIONS', W - margin, 11, { align: 'right' });
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(255, 225, 180);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(255, 225, 180);
   doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', W - margin, 18, { align: 'right' });
 
   // Doc-type chip — small filled label, clearly secondary
@@ -4613,7 +4613,8 @@ async function generateQuotationPdf(opts: {
       const nameParts = [line.name];
       if (line.model) nameParts.push(`Model: ${line.model}`);
       if (line.keySpec) {
-        line.keySpec.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 2)
+        line.keySpec.split(',').map((s: string) => s.trim())
+          .filter((s: string) => s.length > 2 && !/:\s*(No|N\/A|None|—|NA|-)\s*$/i.test(s))
           .forEach((s: string) => nameParts.push(`· ${s}`));
       }
       if (line.kwhPerMonth > 0) nameParts.push(`· Est. ${line.kwhPerMonth} units/mo`);
