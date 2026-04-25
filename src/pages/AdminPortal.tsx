@@ -4258,6 +4258,9 @@ async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<void> {
       kwh_per_month:          l.kwhPerMonth || null,
       warranty:               l.warranty || null,
       key_spec:               l.keySpec || null,
+      key_specs_json:         (l.displayPrefix || l.packageNote)
+                                ? { displayPrefix: l.displayPrefix || '', packageNote: l.packageNote || '' }
+                                : null,
     }));
 
     const { data: insertedLines, error: lineErr } = await supabase
@@ -4338,6 +4341,8 @@ interface QuoteLine {
   minPrice: number;
   floorPrice: number;
   overrideReason: string;
+  displayPrefix: string;  // prepended to name in PDF (e.g. "Additional Battery — ")
+  packageNote: string;    // italic note sub-line below specs (e.g. "System includes inverter…")
 }
 
 async function loadLogoWhite(): Promise<string> {
@@ -4678,7 +4683,8 @@ async function generateQuotationPdf(opts: {
       styles: { fillColor: [26, 26, 26], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellPadding: { top: 1.5, bottom: 1.5, left: 2 } },
     }]);
     for (const line of grouped[cat]) {
-      const nameParts = [line.name];
+      const displayName = line.displayPrefix ? `${line.displayPrefix}${line.name}` : line.name;
+      const nameParts = [displayName];
       if (line.model) nameParts.push(`Model: ${line.model}`);
       if (line.keySpec) {
         line.keySpec.split(',').map((s: string) => s.trim())
@@ -4689,6 +4695,8 @@ async function generateQuotationPdf(opts: {
       if (line.kwhPerMonth > 0) nameParts.push(`· ${line.kwhPerMonth} kWh/mo`);
       // Warranty as last sub-line — keeps data, avoids narrow dedicated column
       if (line.warranty) nameParts.push(`Wty: ${abbrevWty(line.warranty)}`);
+      // Package relationship note — clarifies system composition to customer
+      if (line.packageNote) nameParts.push(`> ${line.packageNote}`);
       itemsBody.push([
         nameParts.join('\n'),
         String(line.qty),
@@ -5605,6 +5613,7 @@ type InvoiceRow = {
     kwh_per_month: number | null;
     warranty: string | null;
     key_spec: string | null;
+    key_specs_json: { displayPrefix?: string; packageNote?: string } | null;
     product_id: string | null;
   }>;
 };
@@ -5646,6 +5655,8 @@ function InvoiceHistoryTab() {
         minPrice: 0,
         floorPrice: 0,
         overrideReason: '',
+        displayPrefix: l.key_specs_json?.displayPrefix ?? '',
+        packageNote: l.key_specs_json?.packageNote ?? '',
       }));
       const discountIsFixed = (row.discount_pct ?? 0) > 100;
       const docType: 'quotation' | 'invoice' =
@@ -5699,7 +5710,7 @@ function InvoiceHistoryTab() {
     try {
       let q = supabase
         .from('invoices')
-        .select('*, invoice_lines(name, model, category, qty, unit_price, kwh_per_month, warranty, key_spec, product_id)')
+        .select('*, invoice_lines(name, model, category, qty, unit_price, kwh_per_month, warranty, key_spec, key_specs_json, product_id)')
         .order('created_at', { ascending: false })
         .limit(200);
 
@@ -6273,6 +6284,8 @@ function QuotationTab({ products }: { products: Product[] }) {
       minPrice: p.price.min || 0,
       floorPrice: p.price.cash_floor,
       overrideReason: '',
+      displayPrefix: '',
+      packageNote: '',
     }]);
     setProductSearch('');
     setToastMsg(`${p.brand || ''} ${p.model} added`.trim());
@@ -6282,7 +6295,7 @@ function QuotationTab({ products }: { products: Product[] }) {
     setLines(ls => ls.map(l => l.id === id ? { ...l, [field]: val } : l));
   }
 
-  function updateLineText(id: string, field: 'warranty' | 'keySpec', val: string) {
+  function updateLineText(id: string, field: 'warranty' | 'keySpec' | 'displayPrefix' | 'packageNote', val: string) {
     setLines(ls => ls.map(l => l.id === id ? { ...l, [field]: val } : l));
   }
 
@@ -7021,6 +7034,8 @@ function QuotationTab({ products }: { products: Product[] }) {
                       minPrice: pkg.price,
                       floorPrice: pkg.price,
                       overrideReason: '',
+                      displayPrefix: '',
+                      packageNote: '',
                     };
                     setLines(ls => ls.some(l => l.id === line.id) ? ls : [...ls, line]);
                   }}
@@ -7054,6 +7069,8 @@ function QuotationTab({ products }: { products: Product[] }) {
                       minPrice: pkg.total,
                       floorPrice: pkg.total,
                       overrideReason: '',
+                      displayPrefix: '',
+                      packageNote: '',
                     };
                     setLines(ls => ls.some(l => l.id === line.id) ? ls : [...ls, line]);
                   }}
@@ -7127,6 +7144,25 @@ function QuotationTab({ products }: { products: Product[] }) {
                         onChange={e => updateLineText(line.id, 'keySpec', e.target.value)}
                         placeholder="Key spec"
                         className="flex-1 border border-gray-100 rounded-lg px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-orange-300 bg-gray-50"
+                      />
+                    </div>
+                    {/* Package labeling — prefix + relationship note */}
+                    <div className="flex gap-2 mt-1">
+                      <input
+                        type="text"
+                        value={line.displayPrefix}
+                        onChange={e => updateLineText(line.id, 'displayPrefix', e.target.value)}
+                        placeholder='Prefix (e.g. "Additional Battery — ")'
+                        className="flex-1 border border-gray-100 rounded-lg px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-orange-300 bg-gray-50"
+                      />
+                    </div>
+                    <div className="mt-1">
+                      <input
+                        type="text"
+                        value={line.packageNote}
+                        onChange={e => updateLineText(line.id, 'packageNote', e.target.value)}
+                        placeholder='Package note (e.g. "System includes inverter; this adds extended backup.")'
+                        className="w-full border border-gray-100 rounded-lg px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-orange-300 bg-gray-50"
                       />
                     </div>
                     {/* Monthly kWh for efficiency block */}
