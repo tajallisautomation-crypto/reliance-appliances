@@ -4508,43 +4508,48 @@ async function generateQuotationPdf(opts: {
   const rightX = margin + leftW + colGap;
   const leftAutoMarginRight = W - (margin + leftW); // autoTable right margin for left column
 
-  // ── ① HEADER STRIP (34mm) ─────────────────────────────────────────────────────
-  const HEADER_H = 34;
+  // ── ① HEADER STRIP (40mm) ─────────────────────────────────────────────────────
+  const HEADER_H = 40;
   const badgeLabel = opts.docType === 'invoice' ? 'INVOICE' : 'QUOTATION';
 
   // Main orange band
   doc.setFillColor(ORANGE);
   doc.rect(0, 0, W, HEADER_H, 'F');
 
-  // Right meta zone — slightly darker tint to create structural zone
-  doc.setFillColor(200, 72, 8);
-  doc.rect(W - 58, 0, 58, HEADER_H, 'F');
+  // Right meta zone — dark mahogany band for strong visual separation
+  doc.setFillColor(180, 55, 5);
+  doc.rect(W - 62, 0, 62, HEADER_H, 'F');
 
-  // Logo — left
+  // Logo — left, generous height
   if (logoData) {
-    doc.addImage(logoData, 'PNG', margin, 4, 0, 26);
+    doc.addImage(logoData, 'PNG', margin, 5, 0, 30);
   } else {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(255, 255, 255);
-    doc.text("Tajalli's", margin, 18);
+    doc.text("Tajalli's", margin, 20);
   }
 
-  // Brand — dominant, large, left zone
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(255, 255, 255);
-  doc.text('HOME & COMMERCIAL SOLUTIONS', margin + 36, 16);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(255, 222, 188);
-  doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', margin + 36, 24);
+  // Brand — DOMINANT: two-line layout for maximum visual weight
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(22); doc.setTextColor(255, 255, 255);
+  doc.text('HOME & COMMERCIAL', margin + 38, 16);
+  doc.text('SOLUTIONS', margin + 38, 26);
+  // Thin white rule beneath brand to anchor it
+  doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
+  doc.line(margin + 38, 28.5, margin + 38 + 74, 28.5);
+  // Tagline below rule
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(255, 222, 188);
+  doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', margin + 38, 33.5);
 
-  // Right meta zone: doc-type (tiny label) + REF (prominent) + date (small)
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(255, 195, 155);
-  doc.text(badgeLabel, W - margin, 10, { align: 'right' });
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
-  doc.text(opts.refNumber, W - margin, 21, { align: 'right' });
+  // Right meta zone: doc-type label (tiny, muted) → REF (large, dominant) → date (small)
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(255, 185, 145);
+  doc.text(badgeLabel, W - margin, 9, { align: 'right' });
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
+  doc.text(opts.refNumber, W - margin, 22, { align: 'right' });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(255, 210, 175);
-  doc.text(dateStr, W - margin, 29, { align: 'right' });
+  doc.text(dateStr, W - margin, 31, { align: 'right' });
 
-  // Thin white separator between brand zone and meta zone
-  doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.4);
-  doc.line(W - 60, 5, W - 60, HEADER_H - 5);
+  // Vertical separator
+  doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
+  doc.line(W - 64, 4, W - 64, HEADER_H - 4);
   doc.setLineWidth(0.2);
 
   // Contact strip — full width at very bottom of header

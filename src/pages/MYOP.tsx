@@ -5,7 +5,7 @@ import {
   ChevronDown, ChevronUp, Info, ShoppingBag, Sparkles,
   ClipboardCheck, AlertCircle, X,
 } from 'lucide-react'
-import { getProducts, formatPrice, calcPlan, submitOrder, type Product } from '@/lib/api'
+import { getProducts, getProduct, formatPrice, calcPlan, submitOrder, type Product } from '@/lib/api'
 import SEO from '@/components/ui/SEO'
 import { waSales } from '@/lib/whatsapp'
 import { useMyopStore } from '@/store/myopStore'
@@ -72,12 +72,71 @@ const TABS = [
   { id: 'small',   label: 'Small Appliances', icon: '🔌' },
 ]
 
-// Preset starter pack templates
-const PRESET_PACKS = [
-  { id: 'essential-home', name: 'Essential Home', desc: 'AC · Fridge · Washer',      icon: '🏠', tabs: ['ac', 'fridge', 'washing'] },
-  { id: 'new-home',       name: 'New Home',       desc: 'AC · Fridge · TV · Washer', icon: '✨', tabs: ['ac', 'fridge', 'tv', 'washing'] },
-  { id: 'solar-starter',  name: 'Solar Starter',  desc: 'Inverter · Battery',        icon: '☀️', tabs: ['solar'] },
-  { id: 'kitchen-basics', name: 'Kitchen Basics', desc: 'Microwave · Kettle · More', icon: '🍳', tabs: ['kitchen'] },
+interface PresetPack {
+  id:          string
+  name:        string
+  tagline:     string
+  icon:        string
+  firstTab:    string
+  fromPrice:   number   // cash total before 5% bundle discount
+  items: Array<{ id: string; label: string; price: number }>
+}
+
+// Starter packs built from real DB products (IDs verified April 2026)
+const PRESET_PACKS: PresetPack[] = [
+  {
+    id:        'budget-starter',
+    name:      'Budget Starter',
+    tagline:   '1T AC + Fridge + Washer',
+    icon:      '🏠',
+    firstTab:  'ac',
+    fromPrice: 190500,
+    items: [
+      { id: 'dawlance-infinity-pro-15-fix-speed-on-off', label: 'Dawlance 1T AC',     price: 100500 },
+      { id: 'dawlance-ref-9140wb-chrome',                label: 'Dawlance Fridge',    price:  59500 },
+      { id: 'haier-hwm-80-cs',                           label: 'Haier Washer 8kg',   price:  30500 },
+    ],
+  },
+  {
+    id:        'essential-home',
+    name:      'Essential Home',
+    tagline:   '1.5T AC + Fridge + Washer + TV',
+    icon:      '✨',
+    firstTab:  'ac',
+    fromPrice: 311000,
+    items: [
+      { id: 'haier-hsu-18cfp-cm',         label: 'Haier 1.5T AC',      price: 113000 },
+      { id: 'haier-hrf-246-epb-epr-epcg', label: 'Haier Fridge 246L',  price:  77000 },
+      { id: 'haier-hwm-120-as-mg',        label: 'Haier Washer 12kg',  price:  52000 },
+      { id: 'dawlance-kore-fhd-google-tv-43', label: 'Dawlance 43" TV', price:  69000 },
+    ],
+  },
+  {
+    id:        'solar-backup',
+    name:      'Solar Backup',
+    tagline:   '3KW Inverter + 2× Lithium Battery',
+    icon:      '☀️',
+    firstTab:  'solar',
+    fromPrice: 210000,
+    items: [
+      { id: 'ziewnic-pv3000',               label: 'Ziewnic PV3000 3KW',    price:  74000 },
+      { id: 'ziewnic-12v-100ah-li-vietnam', label: 'Ziewnic 100AH Battery', price:  68000 },
+      { id: 'ziewnic-12v-100ah-li-vietnam', label: 'Ziewnic 100AH Battery', price:  68000 },
+    ],
+  },
+  {
+    id:        'kitchen-basics',
+    name:      'Kitchen Basics',
+    tagline:   'Microwave + Air Fryer + Kettle',
+    icon:      '🍳',
+    firstTab:  'kitchen',
+    fromPrice: 50000,
+    items: [
+      { id: 'dawlance-md-7',                              label: 'Dawlance Microwave',  price: 16500 },
+      { id: 'westpoint-5254',                             label: 'Westpoint Air Fryer', price: 28000 },
+      { id: 'dawlance-electric-kettle-dwek-7100-local',   label: 'Dawlance Kettle',     price:  5500 },
+    ],
+  },
 ]
 
 // Category → estimated monthly kWh for solar load bar
@@ -610,9 +669,11 @@ export default function MYOPPage() {
   const selected   = store.items
   const setActiveTab = store.setActiveTab
 
-  const [products,     setProducts]     = useState<Product[]>([])
-  const [loading,      setLoading]      = useState(false)
-  const [searchQuery,  setSearchQuery]  = useState('')
+  const [products,      setProducts]      = useState<Product[]>([])
+  const [loading,       setLoading]       = useState(false)
+  const [searchQuery,   setSearchQuery]   = useState('')
+  const [bundleLoading, setBundleLoading] = useState<string | null>(null)
+  const [bundleLoaded,  setBundleLoaded]  = useState<string | null>(null)
 
   // Solar compatibility: detect if user has an inverter in their package
   const selectedInverterItem = selected.find(item => isSolarInverter(item.product))
@@ -640,6 +701,34 @@ export default function MYOPPage() {
   }, [])
 
   useEffect(() => { fetchTab(activeTab); setSearchQuery('') }, [activeTab, fetchTab])
+
+  // Load a preset bundle — fetch each product by ID and add to cart
+  const loadBundle = useCallback(async (pack: PresetPack) => {
+    if (bundleLoading) return
+    setBundleLoading(pack.id)
+    setBundleLoaded(null)
+    try {
+      // Deduplicate IDs — if same product appears twice (e.g. 2 batteries), fetch once then addItem twice
+      const idCounts: Record<string, number> = {}
+      for (const item of pack.items) {
+        idCounts[item.id] = (idCounts[item.id] || 0) + 1
+      }
+      const uniqueIds = Object.keys(idCounts)
+      const fetched = await Promise.all(uniqueIds.map(id => getProduct(id)))
+      for (let i = 0; i < uniqueIds.length; i++) {
+        const product = fetched[i]
+        if (!product) continue
+        const qty = idCounts[uniqueIds[i]]
+        if (!store.hasItem(product.id)) {
+          store.addItem(product, qty)
+        }
+      }
+      setActiveTab(pack.firstTab)
+      setBundleLoaded(pack.id)
+      setTimeout(() => setBundleLoaded(null), 2500)
+    } catch { /* silent */ }
+    finally { setBundleLoading(null) }
+  }, [bundleLoading, store, setActiveTab])
 
   // Filter products by search query (model, simplified_name, brand)
   const filteredProducts = searchQuery.trim()
@@ -732,23 +821,64 @@ export default function MYOPPage() {
           {/* ── Left: Category tabs + product grid ── */}
           <div className="flex-1 min-w-0">
 
-            {/* Preset starter packs */}
-            <div className="mb-5">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Quick Start</p>
-              <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                {PRESET_PACKS.map(pack => (
-                  <button
-                    key={pack.id}
-                    onClick={() => setActiveTab(pack.tabs[0])}
-                    className="flex items-center gap-2 bg-white border-2 border-gray-200 hover:border-orange-400 hover:shadow-md rounded-2xl px-4 py-2.5 shrink-0 transition-all group"
-                  >
-                    <span className="text-lg leading-none">{pack.icon}</span>
-                    <div className="text-left">
-                      <p className="text-xs font-black text-gray-900 leading-tight group-hover:text-orange-600 whitespace-nowrap">{pack.name}</p>
-                      <p className="text-[10px] text-gray-400 whitespace-nowrap">{pack.desc}</p>
-                    </div>
-                  </button>
-                ))}
+            {/* Starter bundles — pre-priced, pre-selected */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Starter Bundles</p>
+                <p className="text-[10px] text-gray-400">Click to pre-load items into your package</p>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {PRESET_PACKS.map(pack => {
+                  const isLoading = bundleLoading === pack.id
+                  const isLoaded  = bundleLoaded  === pack.id
+                  const disc5     = Math.round(pack.fromPrice * 0.95 / 1000)
+                  return (
+                    <button
+                      key={pack.id}
+                      onClick={() => loadBundle(pack)}
+                      disabled={isLoading}
+                      className={`relative flex flex-col text-left bg-white border-2 rounded-2xl p-3.5 transition-all disabled:opacity-60 ${
+                        isLoaded
+                          ? 'border-green-400 shadow-md shadow-green-50'
+                          : 'border-gray-200 hover:border-orange-400 hover:shadow-md'
+                      }`}
+                    >
+                      {/* Bundle name + icon */}
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <span className="text-xl leading-none">{pack.icon}</span>
+                        <p className="text-xs font-black text-gray-900 leading-tight">{pack.name}</p>
+                      </div>
+
+                      {/* Item list */}
+                      <ul className="space-y-0.5 mb-2.5">
+                        {pack.items.filter((it, i, arr) => arr.findIndex(x => x.id === it.id) === i).map((item, i) => {
+                          const dupeCount = pack.items.filter(x => x.id === item.id).length
+                          return (
+                            <li key={i} className="text-[10px] text-gray-500 leading-snug">
+                              {dupeCount > 1 ? `${dupeCount}× ` : ''}{item.label}
+                            </li>
+                          )
+                        })}
+                      </ul>
+
+                      {/* Price */}
+                      <div className="mt-auto">
+                        <p className="text-[9px] text-gray-400 leading-none mb-0.5">from PKR</p>
+                        <p className="text-sm font-black text-gray-900">{disc5}k</p>
+                        <p className="text-[9px] text-green-600">after 5% bundle disc.</p>
+                      </div>
+
+                      {/* CTA */}
+                      <div className={`mt-2 w-full text-center text-[10px] font-bold py-1.5 rounded-lg transition-colors ${
+                        isLoaded
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-orange-50 text-orange-600 group-hover:bg-orange-100'
+                      }`}>
+                        {isLoading ? '⏳ Loading…' : isLoaded ? '✓ Added to package' : 'Build from this →'}
+                      </div>
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
