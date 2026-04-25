@@ -4493,25 +4493,19 @@ async function generateQuotationPdf(opts: {
     doc.text("Tajalli's", margin, 16);
   }
 
-  // Brand + tagline — left-centre
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
-  doc.text('HOME & COMMERCIAL SOLUTIONS', margin + 32, 12);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(255, 225, 180);
-  doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', margin + 32, 19);
+  // Brand — dominant visual anchor
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
+  doc.text('HOME & COMMERCIAL SOLUTIONS', margin + 32, 13);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(255, 225, 180);
+  doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', margin + 32, 20);
 
-  // Doc-type chip — far right top
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5);
-  const chipPad = 2;
-  const chipText = ' ' + badgeLabel + ' ';
-  const chipW = doc.getTextWidth(chipText) + chipPad;
-  doc.setFillColor(155, 40, 0);
-  doc.rect(W - margin - chipW, 3, chipW, 5, 'F');
-  doc.setTextColor(255, 230, 210);
-  doc.text(chipText, W - margin - chipW, 6.8);
+  // Doc-type — plain small text, clearly secondary to brand
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(255, 200, 170);
+  doc.text(badgeLabel, W - margin, 8, { align: 'right' });
 
-  // REF number — far right below chip
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
-  doc.text(opts.refNumber, W - margin, 14, { align: 'right' });
+  // REF number — right, below doc-type
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(255, 255, 255);
+  doc.text(opts.refNumber, W - margin, 16, { align: 'right' });
 
   // Contact strip — bottom of header
   doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(255, 205, 165);
@@ -4574,7 +4568,6 @@ async function generateQuotationPdf(opts: {
     ['SALE TYPE', opts.saleType === 'cash' ? 'Cash' : 'Installment'],
     ['SERVICE', opts.installationType === 'installation-included' ? 'Supply + Install' : 'Supply Only'],
     ['STOCK', opts.stockStatus],
-    ['ETA', opts.deliveryEta || '—'],
     ...(opts.docType !== 'invoice' ? [['VALID', `${validUntilStr} (${opts.validityHours}h)`] as [string, string]] : []),
   ];
 
@@ -4609,10 +4602,20 @@ async function generateQuotationPdf(opts: {
     grouped[cat].push(line);
   }
 
+  const abbrevWty = (w: string) => w
+    .replace(/\byears?\b/gi, 'yr')
+    .replace(/\bcompressor\b/gi, 'Comp')
+    .replace(/\bcomplete\b/gi, 'Full')
+    .replace(/\breplacement\b/gi, 'Rplc')
+    .replace(/\bmanufactur\w*/gi, 'Mfr')
+    .replace(/\bwarranty\b/gi, '')
+    .replace(/\bonly\b/gi, '')
+    .replace(/\s{2,}/g, ' ').trim();
+
   const itemsBody: any[] = [];
   for (const cat of categoryOrder) {
     itemsBody.push([{
-      content: cat.toUpperCase(), colSpan: 5,
+      content: cat.toUpperCase(), colSpan: 4,
       styles: { fillColor: [26, 26, 26], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellPadding: { top: 1.5, bottom: 1.5, left: 2 } },
     }]);
     for (const line of grouped[cat]) {
@@ -4625,18 +4628,10 @@ async function generateQuotationPdf(opts: {
           .forEach((s: string) => nameParts.push(`· ${s}`));
       }
       if (line.kwhPerMonth > 0) nameParts.push(`· ${line.kwhPerMonth} kWh/mo`);
-      const wty = (line.warranty || '—')
-        .replace(/\byears?\b/gi, 'yr')
-        .replace(/\bcompressor\b/gi, 'Comp')
-        .replace(/\bcomplete\b/gi, 'Full')
-        .replace(/\breplacement\b/gi, 'Rplc')
-        .replace(/\bmanufactur\w*/gi, 'Mfr')
-        .replace(/\bwarranty\b/gi, '')
-        .replace(/\bonly\b/gi, '')
-        .replace(/\s{2,}/g, ' ').trim();
+      // Warranty as last sub-line — keeps data, avoids narrow dedicated column
+      if (line.warranty) nameParts.push(`Wty: ${abbrevWty(line.warranty)}`);
       itemsBody.push([
         nameParts.join('\n'),
-        wty,
         String(line.qty),
         PKR(line.unitPrice),
         PKR(line.qty * line.unitPrice),
@@ -4646,26 +4641,25 @@ async function generateQuotationPdf(opts: {
 
   if (opts.installationLines.length > 0) {
     itemsBody.push([{
-      content: 'INSTALLATION', colSpan: 5,
+      content: 'INSTALLATION', colSpan: 4,
       styles: { fillColor: [26, 26, 26], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellPadding: { top: 1.5, bottom: 1.5, left: 2 } },
     }]);
     for (const inst of opts.installationLines) {
-      itemsBody.push([inst.name, '1yr work', '1', PKR(inst.amount), PKR(inst.amount)]);
+      itemsBody.push([`${inst.name}\nWty: 1yr workmanship`, '1', PKR(inst.amount), PKR(inst.amount)]);
     }
-    itemsBody.push(['Post-Install Check', 'N/A', '1', 'Complimentary', 'PKR 0']);
+    itemsBody.push(['Post-Install Check', '1', 'Complimentary', 'PKR 0']);
   }
 
   autoTable(doc, {
     startY: leftY,
     margin: { left: margin, right: leftAutoMarginRight },
-    head: [['PRODUCT / SPECS', 'WARRANTY', 'QTY', 'UNIT', 'TOTAL']],
+    head: [['PRODUCT / SPECS / WARRANTY', 'QTY', 'UNIT', 'TOTAL']],
     body: itemsBody,
     columnStyles: {
       0: { cellWidth: 'auto' },
-      1: { cellWidth: 20 },
-      2: { cellWidth: 7, halign: 'right' },
-      3: { cellWidth: 22, halign: 'right' },
-      4: { cellWidth: 22, halign: 'right', fontStyle: 'bold' },
+      1: { cellWidth: 8, halign: 'right' },
+      2: { cellWidth: 22, halign: 'right' },
+      3: { cellWidth: 22, halign: 'right', fontStyle: 'bold' },
     },
     headStyles: { fillColor: ORANGE, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
     bodyStyles: { fontSize: 7, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.2 },
@@ -4678,6 +4672,8 @@ async function generateQuotationPdf(opts: {
   // ── ROW 2 RIGHT: Pricing ──────────────────────────────────────────────────────
   secLabel('PRICING', rightX, rightY);
   rightY += 3.5;
+
+  const totalKwhLoad = opts.lines.reduce((s, l) => s + (l.kwhPerMonth || 0) * l.qty, 0);
 
   const pricingRows: Array<[string, string]> = [
     ['Product subtotal', PKR(productSubtotal)],
@@ -4694,7 +4690,8 @@ async function generateQuotationPdf(opts: {
   }
 
   const pricingRowH = 5.5;
-  const pricingH = pricingRows.length * pricingRowH + 18; // rows + grand total (12) + padding (6)
+  const loadBarH = totalKwhLoad > 0 ? 8 : 0;
+  const pricingH = pricingRows.length * pricingRowH + loadBarH + 18;
   doc.setFillColor(250, 250, 250);
   doc.rect(rightX, rightY, rightW, pricingH, 'F');
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
@@ -4708,6 +4705,22 @@ async function generateQuotationPdf(opts: {
     pry += pricingRowH;
   }
 
+  // Load bar anchored inside pricing block, just above grand total
+  if (totalKwhLoad > 0) {
+    doc.setFillColor(254, 252, 232);
+    doc.rect(rightX, pry, rightW, loadBarH, 'F');
+    doc.setDrawColor(202, 138, 4); doc.setLineWidth(0.4);
+    doc.line(rightX, pry, rightX, pry + loadBarH);
+    doc.setLineWidth(0.2);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(120, 80, 0);
+    doc.text('LOAD:', rightX + 2, pry + 5.5);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(101, 61, 0);
+    doc.text(`${totalKwhLoad} kWh/mo`, rightX + 13, pry + 5.5);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(100, 70, 0);
+    doc.text(`~${PKR(Math.round(totalKwhLoad * 50))}/mo`, rightX + rightW - 3, pry + 5.5, { align: 'right' });
+    pry += loadBarH;
+  }
+
   doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
   doc.line(rightX + 3, pry - 1, rightX + rightW - 3, pry - 1);
 
@@ -4717,24 +4730,6 @@ async function generateQuotationPdf(opts: {
   doc.text('GRAND TOTAL', rightX + 3, pry + 7);
   doc.text(PKR(grandTotal), rightX + rightW - 3, pry + 7, { align: 'right' });
   rightY += pricingH + 3;
-
-  // Appliance load bar — right column, below pricing
-  const totalKwhLoad = opts.lines.reduce((s, l) => s + (l.kwhPerMonth || 0) * l.qty, 0);
-  if (totalKwhLoad > 0) {
-    const lsH = 7;
-    doc.setFillColor(254, 252, 232);
-    doc.rect(rightX, rightY, rightW, lsH, 'F');
-    doc.setDrawColor(202, 138, 4); doc.setLineWidth(0.4);
-    doc.line(rightX, rightY, rightX, rightY + lsH);
-    doc.setLineWidth(0.2);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(120, 80, 0);
-    doc.text('LOAD:', rightX + 2, rightY + 5);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(101, 61, 0);
-    doc.text(`${totalKwhLoad} kWh/mo`, rightX + 13, rightY + 5);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(100, 70, 0);
-    doc.text(`~${PKR(Math.round(totalKwhLoad * 50))}/mo`, rightX + rightW - 3, rightY + 5, { align: 'right' });
-    rightY += lsH + 2;
-  }
 
   // sync row 2
   leftY = Math.max(leftY, rightY);
