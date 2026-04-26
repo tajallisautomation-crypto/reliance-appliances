@@ -4341,6 +4341,7 @@ interface PackageComponent {
   status: 'included' | 'addon';
   addonPrice: number;
   hidden: boolean;
+  group: 'core' | 'generation' | 'infrastructure' | 'service';
 }
 
 interface QuoteLine {
@@ -4366,53 +4367,54 @@ interface QuoteLine {
 // ── Default component definitions per package (keyed by QuoteLine.id) ─────────
 const _pc = (
   id: string, name: string, qty: number, keySpec: string, warranty: string,
+  group: PackageComponent['group'] = 'core',
   status: 'included' | 'addon' = 'included', addonPrice = 0,
-): PackageComponent => ({ id, name, qty, keySpec, warranty, status, addonPrice, hidden: false });
+): PackageComponent => ({ id, name, qty, keySpec, warranty, group, status, addonPrice, hidden: false });
 
 const DEFAULT_PACKAGE_COMPONENTS: Record<string, PackageComponent[]> = {
   'solar-ups-3.6kw': [
-    _pc('inv',   'Crown Yorker 3.6kW Hybrid Inverter', 1, '3.6kW · MPPT · Hybrid',          '3-yr replacement'),
-    _pc('bat',   'Crown Elektra Boost Pro 2.4kW Battery', 1, '2.4kWh · LiFePO4 · 48V',     '10-yr replacement'),
-    _pc('cable', 'Wiring, Cabling & Protection', 1, 'MCB · Earthing · AC/DC protection',    '1-yr workmanship'),
-    _pc('labor', 'Professional Installation & Transport', 1, 'Certified engineers',           '1-yr workmanship'),
+    _pc('inv',   'Crown Yorker 3.6kW Hybrid Inverter',    1, '3.6kW · MPPT · Hybrid',             '3 year replacement',  'core'),
+    _pc('bat',   'Crown Elektra Boost Pro 2.4kW Battery', 1, '2.4kWh · LiFePO4 · 48V',            '10 year replacement', 'core'),
+    _pc('cable', 'Wiring, Cabling & Protection',          1, 'MCB · Earthing · AC/DC protection',  '1 year workmanship',  'infrastructure'),
+    _pc('labor', 'Professional Installation & Transport', 1, 'Certified engineers',                 '1 year workmanship',  'service'),
   ],
   'solar-solar-3.6kw': [
-    _pc('panels','Crown Bi-Facial 620W Solar Plates', 6,  '620W · Mono Bi-Facial · PERC',   '12-yr product · 25-yr performance'),
-    _pc('inv',   'Crown Yorker 3.6kW Hybrid Inverter', 1, '3.6kW · MPPT · Hybrid',          '3-yr replacement'),
-    _pc('bat',   'Crown Elektra Boost Pro 2.4kW Battery', 1, '2.4kWh · LiFePO4 · 48V',     '10-yr replacement'),
-    _pc('frame', 'Elevated Solar Frame & Mounting Structure', 1, 'Galvanised · Wind-rated', '5-yr'),
-    _pc('cable', 'DC/AC Wiring, Cabling & Protection', 1, 'Solar DC cable · MCB · Earthing','1-yr workmanship'),
-    _pc('labor', 'Professional Installation & Transport', 1, 'Certified engineers · City-wide','1-yr workmanship'),
+    _pc('inv',    'Crown Yorker 3.6kW Hybrid Inverter',        1, '3.6kW · MPPT · Hybrid',            '3 year replacement',                    'core'),
+    _pc('bat',    'Crown Elektra Boost Pro 2.4kW Battery',     1, '2.4kWh · LiFePO4 · 48V',           '10 year replacement',                   'core'),
+    _pc('panels', 'Crown Bi-Facial 620W Solar Plates',         6, '620W · Mono Bi-Facial · PERC',      '12 year product · 25 year performance', 'generation'),
+    _pc('frame',  'Elevated Solar Frame & Mounting Structure', 1, 'Galvanised steel · Wind-rated',     '5 year structural',                     'infrastructure'),
+    _pc('cable',  'DC/AC Wiring, Cabling & Protection',        1, 'Solar DC cable · MCB · Earthing',   '1 year workmanship',                    'infrastructure'),
+    _pc('labor',  'Professional Installation & Transport',     1, 'Certified engineers · City-wide',   '1 year workmanship',                    'service'),
   ],
   'solar-ups-5kw': [
-    _pc('inv',   'Crown Yorker 5kW Hybrid Inverter', 1, '5kW · MPPT · Hybrid',              '3-yr replacement'),
-    _pc('bat',   'Crown Elektra Boost Pro 5.12kW Battery', 1, '5.12kWh · LiFePO4 · 48V',   '10-yr replacement'),
-    _pc('cable', 'Wiring, Cabling & Protection', 1, 'MCB · Earthing · AC/DC protection',    '1-yr workmanship'),
-    _pc('labor', 'Professional Installation & Transport', 1, 'Certified engineers',           '1-yr workmanship'),
+    _pc('inv',   'Crown Yorker 5kW Hybrid Inverter',      1, '5kW · MPPT · Hybrid',             '3 year replacement',  'core'),
+    _pc('bat',   'Crown Elektra Boost Pro 5.12kW Battery',1, '5.12kWh · LiFePO4 · 48V',         '10 year replacement', 'core'),
+    _pc('cable', 'Wiring, Cabling & Protection',          1, 'MCB · Earthing · AC/DC protection','1 year workmanship',  'infrastructure'),
+    _pc('labor', 'Professional Installation & Transport', 1, 'Certified engineers',               '1 year workmanship',  'service'),
   ],
   'solar-solar-5kw': [
-    _pc('panels','Crown Bi-Facial 620W Solar Plates', 8,  '620W · Mono Bi-Facial · PERC',   '12-yr product · 25-yr performance'),
-    _pc('inv',   'Crown Yorker 5kW Hybrid Inverter', 1, '5kW · MPPT · Hybrid',              '3-yr replacement'),
-    _pc('bat',   'Crown Elektra Boost Pro 5.12kW Battery', 1, '5.12kWh · LiFePO4 · 48V',   '10-yr replacement'),
-    _pc('frame', 'Elevated Solar Frame & Mounting Structure', 1, 'Galvanised · Wind-rated', '5-yr'),
-    _pc('cable', 'DC/AC Wiring, Cabling & Protection', 1, 'Solar DC cable · MCB · Earthing','1-yr workmanship'),
-    _pc('labor', 'Professional Installation & Transport', 1, 'Certified engineers · City-wide','1-yr workmanship'),
+    _pc('inv',    'Crown Yorker 5kW Hybrid Inverter',          1, '5kW · MPPT · Hybrid',              '3 year replacement',                    'core'),
+    _pc('bat',    'Crown Elektra Boost Pro 5.12kW Battery',    1, '5.12kWh · LiFePO4 · 48V',          '10 year replacement',                   'core'),
+    _pc('panels', 'Crown Bi-Facial 620W Solar Plates',         8, '620W · Mono Bi-Facial · PERC',      '12 year product · 25 year performance', 'generation'),
+    _pc('frame',  'Elevated Solar Frame & Mounting Structure', 1, 'Galvanised steel · Wind-rated',     '5 year structural',                     'infrastructure'),
+    _pc('cable',  'DC/AC Wiring, Cabling & Protection',        1, 'Solar DC cable · MCB · Earthing',   '1 year workmanship',                    'infrastructure'),
+    _pc('labor',  'Professional Installation & Transport',     1, 'Certified engineers · City-wide',   '1 year workmanship',                    'service'),
   ],
   'solar-solar-8kw': [
-    _pc('panels','Crown Bi-Facial 620W Solar Plates', 14, '620W · Mono Bi-Facial · PERC',   '12-yr product · 25-yr performance'),
-    _pc('inv',   'Crown Nexus 8kW Hybrid Inverter', 1, '8kW · MPPT · Hybrid',               '5-yr replacement'),
-    _pc('bat',   'Crown Elektra Boost Pro 5.12kW Battery', 1, '5.12kWh · LiFePO4 · 48V',   '10-yr replacement'),
-    _pc('frame', 'Elevated Solar Frame & Mounting Structure', 1, 'Galvanised · Wind-rated', '5-yr'),
-    _pc('cable', 'DC/AC Wiring, Cabling & Protection', 1, 'Solar DC cable · MCB · Earthing','1-yr workmanship'),
-    _pc('labor', 'Professional Installation & Transport', 1, 'Certified engineers · City-wide','1-yr workmanship'),
+    _pc('inv',    'Crown Nexus 8kW Hybrid Inverter',           1, '8kW · MPPT · Hybrid',               '5 year replacement',                    'core'),
+    _pc('bat',    'Crown Elektra Boost Pro 5.12kW Battery',    1, '5.12kWh · LiFePO4 · 48V',           '10 year replacement',                   'core'),
+    _pc('panels', 'Crown Bi-Facial 620W Solar Plates',        14, '620W · Mono Bi-Facial · PERC',       '12 year product · 25 year performance', 'generation'),
+    _pc('frame',  'Elevated Solar Frame & Mounting Structure', 1, 'Galvanised steel · Wind-rated',      '5 year structural',                     'infrastructure'),
+    _pc('cable',  'DC/AC Wiring, Cabling & Protection',        1, 'Solar DC cable · MCB · Earthing',    '1 year workmanship',                    'infrastructure'),
+    _pc('labor',  'Professional Installation & Transport',     1, 'Certified engineers · City-wide',    '1 year workmanship',                    'service'),
   ],
   'solar-solar-12kw': [
-    _pc('panels','Crown Bi-Facial 620W Solar Plates', 20, '620W · Mono Bi-Facial · PERC',   '12-yr product · 25-yr performance'),
-    _pc('inv',   'Crown Nexus 12kW Hybrid Inverter', 1, '12kW · MPPT · Hybrid',             '5-yr replacement'),
-    _pc('bat',   'Crown Elektra Boost Pro 5.12kW Battery', 1, '5.12kWh · LiFePO4 · 48V',   '10-yr replacement'),
-    _pc('frame', 'Elevated Solar Frame & Mounting Structure', 1, 'Galvanised · Wind-rated', '5-yr'),
-    _pc('cable', 'DC/AC Wiring, Cabling & Protection', 1, 'Solar DC cable · MCB · Earthing','1-yr workmanship'),
-    _pc('labor', 'Professional Installation & Transport', 1, 'Certified engineers · City-wide','1-yr workmanship'),
+    _pc('inv',    'Crown Nexus 12kW Hybrid Inverter',          1, '12kW · MPPT · Hybrid',               '5 year replacement',                    'core'),
+    _pc('bat',    'Crown Elektra Boost Pro 5.12kW Battery',    1, '5.12kWh · LiFePO4 · 48V',            '10 year replacement',                   'core'),
+    _pc('panels', 'Crown Bi-Facial 620W Solar Plates',        20, '620W · Mono Bi-Facial · PERC',        '12 year product · 25 year performance', 'generation'),
+    _pc('frame',  'Elevated Solar Frame & Mounting Structure', 1, 'Galvanised steel · Wind-rated',       '5 year structural',                     'infrastructure'),
+    _pc('cable',  'DC/AC Wiring, Cabling & Protection',        1, 'Solar DC cable · MCB · Earthing',     '1 year workmanship',                    'infrastructure'),
+    _pc('labor',  'Professional Installation & Transport',     1, 'Certified engineers · City-wide',     '1 year workmanship',                    'service'),
   ],
 };
 
@@ -4643,8 +4645,8 @@ async function generateQuotationPdf(opts: {
     doc.text(text, x, y);
   };
 
-  // ── ROW 1 LEFT: Customer ──────────────────────────────────────────────────────
-  secLabel('CUSTOMER', margin, leftY);
+  // ── ROW 1 LEFT: Client ────────────────────────────────────────────────────────
+  secLabel('CLIENT', margin, leftY);
   leftY += 3.5;
 
   const custFields: Array<[string, string]> = [
@@ -4735,17 +4737,26 @@ async function generateQuotationPdf(opts: {
     grouped[key].push(line);
   }
 
-  const abbrevWty = (w: string) => w
-    .replace(/\byears?\b/gi, 'yr')
-    .replace(/\bcompressor\b/gi, 'Comp')
-    .replace(/\bcomplete\b/gi, 'Full')
-    .replace(/\breplacement\b/gi, 'Rplc')
-    .replace(/\bmanufactur\w*/gi, 'Mfr')
-    .replace(/\bwarranty\b/gi, '')
-    .replace(/\bonly\b/gi, '')
-    .replace(/\s{2,}/g, ' ').trim()
-    // Normalise digit-yr spacing: "5 yr" or "5yr" → "5-yr" for consistency
-    .replace(/(\d)\s*yr\b/g, '$1-yr');
+  // Standardise warranty strings → "N-yr Type" format, title-cased
+  const formatWty = (w: string): string => {
+    if (!w?.trim()) return '';
+    const TYPE_WORDS = ['replacement', 'manufacturer', 'workmanship', 'performance', 'product', 'structural', 'compressor'];
+    return w.split(/\s*[·,]\s*/).map(part => {
+      let s = part.trim();
+      s = s.replace(/\b(\d+)\s*-?\s*years?\b/gi, '$1-yr');
+      s = s.replace(/\b(\d+)\s*yr\b/gi, '$1-yr');
+      s = s.replace(/\bwarranty\b/gi, '').replace(/\bonly\b/gi, '');
+      // Remove brand/component suffixes like "— Inverter", "— Battery"
+      s = s.replace(/\s*[—–-]+\s*(inverter|battery|panel|compressor|product)\b.*/i, '');
+      // Expand abbreviations
+      s = s.replace(/\bRplc\b/g, 'Replacement').replace(/\bMfr\b/g, 'Manufacturer').replace(/\bComp\b/g, 'Compressor');
+      // Title-case type words
+      TYPE_WORDS.forEach(t => {
+        s = s.replace(new RegExp(`\\b${t}\\b`, 'gi'), t.charAt(0).toUpperCase() + t.slice(1));
+      });
+      return s.replace(/\s{2,}/g, ' ').replace(/(\d)-yr\b/g, '$1-yr').trim();
+    }).filter(Boolean).join(' · ');
+  };
 
   const itemsBody: any[] = [];
   for (const cat of categoryOrder) {
@@ -4757,24 +4768,70 @@ async function generateQuotationPdf(opts: {
       const displayName = line.displayPrefix ? `${line.displayPrefix}${line.name}` : line.name;
 
       if (line.isPackage && line.packageComponents && line.packageComponents.length > 0) {
-        // ── Package line: show component list, suppress unit price ────────────
-        const nameParts = [displayName];
+        // ── Package line: grouped components, no per-component warranty ───────
+        const visibleComps = line.packageComponents.filter((c: PackageComponent) => !c.hidden);
+        const includedComps = visibleComps.filter((c: PackageComponent) => c.status === 'included');
+        const addonComps = visibleComps.filter((c: PackageComponent) => c.status === 'addon');
+
+        const GROUP_LABELS: Record<string, string> = {
+          core: 'SYSTEM CORE',
+          generation: 'SOLAR GENERATION',
+          infrastructure: 'INFRASTRUCTURE',
+          service: 'SERVICES',
+        };
+        const groupOrder = ['core', 'generation', 'infrastructure', 'service'];
+
+        const nameParts: string[] = [displayName];
         if (line.model) nameParts.push(`Model: ${line.model}`);
-        nameParts.push('Includes:');
-        for (const comp of line.packageComponents.filter((c: PackageComponent) => !c.hidden)) {
-          const qtyStr = comp.qty > 1 ? `${comp.qty}x ` : '';
-          nameParts.push(`  + ${qtyStr}${comp.name}`);
-          if (comp.keySpec) nameParts.push(`    ${comp.keySpec}`);
-          if (comp.warranty) nameParts.push(`    Wty: ${abbrevWty(comp.warranty)}`);
-        }
-        if (line.warranty) nameParts.push(`Overall Wty: ${abbrevWty(line.warranty)}`);
         if (line.packageNote) nameParts.push(`> ${line.packageNote}`);
+
+        for (const grp of groupOrder) {
+          const grpComps = includedComps.filter((c: PackageComponent) => (c.group || 'core') === grp);
+          if (grpComps.length === 0) continue;
+          nameParts.push(`\n${GROUP_LABELS[grp]}`);
+          for (const comp of grpComps) {
+            const qtyStr = comp.qty > 1 ? `${comp.qty}x ` : '';
+            nameParts.push(`  + ${qtyStr}${comp.name}`);
+            if (comp.keySpec) nameParts.push(`    ${comp.keySpec}`);
+          }
+        }
+
         itemsBody.push([
           { content: nameParts.join('\n'), styles: { fontStyle: 'normal' } },
           { content: String(line.qty), styles: {} },
-          { content: 'Package', styles: { fontStyle: 'italic', textColor: [120, 120, 120] } },
+          { content: 'Package', styles: { fontStyle: 'italic', textColor: [120, 120, 120] as [number,number,number] } },
           { content: PKR(line.qty * line.unitPrice), styles: { fontStyle: 'bold' } },
         ]);
+
+        // ── Add-on rows ───────────────────────────────────────────────────────
+        for (const comp of addonComps) {
+          const qtyStr = comp.qty > 1 ? `${comp.qty}x ` : '';
+          const addonParts = [`ADD-ON: ${qtyStr}${comp.name}`];
+          if (comp.keySpec) addonParts.push(`    ${comp.keySpec}`);
+          itemsBody.push([
+            { content: addonParts.join('\n'), styles: { fontStyle: 'italic' as const, textColor: [80, 80, 80] as [number,number,number] } },
+            { content: String(comp.qty), styles: {} },
+            { content: PKR(comp.addonPrice), styles: {} },
+            { content: PKR(comp.qty * comp.addonPrice), styles: { fontStyle: 'bold' as const } },
+          ]);
+        }
+
+        // ── WARRANTY SUMMARY row (full-width, after add-ons) ─────────────────
+        const wtyComps = visibleComps.filter((c: PackageComponent) => c.warranty);
+        if (wtyComps.length > 0) {
+          const wtyLines = wtyComps.map((c: PackageComponent) => `  ${c.name}  ·  ${formatWty(c.warranty)}`);
+          itemsBody.push([{
+            content: 'WARRANTY COVERAGE\n' + wtyLines.join('\n'),
+            colSpan: 4,
+            styles: {
+              fillColor: [248, 250, 252] as [number,number,number],
+              textColor: [50, 50, 50] as [number,number,number],
+              fontSize: 6.5,
+              fontStyle: 'normal' as const,
+              cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 },
+            },
+          }]);
+        }
       } else {
         // ── Regular line ──────────────────────────────────────────────────────
         const nameParts = [displayName];
@@ -4786,7 +4843,7 @@ async function generateQuotationPdf(opts: {
             .forEach((s: string) => nameParts.push(`· ${s}`));
         }
         if (line.kwhPerMonth > 0) nameParts.push(`· ${line.kwhPerMonth} kWh/mo`);
-        if (line.warranty) nameParts.push(`Wty: ${abbrevWty(line.warranty)}`);
+        if (line.warranty) nameParts.push(`Wty: ${formatWty(line.warranty)}`);
         if (line.packageNote) nameParts.push(`> ${line.packageNote}`);
         itemsBody.push([
           nameParts.join('\n'),
@@ -6421,7 +6478,7 @@ function QuotationTab({ products }: { products: Product[] }) {
   function addComponent(lineId: string) {
     const newComp: PackageComponent = {
       id: `custom-${Date.now()}`, name: '', qty: 1, keySpec: '', warranty: '',
-      status: 'included', addonPrice: 0, hidden: false,
+      group: 'core', status: 'included', addonPrice: 0, hidden: false,
     };
     setLines(ls => ls.map(l => l.id === lineId
       ? { ...l, packageComponents: [...l.packageComponents, newComp] } : l));
@@ -7344,6 +7401,14 @@ function QuotationTab({ products }: { products: Product[] }) {
                                 <option value="included">Included</option>
                                 <option value="addon">Add-on</option>
                               </select>
+                              <select value={comp.group || 'core'}
+                                onChange={e => updateComponent(line.id, idx, { group: e.target.value as PackageComponent['group'] })}
+                                className="border border-gray-200 rounded px-1 py-0.5 text-[10px] focus:outline-none text-gray-500">
+                                <option value="core">Core</option>
+                                <option value="generation">Generation</option>
+                                <option value="infrastructure">Infrastructure</option>
+                                <option value="service">Service</option>
+                              </select>
                               <button onClick={() => updateComponent(line.id, idx, { hidden: !comp.hidden })}
                                 className={`text-[10px] px-1.5 py-0.5 rounded ${comp.hidden ? 'bg-gray-200 text-gray-500' : 'bg-green-100 text-green-700'}`}>
                                 {comp.hidden ? 'Hidden' : 'Show'}
@@ -7364,6 +7429,14 @@ function QuotationTab({ products }: { products: Product[] }) {
                                 placeholder="Warranty"
                                 className="w-32 border border-gray-200 rounded px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-orange-300"
                               />
+                              {comp.status === 'addon' && (
+                                <input
+                                  type="number" min={0} value={comp.addonPrice}
+                                  onChange={e => updateComponent(line.id, idx, { addonPrice: Math.max(0, Number(e.target.value)) })}
+                                  placeholder="Add-on price"
+                                  className="w-24 border border-orange-200 rounded px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-orange-300 text-orange-700"
+                                />
+                              )}
                             </div>
                           </div>
                         ))}
