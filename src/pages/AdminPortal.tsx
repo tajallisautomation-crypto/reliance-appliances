@@ -4758,6 +4758,26 @@ async function generateQuotationPdf(opts: {
     }).filter(Boolean).join(' · ');
   };
 
+  // ── Collect warranty entries (deduped across entire invoice) ─────────────────
+  const warrantyEntries: Array<{ name: string; coverage: string }> = [];
+  const _wtySet = new Set<string>();
+  for (const _line of opts.lines) {
+    if (_line.isPackage && _line.packageComponents?.length) {
+      for (const _c of _line.packageComponents.filter((c: PackageComponent) => !c.hidden && c.warranty)) {
+        if (!_wtySet.has(_c.name)) {
+          _wtySet.add(_c.name);
+          warrantyEntries.push({ name: _c.name, coverage: formatWty(_c.warranty) });
+        }
+      }
+    } else if (_line.warranty) {
+      const _dn = _line.displayPrefix ? `${_line.displayPrefix}${_line.name}` : _line.name;
+      if (!_wtySet.has(_line.name)) {
+        _wtySet.add(_line.name);
+        warrantyEntries.push({ name: _dn, coverage: formatWty(_line.warranty) });
+      }
+    }
+  }
+
   const itemsBody: any[] = [];
   for (const cat of categoryOrder) {
     itemsBody.push([{
@@ -4768,69 +4788,72 @@ async function generateQuotationPdf(opts: {
       const displayName = line.displayPrefix ? `${line.displayPrefix}${line.name}` : line.name;
 
       if (line.isPackage && line.packageComponents && line.packageComponents.length > 0) {
-        // ── Package line: grouped components, no per-component warranty ───────
+        // ── Package: header row + group sub-headers + component rows + add-ons ─
         const visibleComps = line.packageComponents.filter((c: PackageComponent) => !c.hidden);
         const includedComps = visibleComps.filter((c: PackageComponent) => c.status === 'included');
         const addonComps = visibleComps.filter((c: PackageComponent) => c.status === 'addon');
 
-        const GROUP_LABELS: Record<string, string> = {
-          core: 'SYSTEM CORE',
-          generation: 'SOLAR GENERATION',
-          infrastructure: 'INFRASTRUCTURE',
-          service: 'SERVICES',
+        // Package header row
+        const hdrParts: string[] = [displayName];
+        if (line.model) hdrParts.push(`Model: ${line.model}`);
+        if (line.packageNote) hdrParts.push(line.packageNote);
+        itemsBody.push([
+          { content: hdrParts.join('\n'), styles: { fontStyle: 'bold' as const, textColor: [20, 20, 20] as [number,number,number], fillColor: [255, 252, 245] as [number,number,number] } },
+          { content: String(line.qty), styles: { fontStyle: 'bold' as const, fillColor: [255, 252, 245] as [number,number,number] } },
+          { content: 'Package', styles: { fontStyle: 'italic' as const, textColor: [140, 80, 20] as [number,number,number], fillColor: [255, 252, 245] as [number,number,number] } },
+          { content: PKR(line.qty * line.unitPrice), styles: { fontStyle: 'bold' as const, fillColor: [255, 252, 245] as [number,number,number] } },
+        ]);
+
+        // Group sub-sections
+        const GRP_LABELS: Record<string, string> = {
+          core: 'SYSTEM CORE', generation: 'SOLAR GENERATION',
+          infrastructure: 'INFRASTRUCTURE', service: 'SERVICES',
         };
-        const groupOrder = ['core', 'generation', 'infrastructure', 'service'];
-
-        const nameParts: string[] = [displayName];
-        if (line.model) nameParts.push(`Model: ${line.model}`);
-        if (line.packageNote) nameParts.push(`> ${line.packageNote}`);
-
-        for (const grp of groupOrder) {
+        for (const grp of ['core', 'generation', 'infrastructure', 'service']) {
           const grpComps = includedComps.filter((c: PackageComponent) => (c.group || 'core') === grp);
           if (grpComps.length === 0) continue;
-          nameParts.push(`\n${GROUP_LABELS[grp]}`);
+          itemsBody.push([{
+            content: GRP_LABELS[grp], colSpan: 4,
+            styles: {
+              fillColor: [45, 45, 55] as [number,number,number],
+              textColor: [190, 190, 200] as [number,number,number],
+              fontStyle: 'bold' as const, fontSize: 5.5,
+              cellPadding: { top: 1.2, bottom: 1.2, left: 12, right: 2 },
+            },
+          }]);
           for (const comp of grpComps) {
-            const qtyStr = comp.qty > 1 ? `${comp.qty}x ` : '';
-            nameParts.push(`  + ${qtyStr}${comp.name}`);
-            if (comp.keySpec) nameParts.push(`    ${comp.keySpec}`);
+            const cParts: string[] = [comp.name];
+            if (comp.keySpec) cParts.push(comp.keySpec);
+            itemsBody.push([
+              { content: cParts.join('\n'), styles: { textColor: [55, 65, 81] as [number,number,number], fontSize: 6.5, cellPadding: { top: 1.5, bottom: 1.5, left: 12, right: 2 } } },
+              { content: comp.qty > 1 ? String(comp.qty) : '', styles: { textColor: [110, 110, 110] as [number,number,number], halign: 'right' as const } },
+              { content: '', styles: {} },
+              { content: '', styles: {} },
+            ]);
           }
         }
 
-        itemsBody.push([
-          { content: nameParts.join('\n'), styles: { fontStyle: 'normal' } },
-          { content: String(line.qty), styles: {} },
-          { content: 'Package', styles: { fontStyle: 'italic', textColor: [120, 120, 120] as [number,number,number] } },
-          { content: PKR(line.qty * line.unitPrice), styles: { fontStyle: 'bold' } },
-        ]);
-
-        // ── Add-on rows ───────────────────────────────────────────────────────
-        for (const comp of addonComps) {
-          const qtyStr = comp.qty > 1 ? `${comp.qty}x ` : '';
-          const addonParts = [`ADD-ON: ${qtyStr}${comp.name}`];
-          if (comp.keySpec) addonParts.push(`    ${comp.keySpec}`);
-          itemsBody.push([
-            { content: addonParts.join('\n'), styles: { fontStyle: 'italic' as const, textColor: [80, 80, 80] as [number,number,number] } },
-            { content: String(comp.qty), styles: {} },
-            { content: PKR(comp.addonPrice), styles: {} },
-            { content: PKR(comp.qty * comp.addonPrice), styles: { fontStyle: 'bold' as const } },
-          ]);
-        }
-
-        // ── WARRANTY SUMMARY row (full-width, after add-ons) ─────────────────
-        const wtyComps = visibleComps.filter((c: PackageComponent) => c.warranty);
-        if (wtyComps.length > 0) {
-          const wtyLines = wtyComps.map((c: PackageComponent) => `  ${c.name}  ·  ${formatWty(c.warranty)}`);
+        // Add-on sub-section
+        if (addonComps.length > 0) {
           itemsBody.push([{
-            content: 'WARRANTY COVERAGE\n' + wtyLines.join('\n'),
-            colSpan: 4,
+            content: 'ADD-ONS', colSpan: 4,
             styles: {
-              fillColor: [248, 250, 252] as [number,number,number],
-              textColor: [50, 50, 50] as [number,number,number],
-              fontSize: 6.5,
-              fontStyle: 'normal' as const,
-              cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 },
+              fillColor: [253, 237, 225] as [number,number,number],
+              textColor: [180, 60, 0] as [number,number,number],
+              fontStyle: 'bold' as const, fontSize: 5.5,
+              cellPadding: { top: 1.2, bottom: 1.2, left: 12, right: 2 },
             },
           }]);
+          for (const comp of addonComps) {
+            const aParts: string[] = [comp.name];
+            if (comp.keySpec) aParts.push(comp.keySpec);
+            itemsBody.push([
+              { content: aParts.join('\n'), styles: { textColor: [160, 50, 0] as [number,number,number], fontSize: 6.5, cellPadding: { top: 1.5, bottom: 1.5, left: 12, right: 2 } } },
+              { content: String(comp.qty), styles: { textColor: [110, 110, 110] as [number,number,number], halign: 'right' as const } },
+              { content: PKR(comp.addonPrice), styles: { halign: 'right' as const } },
+              { content: PKR(comp.qty * comp.addonPrice), styles: { fontStyle: 'bold' as const, halign: 'right' as const } },
+            ]);
+          }
         }
       } else {
         // ── Regular line ──────────────────────────────────────────────────────
@@ -4869,7 +4892,7 @@ async function generateQuotationPdf(opts: {
   autoTable(doc, {
     startY: leftY,
     margin: { left: margin, right: leftAutoMarginRight },
-    head: [['PRODUCT / SPECS / WARRANTY', 'QTY', 'UNIT', 'TOTAL']],
+    head: [['PRODUCT / SPECS', 'QTY', 'UNIT', 'TOTAL']],
     body: itemsBody,
     columnStyles: {
       0: { cellWidth: 'auto' },
@@ -5043,6 +5066,62 @@ async function generateQuotationPdf(opts: {
   // ── SYNC COLUMNS → FULL-WIDTH ZONE ───────────────────────────────────────────
   let y = Math.max(leftY, rightY) + 2;
 
+  // ── WARRANTY COVERAGE (full-width, deduplicated across entire invoice) ────────
+  if (warrantyEntries.length > 0) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
+    doc.text('WARRANTY COVERAGE', margin, y);
+    y += 3.5;
+
+    const wtyRows: any[][] = [];
+    for (let wi = 0; wi < warrantyEntries.length; wi += 2) {
+      const a = warrantyEntries[wi];
+      const b = wi + 1 < warrantyEntries.length ? warrantyEntries[wi + 1] : null;
+      if (b) {
+        wtyRows.push([
+          { content: a.name, styles: { fontStyle: 'bold' as const, textColor: [30, 30, 30] as [number,number,number] } },
+          { content: a.coverage, styles: { textColor: [70, 70, 70] as [number,number,number] } },
+          { content: b.name, styles: { fontStyle: 'bold' as const, textColor: [30, 30, 30] as [number,number,number] } },
+          { content: b.coverage, styles: { textColor: [70, 70, 70] as [number,number,number] } },
+        ]);
+      } else {
+        wtyRows.push([
+          { content: a.name, styles: { fontStyle: 'bold' as const, textColor: [30, 30, 30] as [number,number,number] } },
+          { content: a.coverage, colSpan: 3, styles: { textColor: [70, 70, 70] as [number,number,number] } },
+        ]);
+      }
+    }
+
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      body: wtyRows,
+      columnStyles: {
+        0: { cellWidth: 52 },
+        1: { cellWidth: 43 },
+        2: { cellWidth: 52 },
+        3: { cellWidth: 43 },
+      },
+      bodyStyles: {
+        fontSize: 6.5,
+        textColor: [50, 50, 50] as [number,number,number],
+        cellPadding: { top: 2, bottom: 2, left: 3, right: 3 },
+        lineColor: [220, 220, 220] as [number,number,number],
+        lineWidth: 0.15,
+      },
+      alternateRowStyles: { fillColor: [248, 250, 252] as [number,number,number] },
+      styles: { overflow: 'linebreak' },
+    });
+    // @ts-ignore
+    y = (doc as any).lastAutoTable.finalY + 5;
+  }
+
+  // ── Page-break guard — if bottom sections won't fit, start fresh page ─────────
+  const BOTTOM_H = 49 + 25 + 33; // payment (49) + trust strip (25) + T&C + footer (33)
+  if (y + BOTTOM_H > 278) {
+    doc.addPage();
+    y = margin + 5;
+  }
+
   // ── PAYMENT + BANK + QR (merged full-width block) ─────────────────────────────
   doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
   doc.text('PAYMENT & BANK TRANSFER', margin, y);
@@ -5109,12 +5188,12 @@ async function generateQuotationPdf(opts: {
   // QR col — Raast payment QR only, centered
   const QR_S = 20;
   const qr1X = qrColX + (qrColW - QR_S) / 2;
-  const qrY = y + 5;
+  const qrY = y + 8; // start below 6mm banner (banner: y+1..y+7)
   if (qrData) {
     doc.setFillColor(22, 101, 52);
-    doc.rect(qrColX + 2, y + 1, qrColW - 4, 5, 'F');
+    doc.rect(qrColX + 2, y + 1, qrColW - 4, 6, 'F'); // 6mm banner, no overlap with QR box
     doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(255, 255, 255);
-    doc.text('SCAN TO PAY', qrColX + qrColW / 2, y + 4.8, { align: 'center' });
+    doc.text('SCAN TO PAY', qrColX + qrColW / 2, y + 5, { align: 'center' });
 
     doc.setFillColor(255, 255, 255);
     doc.rect(qr1X - 1, qrY - 1, QR_S + 2, QR_S + 2, 'F');
