@@ -4258,8 +4258,13 @@ async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<void> {
       kwh_per_month:          l.kwhPerMonth || null,
       warranty:               l.warranty || null,
       key_spec:               l.keySpec || null,
-      key_specs_json:         (l.displayPrefix || l.packageNote)
-                                ? { displayPrefix: l.displayPrefix || '', packageNote: l.packageNote || '' }
+      key_specs_json:         (l.displayPrefix || l.packageNote || l.isPackage || l.packageComponents.length > 0)
+                                ? {
+                                    displayPrefix:     l.displayPrefix || '',
+                                    packageNote:       l.packageNote || '',
+                                    isPackage:         l.isPackage || false,
+                                    packageComponents: l.packageComponents || [],
+                                  }
                                 : null,
     }));
 
@@ -4327,6 +4332,17 @@ async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<void> {
   }
 }
 
+interface PackageComponent {
+  id: string;
+  name: string;
+  qty: number;
+  keySpec: string;
+  warranty: string;
+  status: 'included' | 'addon';
+  addonPrice: number;
+  hidden: boolean;
+}
+
 interface QuoteLine {
   id: string;
   name: string;
@@ -4343,7 +4359,62 @@ interface QuoteLine {
   overrideReason: string;
   displayPrefix: string;  // prepended to name in PDF (e.g. "Additional Battery — ")
   packageNote: string;    // italic note sub-line below specs (e.g. "System includes inverter…")
+  isPackage: boolean;     // render as expanded package with component list
+  packageComponents: PackageComponent[];
 }
+
+// ── Default component definitions per package (keyed by QuoteLine.id) ─────────
+const _pc = (
+  id: string, name: string, qty: number, keySpec: string, warranty: string,
+  status: 'included' | 'addon' = 'included', addonPrice = 0,
+): PackageComponent => ({ id, name, qty, keySpec, warranty, status, addonPrice, hidden: false });
+
+const DEFAULT_PACKAGE_COMPONENTS: Record<string, PackageComponent[]> = {
+  'solar-ups-3.6kw': [
+    _pc('inv',   'Crown Yorker 3.6kW Hybrid Inverter', 1, '3.6kW · MPPT · Hybrid',          '3-yr replacement'),
+    _pc('bat',   'Crown Elektra Boost Pro 2.4kW Battery', 1, '2.4kWh · LiFePO4 · 48V',     '10-yr replacement'),
+    _pc('cable', 'Wiring, Cabling & Protection', 1, 'MCB · Earthing · AC/DC protection',    '1-yr workmanship'),
+    _pc('labor', 'Professional Installation & Transport', 1, 'Certified engineers',           '1-yr workmanship'),
+  ],
+  'solar-solar-3.6kw': [
+    _pc('panels','Crown Bi-Facial 620W Solar Plates', 6,  '620W · Mono Bi-Facial · PERC',   '12-yr product · 25-yr performance'),
+    _pc('inv',   'Crown Yorker 3.6kW Hybrid Inverter', 1, '3.6kW · MPPT · Hybrid',          '3-yr replacement'),
+    _pc('bat',   'Crown Elektra Boost Pro 2.4kW Battery', 1, '2.4kWh · LiFePO4 · 48V',     '10-yr replacement'),
+    _pc('frame', 'Elevated Solar Frame & Mounting Structure', 1, 'Galvanised · Wind-rated', '5-yr'),
+    _pc('cable', 'DC/AC Wiring, Cabling & Protection', 1, 'Solar DC cable · MCB · Earthing','1-yr workmanship'),
+    _pc('labor', 'Professional Installation & Transport', 1, 'Certified engineers · City-wide','1-yr workmanship'),
+  ],
+  'solar-ups-5kw': [
+    _pc('inv',   'Crown Yorker 5kW Hybrid Inverter', 1, '5kW · MPPT · Hybrid',              '3-yr replacement'),
+    _pc('bat',   'Crown Elektra Boost Pro 5.12kW Battery', 1, '5.12kWh · LiFePO4 · 48V',   '10-yr replacement'),
+    _pc('cable', 'Wiring, Cabling & Protection', 1, 'MCB · Earthing · AC/DC protection',    '1-yr workmanship'),
+    _pc('labor', 'Professional Installation & Transport', 1, 'Certified engineers',           '1-yr workmanship'),
+  ],
+  'solar-solar-5kw': [
+    _pc('panels','Crown Bi-Facial 620W Solar Plates', 8,  '620W · Mono Bi-Facial · PERC',   '12-yr product · 25-yr performance'),
+    _pc('inv',   'Crown Yorker 5kW Hybrid Inverter', 1, '5kW · MPPT · Hybrid',              '3-yr replacement'),
+    _pc('bat',   'Crown Elektra Boost Pro 5.12kW Battery', 1, '5.12kWh · LiFePO4 · 48V',   '10-yr replacement'),
+    _pc('frame', 'Elevated Solar Frame & Mounting Structure', 1, 'Galvanised · Wind-rated', '5-yr'),
+    _pc('cable', 'DC/AC Wiring, Cabling & Protection', 1, 'Solar DC cable · MCB · Earthing','1-yr workmanship'),
+    _pc('labor', 'Professional Installation & Transport', 1, 'Certified engineers · City-wide','1-yr workmanship'),
+  ],
+  'solar-solar-8kw': [
+    _pc('panels','Crown Bi-Facial 620W Solar Plates', 14, '620W · Mono Bi-Facial · PERC',   '12-yr product · 25-yr performance'),
+    _pc('inv',   'Crown Nexus 8kW Hybrid Inverter', 1, '8kW · MPPT · Hybrid',               '5-yr replacement'),
+    _pc('bat',   'Crown Elektra Boost Pro 5.12kW Battery', 1, '5.12kWh · LiFePO4 · 48V',   '10-yr replacement'),
+    _pc('frame', 'Elevated Solar Frame & Mounting Structure', 1, 'Galvanised · Wind-rated', '5-yr'),
+    _pc('cable', 'DC/AC Wiring, Cabling & Protection', 1, 'Solar DC cable · MCB · Earthing','1-yr workmanship'),
+    _pc('labor', 'Professional Installation & Transport', 1, 'Certified engineers · City-wide','1-yr workmanship'),
+  ],
+  'solar-solar-12kw': [
+    _pc('panels','Crown Bi-Facial 620W Solar Plates', 20, '620W · Mono Bi-Facial · PERC',   '12-yr product · 25-yr performance'),
+    _pc('inv',   'Crown Nexus 12kW Hybrid Inverter', 1, '12kW · MPPT · Hybrid',             '5-yr replacement'),
+    _pc('bat',   'Crown Elektra Boost Pro 5.12kW Battery', 1, '5.12kWh · LiFePO4 · 48V',   '10-yr replacement'),
+    _pc('frame', 'Elevated Solar Frame & Mounting Structure', 1, 'Galvanised · Wind-rated', '5-yr'),
+    _pc('cable', 'DC/AC Wiring, Cabling & Protection', 1, 'Solar DC cable · MCB · Earthing','1-yr workmanship'),
+    _pc('labor', 'Professional Installation & Transport', 1, 'Certified engineers · City-wide','1-yr workmanship'),
+  ],
+};
 
 async function loadLogoWhite(): Promise<string> {
   const svgText = await fetch('/tajallis-logo-white.svg').then(r => r.text());
@@ -4684,25 +4755,46 @@ async function generateQuotationPdf(opts: {
     }]);
     for (const line of grouped[cat]) {
       const displayName = line.displayPrefix ? `${line.displayPrefix}${line.name}` : line.name;
-      const nameParts = [displayName];
-      if (line.model) nameParts.push(`Model: ${line.model}`);
-      if (line.keySpec) {
-        line.keySpec.split(',').map((s: string) => s.trim())
-          .filter((s: string) => s.length > 2 && !/:\s*(No|N\/A|None|—|NA|-)\s*$/i.test(s))
-          .slice(0, 3)
-          .forEach((s: string) => nameParts.push(`· ${s}`));
+
+      if (line.isPackage && line.packageComponents && line.packageComponents.length > 0) {
+        // ── Package line: show component list, suppress unit price ────────────
+        const nameParts = [displayName];
+        if (line.model) nameParts.push(`Model: ${line.model}`);
+        nameParts.push('Includes:');
+        for (const comp of line.packageComponents.filter((c: PackageComponent) => !c.hidden)) {
+          const qtyStr = comp.qty > 1 ? `${comp.qty}x ` : '';
+          nameParts.push(`  + ${qtyStr}${comp.name}`);
+          if (comp.keySpec) nameParts.push(`    ${comp.keySpec}`);
+          if (comp.warranty) nameParts.push(`    Wty: ${abbrevWty(comp.warranty)}`);
+        }
+        if (line.warranty) nameParts.push(`Overall Wty: ${abbrevWty(line.warranty)}`);
+        if (line.packageNote) nameParts.push(`> ${line.packageNote}`);
+        itemsBody.push([
+          { content: nameParts.join('\n'), styles: { fontStyle: 'normal' } },
+          { content: String(line.qty), styles: {} },
+          { content: 'Package', styles: { fontStyle: 'italic', textColor: [120, 120, 120] } },
+          { content: PKR(line.qty * line.unitPrice), styles: { fontStyle: 'bold' } },
+        ]);
+      } else {
+        // ── Regular line ──────────────────────────────────────────────────────
+        const nameParts = [displayName];
+        if (line.model) nameParts.push(`Model: ${line.model}`);
+        if (line.keySpec) {
+          line.keySpec.split(',').map((s: string) => s.trim())
+            .filter((s: string) => s.length > 2 && !/:\s*(No|N\/A|None|—|NA|-)\s*$/i.test(s))
+            .slice(0, 3)
+            .forEach((s: string) => nameParts.push(`· ${s}`));
+        }
+        if (line.kwhPerMonth > 0) nameParts.push(`· ${line.kwhPerMonth} kWh/mo`);
+        if (line.warranty) nameParts.push(`Wty: ${abbrevWty(line.warranty)}`);
+        if (line.packageNote) nameParts.push(`> ${line.packageNote}`);
+        itemsBody.push([
+          nameParts.join('\n'),
+          String(line.qty),
+          PKR(line.unitPrice),
+          PKR(line.qty * line.unitPrice),
+        ]);
       }
-      if (line.kwhPerMonth > 0) nameParts.push(`· ${line.kwhPerMonth} kWh/mo`);
-      // Warranty as last sub-line — keeps data, avoids narrow dedicated column
-      if (line.warranty) nameParts.push(`Wty: ${abbrevWty(line.warranty)}`);
-      // Package relationship note — clarifies system composition to customer
-      if (line.packageNote) nameParts.push(`> ${line.packageNote}`);
-      itemsBody.push([
-        nameParts.join('\n'),
-        String(line.qty),
-        PKR(line.unitPrice),
-        PKR(line.qty * line.unitPrice),
-      ]);
     }
   }
 
@@ -4903,12 +4995,12 @@ async function generateQuotationPdf(opts: {
   const balanceAmt = grandTotal - advanceAmt;
   const showInstTeaser = opts.saleType === 'cash' && grandTotal > 0 && !!opts.instTeaserMonthly && !!opts.instTeaserMonths;
 
-  const payBankH = 42;
-  const payColW = Math.round(printW * 0.37);
-  const bankColW = Math.round(printW * 0.40);
-  const qrColW = printW - payColW - bankColW - 4; // ~44mm, Raast QR only
-  const bankColX = margin + payColW + 2;
-  const qrColX = bankColX + bankColW + 2;
+  const payBankH = 46;
+  const payColW = Math.round(printW * 0.34);  // 64mm — cash payment
+  const qrColW = 44;                          // fixed 44mm for QR
+  const bankColW = printW - payColW - qrColW - 6; // remaining for bank
+  const bankColX = margin + payColW + 3;
+  const qrColX = bankColX + bankColW + 3;
 
   doc.setFillColor(243, 244, 246);
   doc.rect(margin, y, payColW, payBankH, 'F');
@@ -5613,7 +5705,7 @@ type InvoiceRow = {
     kwh_per_month: number | null;
     warranty: string | null;
     key_spec: string | null;
-    key_specs_json: { displayPrefix?: string; packageNote?: string } | null;
+    key_specs_json: { displayPrefix?: string; packageNote?: string; isPackage?: boolean; packageComponents?: PackageComponent[] } | null;
     product_id: string | null;
   }>;
 };
@@ -5655,8 +5747,10 @@ function InvoiceHistoryTab() {
         minPrice: 0,
         floorPrice: 0,
         overrideReason: '',
-        displayPrefix: l.key_specs_json?.displayPrefix ?? '',
-        packageNote: l.key_specs_json?.packageNote ?? '',
+        displayPrefix:     l.key_specs_json?.displayPrefix ?? '',
+        packageNote:       l.key_specs_json?.packageNote ?? '',
+        isPackage:         l.key_specs_json?.isPackage ?? false,
+        packageComponents: l.key_specs_json?.packageComponents ?? [],
       }));
       const discountIsFixed = (row.discount_pct ?? 0) > 100;
       const docType: 'quotation' | 'invoice' =
@@ -6286,6 +6380,8 @@ function QuotationTab({ products }: { products: Product[] }) {
       overrideReason: '',
       displayPrefix: '',
       packageNote: '',
+      isPackage: false,
+      packageComponents: [],
     }]);
     setProductSearch('');
     setToastMsg(`${p.brand || ''} ${p.model} added`.trim());
@@ -6297,6 +6393,48 @@ function QuotationTab({ products }: { products: Product[] }) {
 
   function updateLineText(id: string, field: 'warranty' | 'keySpec' | 'displayPrefix' | 'packageNote', val: string) {
     setLines(ls => ls.map(l => l.id === id ? { ...l, [field]: val } : l));
+  }
+
+  function togglePackage(id: string) {
+    setLines(ls => ls.map(l => {
+      if (l.id !== id) return l;
+      const becoming = !l.isPackage;
+      return {
+        ...l,
+        isPackage: becoming,
+        packageComponents: becoming && l.packageComponents.length === 0
+          ? (DEFAULT_PACKAGE_COMPONENTS[l.id] ?? [])
+          : l.packageComponents,
+      };
+    }));
+  }
+
+  function updateComponent(lineId: string, idx: number, patch: Partial<PackageComponent>) {
+    setLines(ls => ls.map(l => {
+      if (l.id !== lineId) return l;
+      const comps = [...l.packageComponents];
+      comps[idx] = { ...comps[idx], ...patch };
+      return { ...l, packageComponents: comps };
+    }));
+  }
+
+  function addComponent(lineId: string) {
+    const newComp: PackageComponent = {
+      id: `custom-${Date.now()}`, name: '', qty: 1, keySpec: '', warranty: '',
+      status: 'included', addonPrice: 0, hidden: false,
+    };
+    setLines(ls => ls.map(l => l.id === lineId
+      ? { ...l, packageComponents: [...l.packageComponents, newComp] } : l));
+  }
+
+  function removeComponent(lineId: string, idx: number) {
+    setLines(ls => ls.map(l => l.id === lineId
+      ? { ...l, packageComponents: l.packageComponents.filter((_, i) => i !== idx) } : l));
+  }
+
+  function resetComponents(lineId: string) {
+    setLines(ls => ls.map(l => l.id === lineId
+      ? { ...l, packageComponents: DEFAULT_PACKAGE_COMPONENTS[l.id] ?? [] } : l));
   }
 
   function updateLineOverride(id: string, val: string) {
@@ -7020,8 +7158,9 @@ function QuotationTab({ products }: { products: Product[] }) {
                     <p className="text-[10px] text-green-700 font-semibold">PKR {pkg.price.toLocaleString('en-PK')}</p>
                   </div>
                   <button onClick={() => {
+                    const gcId = `gc-${pkg.id}`;
                     const line: QuoteLine = {
-                      id: `gc-${pkg.id}`,
+                      id: gcId,
                       name: `${pkg.name} — Green Corridor Package`,
                       model: `GC-${pkg.id.toUpperCase()}`,
                       qty: 1,
@@ -7036,6 +7175,8 @@ function QuotationTab({ products }: { products: Product[] }) {
                       overrideReason: '',
                       displayPrefix: '',
                       packageNote: '',
+                      isPackage: false,
+                      packageComponents: [],
                     };
                     setLines(ls => ls.some(l => l.id === line.id) ? ls : [...ls, line]);
                   }}
@@ -7055,8 +7196,9 @@ function QuotationTab({ products }: { products: Product[] }) {
                     <p className="text-[10px] text-amber-700 font-semibold">PKR {pkg.total.toLocaleString('en-PK')}</p>
                   </div>
                   <button onClick={() => {
+                    const solarId = `solar-${pkg.id}`;
                     const line: QuoteLine = {
-                      id: `solar-${pkg.id}`,
+                      id: solarId,
                       name: pkg.name,
                       model: pkg.id.toUpperCase(),
                       qty: 1,
@@ -7071,6 +7213,8 @@ function QuotationTab({ products }: { products: Product[] }) {
                       overrideReason: '',
                       displayPrefix: '',
                       packageNote: '',
+                      isPackage: true,
+                      packageComponents: DEFAULT_PACKAGE_COMPONENTS[solarId] ?? [],
                     };
                     setLines(ls => ls.some(l => l.id === line.id) ? ls : [...ls, line]);
                   }}
@@ -7146,7 +7290,7 @@ function QuotationTab({ products }: { products: Product[] }) {
                         className="flex-1 border border-gray-100 rounded-lg px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-orange-300 bg-gray-50"
                       />
                     </div>
-                    {/* Package labeling — prefix + relationship note */}
+                    {/* Display prefix for add-on items */}
                     <div className="flex gap-2 mt-1">
                       <input
                         type="text"
@@ -7156,15 +7300,99 @@ function QuotationTab({ products }: { products: Product[] }) {
                         className="flex-1 border border-gray-100 rounded-lg px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-orange-300 bg-gray-50"
                       />
                     </div>
-                    <div className="mt-1">
-                      <input
-                        type="text"
-                        value={line.packageNote}
-                        onChange={e => updateLineText(line.id, 'packageNote', e.target.value)}
-                        placeholder='Package note (e.g. "System includes inverter; this adds extended backup.")'
-                        className="w-full border border-gray-100 rounded-lg px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-orange-300 bg-gray-50"
-                      />
+                    {/* Package toggle + component editor */}
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <button
+                        onClick={() => togglePackage(line.id)}
+                        className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border transition-colors ${
+                          line.isPackage
+                            ? 'bg-orange-500 text-white border-orange-500'
+                            : 'bg-white text-gray-500 border-gray-200 hover:border-orange-300'
+                        }`}
+                      >
+                        {line.isPackage ? 'Package Mode ON' : 'Expand as Package'}
+                      </button>
+                      {line.isPackage && (
+                        <button onClick={() => resetComponents(line.id)}
+                          className="text-[10px] text-blue-500 hover:text-blue-700 underline">
+                          Restore Defaults
+                        </button>
+                      )}
                     </div>
+                    {line.isPackage && (
+                      <div className="mt-2 border border-orange-200 rounded-xl p-2.5 bg-orange-50/60 space-y-1.5">
+                        <p className="text-[10px] font-bold text-orange-700 uppercase tracking-wide mb-1">
+                          Package Components ({line.packageComponents.length})
+                        </p>
+                        {line.packageComponents.map((comp, idx) => (
+                          <div key={comp.id} className={`border rounded-lg p-2 text-[10px] space-y-1 ${comp.hidden ? 'opacity-40 bg-gray-50' : 'bg-white border-gray-100'}`}>
+                            <div className="flex gap-1 items-center">
+                              <input
+                                value={comp.name}
+                                onChange={e => updateComponent(line.id, idx, { name: e.target.value })}
+                                placeholder="Component name"
+                                className="flex-1 border border-gray-200 rounded px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-orange-300"
+                              />
+                              <input
+                                type="number" min={1} value={comp.qty}
+                                onChange={e => updateComponent(line.id, idx, { qty: Math.max(1, Number(e.target.value)) })}
+                                className="w-10 border border-gray-200 rounded px-1 py-0.5 text-center text-[10px] focus:outline-none focus:ring-1 focus:ring-orange-300"
+                              />
+                              <select value={comp.status}
+                                onChange={e => updateComponent(line.id, idx, { status: e.target.value as 'included' | 'addon' })}
+                                className="border border-gray-200 rounded px-1 py-0.5 text-[10px] focus:outline-none">
+                                <option value="included">Included</option>
+                                <option value="addon">Add-on</option>
+                              </select>
+                              <button onClick={() => updateComponent(line.id, idx, { hidden: !comp.hidden })}
+                                className={`text-[10px] px-1.5 py-0.5 rounded ${comp.hidden ? 'bg-gray-200 text-gray-500' : 'bg-green-100 text-green-700'}`}>
+                                {comp.hidden ? 'Hidden' : 'Show'}
+                              </button>
+                              <button onClick={() => removeComponent(line.id, idx)}
+                                className="text-red-400 hover:text-red-600 text-xs leading-none px-1">×</button>
+                            </div>
+                            <div className="flex gap-1">
+                              <input
+                                value={comp.keySpec}
+                                onChange={e => updateComponent(line.id, idx, { keySpec: e.target.value })}
+                                placeholder="Specs (e.g. 620W · Mono Bi-Facial)"
+                                className="flex-1 border border-gray-200 rounded px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-orange-300"
+                              />
+                              <input
+                                value={comp.warranty}
+                                onChange={e => updateComponent(line.id, idx, { warranty: e.target.value })}
+                                placeholder="Warranty"
+                                className="w-32 border border-gray-200 rounded px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-orange-300"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                        <button onClick={() => addComponent(line.id)}
+                          className="w-full text-[10px] py-1 border border-dashed border-orange-300 rounded-lg text-orange-600 hover:bg-orange-100 transition-colors">
+                          + Add Component
+                        </button>
+                        <div className="mt-1">
+                          <input
+                            type="text"
+                            value={line.packageNote}
+                            onChange={e => updateLineText(line.id, 'packageNote', e.target.value)}
+                            placeholder='Package note shown in PDF (e.g. "Includes Crown inverter; additional battery for extended backup.")'
+                            className="w-full border border-gray-100 rounded-lg px-2 py-1 text-[10px] text-gray-500 focus:outline-none focus:ring-1 focus:ring-orange-300 bg-white"
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {!line.isPackage && (
+                      <div className="mt-1">
+                        <input
+                          type="text"
+                          value={line.packageNote}
+                          onChange={e => updateLineText(line.id, 'packageNote', e.target.value)}
+                          placeholder='Note (optional)'
+                          className="w-full border border-gray-100 rounded-lg px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-orange-300 bg-gray-50"
+                        />
+                      </div>
+                    )}
                     {/* Monthly kWh for efficiency block */}
                     <div className="flex items-center gap-1.5 mt-1">
                       <span className="text-[10px] text-blue-400 shrink-0">⚡ units/mo</span>
