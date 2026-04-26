@@ -4461,7 +4461,7 @@ function normalizeAddress(raw: string): string {
   s = s.replace(/\blahroe\b/gi, 'Lahore');
 
   // "near X" at end → "(Near X)"
-  s = s.replace(/,?\s*near\s+([^,]+)$/i, ' (Near $1)');
+  s = s.replace(/,?\s*near\s+([^,]+)$/i, ', Near $1');
 
   // Common word substitutions
   s = s.replace(/\bbufferzone\b/gi, 'Buffer Zone');
@@ -4778,6 +4778,12 @@ async function generateQuotationPdf(opts: {
     }
   }
 
+  // Add installation warranty if any installation lines exist
+  if (opts.installationLines.length > 0 && !_wtySet.has('_install')) {
+    _wtySet.add('_install');
+    warrantyEntries.push({ name: 'Installation & Setup', coverage: formatWty('1 year workmanship') });
+  }
+
   const itemsBody: any[] = [];
   for (const cat of categoryOrder) {
     itemsBody.push([{
@@ -4816,20 +4822,23 @@ async function generateQuotationPdf(opts: {
             content: GRP_LABELS[grp], colSpan: 4,
             styles: {
               fillColor: [45, 45, 55] as [number,number,number],
-              textColor: [190, 190, 200] as [number,number,number],
-              fontStyle: 'bold' as const, fontSize: 5.5,
-              cellPadding: { top: 1.2, bottom: 1.2, left: 12, right: 2 },
+              textColor: [185, 185, 200] as [number,number,number],
+              fontStyle: 'bold' as const, fontSize: 5,
+              cellPadding: { top: 0.8, bottom: 0.8, left: 10, right: 2 },
             },
           }]);
           for (const comp of grpComps) {
-            const cParts: string[] = [comp.name];
-            if (comp.keySpec) cParts.push(comp.keySpec);
-            itemsBody.push([
-              { content: cParts.join('\n'), styles: { textColor: [55, 65, 81] as [number,number,number], fontSize: 6.5, cellPadding: { top: 1.5, bottom: 1.5, left: 12, right: 2 } } },
-              { content: comp.qty > 1 ? String(comp.qty) : '', styles: { textColor: [110, 110, 110] as [number,number,number], halign: 'right' as const } },
-              { content: '', styles: {} },
-              { content: '', styles: {} },
-            ]);
+            const lineText = comp.keySpec
+              ? `${comp.qty > 1 ? `${comp.qty}x  ` : ''}${comp.name}  ·  ${comp.keySpec}`
+              : `${comp.qty > 1 ? `${comp.qty}x  ` : ''}${comp.name}`;
+            itemsBody.push([{
+              content: lineText, colSpan: 4,
+              styles: {
+                textColor: [55, 65, 81] as [number,number,number],
+                fontSize: 6,
+                cellPadding: { top: 1, bottom: 1, left: 16, right: 4 },
+              },
+            }]);
           }
         }
 
@@ -4840,15 +4849,14 @@ async function generateQuotationPdf(opts: {
             styles: {
               fillColor: [253, 237, 225] as [number,number,number],
               textColor: [180, 60, 0] as [number,number,number],
-              fontStyle: 'bold' as const, fontSize: 5.5,
-              cellPadding: { top: 1.2, bottom: 1.2, left: 12, right: 2 },
+              fontStyle: 'bold' as const, fontSize: 5,
+              cellPadding: { top: 0.8, bottom: 0.8, left: 10, right: 2 },
             },
           }]);
           for (const comp of addonComps) {
-            const aParts: string[] = [comp.name];
-            if (comp.keySpec) aParts.push(comp.keySpec);
+            const aText = comp.keySpec ? `${comp.name}  ·  ${comp.keySpec}` : comp.name;
             itemsBody.push([
-              { content: aParts.join('\n'), styles: { textColor: [160, 50, 0] as [number,number,number], fontSize: 6.5, cellPadding: { top: 1.5, bottom: 1.5, left: 12, right: 2 } } },
+              { content: (comp.qty > 1 ? `${comp.qty}x  ` : '') + aText, styles: { textColor: [160, 50, 0] as [number,number,number], fontSize: 6, cellPadding: { top: 1, bottom: 1, left: 16, right: 4 } } },
               { content: String(comp.qty), styles: { textColor: [110, 110, 110] as [number,number,number], halign: 'right' as const } },
               { content: PKR(comp.addonPrice), styles: { halign: 'right' as const } },
               { content: PKR(comp.qty * comp.addonPrice), styles: { fontStyle: 'bold' as const, halign: 'right' as const } },
@@ -4866,7 +4874,6 @@ async function generateQuotationPdf(opts: {
             .forEach((s: string) => nameParts.push(`· ${s}`));
         }
         if (line.kwhPerMonth > 0) nameParts.push(`· ${line.kwhPerMonth} kWh/mo`);
-        if (line.warranty) nameParts.push(`Wty: ${formatWty(line.warranty)}`);
         if (line.packageNote) nameParts.push(`> ${line.packageNote}`);
         itemsBody.push([
           nameParts.join('\n'),
@@ -4884,7 +4891,7 @@ async function generateQuotationPdf(opts: {
       styles: { fillColor: [26, 26, 26], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellPadding: { top: 1.5, bottom: 1.5, left: 2 } },
     }]);
     for (const inst of opts.installationLines) {
-      itemsBody.push([`${inst.name}\nWty: 1yr workmanship`, '1', PKR(inst.amount), PKR(inst.amount)]);
+      itemsBody.push([inst.name, '1', PKR(inst.amount), PKR(inst.amount)]);
     }
     itemsBody.push(['Post-Install Check', '1', 'Complimentary', 'PKR 0']);
   }
@@ -4900,10 +4907,10 @@ async function generateQuotationPdf(opts: {
       2: { cellWidth: 22, halign: 'right' },
       3: { cellWidth: 22, halign: 'right', fontStyle: 'bold' },
     },
-    headStyles: { fillColor: ORANGE, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
-    bodyStyles: { fontSize: 7, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.2 },
+    headStyles: { fillColor: ORANGE, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5 },
+    bodyStyles: { fontSize: 6.5, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
     alternateRowStyles: { fillColor: [250, 250, 250] },
-    styles: { overflow: 'linebreak', cellPadding: 1.8 },
+    styles: { overflow: 'linebreak', cellPadding: 1.2 },
   });
   // @ts-ignore
   leftY = (doc as any).lastAutoTable.finalY + 3;
@@ -4970,11 +4977,8 @@ async function generateQuotationPdf(opts: {
   doc.text(PKR(grandTotal), rightX + rightW - 3, pry + 7, { align: 'right' });
   rightY += pricingH + 3;
 
-  // sync row 2
-  leftY = Math.max(leftY, rightY);
-  rightY = leftY;
-
-  // ── ROW 3 LEFT: Services table ────────────────────────────────────────────────
+  // ── ROW 3 LEFT: Services table (starts at leftY, not synced — fills column gap) ─
+  if (opts.services.length > 0) {
   secLabel('SERVICES', margin, leftY);
   leftY += 3.5;
 
@@ -5007,19 +5011,20 @@ async function generateQuotationPdf(opts: {
     body: svcBody,
     columnStyles: {
       0: { cellWidth: 'auto' },
-      1: { cellWidth: 14, halign: 'center' },
-      2: { cellWidth: 20, halign: 'right' },
-      3: { cellWidth: 20, halign: 'right' },
+      1: { cellWidth: 14, halign: 'center' as const },
+      2: { cellWidth: 20, halign: 'right' as const },
+      3: { cellWidth: 20, halign: 'right' as const },
     },
     headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5 },
-    bodyStyles: { fontSize: 7, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.2 },
+    bodyStyles: { fontSize: 6.5, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
     alternateRowStyles: { fillColor: [250, 250, 250] },
-    styles: { overflow: 'linebreak', cellPadding: 1.5 },
+    styles: { overflow: 'linebreak', cellPadding: 1.2 },
   });
   // @ts-ignore
   leftY = (doc as any).lastAutoTable.finalY + 3;
+  } // end if services
 
-  // ── ROW 3 RIGHT: Energy Advisory ─────────────────────────────────────────────
+  // ── ROW 3 RIGHT: Energy Advisory (starts at rightY — fills right column gap) ──
   const hasSolarProduct = opts.lines.some(l => /solar|inverter/i.test(l.category));
   if (!hasSolarProduct && opts.customerType !== 'commercial') {
     const advisory = buildDetailedAdvisory(
@@ -5066,27 +5071,23 @@ async function generateQuotationPdf(opts: {
   // ── SYNC COLUMNS → FULL-WIDTH ZONE ───────────────────────────────────────────
   let y = Math.max(leftY, rightY) + 2;
 
-  // ── WARRANTY COVERAGE (full-width, deduplicated across entire invoice) ────────
+  // ── WARRANTY COVERAGE (full-width, deduplicated) ──────────────────────────────
   if (warrantyEntries.length > 0) {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
-    doc.text('WARRANTY COVERAGE', margin, y);
-    y += 3.5;
-
     const wtyRows: any[][] = [];
     for (let wi = 0; wi < warrantyEntries.length; wi += 2) {
       const a = warrantyEntries[wi];
       const b = wi + 1 < warrantyEntries.length ? warrantyEntries[wi + 1] : null;
       if (b) {
         wtyRows.push([
-          { content: a.name, styles: { fontStyle: 'bold' as const, textColor: [30, 30, 30] as [number,number,number] } },
-          { content: a.coverage, styles: { textColor: [70, 70, 70] as [number,number,number] } },
-          { content: b.name, styles: { fontStyle: 'bold' as const, textColor: [30, 30, 30] as [number,number,number] } },
-          { content: b.coverage, styles: { textColor: [70, 70, 70] as [number,number,number] } },
+          { content: `· ${a.name}`, styles: { fontStyle: 'bold' as const, textColor: [25, 25, 25] as [number,number,number] } },
+          { content: a.coverage, styles: { textColor: [80, 80, 80] as [number,number,number] } },
+          { content: `· ${b.name}`, styles: { fontStyle: 'bold' as const, textColor: [25, 25, 25] as [number,number,number] } },
+          { content: b.coverage, styles: { textColor: [80, 80, 80] as [number,number,number] } },
         ]);
       } else {
         wtyRows.push([
-          { content: a.name, styles: { fontStyle: 'bold' as const, textColor: [30, 30, 30] as [number,number,number] } },
-          { content: a.coverage, colSpan: 3, styles: { textColor: [70, 70, 70] as [number,number,number] } },
+          { content: `· ${a.name}`, styles: { fontStyle: 'bold' as const, textColor: [25, 25, 25] as [number,number,number] } },
+          { content: a.coverage, colSpan: 3, styles: { textColor: [80, 80, 80] as [number,number,number] } },
         ]);
       }
     }
@@ -5094,6 +5095,15 @@ async function generateQuotationPdf(opts: {
     autoTable(doc, {
       startY: y,
       margin: { left: margin, right: margin },
+      head: [[{
+        content: 'WARRANTY COVERAGE', colSpan: 4,
+        styles: {
+          fillColor: [26, 26, 26] as [number,number,number],
+          textColor: [255, 255, 255] as [number,number,number],
+          fontStyle: 'bold' as const, fontSize: 7,
+          cellPadding: { top: 2, bottom: 2, left: 3, right: 3 },
+        },
+      }]],
       body: wtyRows,
       columnStyles: {
         0: { cellWidth: 52 },
@@ -5101,10 +5111,11 @@ async function generateQuotationPdf(opts: {
         2: { cellWidth: 52 },
         3: { cellWidth: 43 },
       },
+      headStyles: { fillColor: [26, 26, 26] as [number,number,number] },
       bodyStyles: {
         fontSize: 6.5,
         textColor: [50, 50, 50] as [number,number,number],
-        cellPadding: { top: 2, bottom: 2, left: 3, right: 3 },
+        cellPadding: { top: 1.8, bottom: 1.8, left: 3, right: 3 },
         lineColor: [220, 220, 220] as [number,number,number],
         lineWidth: 0.15,
       },
@@ -5112,7 +5123,7 @@ async function generateQuotationPdf(opts: {
       styles: { overflow: 'linebreak' },
     });
     // @ts-ignore
-    y = (doc as any).lastAutoTable.finalY + 5;
+    y = (doc as any).lastAutoTable.finalY + 4;
   }
 
   // ── Page-break guard — if bottom sections won't fit, start fresh page ─────────
