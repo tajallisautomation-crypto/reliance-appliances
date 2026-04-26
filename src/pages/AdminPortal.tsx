@@ -5865,6 +5865,8 @@ function InvoiceHistoryTab() {
   const [expanded, setExpanded]       = useState<string | null>(null);
   const [updatingId, setUpdatingId]   = useState<string | null>(null);
   const [reprinting, setReprinting]   = useState<string | null>(null);
+  const [confirmDel, setConfirmDel]   = useState<InvoiceRow | null>(null);
+  const [deleting, setDeleting]       = useState<string | null>(null);
 
   async function reprintInvoice(row: InvoiceRow) {
     setReprinting(row.id);
@@ -5975,6 +5977,14 @@ function InvoiceHistoryTab() {
     await supabase.from('invoices').update({ payment_status: status }).eq('id', id);
     setRows(rs => rs.map(r => r.id === id ? { ...r, payment_status: status } : r));
     setUpdatingId(null);
+  }
+
+  async function handleDelete(id: string) {
+    setDeleting(id);
+    await supabase.from('invoices').delete().eq('id', id);
+    setRows(prev => prev.filter(r => r.id !== id));
+    setDeleting(null);
+    setConfirmDel(null);
   }
 
   const PKR = (n: number) => `PKR ${Math.round(n).toLocaleString('en-PK')}`;
@@ -6120,6 +6130,13 @@ function InvoiceHistoryTab() {
                             </svg>
                           )}
                         </button>
+                        <button
+                          onClick={e => { e.stopPropagation(); setConfirmDel(row); }}
+                          disabled={deleting === row.id}
+                          title="Delete invoice"
+                          className="p-1.5 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-lg transition-colors disabled:opacity-40 flex-shrink-0">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -6155,6 +6172,17 @@ function InvoiceHistoryTab() {
           </table>
           </div>
         </div>
+      )}
+
+      {confirmDel && (
+        <ConfirmDialog
+          title="Delete this invoice?"
+          message={`Ref ${confirmDel.ref_number} — ${confirmDel.customer_name ?? 'Unknown'}\nThis cannot be undone.`}
+          confirmLabel="Delete Invoice"
+          danger
+          onConfirm={() => handleDelete(confirmDel.id)}
+          onCancel={() => setConfirmDel(null)}
+        />
       )}
     </div>
   );
