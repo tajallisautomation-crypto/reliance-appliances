@@ -4179,7 +4179,7 @@ const LEAD_STATUS_COLORS: Record<string, string> = {
 
 interface InvoiceLogPayload {
   refNumber:       string;
-  docType:         'quotation' | 'invoice' | 'installment-invoice' | 'installment_payment_receipt';
+  docType:         'quotation' | 'invoice' | 'installment-invoice' | 'installment_payment_receipt' | 'service_receipt';
   customerName:    string;
   customerPhone:   string;
   customerEmail:   string;
@@ -4190,6 +4190,10 @@ interface InvoiceLogPayload {
   discountReason:  string;
   lines:           QuoteLine[];
   services:        Array<{ service_type: string; service_name: string; description: string; status: 'included' | 'charged' | 'not_selected'; visible_value: number; charged_amount: number }>;
+  customCharges?:  Array<{ name: string; amount: number }>;
+  guarantorName?:  string;
+  guarantorPhone?: string;
+  guarantorCnic?:  string;
   discount:        number;
   discountType:    string;
   grandTotal:      number;
@@ -4200,6 +4204,7 @@ interface InvoiceLogPayload {
   instMonths:      number;
   instMonthlyAmt:  number;
   instFirstDate:   string;
+  notes?:          string;
 }
 
 async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<void> {
@@ -4211,28 +4216,33 @@ async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<void> {
     const { data: inv, error: invErr } = await supabase
       .from('invoices')
       .insert({
-        ref_number:       payload.refNumber,
-        doc_type:         payload.docType,
-        customer_name:    payload.customerName || null,
-        customer_phone:   payload.customerPhone || null,
-        customer_email:   payload.customerEmail || null,
-        customer_address: payload.customerAddress || null,
-        customer_cnic:    payload.customerCnic || null,
-        customer_type:    payload.customerType,
-        service_level:    payload.serviceLevel,
-        sale_type:        saleType,
+        ref_number:          payload.refNumber,
+        doc_type:            payload.docType,
+        customer_name:       payload.customerName || null,
+        customer_phone:      payload.customerPhone || null,
+        customer_email:      payload.customerEmail || null,
+        customer_address:    payload.customerAddress || null,
+        customer_cnic:       payload.customerCnic || null,
+        customer_type:       payload.customerType,
+        service_level:       payload.serviceLevel,
+        sale_type:           saleType,
         subtotal,
-        service_total:    payload.serviceTotal || null,
-        discount_pct:     payload.discount,
-        discount_type:    payload.discountType,
-        discount_reason:  payload.discountReason || null,
-        grand_total:      payload.grandTotal,
-        advance_pct:      payload.advancePct,
-        inst_total_price: payload.instTotalPrice || null,
-        inst_advance_amt: payload.instAdvanceAmt || null,
-        inst_months:      payload.instMonths || null,
-        inst_monthly_amt: payload.instMonthlyAmt || null,
-        payment_status:   'pending',
+        service_total:       payload.serviceTotal || null,
+        discount_pct:        payload.discount,
+        discount_type:       payload.discountType,
+        discount_reason:     payload.discountReason || null,
+        grand_total:         payload.grandTotal,
+        advance_pct:         payload.advancePct,
+        inst_total_price:    payload.instTotalPrice || null,
+        inst_advance_amt:    payload.instAdvanceAmt || null,
+        inst_months:         payload.instMonths || null,
+        inst_monthly_amt:    payload.instMonthlyAmt || null,
+        payment_status:      'pending',
+        custom_charges_json: payload.customCharges?.length ? payload.customCharges : null,
+        guarantor_name:      payload.guarantorName || null,
+        guarantor_phone:     payload.guarantorPhone || null,
+        guarantor_cnic:      payload.guarantorCnic || null,
+        notes:               payload.notes || null,
       })
       .select('id')
       .single();
@@ -4460,8 +4470,8 @@ function normalizeAddress(raw: string): string {
   s = s.replace(/\bkarach\b/gi, 'Karachi');
   s = s.replace(/\blahroe\b/gi, 'Lahore');
 
-  // "near X" at end → "(Near X)"
-  s = s.replace(/,?\s*near\s+([^,]+)$/i, ', Near $1');
+  // "near X" at end → second line "(Near X)"
+  s = s.replace(/,?\s*near\s+([^,]+)$/i, '\n(Near $1)');
 
   // Common word substitutions
   s = s.replace(/\bbufferzone\b/gi, 'Buffer Zone');
@@ -4480,6 +4490,7 @@ function normalizeAddress(raw: string): string {
 
   // Known area name normalisation (post title-case)
   s = s.replace(/Gulistan[- ]?E[- ]?Johar/gi, 'Gulistan-e-Johar');
+  s = s.replace(/\bMasjid\s+[Ee]\s+Nimra\b/gi, 'Masjid-e-Nimra');
   s = s.replace(/\bFb\s+Area\b/gi, 'F.B. Area');
   s = s.replace(/\bF\.?B\.?\s+Area\b/gi, 'F.B. Area');
 
@@ -4518,6 +4529,7 @@ async function generateQuotationPdf(opts: {
     status: 'included' | 'charged' | 'not_selected';
     visible_value: number; display_value?: string; charged_amount: number;
   }>;
+  customCharges?: Array<{ name: string; amount: number }>;
   discount: number;
   discountMode: 'percentage' | 'fixed';
   discountType: string;
@@ -4537,6 +4549,11 @@ async function generateQuotationPdf(opts: {
   showNtn?: boolean;
   instTeaserMonthly?: number;
   instTeaserMonths?: number;
+  instTotalPrice?: number;
+  instAdvanceAmt?: number;
+  instMonths?: number;
+  instMonthlyAmt?: number;
+  instFirstDate?: string;
 }): Promise<Blob> {
   const ORANGE = '#EA580C';
   const DARK   = '#1A1A1A';
@@ -4570,6 +4587,7 @@ async function generateQuotationPdf(opts: {
   const productSubtotal   = opts.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
   const installSubtotal   = opts.installationLines.reduce((s, i) => s + i.amount, 0);
   const chargedSvcTotal   = opts.services.filter(s => s.status === 'charged').reduce((sum, s) => sum + s.charged_amount, 0);
+  const customChargesTotal = (opts.customCharges ?? []).reduce((s, c) => s + c.amount, 0);
   const baseBeforeDisc    = productSubtotal + installSubtotal + chargedSvcTotal;
   let discountAmt = 0;
   if (opts.discountMode === 'fixed') {
@@ -4577,9 +4595,11 @@ async function generateQuotationPdf(opts: {
   } else {
     discountAmt = Math.round(baseBeforeDisc * opts.discount / 100);
   }
-  const grandTotal = baseBeforeDisc - discountAmt;
+  const grandTotal = baseBeforeDisc - discountAmt + customChargesTotal;
 
   // ── LAYOUT CONSTANTS ─────────────────────────────────────────────────────────
+  const isCompact = opts.docType === 'invoice' && opts.lines.length <= 4;
+  const cellPad = isCompact ? 1.0 : 1.2;
   const colGap = 4;
   const leftW = 112;
   const rightW = printW - leftW - colGap;   // 74
@@ -4663,7 +4683,18 @@ async function generateQuotationPdf(opts: {
   ];
 
   const custRowH = 5.5;
-  const custBlockH = custFields.length * custRowH + 5;
+  const EXTRA_LINE_H = 3.2; // mm per additional text line beyond the first
+
+  // Pre-compute split lines + per-row height (multiline address needs more space)
+  const custRows = custFields.map(([lbl, val]) => {
+    const isName = lbl === 'NAME';
+    doc.setFontSize(isName ? 8 : 7);
+    const vl = doc.splitTextToSize(val, leftW - 26);
+    const rowH = custRowH + Math.max(0, vl.length - 1) * EXTRA_LINE_H;
+    return { lbl, val, vl, rowH, isName };
+  });
+  const custBlockH = custRows.reduce((s, r) => s + r.rowH, 0) + 5;
+
   doc.setFillColor(255, 247, 237);
   doc.rect(margin, leftY, leftW, custBlockH, 'F');
   doc.setDrawColor(234, 88, 12); doc.setLineWidth(0.5);
@@ -4671,15 +4702,13 @@ async function generateQuotationPdf(opts: {
   doc.setLineWidth(0.2);
 
   let cy = leftY + custRowH;
-  for (const [lbl, val] of custFields) {
-    const isName = lbl === 'NAME';
+  for (const { lbl, vl, rowH, isName } of custRows) {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(180, 100, 50);
     doc.text(lbl, margin + 3, cy);
-    doc.setFont(isName ? 'helvetica' : 'helvetica', isName ? 'bold' : 'normal');
+    doc.setFont('helvetica', isName ? 'bold' : 'normal');
     doc.setFontSize(isName ? 8 : 7); doc.setTextColor(isName ? 20 : 30, 20, 20);
-    const vl = doc.splitTextToSize(val, leftW - 26);
     doc.text(vl, margin + 22, cy);
-    cy += custRowH;
+    cy += rowH;
   }
   leftY += custBlockH + 3;
 
@@ -4758,6 +4787,21 @@ async function generateQuotationPdf(opts: {
     }).filter(Boolean).join(' · ');
   };
 
+  // Short display name for package components: strip brand prefix + marketing adjectives
+  const compDisplayName = (name: string): string => {
+    let s = name
+      .replace(/^Crown\s+/i, '')
+      .replace(/\bBi-?Facial\b/gi, '')
+      .replace(/\bHybrid\b/gi, '')
+      .replace(/\bMono\b/gi, '')
+      .replace(/\bSolar\s+Plates?\b/gi, 'Solar Panels')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    // Remove trailing separator artifacts
+    s = s.replace(/^[\s·\-]+|[\s·\-]+$/g, '').trim();
+    return s;
+  };
+
   // ── Collect warranty entries (deduped across entire invoice) ─────────────────
   const warrantyEntries: Array<{ name: string; coverage: string }> = [];
   const _wtySet = new Set<string>();
@@ -4766,7 +4810,7 @@ async function generateQuotationPdf(opts: {
       for (const _c of _line.packageComponents.filter((c: PackageComponent) => !c.hidden && c.warranty)) {
         if (!_wtySet.has(_c.name)) {
           _wtySet.add(_c.name);
-          warrantyEntries.push({ name: _c.name, coverage: formatWty(_c.warranty) });
+          warrantyEntries.push({ name: compDisplayName(_c.name), coverage: formatWty(_c.warranty) });
         }
       }
     } else if (_line.warranty) {
@@ -4828,9 +4872,8 @@ async function generateQuotationPdf(opts: {
             },
           }]);
           for (const comp of grpComps) {
-            const lineText = comp.keySpec
-              ? `${comp.qty > 1 ? `${comp.qty}x  ` : ''}${comp.name}  ·  ${comp.keySpec}`
-              : `${comp.qty > 1 ? `${comp.qty}x  ` : ''}${comp.name}`;
+            const shortName = compDisplayName(comp.name);
+            const lineText = comp.qty > 1 ? `· ${comp.qty}×  ${shortName}` : `· ${shortName}`;
             itemsBody.push([{
               content: lineText, colSpan: 4,
               styles: {
@@ -4854,9 +4897,10 @@ async function generateQuotationPdf(opts: {
             },
           }]);
           for (const comp of addonComps) {
-            const aText = comp.keySpec ? `${comp.name}  ·  ${comp.keySpec}` : comp.name;
+            const aShort = compDisplayName(comp.name);
+            const aText = comp.qty > 1 ? `· ${comp.qty}×  ${aShort}` : `· ${aShort}`;
             itemsBody.push([
-              { content: (comp.qty > 1 ? `${comp.qty}x  ` : '') + aText, styles: { textColor: [160, 50, 0] as [number,number,number], fontSize: 6, cellPadding: { top: 1, bottom: 1, left: 16, right: 4 } } },
+              { content: aText, styles: { textColor: [160, 50, 0] as [number,number,number], fontSize: 6, cellPadding: { top: 1, bottom: 1, left: 16, right: 4 } } },
               { content: String(comp.qty), styles: { textColor: [110, 110, 110] as [number,number,number], halign: 'right' as const } },
               { content: PKR(comp.addonPrice), styles: { halign: 'right' as const } },
               { content: PKR(comp.qty * comp.addonPrice), styles: { fontStyle: 'bold' as const, halign: 'right' as const } },
@@ -4896,6 +4940,17 @@ async function generateQuotationPdf(opts: {
     itemsBody.push(['Post-Install Check', '1', 'Complimentary', 'PKR 0']);
   }
 
+  // ── Custom charges section ───────────────────────────────────────────────
+  if ((opts.customCharges ?? []).length > 0) {
+    itemsBody.push([{
+      content: 'ADDITIONAL CHARGES', colSpan: 4,
+      styles: { fillColor: [45, 45, 55] as [number,number,number], textColor: [255, 255, 255] as [number,number,number], fontStyle: 'bold' as const, fontSize: 6.5, cellPadding: { top: 1.5, bottom: 1.5, left: 2 } },
+    }]);
+    for (const cc of opts.customCharges!) {
+      itemsBody.push([cc.name, '1', PKR(cc.amount), PKR(cc.amount)]);
+    }
+  }
+
   autoTable(doc, {
     startY: leftY,
     margin: { left: margin, right: leftAutoMarginRight },
@@ -4910,7 +4965,7 @@ async function generateQuotationPdf(opts: {
     headStyles: { fillColor: ORANGE, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5 },
     bodyStyles: { fontSize: 6.5, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
     alternateRowStyles: { fillColor: [250, 250, 250] },
-    styles: { overflow: 'linebreak', cellPadding: 1.2 },
+    styles: { overflow: 'linebreak', cellPadding: cellPad },
   });
   // @ts-ignore
   leftY = (doc as any).lastAutoTable.finalY + 3;
@@ -4925,6 +4980,7 @@ async function generateQuotationPdf(opts: {
     ['Product subtotal', PKR(productSubtotal)],
     ...(installSubtotal > 0 ? [['Installation', PKR(installSubtotal)] as [string, string]] : []),
     ...(chargedSvcTotal > 0 ? [['Services', PKR(chargedSvcTotal)] as [string, string]] : []),
+    ...(customChargesTotal > 0 ? [['Additional Charges', PKR(customChargesTotal)] as [string, string]] : []),
   ];
 
   if (discountAmt > 0) {
@@ -4978,11 +5034,20 @@ async function generateQuotationPdf(opts: {
   rightY += pricingH + 3;
 
   // ── ROW 3 LEFT: Services table (starts at leftY, not synced — fills column gap) ─
-  if (opts.services.length > 0) {
+  // Suppress any "installation" service that's already an included package component
+  const pkgInstallCovered = opts.lines.some(l =>
+    l.isPackage && (l.packageComponents as PackageComponent[] || [])
+      .some((c: PackageComponent) => !c.hidden && c.status === 'included' && /install/i.test(c.name))
+  );
+  const filteredServices = pkgInstallCovered
+    ? opts.services.filter(svc => !/install/i.test(svc.service_name))
+    : opts.services;
+
+  if (filteredServices.length > 0) {
   secLabel('SERVICES', margin, leftY);
   leftY += 3.5;
 
-  const svcBody: any[] = opts.services.map(svc => {
+  const svcBody: any[] = filteredServices.map(svc => {
     // ASCII-only labels — Unicode symbols corrupt in jsPDF Helvetica (Latin-1 only)
     const statusLabel = svc.status === 'included' ? 'INCL'
       : svc.status === 'charged' ? 'BILLED'
@@ -5018,55 +5083,11 @@ async function generateQuotationPdf(opts: {
     headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5 },
     bodyStyles: { fontSize: 6.5, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
     alternateRowStyles: { fillColor: [250, 250, 250] },
-    styles: { overflow: 'linebreak', cellPadding: 1.2 },
+    styles: { overflow: 'linebreak', cellPadding: cellPad },
   });
   // @ts-ignore
   leftY = (doc as any).lastAutoTable.finalY + 3;
   } // end if services
-
-  // ── ROW 3 RIGHT: Energy Advisory (starts at rightY — fills right column gap) ──
-  const hasSolarProduct = opts.lines.some(l => /solar|inverter/i.test(l.category));
-  if (!hasSolarProduct && opts.customerType !== 'commercial') {
-    const advisory = buildDetailedAdvisory(
-      opts.customerType,
-      opts.lines.map(l => ({ name: l.name, category: l.category, kwhPerMonth: l.kwhPerMonth, qty: l.qty, keySpec: l.keySpec }))
-    );
-    if (advisory && advisory.paragraphs.length > 0) {
-      secLabel('ENERGY ADVISORY', rightX, rightY);
-      rightY += 3.5;
-
-      const bgColor: [number, number, number] = advisory.color === 'blue' ? [239, 246, 255]
-        : advisory.color === 'green' ? [240, 253, 244] : [248, 248, 248];
-      const borderColor: [number, number, number] = advisory.color === 'blue' ? [59, 130, 246]
-        : advisory.color === 'green' ? [22, 163, 74] : [150, 150, 150];
-      const textColor: [number, number, number] = advisory.color === 'blue' ? [29, 78, 216]
-        : advisory.color === 'green' ? [21, 128, 61] : [80, 80, 80];
-
-      const paras = advisory.paragraphs.slice(0, 3);
-      doc.setFontSize(6.5);
-      let totalAdvLines = 1;
-      for (const para of paras) totalAdvLines += doc.splitTextToSize(para, rightW - 6).length + 1;
-      const advH = 7 + totalAdvLines * 3.8;
-
-      doc.setFillColor(...bgColor);
-      doc.rect(rightX, rightY, rightW, advH, 'F');
-      doc.setDrawColor(...borderColor); doc.setLineWidth(0.6);
-      doc.line(rightX, rightY, rightX, rightY + advH);
-      doc.setLineWidth(0.2);
-
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(...textColor);
-      doc.text(advisory.sectionLabel, rightX + 3, rightY + 5);
-
-      let ay = rightY + 10;
-      for (const para of paras) {
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(55, 65, 81);
-        const paraLines = doc.splitTextToSize(para, rightW - 6);
-        doc.text(paraLines, rightX + 3, ay);
-        ay += paraLines.length * 3.8 + 2;
-      }
-      rightY += advH + 3;
-    }
-  }
 
   // ── SYNC COLUMNS → FULL-WIDTH ZONE ───────────────────────────────────────────
   let y = Math.max(leftY, rightY) + 2;
@@ -5124,6 +5145,58 @@ async function generateQuotationPdf(opts: {
     });
     // @ts-ignore
     y = (doc as any).lastAutoTable.finalY + 4;
+  }
+
+  // ── INSTALLMENT SCHEDULE (full-width, when saleType=installment) ─────────────
+  if (opts.saleType === 'installment' && (opts.instTotalPrice ?? 0) > 0 && (opts.instMonths ?? 0) > 0 && opts.instFirstDate) {
+    const fmtDateInst = (d: Date) => d.toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' });
+    const instSchedBody: any[] = [];
+    instSchedBody.push([
+      { content: '0', styles: { fillColor: [234, 88, 12] as [number,number,number], textColor: [255, 255, 255] as [number,number,number], fontStyle: 'bold' as const } },
+      { content: 'Advance Payment', styles: { fillColor: [234, 88, 12] as [number,number,number], textColor: [255, 255, 255] as [number,number,number], fontStyle: 'bold' as const } },
+      { content: PKR(opts.instAdvanceAmt ?? 0), styles: { fillColor: [234, 88, 12] as [number,number,number], textColor: [255, 255, 255] as [number,number,number], fontStyle: 'bold' as const, halign: 'right' as const } },
+      { content: 'Upon Confirmation', styles: { fillColor: [234, 88, 12] as [number,number,number], textColor: [255, 255, 255] as [number,number,number], fontStyle: 'bold' as const } },
+    ]);
+    for (let i = 1; i <= (opts.instMonths ?? 0); i++) {
+      const d = new Date(opts.instFirstDate);
+      d.setMonth(d.getMonth() + (i - 1));
+      instSchedBody.push([String(i), `Installment ${i}`, PKR(opts.instMonthlyAmt ?? 0), fmtDateInst(d)]);
+    }
+    instSchedBody.push([
+      { content: '', styles: { fillColor: [248, 248, 248] as [number,number,number] } },
+      { content: 'CONTRACT TOTAL', styles: { fillColor: [248, 248, 248] as [number,number,number], fontStyle: 'bold' as const, textColor: [40, 40, 40] as [number,number,number] } },
+      { content: PKR(opts.instTotalPrice ?? 0), styles: { fillColor: [248, 248, 248] as [number,number,number], fontStyle: 'bold' as const, halign: 'right' as const, textColor: [40, 40, 40] as [number,number,number] } },
+      { content: '', styles: { fillColor: [248, 248, 248] as [number,number,number] } },
+    ]);
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [[
+        { content: 'INSTALLMENT SCHEDULE', colSpan: 4, styles: {
+          fillColor: [26, 26, 26] as [number,number,number], textColor: [255, 255, 255] as [number,number,number],
+          fontStyle: 'bold' as const, fontSize: 7,
+          cellPadding: { top: 2, bottom: 2, left: 3, right: 3 },
+        }},
+      ], ['#', 'DESCRIPTION', 'AMOUNT', 'DUE DATE']],
+      body: instSchedBody,
+      columnStyles: {
+        0: { cellWidth: 10 },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 36, halign: 'right' as const },
+        3: { cellWidth: 36 },
+      },
+      headStyles: { fillColor: [26, 26, 26] as [number,number,number], textColor: [255, 255, 255] as [number,number,number], fontStyle: 'bold' as const, fontSize: 6.5 },
+      bodyStyles: { fontSize: 6.5, textColor: [40, 40, 40] as [number,number,number], lineColor: [229, 231, 235] as [number,number,number], lineWidth: 0.15, cellPadding: cellPad },
+      alternateRowStyles: { fillColor: [250, 250, 250] as [number,number,number] },
+      styles: { overflow: 'linebreak' },
+    });
+    // @ts-ignore
+    y = (doc as any).lastAutoTable.finalY + 4;
+
+    // Late payment penalty note
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(6); doc.setTextColor(120, 80, 0);
+    doc.text('Late payment penalty: 1% of outstanding balance per additional day past due date. Post-dated cheques required.', margin, y);
+    y += 5;
   }
 
   // ── Page-break guard — if bottom sections won't fit, start fresh page ─────────
@@ -5317,7 +5390,20 @@ async function generateInstallmentAdvancePdf(opts: {
   customerAddress: string;
   customerCnic: string;
   lines: QuoteLine[];
+  services?: Array<{
+    service_name: string;
+    description: string;
+    status: 'included' | 'charged' | 'not_selected';
+    visible_value: number;
+    display_value?: string;
+    charged_amount: number;
+  }>;
+  customCharges?: Array<{ name: string; amount: number }>;
+  guarantorName?: string;
+  guarantorPhone?: string;
+  guarantorCnic?: string;
   discount: number;
+  discountMode?: 'percentage' | 'fixed';
   refNumber: string;
   instTotalPrice: number;
   instAdvanceAmt: number;
@@ -5482,6 +5568,75 @@ async function generateInstallmentAdvancePdf(opts: {
   });
   // @ts-ignore
   y = (doc as any).lastAutoTable.finalY + 8;
+
+  // ── 6b. Services ──────────────────────────────────────────────────────────
+  const chargedAdvServices = (opts.services ?? []).filter(s => s.status === 'charged');
+  const includedAdvServices = (opts.services ?? []).filter(s => s.status === 'included');
+  if (chargedAdvServices.length > 0 || includedAdvServices.length > 0) {
+    const svcBodyAdv = [...chargedAdvServices, ...includedAdvServices].map(svc => {
+      const statusLabel = svc.status === 'charged' ? 'BILLED' : 'INCL';
+      const statusColor: [number, number, number] = svc.status === 'charged' ? [234, 88, 12] : [22, 163, 74];
+      const valueStr = svc.display_value
+        ? svc.display_value
+        : svc.status === 'charged' ? PKR(svc.charged_amount) : 'PKR 0';
+      return [
+        { content: svc.service_name, styles: { fontStyle: 'bold' as const } },
+        { content: statusLabel, styles: { textColor: statusColor, fontStyle: 'bold' as const, halign: 'center' as const } },
+        { content: valueStr, styles: { halign: 'right' as const } },
+      ];
+    });
+    autoTable(doc, {
+      startY: y, margin: { left: margin, right: margin },
+      head: [['SERVICE', 'STATUS', 'AMOUNT']],
+      body: svcBodyAdv,
+      columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 18, halign: 'center' as const }, 2: { cellWidth: 35, halign: 'right' as const } },
+      headStyles: { fillColor: [45, 45, 55] as [number,number,number], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+      bodyStyles: { fontSize: 7, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
+      styles: { overflow: 'linebreak', cellPadding: 1.5 },
+    });
+    // @ts-ignore
+    y = (doc as any).lastAutoTable.finalY + 6;
+  }
+
+  // ── 6c. Custom charges ─────────────────────────────────────────────────────
+  if ((opts.customCharges ?? []).length > 0) {
+    const ccBodyAdv = opts.customCharges!.map(c => [
+      { content: c.name, styles: { fontStyle: 'bold' as const } },
+      { content: PKR(c.amount), styles: { halign: 'right' as const, fontStyle: 'bold' as const } },
+    ]);
+    autoTable(doc, {
+      startY: y, margin: { left: margin, right: margin },
+      head: [['ADDITIONAL CHARGE', 'AMOUNT']],
+      body: ccBodyAdv,
+      columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 35, halign: 'right' as const } },
+      headStyles: { fillColor: [45, 45, 55] as [number,number,number], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+      bodyStyles: { fontSize: 7, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
+      styles: { overflow: 'linebreak', cellPadding: 1.5 },
+    });
+    // @ts-ignore
+    y = (doc as any).lastAutoTable.finalY + 6;
+  }
+
+  // ── 6d. Guarantor block ────────────────────────────────────────────────────
+  if (opts.guarantorName?.trim() || opts.guarantorCnic?.trim()) {
+    const gtH = 22;
+    doc.setFillColor(255, 247, 237);
+    doc.rect(margin, y, printW, gtH, 'F');
+    doc.setDrawColor(234, 88, 12); doc.setLineWidth(0.8);
+    doc.line(margin, y, margin, y + gtH);
+    doc.setLineWidth(0.2);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(234, 88, 12);
+    doc.text('GUARANTOR', margin + 4, y + 6);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(20, 20, 20);
+    doc.text(opts.guarantorName || '—', margin + 4, y + 13);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(80, 80, 80);
+    const gtParts = [
+      ...(opts.guarantorPhone ? [opts.guarantorPhone] : []),
+      ...(opts.guarantorCnic ? [`CNIC: ${opts.guarantorCnic}`] : []),
+    ];
+    doc.text(gtParts.join('   '), margin + 4, y + 19);
+    y += gtH + 6;
+  }
 
   // ── 7. Bank details ────────────────────────────────────────────────────────
   const bdH = 28;
@@ -5720,6 +5875,276 @@ async function generateInstallmentPaymentPdf(opts: {
   return doc.output('blob');
 }
 
+// ── Service Receipt PDF ───────────────────────────────────────────────────────
+
+async function generateServiceReceiptPdf(opts: {
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string;
+  customerAddress: string;
+  refNumber: string;
+  services: Array<{
+    service_name: string;
+    description: string;
+    status: 'included' | 'charged' | 'not_selected';
+    charged_amount: number;
+  }>;
+  customCharges: Array<{ name: string; amount: number }>;
+  discount: number;
+  discountMode: 'percentage' | 'fixed';
+  discountType: string;
+  discountReason: string;
+  notes: string;
+  preparedBy: string;
+  showNtn?: boolean;
+}): Promise<Blob> {
+  const ORANGE = '#EA580C';
+  const DARK   = '#1A1A1A';
+  const W = 210; const margin = 10;
+  const printW = W - margin * 2;
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const PKR = (n: number) => `PKR ${Math.round(n).toLocaleString('en-PK')}`;
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' });
+
+  let logoData: string | null = null;
+  try { logoData = await loadLogoWhite(); } catch { /* fallback */ }
+  let qrData: string | null = null;
+  try { qrData = await loadQrBase64(); } catch { /* skip */ }
+
+  // ── Header ───────────────────────────────────────────────────────────────
+  const HEADER_H = 38;
+  doc.setFillColor(ORANGE);
+  doc.rect(0, 0, W, HEADER_H, 'F');
+  doc.setFillColor(180, 55, 5);
+  doc.rect(W - 62, 0, 62, HEADER_H, 'F');
+  if (logoData) {
+    doc.addImage(logoData, 'PNG', margin, 4, 0, 28);
+  } else {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
+    doc.text("Tajalli's", margin, 20);
+  }
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(255, 255, 255);
+  doc.text('HOME & COMMERCIAL', margin + 38, 14);
+  doc.text('SOLUTIONS', margin + 38, 23);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(255, 222, 188);
+  doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', margin + 38, 30);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(255, 185, 145);
+  doc.text('SERVICE RECEIPT', W - margin, 9, { align: 'right' });
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
+  doc.text(opts.refNumber, W - margin, 21, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(255, 210, 175);
+  doc.text(dateStr, W - margin, 30, { align: 'right' });
+  doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
+  doc.line(W - 64, 3, W - 64, HEADER_H - 3);
+  doc.setLineWidth(0.2);
+  const contactParts = ['L-152 & 153, Sector 11C-1, North Karachi', '+92 370 2578788', 'support@tajallis.com.pk'];
+  if (opts.showNtn) contactParts.push('NTN: 42101-3836602-3');
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(255, 210, 175);
+  doc.text(contactParts.join('  ·  '), margin, HEADER_H - 2);
+
+  let y = HEADER_H + 4;
+
+  // ── Customer + meta (two-column) ─────────────────────────────────────────
+  const colGap = 4; const leftW = 112; const rightW = printW - leftW - colGap;
+  const rightX = margin + leftW + colGap;
+
+  // Left: customer
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
+  doc.text('CLIENT', margin, y);
+  y += 3.5;
+  const custFields: Array<[string, string]> = [
+    ['NAME', opts.customerName || '—'],
+    ['PHONE', opts.customerPhone || '—'],
+    ...(opts.customerEmail ? [['EMAIL', opts.customerEmail] as [string, string]] : []),
+    ['ADDRESS', opts.customerAddress || '—'],
+  ];
+  const custRowH = 4.5;
+  const custBlockH = custFields.length * custRowH + 5;
+  doc.setFillColor(255, 247, 237);
+  doc.rect(margin, y, leftW, custBlockH, 'F');
+  doc.setDrawColor(234, 88, 12); doc.setLineWidth(0.5);
+  doc.line(margin, y, margin, y + custBlockH);
+  doc.setLineWidth(0.2);
+  let cy = y + custRowH;
+  for (const [lbl, val] of custFields) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(180, 100, 50);
+    doc.text(lbl, margin + 3, cy);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(30, 30, 30);
+    doc.text(val, margin + 22, cy);
+    cy += custRowH;
+  }
+
+  // Right: receipt meta
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
+  doc.text('RECEIPT DETAILS', rightX, y - 3.5);
+  const metaRows: Array<[string, string]> = [
+    ['REF',         opts.refNumber],
+    ['DATE',        dateStr],
+    ['PREPARED BY', opts.preparedBy || '—'],
+    ['TYPE',        'Service Receipt'],
+  ];
+  const metaBlockH = metaRows.length * 4.5 + 5;
+  doc.setFillColor(243, 244, 246);
+  doc.rect(rightX, y, rightW, metaBlockH, 'F');
+  let my = y + 4.5;
+  for (const [lbl, val] of metaRows) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(120, 120, 120);
+    doc.text(lbl, rightX + 3, my);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(30, 30, 30);
+    doc.text(val, rightX + 22, my);
+    my += 4.5;
+  }
+  y += Math.max(custBlockH, metaBlockH) + 4;
+
+  // ── Services table ────────────────────────────────────────────────────────
+  const chargedServices = opts.services.filter(s => s.status === 'charged');
+  const includedServices = opts.services.filter(s => s.status === 'included');
+
+  if (chargedServices.length > 0 || includedServices.length > 0) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
+    doc.text('SERVICES', margin, y);
+    y += 3.5;
+
+    const svcBody: any[] = [];
+    for (const svc of [...chargedServices, ...includedServices]) {
+      const statusLabel = svc.status === 'charged' ? 'BILLED' : 'INCL';
+      const statusColor: [number, number, number] = svc.status === 'charged'
+        ? [234, 88, 12] : [22, 163, 74];
+      const amountLabel = svc.status === 'charged' ? PKR(svc.charged_amount) : 'PKR 0';
+      svcBody.push([
+        { content: svc.service_name, styles: { fontStyle: 'bold' as const } },
+        svc.description || '',
+        { content: statusLabel, styles: { textColor: statusColor, fontStyle: 'bold' as const, halign: 'center' as const } },
+        { content: amountLabel, styles: { fontStyle: svc.status === 'charged' ? 'bold' as const : 'normal' as const, halign: 'right' as const } },
+      ]);
+    }
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [['SERVICE', 'DESCRIPTION', 'STATUS', 'AMOUNT']],
+      body: svcBody,
+      columnStyles: {
+        0: { cellWidth: 55 },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 16, halign: 'center' as const },
+        3: { cellWidth: 25, halign: 'right' as const },
+      },
+      headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+      bodyStyles: { fontSize: 7, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
+      alternateRowStyles: { fillColor: [250, 250, 250] },
+      styles: { overflow: 'linebreak', cellPadding: 1.2 },
+    });
+    // @ts-ignore
+    y = (doc as any).lastAutoTable.finalY + 4;
+  }
+
+  // ── Custom charges table ──────────────────────────────────────────────────
+  if (opts.customCharges.length > 0) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
+    doc.text('ADDITIONAL CHARGES', margin, y);
+    y += 3.5;
+    const ccBody = opts.customCharges.map(c => [
+      { content: c.name, styles: { fontStyle: 'bold' as const } },
+      { content: PKR(c.amount), styles: { fontStyle: 'bold' as const, halign: 'right' as const } },
+    ]);
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [['CHARGE DESCRIPTION', 'AMOUNT']],
+      body: ccBody,
+      columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 30, halign: 'right' as const } },
+      headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+      bodyStyles: { fontSize: 7, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
+      styles: { overflow: 'linebreak', cellPadding: 1.2 },
+    });
+    // @ts-ignore
+    y = (doc as any).lastAutoTable.finalY + 4;
+  }
+
+  // ── Totals block ──────────────────────────────────────────────────────────
+  const servicesTotal = chargedServices.reduce((s, svc) => s + svc.charged_amount, 0);
+  const customTotal = opts.customCharges.reduce((s, c) => s + c.amount, 0);
+  const baseTotal = servicesTotal + customTotal;
+  let discountAmt = 0;
+  if (opts.discountMode === 'fixed') {
+    discountAmt = Math.min(opts.discount, baseTotal);
+  } else if (opts.discount > 0) {
+    discountAmt = Math.round(baseTotal * opts.discount / 100);
+  }
+  const grandTotal = baseTotal - discountAmt;
+
+  const totalsRightX = W - margin - 70;
+  const pricingRows: Array<[string, string]> = [];
+  if (servicesTotal > 0) pricingRows.push(['Services', PKR(servicesTotal)]);
+  if (customTotal > 0)   pricingRows.push(['Additional Charges', PKR(customTotal)]);
+  if (discountAmt > 0) {
+    const lbl = opts.discountMode === 'fixed'
+      ? `${opts.discountType} Discount (fixed)`
+      : `${opts.discountType} Discount (${opts.discount}%)`;
+    pricingRows.push([lbl, `- ${PKR(discountAmt)}`]);
+    if (opts.discountReason) pricingRows.push(['Reason', opts.discountReason]);
+  }
+
+  const pricingRowH = 5;
+  const pricingH = pricingRows.length * pricingRowH + 18;
+  doc.setFillColor(250, 250, 250);
+  doc.rect(totalsRightX, y, W - margin - totalsRightX, pricingH, 'F');
+  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
+  doc.rect(totalsRightX, y, W - margin - totalsRightX, pricingH, 'S');
+  let pry = y + 5;
+  for (const [lbl, val] of pricingRows) {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(80, 80, 80);
+    doc.text(lbl, totalsRightX + 3, pry);
+    doc.text(val, W - margin - 3, pry, { align: 'right' });
+    pry += pricingRowH;
+  }
+  doc.setFillColor(ORANGE);
+  doc.rect(totalsRightX, pry - 1, W - margin - totalsRightX, 11, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
+  doc.text('TOTAL DUE', totalsRightX + 3, pry + 7);
+  doc.text(PKR(grandTotal), W - margin - 3, pry + 7, { align: 'right' });
+  y += pricingH + 4;
+
+  // ── Notes ─────────────────────────────────────────────────────────────────
+  if (opts.notes?.trim()) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
+    doc.text('NOTES', margin, y);
+    y += 3;
+    doc.setFillColor(255, 247, 237);
+    doc.rect(margin, y, printW, 14, 'F');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(60, 60, 60);
+    const noteLines = doc.splitTextToSize(opts.notes, printW - 6);
+    doc.text(noteLines, margin + 3, y + 5);
+    y += 18;
+  }
+
+  // ── Bank transfer ─────────────────────────────────────────────────────────
+  const bdH = 28;
+  doc.setFillColor(240, 253, 244);
+  doc.rect(margin, y, printW, bdH, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
+  doc.text('BANK TRANSFER — RAAST / IBAN', margin + 3, y + 6);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(20, 20, 20);
+  doc.text("TAJALLI'S HOME COLLECTION", margin + 3, y + 13);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(60, 60, 60);
+  doc.text('IBAN: PK33MEZN0001060101874794', margin + 3, y + 19);
+  doc.text('Meezan Bank — F.B Area Branch, KHI', margin + 3, y + 25);
+  if (qrData) doc.addImage(qrData, 'JPEG', margin + printW - 21, y + 4, 18, 18);
+  y += bdH + 4;
+
+  // ── Footer ────────────────────────────────────────────────────────────────
+  const footerY = 285;
+  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.3);
+  doc.line(margin, footerY, W - margin, footerY);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(120, 120, 120);
+  doc.text(`${opts.refNumber}  ·  SERVICE RECEIPT  ·  PAGE 1 OF 1`, margin, footerY + 5);
+  doc.text('tajallis.com.pk  ·  support@tajallis.com.pk  ·  +92 370 2578788', W - margin, footerY + 5, { align: 'right' });
+
+  return doc.output('blob');
+}
+
 // ── Brand alias map for fuzzy search tolerance ──
 const BRAND_ALIASES: Record<string, string[]> = {
   haier:     ['hair', 'haiir', 'haer'],
@@ -5863,6 +6288,299 @@ const STATUS_COLORS: Record<string, string> = {
   paid:     'bg-green-100 text-green-800',
   overdue:  'bg-red-100 text-red-800',
 };
+
+// ── InstallmentLedgerTab ────────────────────────────────────────────────────
+type InstallmentSlot = {
+  id: string;
+  installment_no: number;
+  due_date: string;
+  amount_due: number;
+  amount_paid: number;
+  status: 'pending' | 'paid' | 'overdue';
+  paid_date: string | null;
+  payment_method: string | null;
+  receipt_ref: string | null;
+};
+
+type LedgerRow = {
+  id: string;
+  ref_number: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  created_at: string;
+  inst_total_price: number | null;
+  inst_advance_amt: number | null;
+  inst_months: number | null;
+  inst_monthly_amt: number | null;
+  payment_status: string;
+  slots: InstallmentSlot[];
+};
+
+function InstallmentLedgerTab() {
+  const [rows, setRows]           = useState<LedgerRow[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState('');
+  const [search, setSearch]       = useState('');
+  const [expanded, setExpanded]   = useState<string | null>(null);
+  const [saving, setSaving]       = useState<string | null>(null);
+  const [editSlot, setEditSlot]   = useState<{ invoiceId: string; slot: InstallmentSlot } | null>(null);
+  const [payDate, setPayDate]     = useState('');
+  const [payMethod, setPayMethod] = useState<string>('cash');
+  const [payRef, setPayRef]       = useState('');
+
+  const PKR = (n: number) => `PKR ${Math.round(n).toLocaleString('en-PK')}`;
+
+  async function load() {
+    setLoading(true);
+    const { data: invData, error: invErr } = await supabase
+      .from('invoices')
+      .select('id, ref_number, customer_name, customer_phone, created_at, inst_total_price, inst_advance_amt, inst_months, inst_monthly_amt, payment_status')
+      .eq('doc_type', 'installment-invoice')
+      .order('created_at', { ascending: false });
+    if (invErr) { setError(invErr.message); setLoading(false); return; }
+
+    const invIds = (invData ?? []).map(r => r.id);
+    const { data: slotData } = invIds.length > 0
+      ? await supabase
+          .from('installment_schedules')
+          .select('id, invoice_id, installment_no, due_date, amount_due, amount_paid, status, paid_date, payment_method, receipt_ref')
+          .in('invoice_id', invIds)
+          .order('installment_no', { ascending: true })
+      : { data: [] };
+
+    const slotMap: Record<string, InstallmentSlot[]> = {};
+    for (const s of (slotData ?? [])) {
+      if (!slotMap[s.invoice_id]) slotMap[s.invoice_id] = [];
+      slotMap[s.invoice_id].push(s);
+    }
+    setRows((invData ?? []).map(r => ({ ...r, slots: slotMap[r.id] ?? [] })));
+    setLoading(false);
+    setError('');
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function markPaid(invoiceId: string, slot: InstallmentSlot) {
+    setSaving(slot.id);
+    const { error: err } = await supabase
+      .from('installment_schedules')
+      .update({
+        status: 'paid',
+        amount_paid: slot.amount_due,
+        paid_date: payDate || new Date().toISOString().slice(0, 10),
+        payment_method: payMethod,
+        receipt_ref: payRef || null,
+      })
+      .eq('id', slot.id);
+    setSaving(null);
+    setEditSlot(null);
+    setPayRef('');
+    if (!err) load();
+  }
+
+  async function markOverdue(slotId: string) {
+    setSaving(slotId);
+    await supabase.from('installment_schedules').update({ status: 'overdue' }).eq('id', slotId);
+    setSaving(null);
+    load();
+  }
+
+  async function revertPending(slotId: string) {
+    setSaving(slotId);
+    await supabase.from('installment_schedules').update({ status: 'pending', amount_paid: 0, paid_date: null, payment_method: null, receipt_ref: null }).eq('id', slotId);
+    setSaving(null);
+    load();
+  }
+
+  const filtered = rows.filter(r => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (r.customer_name ?? '').toLowerCase().includes(q)
+      || (r.customer_phone ?? '').includes(q)
+      || r.ref_number.toLowerCase().includes(q);
+  });
+
+  const totalOutstanding = filtered.reduce((s, r) => {
+    const collected = r.slots.filter(sl => sl.status === 'paid').reduce((a, sl) => a + sl.amount_paid, 0);
+    return s + (r.inst_total_price ?? 0) - collected;
+  }, 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-lg font-black text-gray-900">Installment Ledger</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Track installment sales and log payments</p>
+        </div>
+        <div className="flex gap-2">
+          <input
+            value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search customer / ref…"
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+          />
+          <button onClick={load} className="px-3 py-2 text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl transition-colors">↻ Refresh</button>
+        </div>
+      </div>
+
+      {filtered.length > 0 && (
+        <div className="bg-orange-50 rounded-xl px-4 py-2.5 text-sm font-semibold text-orange-800">
+          Total outstanding across {filtered.length} installment sale{filtered.length !== 1 ? 's' : ''}: {PKR(totalOutstanding)}
+        </div>
+      )}
+
+      {loading && <p className="text-sm text-gray-400">Loading…</p>}
+      {error && <p className="text-sm text-red-500">{error}</p>}
+      {!loading && !error && filtered.length === 0 && (
+        <p className="text-sm text-gray-400">No installment sales found.</p>
+      )}
+
+      {filtered.map(row => {
+        const collected = row.slots.filter(sl => sl.status === 'paid').reduce((s, sl) => s + sl.amount_paid, 0);
+        const outstanding = (row.inst_total_price ?? 0) - collected;
+        const pendingCount = row.slots.filter(sl => sl.status === 'pending').length;
+        const overdueCount = row.slots.filter(sl => sl.status === 'overdue').length;
+        const isOpen = expanded === row.id;
+        return (
+          <div key={row.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <button
+              className="w-full text-left px-5 py-4 flex items-start gap-3 hover:bg-gray-50 transition-colors"
+              onClick={() => setExpanded(isOpen ? null : row.id)}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold text-gray-900 text-sm">{row.customer_name ?? '—'}</span>
+                  <span className="font-mono text-xs text-gray-400">{row.ref_number}</span>
+                  {overdueCount > 0 && <span className="text-xs font-semibold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{overdueCount} overdue</span>}
+                  {pendingCount > 0 && !overdueCount && <span className="text-xs font-semibold bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">{pendingCount} pending</span>}
+                  {pendingCount === 0 && overdueCount === 0 && <span className="text-xs font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Fully paid</span>}
+                </div>
+                <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
+                  <span>{row.customer_phone ?? '—'}</span>
+                  <span>{new Date(row.created_at).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                  {row.inst_total_price && <span>Total: {PKR(row.inst_total_price)}</span>}
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-sm font-bold text-gray-900">{PKR(outstanding)}</p>
+                <p className="text-xs text-gray-400">outstanding</p>
+              </div>
+              <span className="text-gray-300 mt-1">{isOpen ? '▲' : '▼'}</span>
+            </button>
+
+            {isOpen && (
+              <div className="px-5 pb-5 border-t border-gray-100 space-y-3 pt-4">
+                {/* Progress bar */}
+                {row.inst_total_price && row.inst_total_price > 0 && (
+                  <div>
+                    <div className="flex justify-between text-xs text-gray-500 mb-1">
+                      <span>Collected: {PKR(collected)}</span>
+                      <span>{Math.round((collected / row.inst_total_price) * 100)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2">
+                      <div className="bg-orange-500 h-2 rounded-full transition-all" style={{ width: `${Math.min(100, Math.round((collected / row.inst_total_price) * 100))}%` }} />
+                    </div>
+                  </div>
+                )}
+
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-gray-400 border-b border-gray-100">
+                      <th className="text-left py-1.5 font-semibold">#</th>
+                      <th className="text-left py-1.5 font-semibold">Due Date</th>
+                      <th className="text-right py-1.5 font-semibold">Amount</th>
+                      <th className="text-center py-1.5 font-semibold">Status</th>
+                      <th className="text-right py-1.5 font-semibold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {row.slots.map(slot => (
+                      <tr key={slot.id} className="border-b border-gray-50 last:border-0">
+                        <td className="py-2 text-gray-500">{slot.installment_no === 0 ? 'Adv' : slot.installment_no}</td>
+                        <td className="py-2 text-gray-700">{slot.due_date}</td>
+                        <td className="py-2 text-right font-semibold text-gray-900">{PKR(slot.amount_due)}</td>
+                        <td className="py-2 text-center">
+                          <span className={`px-2 py-0.5 rounded-full font-semibold text-[10px] ${STATUS_COLORS[slot.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                            {slot.status}
+                          </span>
+                          {slot.status === 'paid' && slot.paid_date && (
+                            <p className="text-[10px] text-gray-400 mt-0.5">{slot.paid_date}{slot.payment_method ? ` · ${slot.payment_method}` : ''}</p>
+                          )}
+                        </td>
+                        <td className="py-2 text-right">
+                          {saving === slot.id ? (
+                            <span className="text-gray-400 text-[10px]">saving…</span>
+                          ) : slot.status !== 'paid' ? (
+                            <div className="flex gap-1 justify-end">
+                              <button
+                                onClick={() => { setEditSlot({ invoiceId: row.id, slot }); setPayDate(new Date().toISOString().slice(0, 10)); setPayMethod('cash'); setPayRef(''); }}
+                                className="px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold transition-colors">
+                                ✓ Paid
+                              </button>
+                              {slot.status !== 'overdue' && (
+                                <button onClick={() => markOverdue(slot.id)}
+                                  className="px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-semibold transition-colors">
+                                  Overdue
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <button onClick={() => revertPending(slot.id)}
+                              className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-[10px] font-semibold transition-colors">
+                              Revert
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Pay modal inline */}
+                {editSlot?.invoiceId === row.id && (
+                  <div className="bg-green-50 rounded-xl p-4 border border-green-200 space-y-3">
+                    <p className="text-xs font-bold text-gray-700">
+                      Mark installment #{editSlot.slot.installment_no === 0 ? 'Advance' : editSlot.slot.installment_no} as paid — {PKR(editSlot.slot.amount_due)}
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 block mb-1">Payment Date</label>
+                        <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)}
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 block mb-1">Method</label>
+                        <select value={payMethod} onChange={e => setPayMethod(e.target.value)}
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-400">
+                          <option value="cash">Cash</option>
+                          <option value="bank_transfer">Bank Transfer</option>
+                          <option value="cheque">Cheque</option>
+                          <option value="online">Online</option>
+                        </select>
+                      </div>
+                    </div>
+                    <input value={payRef} onChange={e => setPayRef(e.target.value)}
+                      placeholder="Reference / receipt number (optional)"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+                    <div className="flex gap-2">
+                      <button onClick={() => markPaid(row.id, editSlot.slot)}
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-xl text-sm transition-colors">
+                        Confirm Payment
+                      </button>
+                      <button onClick={() => setEditSlot(null)}
+                        className="px-4 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold py-2 rounded-xl text-sm transition-colors">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function InvoiceHistoryTab() {
   const [rows, setRows]               = useState<InvoiceRow[]>([]);
@@ -6205,7 +6923,7 @@ function QuotationTab({ products }: { products: Product[] }) {
   const [customerEmail,   setCustomerEmail]   = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [customerCnic,    setCustomerCnic]    = useState('');
-  const [docType, setDocType]                 = useState<'quotation' | 'invoice' | 'installment-invoice'>('quotation');
+  const [docType, setDocType]                 = useState<'quotation' | 'invoice' | 'installment-invoice' | 'service_receipt'>('quotation');
   const [discount, setDiscount]           = useState(0);
   const [discountRaw, setDiscountRaw]     = useState('0');
   const [discountType, setDiscountType]   = useState('Promotional');
@@ -6314,6 +7032,13 @@ function QuotationTab({ products }: { products: Product[] }) {
   const [customerArea, setCustomerArea]   = useState('');
   const [isExistingCustomer, setIsExistingCustomer] = useState<boolean | null>(null);
   const [validityHours, setValidityHours] = useState<24 | 48 | 72 | 168>(48);
+  // ── Custom charges ──
+  const [customCharges, setCustomCharges] = useState<Array<{id: string; name: string; amount: number}>>([]);
+  // ── Guarantor (installment) ──
+  const [guarantorName,  setGuarantorName]  = useState('');
+  const [guarantorPhone, setGuarantorPhone] = useState('');
+  const [guarantorCnic,  setGuarantorCnic]  = useState('');
+  const [invoiceNotes,   setInvoiceNotes]   = useState('');
 
   const autosaveRef                        = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -6372,6 +7097,7 @@ function QuotationTab({ products }: { products: Product[] }) {
           advancePct, balanceNote,
           saleType, deliveryEta, preparedBy, stockStatus, advancePaid, customerArea, isExistingCustomer, validityHours,
           instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber,
+          customCharges, guarantorName, guarantorPhone, guarantorCnic, invoiceNotes,
         }));
       }
     }, 1000);
@@ -6383,7 +7109,8 @@ function QuotationTab({ products }: { products: Product[] }) {
       discountMode, discountFixed, discountFixedRaw,
       saleType, deliveryEta, preparedBy, stockStatus, advancePaid,
       customerArea, isExistingCustomer, validityHours,
-      instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber]);
+      instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber,
+      customCharges, guarantorName, guarantorPhone, guarantorCnic, invoiceNotes]);
 
   function restoreDraft() {
     try {
@@ -6424,6 +7151,11 @@ function QuotationTab({ products }: { products: Product[] }) {
       if (typeof draft.instMonthlyAmt === 'number') setInstMonthlyAmt(draft.instMonthlyAmt);
       if (draft.instFirstDate) setInstFirstDate(draft.instFirstDate);
       if (typeof draft.instPaymentNumber === 'number') setInstPaymentNumber(draft.instPaymentNumber);
+      if (Array.isArray(draft.customCharges)) setCustomCharges(draft.customCharges);
+      if (draft.guarantorName)  setGuarantorName(draft.guarantorName);
+      if (draft.guarantorPhone) setGuarantorPhone(draft.guarantorPhone);
+      if (draft.guarantorCnic)  setGuarantorCnic(draft.guarantorCnic);
+      if (draft.invoiceNotes)   setInvoiceNotes(draft.invoiceNotes);
     } catch { /* ignore */ }
     setDraftBanner(false);
   }
@@ -6635,6 +7367,8 @@ function QuotationTab({ products }: { products: Product[] }) {
   const serviceTotal = totals.serviceTotal;
   const discountAmt = totals.discountAmt;
   const grandTotal = totals.grandTotal;
+  const customChargesTotal = customCharges.reduce((s, c) => s + c.amount, 0);
+  const effectiveTotal = grandTotal + customChargesTotal;
 
   const hasUnapprovedFloorViolation = lines.some(l => {
     const r = validateFloor(l.unitPrice, l.minPrice);
@@ -6673,7 +7407,7 @@ function QuotationTab({ products }: { products: Product[] }) {
   }, [lines, products]);
 
   async function generate() {
-    if (!lines.length || pdfState === 'generating') return;
+    if (docType !== 'service_receipt' && !lines.length || pdfState === 'generating') return;
     setPdfState('generating');
     setGenerating(true);
     const timeout = setTimeout(() => {
@@ -6682,57 +7416,91 @@ function QuotationTab({ products }: { products: Product[] }) {
     }, 15000);
     try {
       if (pdfUrl) URL.revokeObjectURL(pdfUrl);
-      const instLines: Array<{ name: string; amount: number }> = installationType === 'installation-included'
-        ? [
-            ...(elevatedStructureOn && elevatedStructureAmt > 0 ? [{ name: 'Elevated Structure (per panel)', amount: elevatedStructureAmt }] : []),
-            ...(wiringAmt > 0 ? [{ name: 'Wiring & Cabling', amount: wiringAmt }] : []),
-            ...(laborAmt > 0 ? [{ name: 'Installation Labour', amount: laborAmt }] : []),
-          ]
-        : [];
-      const blob = await generateQuotationPdf({
-        customerName,
-        customerPhone: customerPhone.replace(/\D/g, ''),
-        customerEmail,
-        customerAddress,
-        customerCnic,
-        customerType,
-        customerArea,
-        isExistingCustomer,
-        lines,
-        services,
-        discount: discountMode === 'fixed' ? discountFixed : discount,
-        discountMode,
-        discountType,
-        discountReason,
-        docType: docType as 'quotation' | 'invoice',
-        saleType,
-        refNumber,
-        preparedBy,
-        stockStatus,
-        validityHours,
-        installationType,
-        installationLines: instLines,
-        advancePct,
-        balanceNote,
-        advancePaid,
-        deliveryEta,
-        showNtn,
-        instTeaserMonthly: grandTotal > 0 ? Math.round(grandTotal * 1.25 / 12) : undefined,
-        instTeaserMonths: 12,
-      });
+      let blob: Blob;
+      if (docType === 'service_receipt') {
+        blob = await generateServiceReceiptPdf({
+          customerName,
+          customerPhone: customerPhone.replace(/\D/g, ''),
+          customerEmail,
+          customerAddress,
+          refNumber,
+          services,
+          customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
+          discount: discountMode === 'fixed' ? discountFixed : discount,
+          discountMode,
+          discountType,
+          discountReason,
+          notes: invoiceNotes,
+          preparedBy,
+          showNtn,
+        });
+      } else {
+        const instLines: Array<{ name: string; amount: number }> = installationType === 'installation-included'
+          ? [
+              ...(elevatedStructureOn && elevatedStructureAmt > 0 ? [{ name: 'Elevated Structure (per panel)', amount: elevatedStructureAmt }] : []),
+              ...(wiringAmt > 0 ? [{ name: 'Wiring & Cabling', amount: wiringAmt }] : []),
+              ...(laborAmt > 0 ? [{ name: 'Installation Labour', amount: laborAmt }] : []),
+            ]
+          : [];
+        blob = await generateQuotationPdf({
+          customerName,
+          customerPhone: customerPhone.replace(/\D/g, ''),
+          customerEmail,
+          customerAddress,
+          customerCnic,
+          customerType,
+          customerArea,
+          isExistingCustomer,
+          lines,
+          services,
+          discount: discountMode === 'fixed' ? discountFixed : discount,
+          discountMode,
+          discountType,
+          discountReason,
+          docType: docType as 'quotation' | 'invoice',
+          saleType,
+          refNumber,
+          preparedBy,
+          stockStatus,
+          validityHours,
+          installationType,
+          installationLines: instLines,
+          advancePct,
+          balanceNote,
+          advancePaid,
+          deliveryEta,
+          showNtn,
+          customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
+          instTotalPrice: saleType === 'installment' ? instTotalPrice : undefined,
+          instAdvanceAmt: saleType === 'installment' ? instAdvanceAmt : undefined,
+          instMonths: saleType === 'installment' ? instMonths : undefined,
+          instMonthlyAmt: saleType === 'installment' ? instMonthlyAmt : undefined,
+          instFirstDate: saleType === 'installment' ? instFirstDate : undefined,
+          instTeaserMonthly: saleType !== 'installment' && grandTotal > 0 ? Math.round(grandTotal * 1.25 / 12) : undefined,
+          instTeaserMonths: 12,
+        });
+      }
       clearTimeout(timeout);
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
       const a = document.createElement('a');
       a.href = url; a.download = `tajallis_${docType}_${refNumber}.pdf`; a.click();
       logInvoiceToSupabase({
-        refNumber, docType: docType as 'quotation' | 'invoice',
+        refNumber,
+        docType: docType as 'quotation' | 'invoice' | 'installment-invoice' | 'installment_payment_receipt' | 'service_receipt',
         customerName, customerPhone: customerPhone.replace(/\D/g, ''),
         customerEmail, customerAddress, customerCnic,
         customerType, serviceLevel, discountReason,
         lines, services, discount, discountType,
-        grandTotal, serviceTotal, advancePct,
-        instTotalPrice: 0, instAdvanceAmt: 0, instMonths: 0, instMonthlyAmt: 0, instFirstDate,
+        grandTotal: effectiveTotal, serviceTotal, advancePct,
+        instTotalPrice: saleType === 'installment' ? instTotalPrice : 0,
+        instAdvanceAmt: saleType === 'installment' ? instAdvanceAmt : 0,
+        instMonths: saleType === 'installment' ? instMonths : 0,
+        instMonthlyAmt: saleType === 'installment' ? instMonthlyAmt : 0,
+        instFirstDate,
+        customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
+        guarantorName, guarantorPhone, guarantorCnic,
+        notes: invoiceNotes,
       }); // fire-and-forget
       setPdfState('success');
       setGenerating(false);
@@ -6755,6 +7523,10 @@ function QuotationTab({ products }: { products: Product[] }) {
         lines, discount, refNumber,
         instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, showNtn,
         isApartmentClient: customerType === 'apartment',
+        services,
+        customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
+        guarantorName, guarantorPhone, guarantorCnic,
+        discountMode,
       });
       clearTimeout(timeout);
       const url = URL.createObjectURL(blob);
@@ -6767,8 +7539,11 @@ function QuotationTab({ products }: { products: Product[] }) {
         customerEmail, customerAddress, customerCnic,
         customerType, serviceLevel, discountReason,
         lines, services, discount, discountType,
-        grandTotal, serviceTotal, advancePct: 0,
+        grandTotal: effectiveTotal, serviceTotal, advancePct: 0,
         instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate,
+        customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
+        guarantorName, guarantorPhone, guarantorCnic,
+        notes: invoiceNotes,
       });
       setInstAdvPdfState('success');
       setTimeout(() => setInstAdvPdfState('idle'), 3000);
@@ -6882,6 +7657,7 @@ function QuotationTab({ products }: { products: Product[] }) {
             ['quotation', 'Quotation'],
             ['invoice', 'Invoice'],
             ['installment-invoice', 'Installment'],
+            ['service_receipt', 'Service Receipt'],
           ] as [typeof docType, string][]).map(([t, label]) => (
             <button key={t} onClick={() => setDocType(t)}
               className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
@@ -7081,7 +7857,7 @@ function QuotationTab({ products }: { products: Product[] }) {
               )}
               <select value={discountType} onChange={e => setDiscountType(e.target.value)}
                 className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
-                {["Promotional", "Exchange Credit", "Seasonal Sale", "Founder's Special", "Clearance", "Volume", "Custom"].map(t => (
+                {["Promotional", "MYOP", "Exchange Credit", "Seasonal Sale", "Founder's Special", "Clearance", "Volume", "Custom"].map(t => (
                   <option key={t} value={t}>{t}</option>
                 ))}
               </select>
@@ -7231,6 +8007,21 @@ function QuotationTab({ products }: { products: Product[] }) {
                   <input type="number" min={1} max={instMonths} value={instPaymentNumber}
                     onChange={e => setInstPaymentNumber(Math.max(1, Math.min(instMonths, Number(e.target.value) || 1)))}
                     className="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                </div>
+              </div>
+              {/* Guarantor */}
+              <div className="pt-1 border-t border-gray-100 space-y-2">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Guarantor <span className="font-normal text-gray-400 normal-case">(optional)</span></p>
+                <input value={guarantorName} onChange={e => setGuarantorName(e.target.value)}
+                  placeholder="Guarantor name"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                <div className="grid grid-cols-2 gap-2">
+                  <input value={guarantorPhone} onChange={e => setGuarantorPhone(e.target.value)}
+                    placeholder="Guarantor phone"
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  <input value={guarantorCnic} onChange={e => setGuarantorCnic(e.target.value)}
+                    placeholder="Guarantor CNIC"
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
                 </div>
               </div>
             </div>
@@ -7643,7 +8434,7 @@ function QuotationTab({ products }: { products: Product[] }) {
           </div>
           <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-6 text-sm">
             {discount > 0 && <span className="text-gray-500">Subtotal: PKR {subtotal.toLocaleString('en-PK')} · Discount: − PKR {discountAmt.toLocaleString('en-PK')}</span>}
-            <span className="font-black text-gray-900 text-base">Grand Total: PKR {grandTotal.toLocaleString('en-PK')}</span>
+            <span className="font-black text-gray-900 text-base">Grand Total: PKR {effectiveTotal.toLocaleString('en-PK')}</span>
           </div>
         </div>
       )}
@@ -7709,6 +8500,60 @@ function QuotationTab({ products }: { products: Product[] }) {
         )}
       </div>
 
+      {/* ── Custom Charges Panel ── */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Additional Charges</p>
+          <button
+            onClick={() => setCustomCharges(prev => [...prev, { id: crypto.randomUUID(), name: '', amount: 0 }])}
+            className="px-3 py-1.5 text-xs font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors">
+            + Add Charge
+          </button>
+        </div>
+        {customCharges.length === 0 && (
+          <p className="text-xs text-gray-400">No additional charges. Use this for one-off work not in the services list.</p>
+        )}
+        {customCharges.map((cc, i) => (
+          <div key={cc.id} className="flex items-center gap-2">
+            <input
+              value={cc.name}
+              onChange={e => setCustomCharges(prev => prev.map((c, j) => j === i ? { ...c, name: e.target.value } : c))}
+              placeholder="Charge description"
+              className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            />
+            <input
+              type="number" min={0}
+              value={cc.amount || ''}
+              onChange={e => setCustomCharges(prev => prev.map((c, j) => j === i ? { ...c, amount: Number(e.target.value) || 0 } : c))}
+              placeholder="PKR"
+              className="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm text-right focus:outline-none focus:ring-2 focus:ring-orange-400"
+            />
+            <button onClick={() => setCustomCharges(prev => prev.filter((_, j) => j !== i))}
+              className="text-gray-300 hover:text-red-500 transition-colors p-1">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+        {customChargesTotal > 0 && (
+          <div className="flex justify-between text-sm text-gray-500">
+            <span>Additional Charges</span>
+            <span>+ {fmtPKR(customChargesTotal)}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ── Notes ── */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-2">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Internal Notes</p>
+        <textarea
+          value={invoiceNotes}
+          onChange={e => setInvoiceNotes(e.target.value)}
+          placeholder="Internal notes (not printed on document)"
+          rows={2}
+          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
+        />
+      </div>
+
       {solarCompatCheck && (
         <div className={`rounded-xl px-4 py-3 flex gap-3 text-sm items-start ${
           solarCompatCheck.status === 'incompatible'
@@ -7735,7 +8580,7 @@ function QuotationTab({ products }: { products: Product[] }) {
           <button
             onClick={generate}
             disabled={
-              !lines.length ||
+              (docType !== 'service_receipt' && !lines.length) ||
               pdfState === 'generating' ||
               solarCompatCheck?.status === 'incompatible' ||
               hasUnapprovedFloorViolation ||
@@ -7764,7 +8609,7 @@ function QuotationTab({ products }: { products: Product[] }) {
               ? <>✓ Downloaded!</>
               : pdfState === 'error'
               ? <>⚠ PDF failed — retry</>
-              : <>📄 Download {docType === 'invoice' ? 'Invoice' : 'Quotation'} PDF</>}
+              : <>📄 Download {docType === 'invoice' ? 'Invoice' : docType === 'service_receipt' ? 'Service Receipt' : 'Quotation'} PDF</>}
           </button>
 
           {pdfState === 'error' && lines.length > 0 && (
@@ -7782,7 +8627,7 @@ function QuotationTab({ products }: { products: Product[] }) {
               <MessageCircle className="w-4 h-4" /> Send Summary on WhatsApp
             </a>
           )}
-          {lines.length === 0 && (
+          {lines.length === 0 && docType !== 'service_receipt' && (
             <p className="text-xs text-gray-400 self-center">Add at least one product to generate a document.</p>
           )}
         </div>
@@ -7866,7 +8711,7 @@ function QuotationTab({ products }: { products: Product[] }) {
         <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] px-4 py-3 flex items-center justify-between gap-3">
           <div>
             <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">Grand Total</p>
-            <p className="text-base font-black text-gray-900">PKR {grandTotal.toLocaleString('en-PK')}</p>
+            <p className="text-base font-black text-gray-900">PKR {effectiveTotal.toLocaleString('en-PK')}</p>
           </div>
           <div className="flex gap-2">
             {lines.length > 0 && waFallbackPhone && (
@@ -9682,8 +10527,8 @@ export default function AdminPortal() {
   const [deleteId, setDeleteId]   = useState<string | null>(null);
   const [deleting, setDeleting]   = useState(false);
   const [quickImg, setQuickImg]   = useState<Product | null>(null);
-  type AdminTab = 'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'quotation' | 'invoices' | 'settings' | 'schema' | 'audit' | 'catalog' | 'solar' | 'compatibility';
-  const VALID_TABS: AdminTab[] = ['products','images','import','tools','qc','reviews','leads','orders','enquiries','quotation','invoices','settings','schema','audit','catalog','solar','compatibility'];
+  type AdminTab = 'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'quotation' | 'invoices' | 'installment_ledger' | 'settings' | 'schema' | 'audit' | 'catalog' | 'solar' | 'compatibility';
+  const VALID_TABS: AdminTab[] = ['products','images','import','tools','qc','reviews','leads','orders','enquiries','quotation','invoices','installment_ledger','settings','schema','audit','catalog','solar','compatibility'];
   const tabFromHash = (): AdminTab => {
     const h = window.location.hash.slice(1) as AdminTab;
     return VALID_TABS.includes(h) ? h : 'products';
@@ -9953,9 +10798,10 @@ export default function AdminPortal() {
             { id: 'catalog',   label: 'WhatsApp Catalog', group: 'catalog' },
             { id: 'orders',    label: 'Orders',      group: 'crm' },
             { id: 'enquiries', label: 'Enquiries',   group: 'crm' },
-            { id: 'quotation', label: '📄 Quotation', group: 'crm' },
-            { id: 'invoices',  label: '🗂 Invoice Log', group: 'crm' },
-            { id: 'reviews',   label: 'Reviews',     group: 'crm' },
+            { id: 'quotation',          label: '📄 Quotation',         group: 'crm' },
+            { id: 'invoices',           label: '🗂 Invoice Log',        group: 'crm' },
+            { id: 'installment_ledger', label: '📅 Installment Ledger', group: 'crm' },
+            { id: 'reviews',            label: 'Reviews',               group: 'crm' },
             { id: 'solar',     label: '☀️ Solar Leads', group: 'crm' },
             { id: 'leads',     label: 'Partners',    group: 'crm' },
             { id: 'settings',  label: 'Settings',    group: 'config' },
@@ -9996,6 +10842,8 @@ export default function AdminPortal() {
           <QuotationTab products={products} />
         ) : tab === 'invoices' ? (
           <InvoiceHistoryTab />
+        ) : tab === 'installment_ledger' ? (
+          <InstallmentLedgerTab />
         ) : tab === 'reviews' ? (
           <ReviewsTab />
         ) : tab === 'solar' ? (
