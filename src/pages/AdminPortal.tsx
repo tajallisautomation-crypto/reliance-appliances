@@ -5991,12 +5991,11 @@ async function generateServiceReceiptPdf(opts: {
   customerEmail: string;
   customerAddress: string;
   refNumber: string;
-  services: Array<{
-    service_name: string;
-    description: string;
-    status: 'included' | 'charged' | 'not_selected';
-    charged_amount: number;
-  }>;
+  deviceBrand?: string;
+  deviceModel?: string;
+  faultDesc?: string;
+  jobLines: Array<{type: 'work'|'part'; description: string; qty: number; unitPrice: number}>;
+  warrantyDays?: number;
   customCharges: Array<{ name: string; amount: number }>;
   discount: number;
   discountMode: 'percentage' | 'fixed';
@@ -6106,45 +6105,91 @@ async function generateServiceReceiptPdf(opts: {
   }
   y += Math.max(custBlockH, metaBlockH) + 4;
 
-  // ── Services table ────────────────────────────────────────────────────────
-  const chargedServices = opts.services.filter(s => s.status === 'charged');
-  const includedServices = opts.services.filter(s => s.status === 'included');
-
-  if (chargedServices.length > 0 || includedServices.length > 0) {
+  // ── Device / Equipment block ──────────────────────────────────────────────
+  const hasDevice = !!(opts.deviceBrand || opts.deviceModel || opts.faultDesc);
+  if (hasDevice) {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
-    doc.text('SERVICES', margin, y);
+    doc.text('DEVICE / EQUIPMENT', margin, y);
     y += 3.5;
-
-    const svcBody: any[] = [];
-    for (const svc of [...chargedServices, ...includedServices]) {
-      const statusLabel = svc.status === 'charged' ? 'BILLED' : 'INCL';
-      const statusColor: [number, number, number] = svc.status === 'charged'
-        ? [234, 88, 12] : [22, 163, 74];
-      const amountLabel = svc.status === 'charged' ? PKR(svc.charged_amount) : 'PKR 0';
-      svcBody.push([
-        { content: svc.service_name, styles: { fontStyle: 'bold' as const } },
-        svc.description || '',
-        { content: statusLabel, styles: { textColor: statusColor, fontStyle: 'bold' as const, halign: 'center' as const } },
-        { content: amountLabel, styles: { fontStyle: svc.status === 'charged' ? 'bold' as const : 'normal' as const, halign: 'right' as const } },
-      ]);
+    const devFields: Array<[string, string]> = [];
+    if (opts.deviceBrand || opts.deviceModel) devFields.push(['APPLIANCE', [opts.deviceBrand, opts.deviceModel].filter(Boolean).join(' ')]);
+    if (opts.faultDesc) devFields.push(['FAULT REPORTED', opts.faultDesc]);
+    const devRowH = 4.5;
+    const devBlockH = devFields.length * devRowH + 5;
+    doc.setFillColor(254, 242, 232);
+    doc.rect(margin, y, printW, devBlockH, 'F');
+    doc.setDrawColor(234, 88, 12); doc.setLineWidth(0.5);
+    doc.line(margin, y, margin, y + devBlockH);
+    doc.setLineWidth(0.2);
+    let dy = y + devRowH;
+    for (const [lbl, val] of devFields) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(180, 100, 50);
+      doc.text(lbl, margin + 3, dy);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(30, 30, 30);
+      doc.text(val, margin + 36, dy);
+      dy += devRowH;
     }
+    y += devBlockH + 4;
+  }
+
+  // ── Work Performed table ──────────────────────────────────────────────────
+  const workLines = opts.jobLines.filter(l => l.type === 'work');
+  const partLines = opts.jobLines.filter(l => l.type === 'part');
+
+  if (workLines.length > 0) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
+    doc.text('WORK PERFORMED', margin, y);
+    y += 3.5;
     autoTable(doc, {
       startY: y,
       margin: { left: margin, right: margin },
-      head: [['SERVICE', 'DESCRIPTION', 'STATUS', 'AMOUNT']],
-      body: svcBody,
+      head: [['DESCRIPTION', 'QTY', 'RATE', 'AMOUNT']],
+      body: workLines.map(l => [
+        { content: l.description, styles: { fontStyle: 'bold' as const } },
+        { content: String(l.qty), styles: { halign: 'center' as const } },
+        { content: PKR(l.unitPrice), styles: { halign: 'right' as const } },
+        { content: PKR(l.qty * l.unitPrice), styles: { fontStyle: 'bold' as const, halign: 'right' as const } },
+      ]),
       columnStyles: {
-        0: { cellWidth: 55 },
-        1: { cellWidth: 'auto' },
-        2: { cellWidth: 16, halign: 'center' as const },
-        3: { cellWidth: 25, halign: 'right' as const },
+        0: { cellWidth: 'auto' },
+        1: { cellWidth: 12, halign: 'center' as const },
+        2: { cellWidth: 28, halign: 'right' as const },
+        3: { cellWidth: 28, halign: 'right' as const },
       },
-      headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
-      bodyStyles: { fontSize: 7, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
-      alternateRowStyles: { fillColor: [250, 250, 250] },
+      headStyles: { fillColor: DARK, textColor: [255,255,255], fontStyle: 'bold', fontSize: 7 },
+      bodyStyles: { fontSize: 7, textColor: [40,40,40], lineColor: [229,231,235], lineWidth: 0.15 },
+      alternateRowStyles: { fillColor: [250,250,250] },
       styles: { overflow: 'linebreak', cellPadding: 1.2 },
     });
-    // @ts-ignore
+    y = (doc as any).lastAutoTable.finalY + 4;
+  }
+
+  // ── Parts / Spare Parts table ─────────────────────────────────────────────
+  if (partLines.length > 0) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
+    doc.text('PARTS / SPARE PARTS', margin, y);
+    y += 3.5;
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [['PART DESCRIPTION', 'QTY', 'UNIT PRICE', 'AMOUNT']],
+      body: partLines.map(l => [
+        { content: l.description, styles: { fontStyle: 'bold' as const } },
+        { content: String(l.qty), styles: { halign: 'center' as const } },
+        { content: PKR(l.unitPrice), styles: { halign: 'right' as const } },
+        { content: PKR(l.qty * l.unitPrice), styles: { fontStyle: 'bold' as const, halign: 'right' as const } },
+      ]),
+      columnStyles: {
+        0: { cellWidth: 'auto' },
+        1: { cellWidth: 12, halign: 'center' as const },
+        2: { cellWidth: 28, halign: 'right' as const },
+        3: { cellWidth: 28, halign: 'right' as const },
+      },
+      headStyles: { fillColor: [60,60,60], textColor: [255,255,255], fontStyle: 'bold', fontSize: 7 },
+      bodyStyles: { fontSize: 7, textColor: [40,40,40], lineColor: [229,231,235], lineWidth: 0.15 },
+      alternateRowStyles: { fillColor: [250,250,250] },
+      styles: { overflow: 'linebreak', cellPadding: 1.2 },
+    });
     y = (doc as any).lastAutoTable.finalY + 4;
   }
 
@@ -6172,9 +6217,10 @@ async function generateServiceReceiptPdf(opts: {
   }
 
   // ── Totals block ──────────────────────────────────────────────────────────
-  const servicesTotal = chargedServices.reduce((s, svc) => s + svc.charged_amount, 0);
+  const workTotal = opts.jobLines.filter(l => l.type === 'work').reduce((s, l) => s + l.qty * l.unitPrice, 0);
+  const partsTotal = opts.jobLines.filter(l => l.type === 'part').reduce((s, l) => s + l.qty * l.unitPrice, 0);
   const customTotal = opts.customCharges.reduce((s, c) => s + c.amount, 0);
-  const baseTotal = servicesTotal + customTotal;
+  const baseTotal = workTotal + partsTotal + customTotal;
   let discountAmt = 0;
   if (opts.discountMode === 'fixed') {
     discountAmt = Math.min(opts.discount, baseTotal);
@@ -6185,8 +6231,9 @@ async function generateServiceReceiptPdf(opts: {
 
   const totalsRightX = W - margin - 70;
   const pricingRows: Array<[string, string]> = [];
-  if (servicesTotal > 0) pricingRows.push(['Services', PKR(servicesTotal)]);
-  if (customTotal > 0)   pricingRows.push(['Additional Charges', PKR(customTotal)]);
+  if (workTotal > 0)   pricingRows.push(['Labour & Service', PKR(workTotal)]);
+  if (partsTotal > 0)  pricingRows.push(['Parts & Materials', PKR(partsTotal)]);
+  if (customTotal > 0) pricingRows.push(['Additional Charges', PKR(customTotal)]);
   if (discountAmt > 0) {
     const lbl = opts.discountMode === 'fixed'
       ? `${opts.discountType} Discount (fixed)`
@@ -6226,6 +6273,15 @@ async function generateServiceReceiptPdf(opts: {
     const noteLines = doc.splitTextToSize(opts.notes, printW - 6);
     doc.text(noteLines, margin + 3, y + 5);
     y += 18;
+  }
+
+  // ── Warranty on work ─────────────────────────────────────────────────────
+  if ((opts.warrantyDays ?? 0) > 0) {
+    doc.setFillColor(240, 253, 244);
+    doc.rect(margin, y, printW, 10, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(22, 101, 52);
+    doc.text(`WARRANTY ON WORK: ${opts.warrantyDays} DAYS from date of service`, margin + 3, y + 6.5);
+    y += 14;
   }
 
   // ── Bank transfer ─────────────────────────────────────────────────────────
@@ -7204,6 +7260,13 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
   const [guarantorCnic,  setGuarantorCnic]  = useState('');
   const [invoiceNotes,   setInvoiceNotes]   = useState('');
 
+  // ── Service Receipt specific fields ──
+  const [srDeviceBrand,   setSrDeviceBrand]   = useState('');
+  const [srDeviceModel,   setSrDeviceModel]   = useState('');
+  const [srFaultDesc,     setSrFaultDesc]     = useState('');
+  const [srWarrantyDays,  setSrWarrantyDays]  = useState(0);
+  const [srJobLines,      setSrJobLines]      = useState<Array<{id: string; type: 'work'|'part'; description: string; qty: number; unitPrice: number}>>([]);
+
   const autosaveRef                        = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const solarInverterLine = useMemo(() =>
@@ -7259,6 +7322,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           saleType, deliveryEta, preparedBy, stockStatus, advancePaid, customerArea, isExistingCustomer, validityHours,
           instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber,
           customCharges, guarantorName, guarantorPhone, guarantorCnic, invoiceNotes,
+          srDeviceBrand, srDeviceModel, srFaultDesc, srWarrantyDays, srJobLines,
         }));
       }
     }, 1000);
@@ -7272,7 +7336,8 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       saleType, deliveryEta, preparedBy, stockStatus, advancePaid,
       customerArea, isExistingCustomer, validityHours,
       instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber,
-      customCharges, guarantorName, guarantorPhone, guarantorCnic, invoiceNotes]);
+      customCharges, guarantorName, guarantorPhone, guarantorCnic, invoiceNotes,
+      srDeviceBrand, srDeviceModel, srFaultDesc, srWarrantyDays, srJobLines]);
 
   function restoreDraft() {
     try {
@@ -7415,6 +7480,32 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           ? { ...def, status: match.status, visible_value: match.visible_value, charged_amount: match.charged_amount }
           : def;
       }));
+    }
+    // Service receipt fields — restore from invoice_lines (category-based) + notes prefix
+    if (row.doc_type === 'service_receipt') {
+      const srLines = (row.invoice_lines ?? [])
+        .filter(l => l.category === 'Service Work' || l.category === 'Spare Part')
+        .map(l => ({
+          id: crypto.randomUUID(),
+          type: (l.category === 'Spare Part' ? 'part' : 'work') as 'work' | 'part',
+          description: l.name,
+          qty: l.qty,
+          unitPrice: l.unit_price,
+        }));
+      setSrJobLines(srLines);
+      // Parse device prefix from notes: "[Device: BRAND MODEL | Fault: DESC | Warranty: N days]\n\n..."
+      const notesRaw = row.notes ?? '';
+      const prefixMatch = notesRaw.match(/^\[Device:\s*(.*?)\s*\|\s*Fault:\s*(.*?)(?:\s*\|\s*Warranty:\s*(\d+)\s*days)?\]\n?\n?/s);
+      if (prefixMatch) {
+        const devicePart = prefixMatch[1].trim();
+        const spaceIdx = devicePart.indexOf(' ');
+        setSrDeviceBrand(spaceIdx > -1 ? devicePart.slice(0, spaceIdx) : devicePart);
+        setSrDeviceModel(spaceIdx > -1 ? devicePart.slice(spaceIdx + 1) : '');
+        setSrFaultDesc(prefixMatch[2].trim());
+        setSrWarrantyDays(prefixMatch[3] ? Number(prefixMatch[3]) : 0);
+        setInvoiceNotes(notesRaw.replace(prefixMatch[0], '').trim());
+      }
+      setLines([]);
     }
     onEditConsumed?.();
   }
@@ -7610,6 +7701,14 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
   const customChargesTotal = customCharges.reduce((s, c) => s + c.amount, 0);
   const effectiveTotal = grandTotal + customChargesTotal;
 
+  const srJobTotal = srJobLines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+  const srCustomTotal = docType === 'service_receipt' ? customCharges.reduce((s, c) => s + c.amount, 0) : 0;
+  const srBaseTotal = srJobTotal + srCustomTotal;
+  const srDiscountAmt = docType === 'service_receipt'
+    ? (discountMode === 'fixed' ? Math.min(discountFixed, srBaseTotal) : Math.round(srBaseTotal * discount / 100))
+    : 0;
+  const srGrandTotal = srBaseTotal - srDiscountAmt;
+
   const hasUnapprovedFloorViolation = lines.some(l => {
     const r = validateFloor(l.unitPrice, l.minPrice);
     return !r.valid && !l.overrideReason.trim();
@@ -7664,7 +7763,11 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           customerEmail,
           customerAddress,
           refNumber,
-          services,
+          deviceBrand: srDeviceBrand,
+          deviceModel: srDeviceModel,
+          faultDesc: srFaultDesc,
+          jobLines: srJobLines,
+          warrantyDays: srWarrantyDays,
           customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
           discount: discountMode === 'fixed' ? discountFixed : discount,
           discountMode,
@@ -7733,8 +7836,29 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
         customerName, customerPhone: customerPhone.replace(/\D/g, ''),
         customerEmail, customerAddress, customerCnic,
         customerType, serviceLevel, discountReason,
-        lines, services, discount, discountType,
-        grandTotal: effectiveTotal, serviceTotal, advancePct,
+        lines: docType === 'service_receipt'
+          ? srJobLines.map(l => ({
+              id: l.id,
+              name: l.description,
+              model: '',
+              qty: l.qty,
+              unitPrice: l.unitPrice,
+              category: l.type === 'work' ? 'Service Work' : 'Spare Part',
+              warranty: '',
+              keySpec: '',
+              kwhPerMonth: 0,
+              savingsPct: 0,
+              minPrice: 0,
+              floorPrice: 0,
+              overrideReason: '',
+              displayPrefix: '',
+              packageNote: '',
+              isPackage: false,
+              packageComponents: [],
+            }))
+          : lines,
+        services, discount, discountType,
+        grandTotal: docType === 'service_receipt' ? srGrandTotal : effectiveTotal, serviceTotal, advancePct,
         instTotalPrice: saleType === 'installment' ? instTotalPrice : 0,
         instAdvanceAmt: saleType === 'installment' ? instAdvanceAmt : 0,
         instMonths: saleType === 'installment' ? instMonths : 0,
@@ -7742,7 +7866,14 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
         instFirstDate,
         customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
         guarantorName, guarantorPhone, guarantorCnic,
-        notes: invoiceNotes,
+        notes: (() => {
+          if (docType !== 'service_receipt') return invoiceNotes;
+          const devicePart = [srDeviceBrand, srDeviceModel].filter(Boolean).join(' ');
+          const parts = ['Device: ' + devicePart, 'Fault: ' + (srFaultDesc || '—')];
+          if (srWarrantyDays > 0) parts.push('Warranty: ' + srWarrantyDays + ' days');
+          const prefix = parts.length ? '[' + parts.join(' | ') + ']' : '';
+          return [prefix, invoiceNotes].filter(Boolean).join('\n\n');
+        })(),
       };
       if (editingInvoiceId) {
         updateInvoiceInSupabase(editingInvoiceId, logPayload);
@@ -7969,6 +8100,34 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           <input value={customerAddress} onChange={e => setCustomerAddress(e.target.value)}
             placeholder="Delivery address (optional)"
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          {docType === 'service_receipt' && (
+            <>
+              <div className="border-t border-gray-100 pt-3 space-y-3">
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Device / Equipment</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <input value={srDeviceBrand} onChange={e => setSrDeviceBrand(e.target.value)}
+                    placeholder="Brand (e.g. Haier)"
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  <input value={srDeviceModel} onChange={e => setSrDeviceModel(e.target.value)}
+                    placeholder="Model / Type"
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                </div>
+                <textarea value={srFaultDesc} onChange={e => setSrFaultDesc(e.target.value)}
+                  placeholder="Fault reported by customer"
+                  rows={2}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none" />
+                <div className="flex items-center gap-3">
+                  <label className="text-xs font-semibold text-gray-600 shrink-0">Warranty on work</label>
+                  <input type="number" min={0} value={srWarrantyDays || ''}
+                    onChange={e => setSrWarrantyDays(Math.max(0, Number(e.target.value) || 0))}
+                    placeholder="days (0 = none)"
+                    className="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  <span className="text-xs text-gray-400">days</span>
+                </div>
+              </div>
+            </>
+          )}
+          {docType !== 'service_receipt' && (<>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">Property Type</label>
@@ -8083,6 +8242,15 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               className="w-4 h-4 accent-orange-500 rounded" />
             <span className="text-xs text-gray-500">Advance already paid (removes WA payment proof note)</span>
           </label>
+          </>)}
+          {docType === 'service_receipt' && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Prepared By</label>
+              <input value={preparedBy} onChange={e => setPreparedBy(e.target.value)}
+                placeholder="Staff name"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            </div>
+          )}
           {/* Discount mode toggle + input */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
@@ -8383,8 +8551,68 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           )}
         </div>
 
+        {/* ── Service Job Lines panel (service_receipt only) ── */}
+        {docType === 'service_receipt' && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Work &amp; Parts</p>
+              <div className="flex gap-2">
+                <button onClick={() => setSrJobLines(prev => [...prev, {id: crypto.randomUUID(), type: 'work', description: '', qty: 1, unitPrice: 0}])}
+                  className="px-3 py-1.5 text-xs font-semibold bg-gray-900 hover:bg-gray-800 text-white rounded-lg">
+                  + Work Item
+                </button>
+                <button onClick={() => setSrJobLines(prev => [...prev, {id: crypto.randomUUID(), type: 'part', description: '', qty: 1, unitPrice: 0}])}
+                  className="px-3 py-1.5 text-xs font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-lg">
+                  + Part
+                </button>
+              </div>
+            </div>
+            {srJobLines.length === 0 && (
+              <p className="text-xs text-gray-400 text-center py-4">Add work performed and parts used above.</p>
+            )}
+            {srJobLines.map((jl, i) => (
+              <div key={jl.id} className={`flex items-start gap-2 p-3 rounded-xl border ${jl.type === 'part' ? 'border-orange-100 bg-orange-50/30' : 'border-gray-100 bg-gray-50/30'}`}>
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${jl.type === 'part' ? 'bg-orange-100 text-orange-700' : 'bg-gray-200 text-gray-600'}`}>
+                      {jl.type === 'work' ? 'WORK' : 'PART'}
+                    </span>
+                    <button onClick={() => setSrJobLines(prev => prev.map((l,j) => j===i ? {...l, type: l.type==='work'?'part':'work'} : l))}
+                      className="text-[10px] text-blue-500 hover:text-blue-700 underline">
+                      switch
+                    </button>
+                  </div>
+                  <input value={jl.description}
+                    onChange={e => setSrJobLines(prev => prev.map((l,j) => j===i ? {...l, description: e.target.value} : l))}
+                    placeholder={jl.type === 'work' ? 'e.g. Compressor repair, Gas recharge' : 'e.g. Capacitor 35µF, Fan motor belt'}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                  <div className="flex gap-2">
+                    <input type="number" min={1} value={jl.qty}
+                      onChange={e => setSrJobLines(prev => prev.map((l,j) => j===i ? {...l, qty: Math.max(1, Number(e.target.value))} : l))}
+                      className="w-16 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-orange-400" placeholder="Qty" />
+                    <input type="number" min={0} value={jl.unitPrice || ''}
+                      onChange={e => setSrJobLines(prev => prev.map((l,j) => j===i ? {...l, unitPrice: Number(e.target.value)||0} : l))}
+                      className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400" placeholder="PKR amount" />
+                    <span className="text-xs font-bold text-gray-700 self-center whitespace-nowrap">= {(jl.qty * jl.unitPrice).toLocaleString('en-PK')}</span>
+                  </div>
+                </div>
+                <button onClick={() => setSrJobLines(prev => prev.filter((_,j) => j!==i))}
+                  className="text-gray-300 hover:text-red-500 mt-1">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            {srJobLines.length > 0 && (
+              <div className="flex justify-between text-sm font-bold text-gray-900 pt-2 border-t border-gray-100">
+                <span>Total</span>
+                <span>PKR {srJobTotal.toLocaleString('en-PK')}</span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── Package Templates panel ── */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
+        {docType !== 'service_receipt' && <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Packages</p>
             <div className="flex gap-2">
@@ -8546,9 +8774,9 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               ))}
             </div>
           </div>
-        </div>
+        </div>}
 
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
+        {docType !== 'service_receipt' && <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
           <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Add Products</p>
           <input value={productSearch} onChange={e => setProductSearch(e.target.value)}
             placeholder="Search by name, model, or brand…"
@@ -8572,10 +8800,10 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               )}
             </div>
           )}
-        </div>
+        </div>}
       </div>
 
-      {lines.length > 0 && (
+      {lines.length > 0 && docType !== 'service_receipt' && (
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[540px]">
@@ -8795,7 +9023,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       )}
 
       {/* ── Services Panel ── */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
+      {docType !== 'service_receipt' && <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
         <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Services</p>
         {services.map((svc, i) => (
           <div key={svc.service_type} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
@@ -8853,7 +9081,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
             <span>+ {fmtPKR(serviceTotal)}</span>
           </div>
         )}
-      </div>
+      </div>}
 
       {/* ── Custom Charges Panel ── */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
@@ -8926,6 +9154,14 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
             </p>
             <p className="text-xs mt-0.5 opacity-80">{solarCompatCheck.message}</p>
           </div>
+        </div>
+      )}
+
+      {/* ── SR Grand Total display ── */}
+      {docType === 'service_receipt' && (srJobLines.length > 0 || customCharges.length > 0) && (
+        <div className="bg-white rounded-2xl border border-gray-100 px-4 py-3 flex items-center justify-end gap-6 text-sm">
+          {srDiscountAmt > 0 && <span className="text-gray-500">Subtotal: PKR {srBaseTotal.toLocaleString('en-PK')} · Discount: − PKR {srDiscountAmt.toLocaleString('en-PK')}</span>}
+          <span className="font-black text-gray-900 text-base">Total Due: PKR {srGrandTotal.toLocaleString('en-PK')}</span>
         </div>
       )}
 
