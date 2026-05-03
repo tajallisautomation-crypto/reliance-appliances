@@ -4543,6 +4543,8 @@ async function generateQuotationPdf(opts: {
   installationType: 'supply-only' | 'installation-included';
   installationLines: Array<{ name: string; amount: number }>;
   advancePct: number;
+  advanceAmtFixed?: number;
+  cashPaySchedule?: Array<{ date: string; amount: number; note: string }>;
   balanceNote: string;
   advancePaid: boolean;
   deliveryEta: string;
@@ -5211,11 +5213,15 @@ async function generateQuotationPdf(opts: {
   doc.text('PAYMENT & BANK TRANSFER', margin, y);
   y += 3.5;
 
-  const advanceAmt = Math.round(grandTotal * opts.advancePct / 100);
+  const advanceAmt = opts.advanceAmtFixed && opts.advanceAmtFixed > 0
+    ? opts.advanceAmtFixed
+    : Math.round(grandTotal * opts.advancePct / 100);
   const balanceAmt = grandTotal - advanceAmt;
+  const advancePctDisplay = grandTotal > 0 ? Math.round(advanceAmt / grandTotal * 100) : opts.advancePct;
   const showInstTeaser = opts.saleType === 'cash' && grandTotal > 0 && !!opts.instTeaserMonthly && !!opts.instTeaserMonths;
+  const hasCashSchedule = (opts.cashPaySchedule?.length ?? 0) > 0;
 
-  const payBankH = 46;
+  const payBankH = hasCashSchedule ? Math.max(46, 10 + (opts.cashPaySchedule!.length + 1) * 5.5 + 6) : 46;
   const payColW = Math.round(printW * 0.34);  // 64mm — cash payment
   const qrColW = 44;                          // fixed 44mm for QR
   const bankColW = printW - payColW - qrColW - 6; // remaining for bank
@@ -5231,24 +5237,44 @@ async function generateQuotationPdf(opts: {
 
   // Payment col
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(80, 80, 80);
-  doc.text(opts.saleType === 'installment' ? 'INSTALLMENT PLAN' : 'CASH PAYMENT', margin + 3, y + 6);
-  const payRows: Array<[string, string]> = [
-    ['Advance', `${opts.advancePct}%  ${PKR(advanceAmt)}`],
-    ['Balance', `${100 - opts.advancePct}%  ${PKR(balanceAmt)}`],
-    ['Due on', opts.advancePct === 0 ? 'Delivery' : opts.balanceNote || 'Delivery'],
-    ...(opts.docType !== 'invoice' ? [['Valid', opts.validityHours >= 168 ? '7 days' : `${opts.validityHours}h`] as [string, string]] : []),
-    ...(showInstTeaser ? [['Installment', `~${PKR(opts.instTeaserMonthly!)}/mo  (${opts.instTeaserMonths} months)`] as [string, string]] : []),
-  ];
+  doc.text(opts.saleType === 'installment' ? 'INSTALLMENT PLAN' : hasCashSchedule ? 'PAYMENT SCHEDULE' : 'CASH PAYMENT', margin + 3, y + 6);
   let ppy = y + 12;
-  for (const [lbl, val] of payRows) {
-    const isOpt = lbl === 'Installment';
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5);
-    doc.setTextColor(...(isOpt ? [234, 88, 12] as [number, number, number] : [120, 120, 120] as [number, number, number]));
-    doc.text(lbl, margin + 3, ppy);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
-    doc.setTextColor(...(isOpt ? [180, 60, 0] as [number, number, number] : [30, 30, 30] as [number, number, number]));
-    doc.text(val, margin + payColW - 3, ppy, { align: 'right' });
-    ppy += 5.5;
+  if (hasCashSchedule) {
+    // Render deferred payment schedule rows
+    for (const slot of opts.cashPaySchedule!) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(120, 120, 120);
+      doc.text(slot.note || slot.date, margin + 3, ppy);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(30, 30, 30);
+      doc.text(PKR(slot.amount), margin + payColW - 3, ppy, { align: 'right' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(150, 150, 150);
+      if (slot.note) doc.text(slot.date, margin + 3, ppy + 3);
+      ppy += slot.note ? 5.5 : 5;
+    }
+    // Total line
+    doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.2);
+    doc.line(margin + 3, ppy - 0.5, margin + payColW - 3, ppy - 0.5);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(234, 88, 12);
+    doc.text('Total', margin + 3, ppy + 3.5);
+    doc.text(PKR(grandTotal), margin + payColW - 3, ppy + 3.5, { align: 'right' });
+    ppy += 8;
+  } else {
+    const payRows: Array<[string, string]> = [
+      ['Advance', `${advancePctDisplay}%  ${PKR(advanceAmt)}`],
+      ['Balance', `${100 - advancePctDisplay}%  ${PKR(balanceAmt)}`],
+      ['Due on', opts.advancePct === 0 ? 'Delivery' : opts.balanceNote || 'Delivery'],
+      ...(opts.docType !== 'invoice' ? [['Valid', opts.validityHours >= 168 ? '7 days' : `${opts.validityHours}h`] as [string, string]] : []),
+      ...(showInstTeaser ? [['Installment', `~${PKR(opts.instTeaserMonthly!)}/mo  (${opts.instTeaserMonths} months)`] as [string, string]] : []),
+    ];
+    for (const [lbl, val] of payRows) {
+      const isOpt = lbl === 'Installment';
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5);
+      doc.setTextColor(...(isOpt ? [234, 88, 12] as [number, number, number] : [120, 120, 120] as [number, number, number]));
+      doc.text(lbl, margin + 3, ppy);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+      doc.setTextColor(...(isOpt ? [180, 60, 0] as [number, number, number] : [30, 30, 30] as [number, number, number]));
+      doc.text(val, margin + payColW - 3, ppy, { align: 'right' });
+      ppy += 5.5;
+    }
   }
 
   // Bank col
@@ -6948,6 +6974,9 @@ function QuotationTab({ products }: { products: Product[] }) {
   const [wiringAmt, setWiringAmt]     = useState(0);
   const [laborAmt, setLaborAmt]       = useState(0);
   const [advancePct, setAdvancePct]   = useState(70);
+  const [advanceMode, setAdvanceMode] = useState<'pct' | 'fixed'>('pct');
+  const [advanceFixedAmt, setAdvanceFixedAmt] = useState(0);
+  const [cashPaySchedule, setCashPaySchedule] = useState<Array<{id: string; date: string; amount: number; note: string}>>([]);
   const [balanceNote, setBalanceNote] = useState('delivery');
   const [showNtn, setShowNtn]         = useState(false);
   const [customerType, setCustomerType] = useState<'house' | 'apartment' | 'commercial'>('house');
@@ -7094,7 +7123,7 @@ function QuotationTab({ products }: { products: Product[] }) {
           discount, discountRaw, discountType, docType, refNumber,
           serviceLevel, elevatedStructureOn, elevatedStructureAmt, wiringAmt, laborAmt,
           customerType, discountReason, discountMode, discountFixed, discountFixedRaw,
-          advancePct, balanceNote,
+          advancePct, advanceMode, advanceFixedAmt, cashPaySchedule, balanceNote,
           saleType, deliveryEta, preparedBy, stockStatus, advancePaid, customerArea, isExistingCustomer, validityHours,
           instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber,
           customCharges, guarantorName, guarantorPhone, guarantorCnic, invoiceNotes,
@@ -7104,7 +7133,8 @@ function QuotationTab({ products }: { products: Product[] }) {
     return () => { if (autosaveRef.current) clearTimeout(autosaveRef.current); };
   }, [lines, customerName, customerPhone, customerEmail, customerAddress, customerCnic,
       discount, discountRaw, discountType, docType, refNumber,
-      serviceLevel, elevatedStructureOn, elevatedStructureAmt, wiringAmt, laborAmt, advancePct, balanceNote,
+      serviceLevel, elevatedStructureOn, elevatedStructureAmt, wiringAmt, laborAmt,
+      advancePct, advanceMode, advanceFixedAmt, cashPaySchedule, balanceNote,
       customerType, discountReason,
       discountMode, discountFixed, discountFixedRaw,
       saleType, deliveryEta, preparedBy, stockStatus, advancePaid,
@@ -7144,6 +7174,9 @@ function QuotationTab({ products }: { products: Product[] }) {
       if (typeof draft.wiringAmt === 'number') setWiringAmt(draft.wiringAmt);
       if (typeof draft.laborAmt === 'number') setLaborAmt(draft.laborAmt);
       if (typeof draft.advancePct === 'number') setAdvancePct(draft.advancePct);
+      if (draft.advanceMode) setAdvanceMode(draft.advanceMode);
+      if (typeof draft.advanceFixedAmt === 'number') setAdvanceFixedAmt(draft.advanceFixedAmt);
+      if (Array.isArray(draft.cashPaySchedule)) setCashPaySchedule(draft.cashPaySchedule);
       if (draft.balanceNote) setBalanceNote(draft.balanceNote);
       if (typeof draft.instTotalPrice === 'number') setInstTotalPrice(draft.instTotalPrice);
       if (typeof draft.instAdvanceAmt === 'number') setInstAdvanceAmt(draft.instAdvanceAmt);
@@ -7466,6 +7499,8 @@ function QuotationTab({ products }: { products: Product[] }) {
           installationType,
           installationLines: instLines,
           advancePct,
+          advanceAmtFixed: advanceMode === 'fixed' && advanceFixedAmt > 0 ? advanceFixedAmt : undefined,
+          cashPaySchedule: cashPaySchedule.length > 0 ? cashPaySchedule.map(({ date, amount, note }) => ({ date, amount, note })) : undefined,
           balanceNote,
           advancePaid,
           deliveryEta,
@@ -7909,24 +7944,108 @@ function QuotationTab({ products }: { products: Product[] }) {
           {docType !== 'installment-invoice' && (
             <div className="space-y-2 pt-1 border-t border-gray-100">
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Payment Terms</p>
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-gray-600 shrink-0">Advance %</label>
-                <input
-                  type="number" min={0} max={100} value={advancePct}
-                  onChange={e => setAdvancePct(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
-                  className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                />
-                <span className="text-xs text-gray-400">Balance: {100 - advancePct}%</span>
+              {/* Advance — % or fixed PKR */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <label className="text-xs font-semibold text-gray-600 shrink-0">Advance</label>
+                <div className="flex rounded-lg overflow-hidden border border-gray-200 text-xs">
+                  {(['pct', 'fixed'] as const).map(m => (
+                    <button key={m} onClick={() => setAdvanceMode(m)}
+                      className={`px-2.5 py-1.5 font-semibold transition-colors ${advanceMode === m ? 'bg-orange-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                      {m === 'pct' ? '%' : 'PKR'}
+                    </button>
+                  ))}
+                </div>
+                {advanceMode === 'pct' ? (
+                  <>
+                    <input type="number" min={0} max={100} value={advancePct}
+                      onChange={e => setAdvancePct(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+                      className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    {effectiveTotal > 0 && <span className="text-xs text-gray-400">= PKR {Math.round(effectiveTotal * advancePct / 100).toLocaleString('en-PK')} · Balance: {100 - advancePct}%</span>}
+                  </>
+                ) : (
+                  <>
+                    <input type="number" min={0} value={advanceFixedAmt || ''}
+                      onChange={e => {
+                        const v = Math.max(0, Number(e.target.value) || 0);
+                        setAdvanceFixedAmt(v);
+                        if (effectiveTotal > 0) setAdvancePct(Math.round(v / effectiveTotal * 100));
+                      }}
+                      placeholder="0"
+                      className="w-32 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    {effectiveTotal > 0 && advanceFixedAmt > 0 && (
+                      <span className="text-xs text-gray-400">
+                        ≈ {Math.round(advanceFixedAmt / effectiveTotal * 100)}% · Balance: PKR {(effectiveTotal - advanceFixedAmt).toLocaleString('en-PK')}
+                      </span>
+                    )}
+                  </>
+                )}
               </div>
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-semibold text-gray-600 shrink-0">Balance due on</label>
-                <input
-                  type="text" value={balanceNote}
-                  onChange={e => setBalanceNote(e.target.value)}
-                  placeholder="delivery / installation"
-                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                />
-              </div>
+              {/* Balance due note */}
+              {cashPaySchedule.length === 0 && (
+                <div className="flex items-center gap-3">
+                  <label className="text-xs font-semibold text-gray-600 shrink-0">Balance due on</label>
+                  <input type="text" value={balanceNote}
+                    onChange={e => setBalanceNote(e.target.value)}
+                    placeholder="delivery / installation"
+                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                </div>
+              )}
+              {/* Deferred payment schedule (cash, ≤30 days) */}
+              <div className="pt-1 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Deferred Payment Schedule <span className="font-normal normal-case">(≤ 30 days)</span></p>
+                    <button
+                      onClick={() => {
+                        const today = new Date().toISOString().slice(0, 10);
+                        setCashPaySchedule(prev => [...prev, { id: crypto.randomUUID(), date: today, amount: 0, note: '' }]);
+                      }}
+                      className="px-2.5 py-1 text-[10px] font-semibold bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-colors">
+                      + Add Row
+                    </button>
+                  </div>
+                  {cashPaySchedule.length === 0 && (
+                    <p className="text-[10px] text-gray-400">Optional — add rows for split payments. Replaces advance/balance on the invoice.</p>
+                  )}
+                  {(() => {
+                    const maxDate = new Date();
+                    maxDate.setDate(maxDate.getDate() + 30);
+                    const maxStr = maxDate.toISOString().slice(0, 10);
+                    const today = new Date().toISOString().slice(0, 10);
+                    const schedTotal = cashPaySchedule.reduce((s, r) => s + r.amount, 0);
+                    return (
+                      <>
+                        {cashPaySchedule.map((row, i) => (
+                          <div key={row.id} className="flex items-center gap-2">
+                            <span className="text-[10px] text-gray-400 w-4 shrink-0">{i + 1}</span>
+                            <input type="date" value={row.date} min={today} max={maxStr}
+                              onChange={e => setCashPaySchedule(prev => prev.map((r, j) => j === i ? { ...r, date: e.target.value } : r))}
+                              className="border border-gray-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                            <input type="number" min={0} value={row.amount || ''}
+                              onChange={e => setCashPaySchedule(prev => prev.map((r, j) => j === i ? { ...r, amount: Number(e.target.value) || 0 } : r))}
+                              placeholder="Amount"
+                              className="w-28 border border-gray-200 rounded-xl px-2 py-1.5 text-xs text-right focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                            <input value={row.note}
+                              onChange={e => setCashPaySchedule(prev => prev.map((r, j) => j === i ? { ...r, note: e.target.value } : r))}
+                              placeholder="Label (e.g. Advance, On delivery)"
+                              className="flex-1 border border-gray-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                            <button onClick={() => setCashPaySchedule(prev => prev.filter((_, j) => j !== i))}
+                              className="text-gray-300 hover:text-red-500 transition-colors">
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                        {cashPaySchedule.length > 0 && (
+                          <div className={`flex justify-between text-xs font-semibold px-1 ${schedTotal !== effectiveTotal && effectiveTotal > 0 ? 'text-red-600' : 'text-green-700'}`}>
+                            <span>Schedule total: PKR {schedTotal.toLocaleString('en-PK')}</span>
+                            {effectiveTotal > 0 && schedTotal !== effectiveTotal && (
+                              <span>≠ invoice total PKR {effectiveTotal.toLocaleString('en-PK')}</span>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
               <label className="flex items-center gap-2 cursor-pointer w-fit">
                 <input type="checkbox" checked={showNtn} onChange={e => setShowNtn(e.target.checked)}
                   className="w-4 h-4 accent-orange-500 rounded" />
