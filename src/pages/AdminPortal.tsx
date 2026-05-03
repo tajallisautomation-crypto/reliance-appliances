@@ -18,7 +18,7 @@ import {
   type ProductGalleryImage, type AuditLogEntry,
 } from '@/lib/api';
 import { buildSearchIndex, adminSearch } from '@/lib/search';
-import { calcGrandTotal, validateFloor, generateWhatsAppSummary, buildDetailedAdvisory } from '@/lib/invoiceLogic';
+import { calcGrandTotal, validateFloor, generateWhatsAppSummary, buildDetailedAdvisory, generateRefNumber } from '@/lib/invoiceLogic';
 import {
   PANEL_WATTS, PANEL_PRICE_PER_W, INVERTER_PKR_PER_KW, BATTERY_PKR_PER_KWH,
   UNIT_RATE_PKR, NET_METERING_COST_PKR, DEFAULT_BATTERY_CHEMISTRY,
@@ -4354,6 +4354,88 @@ interface PackageComponent {
   group: 'core' | 'generation' | 'infrastructure' | 'service';
 }
 
+async function updateInvoiceInSupabase(invoiceId: string, payload: InvoiceLogPayload): Promise<void> {
+  try {
+    const { error: invErr } = await supabase
+      .from('invoices')
+      .update({
+        customer_name:       payload.customerName || null,
+        customer_phone:      payload.customerPhone || null,
+        customer_email:      payload.customerEmail || null,
+        customer_address:    payload.customerAddress || null,
+        customer_cnic:       payload.customerCnic || null,
+        customer_type:       payload.customerType || null,
+        doc_type:            payload.docType,
+        sale_type:           payload.docType === 'installment-invoice' ? 'installment' : 'cash',
+        service_level:       payload.serviceLevel || null,
+        subtotal:            payload.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0),
+        discount_pct:        payload.discount,
+        discount_type:       payload.discountType || null,
+        discount_reason:     payload.discountReason || null,
+        grand_total:         payload.grandTotal,
+        service_total:       payload.serviceTotal,
+        advance_pct:         payload.advancePct,
+        inst_total_price:    payload.instTotalPrice || null,
+        inst_advance_amt:    payload.instAdvanceAmt || null,
+        inst_months:         payload.instMonths || null,
+        inst_monthly_amt:    payload.instMonthlyAmt || null,
+        inst_first_date:     payload.instFirstDate || null,
+        custom_charges_json: payload.customCharges?.length ? payload.customCharges : null,
+        guarantor_name:      payload.guarantorName || null,
+        guarantor_phone:     payload.guarantorPhone || null,
+        guarantor_cnic:      payload.guarantorCnic || null,
+        notes:               payload.notes || null,
+      })
+      .eq('id', invoiceId);
+    if (invErr) { console.warn('[invoice-update] header failed:', invErr.message); return; }
+
+    // Replace lines
+    await supabase.from('invoice_lines').delete().eq('invoice_id', invoiceId);
+    if (payload.lines.length > 0) {
+      const lineRows = payload.lines.map(l => ({
+        invoice_id:  invoiceId,
+        product_id:  l.id || null,
+        name:        l.name,
+        model:       l.model || null,
+        category:    l.category || null,
+        qty:         l.qty,
+        unit_price:  l.unitPrice,
+        kwh_per_month: l.kwhPerMonth || null,
+        warranty:    l.warranty || null,
+        key_spec:    l.keySpec || null,
+        key_specs_json: {
+          displayPrefix: l.displayPrefix,
+          packageNote: l.packageNote,
+          isPackage: l.isPackage,
+          packageComponents: l.packageComponents,
+        },
+      }));
+      const { error: lineErr } = await supabase.from('invoice_lines').insert(lineRows);
+      if (lineErr) console.warn('[invoice-update] lines failed:', lineErr.message);
+    }
+
+    // Replace services
+    await supabase.from('invoice_services').delete().eq('invoice_id', invoiceId);
+    const serviceRows = payload.services
+      .filter(s => s.status !== 'not_selected')
+      .map(s => ({
+        invoice_id:     invoiceId,
+        service_type:   s.service_type,
+        service_name:   s.service_name,
+        description:    s.description,
+        status:         s.status,
+        visible_value:  s.visible_value,
+        charged_amount: s.charged_amount,
+      }));
+    if (serviceRows.length > 0) {
+      const { error: svcErr } = await supabase.from('invoice_services').insert(serviceRows);
+      if (svcErr) console.warn('[invoice-update] services failed:', svcErr.message);
+    }
+  } catch (e) {
+    console.warn('[invoice-update] unexpected:', e);
+  }
+}
+
 interface QuoteLine {
   id: string;
   name: string;
@@ -6294,6 +6376,18 @@ type InvoiceRow = {
   advance_pct: number | null;
   payment_status: string;
   created_at: string;
+  // installment columns
+  inst_total_price: number | null;
+  inst_advance_amt: number | null;
+  inst_months: number | null;
+  inst_monthly_amt: number | null;
+  inst_first_date: string | null;
+  // v3 columns
+  custom_charges_json: Array<{ name: string; amount: number }> | null;
+  guarantor_name: string | null;
+  guarantor_phone: string | null;
+  guarantor_cnic: string | null;
+  notes: string | null;
   invoice_lines?: Array<{
     name: string;
     model: string | null;
@@ -6305,6 +6399,14 @@ type InvoiceRow = {
     key_spec: string | null;
     key_specs_json: { displayPrefix?: string; packageNote?: string; isPackage?: boolean; packageComponents?: PackageComponent[] } | null;
     product_id: string | null;
+  }>;
+  invoice_services?: Array<{
+    service_type: string;
+    service_name: string;
+    description: string;
+    status: 'included' | 'charged' | 'not_selected';
+    visible_value: number;
+    charged_amount: number;
   }>;
 };
 
@@ -6608,7 +6710,7 @@ function InstallmentLedgerTab() {
   );
 }
 
-function InvoiceHistoryTab() {
+function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow) => void }) {
   const [rows, setRows]               = useState<InvoiceRow[]>([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState('');
@@ -6620,6 +6722,7 @@ function InvoiceHistoryTab() {
   const [expanded, setExpanded]       = useState<string | null>(null);
   const [updatingId, setUpdatingId]   = useState<string | null>(null);
   const [reprinting, setReprinting]   = useState<string | null>(null);
+  const [loadingEdit, setLoadingEdit] = useState<string | null>(null);
   const [confirmDel, setConfirmDel]   = useState<InvoiceRow | null>(null);
   const [deleting, setDeleting]       = useState<string | null>(null);
 
@@ -6692,12 +6795,25 @@ function InvoiceHistoryTab() {
     setReprinting(null);
   }
 
+  async function editInvoice(row: InvoiceRow) {
+    if (!onEditRequest) return;
+    setLoadingEdit(row.id);
+    // Re-fetch the full row so we have invoice_services + new v3 columns
+    const { data } = await supabase
+      .from('invoices')
+      .select('*, invoice_lines(name, model, category, qty, unit_price, kwh_per_month, warranty, key_spec, key_specs_json, product_id), invoice_services(service_type, service_name, description, status, visible_value, charged_amount)')
+      .eq('id', row.id)
+      .single();
+    setLoadingEdit(null);
+    if (data) onEditRequest(data as InvoiceRow);
+  }
+
   async function fetchInvoices() {
     setLoading(true); setError('');
     try {
       let q = supabase
         .from('invoices')
-        .select('*, invoice_lines(name, model, category, qty, unit_price, kwh_per_month, warranty, key_spec, key_specs_json, product_id)')
+        .select('*, invoice_lines(name, model, category, qty, unit_price, kwh_per_month, warranty, key_spec, key_specs_json, product_id), invoice_services(service_type, service_name, description, status, visible_value, charged_amount)')
         .order('created_at', { ascending: false })
         .limit(200);
 
@@ -6885,6 +7001,24 @@ function InvoiceHistoryTab() {
                             </svg>
                           )}
                         </button>
+                        {onEditRequest && (
+                          <button
+                            onClick={e => { e.stopPropagation(); editInvoice(row); }}
+                            disabled={loadingEdit === row.id}
+                            title="Edit invoice"
+                            className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 transition-colors disabled:opacity-40 flex-shrink-0">
+                            {loadingEdit === row.id ? (
+                              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                              </svg>
+                            ) : (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            )}
+                          </button>
+                        )}
                         <button
                           onClick={e => { e.stopPropagation(); setConfirmDel(row); }}
                           disabled={deleting === row.id}
@@ -6943,7 +7077,8 @@ function InvoiceHistoryTab() {
   );
 }
 
-function QuotationTab({ products }: { products: Product[] }) {
+function QuotationTab({ products, editRequest, onEditConsumed }: { products: Product[]; editRequest?: InvoiceRow | null; onEditConsumed?: () => void }) {
+  const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [customerName,    setCustomerName]    = useState('');
   const [customerPhone,   setCustomerPhone]   = useState('');
   const [customerEmail,   setCustomerEmail]   = useState('');
@@ -7096,10 +7231,7 @@ function QuotationTab({ products }: { products: Product[] }) {
     setLaborAmt(Math.round(systemKW * LABOR_PER_W * 1000));
   }, [hasSolarItems, solarPanelLine, solarInverterLine]);
 
-  const refNumber = useMemo(() => {
-    const d = new Date(); const pad = (n: number) => String(n).padStart(2, '0');
-    return `TJ-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${Math.floor(Math.random()*9000)+1000}`;
-  }, []);
+  const [refNumber, setRefNumber] = useState(() => generateRefNumber());
 
   // ── Autosave draft ──
   useEffect(() => {
@@ -7215,6 +7347,81 @@ function QuotationTab({ products }: { products: Product[] }) {
       .slice(0, 20)
       .map(({ p }) => p);
   }, [products, productSearch]);
+
+  // ── Load invoice for editing ─────────────────────────────────────────────
+  function loadForEdit(row: InvoiceRow) {
+    setEditingInvoiceId(row.id);
+    setRefNumber(row.ref_number);
+    setCustomerName(row.customer_name ?? '');
+    setCustomerPhone(row.customer_phone ?? '');
+    setCustomerEmail(row.customer_email ?? '');
+    setCustomerAddress(row.customer_address ?? '');
+    setCustomerCnic(row.customer_cnic ?? '');
+    setCustomerType((row.customer_type ?? 'house') as 'house' | 'apartment' | 'commercial');
+    setCustomerArea(row.customer_area ?? '');
+    setDocType((row.doc_type ?? 'invoice') as typeof docType);
+    setSaleType((row.sale_type ?? 'cash') as 'cash' | 'installment');
+    setServiceLevel((row.service_level ?? 'supply_only') as 'supply_only' | 'supply_install' | 'full_service');
+    setDiscountType(row.discount_type ?? 'Promotional');
+    setDiscountReason(row.discount_reason ?? '');
+    const dp = row.discount_pct ?? 0;
+    if (dp > 100) { setDiscountMode('fixed'); setDiscountFixed(dp); setDiscountFixedRaw(String(dp)); setDiscount(0); setDiscountRaw('0'); }
+    else { setDiscountMode('percentage'); setDiscount(dp); setDiscountRaw(String(dp)); setDiscountFixed(0); setDiscountFixedRaw('0'); }
+    setAdvancePct(row.advance_pct ?? 70);
+    setAdvanceMode('pct');
+    setAdvanceFixedAmt(0);
+    setCashPaySchedule([]);
+    setInstTotalPrice(row.inst_total_price ?? 0);
+    setInstAdvanceAmt(row.inst_advance_amt ?? 0);
+    setInstMonths(row.inst_months ?? 0);
+    setInstMonthlyAmt(row.inst_monthly_amt ?? 0);
+    setInstFirstDate(row.inst_first_date ?? '');
+    if (Array.isArray(row.custom_charges_json)) {
+      setCustomCharges(row.custom_charges_json.map(c => ({ ...c, id: crypto.randomUUID() })));
+    } else {
+      setCustomCharges([]);
+    }
+    setGuarantorName(row.guarantor_name ?? '');
+    setGuarantorPhone(row.guarantor_phone ?? '');
+    setGuarantorCnic(row.guarantor_cnic ?? '');
+    setInvoiceNotes(row.notes ?? '');
+    // Lines
+    const editLines: QuoteLine[] = (row.invoice_lines ?? []).map(l => ({
+      id: l.product_id ?? '',
+      name: l.name,
+      model: l.model ?? '',
+      category: l.category ?? 'General',
+      qty: l.qty,
+      unitPrice: l.unit_price,
+      kwhPerMonth: l.kwh_per_month ?? 0,
+      savingsPct: 0,
+      warranty: l.warranty ?? '',
+      keySpec: l.key_spec ?? '',
+      minPrice: 0,
+      floorPrice: 0,
+      overrideReason: '',
+      displayPrefix:     l.key_specs_json?.displayPrefix ?? '',
+      packageNote:       l.key_specs_json?.packageNote ?? '',
+      isPackage:         l.key_specs_json?.isPackage ?? false,
+      packageComponents: l.key_specs_json?.packageComponents ?? [],
+    }));
+    setLines(editLines);
+    // Services — merge stored services into DEFAULT_SERVICES
+    if ((row.invoice_services ?? []).length > 0) {
+      const stored = row.invoice_services!;
+      setServices(DEFAULT_SERVICES.map(def => {
+        const match = stored.find(s => s.service_type === def.service_type);
+        return match
+          ? { ...def, status: match.status, visible_value: match.visible_value, charged_amount: match.charged_amount }
+          : def;
+      }));
+    }
+    onEditConsumed?.();
+  }
+
+  useEffect(() => {
+    if (editRequest) loadForEdit(editRequest);
+  }, [editRequest]);
 
   // ── Package template helpers ──────────────────────────────────────────────
   async function fetchTemplates() {
@@ -7520,7 +7727,7 @@ function QuotationTab({ products }: { products: Product[] }) {
       setPdfUrl(url);
       const a = document.createElement('a');
       a.href = url; a.download = `tajallis_${docType}_${refNumber}.pdf`; a.click();
-      logInvoiceToSupabase({
+      const logPayload: InvoiceLogPayload = {
         refNumber,
         docType: docType as 'quotation' | 'invoice' | 'installment-invoice' | 'installment_payment_receipt' | 'service_receipt',
         customerName, customerPhone: customerPhone.replace(/\D/g, ''),
@@ -7536,7 +7743,12 @@ function QuotationTab({ products }: { products: Product[] }) {
         customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
         guarantorName, guarantorPhone, guarantorCnic,
         notes: invoiceNotes,
-      }); // fire-and-forget
+      };
+      if (editingInvoiceId) {
+        updateInvoiceInSupabase(editingInvoiceId, logPayload);
+      } else {
+        logInvoiceToSupabase(logPayload);
+      } // fire-and-forget
       setPdfState('success');
       setGenerating(false);
       setTimeout(() => setPdfState('idle'), 3000);
@@ -7568,7 +7780,7 @@ function QuotationTab({ products }: { products: Product[] }) {
       const a = document.createElement('a');
       a.href = url; a.download = `tajallis_advance_invoice_${refNumber}.pdf`; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
-      logInvoiceToSupabase({
+      const advPayload: InvoiceLogPayload = {
         refNumber, docType: 'installment-invoice',
         customerName, customerPhone: customerPhone.replace(/\D/g, ''),
         customerEmail, customerAddress, customerCnic,
@@ -7579,7 +7791,12 @@ function QuotationTab({ products }: { products: Product[] }) {
         customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
         guarantorName, guarantorPhone, guarantorCnic,
         notes: invoiceNotes,
-      });
+      };
+      if (editingInvoiceId) {
+        updateInvoiceInSupabase(editingInvoiceId, advPayload);
+      } else {
+        logInvoiceToSupabase(advPayload);
+      }
       setInstAdvPdfState('success');
       setTimeout(() => setInstAdvPdfState('idle'), 3000);
     } catch {
@@ -7679,6 +7896,25 @@ function QuotationTab({ products }: { products: Product[] }) {
               Discard
             </button>
           </div>
+        </div>
+      )}
+
+      {editingInvoiceId && (
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm text-blue-800">
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            <span><span className="font-bold">Editing</span> — changes will update invoice <span className="font-mono">{refNumber}</span> in the database.</span>
+          </div>
+          <button
+            onClick={() => {
+              setEditingInvoiceId(null);
+              setRefNumber(generateRefNumber());
+            }}
+            className="text-xs font-semibold text-blue-600 hover:text-blue-800 whitespace-nowrap">
+            ✕ Cancel edit
+          </button>
         </div>
       )}
 
@@ -10654,6 +10890,7 @@ export default function AdminPortal() {
   };
   const [tab, setTab] = useState<AdminTab>(tabFromHash);
   const changeTab = (t: AdminTab) => { setTab(t); window.location.hash = t; };
+  const [editRequest, setEditRequest] = useState<InvoiceRow | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
   const [bulkRunning, setBulkRunning] = useState(false);
@@ -10958,9 +11195,9 @@ export default function AdminPortal() {
         ) : tab === 'enquiries' ? (
           <EnquiriesTab />
         ) : tab === 'quotation' ? (
-          <QuotationTab products={products} />
+          <QuotationTab products={products} editRequest={editRequest} onEditConsumed={() => setEditRequest(null)} />
         ) : tab === 'invoices' ? (
-          <InvoiceHistoryTab />
+          <InvoiceHistoryTab onEditRequest={row => { setEditRequest(row); changeTab('quotation'); }} />
         ) : tab === 'installment_ledger' ? (
           <InstallmentLedgerTab />
         ) : tab === 'reviews' ? (
