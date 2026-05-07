@@ -16,7 +16,7 @@ const ORG_SCHEMA = {
   '@type': 'LocalBusiness',
   '@id': `${SITE_URL}/#organization`,
   name: COMPANY,
-  alternateName: 'Reliance',
+  alternateName: 'Tajalli\'s Appliances',
   url: SITE_URL,
   logo: `${SITE_URL}/favicon.svg`,
   image: `${SITE_URL}/og-image.svg`,
@@ -36,10 +36,10 @@ const ORG_SCHEMA = {
     { '@type': 'OpeningHoursSpecification', dayOfWeek: ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'], opens: '09:00', closes: '21:00' },
   ],
   sameAs: [
-    'https://www.facebook.com/relianceappliances',
-    'https://www.instagram.com/relianceappliances',
+    'https://www.facebook.com/tajallis',
+    'https://www.instagram.com/tajallis',
   ],
-  hasMap: 'https://maps.google.com/?q=Reliance+Appliances+Karachi',
+  hasMap: 'https://maps.google.com/?q=Tajalli%27s+Karachi',
   areaServed: { '@type': 'City', name: 'Karachi' },
 };
 
@@ -88,7 +88,7 @@ export default function SEO({ title, description, keywords, path = '/', ogImage,
 
       {/* Twitter Card */}
       <meta name="twitter:card"        content="summary_large_image" />
-      <meta name="twitter:site"        content="@relianceappliances" />
+      <meta name="twitter:site"        content="@tajallis" />
       <meta name="twitter:title"       content={fullTitle} />
       <meta name="twitter:description" content={desc} />
       <meta name="twitter:image"       content={image} />

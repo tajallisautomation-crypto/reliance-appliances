@@ -60,7 +60,7 @@ export default function ReferralPage() {
           </div>
           <h1 className="text-3xl md:text-5xl font-black mb-4">Refer & Earn</h1>
           <p className="text-gray-400 text-lg">
-            Earn <strong className="text-orange-400">2% of every sale</strong> you bring to Reliance. No cap, no expiry.
+            Earn <strong className="text-orange-400">2% of every sale</strong> you bring to Tajalli's. No cap, no expiry.
           </p>
         </div>
       </div>
@@ -168,10 +168,10 @@ export default function ReferralPage() {
               '2% commission is calculated on the total invoice value of the referred sale.',
               'Attribution window is 30 days — purchases within 30 days of clicking your link count.',
               'Commission is paid after the full transaction is completed and payment verified.',
-              'Referrals must be customers who have not previously purchased from Reliance.',
+              'Referrals must be customers who have not previously purchased from Tajalli\'s.',
               'Self-referrals are not eligible.',
               'Commission is transferred via EasyPaisa, JazzCash, or bank transfer — your choice.',
-              'Reliance reserves the right to modify programme terms with 30-day notice.',
+              'Tajalli\'s reserves the right to modify programme terms with 30-day notice.',
             ].map(term => (
               <li key={term} className="flex items-start gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />

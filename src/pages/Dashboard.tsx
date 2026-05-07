@@ -153,7 +153,7 @@ export default function Dashboard() {
             <BarChart2 className="h-4 w-4 text-white" />
           </div>
           <div>
-            <p className="font-bold text-gray-900 text-sm">Reliance Dashboard</p>
+            <p className="font-bold text-gray-900 text-sm">Tajalli's Dashboard</p>
             <p className="text-xs text-gray-400">Last updated: {lastRefresh.toLocaleTimeString()}</p>
           </div>
         </div>

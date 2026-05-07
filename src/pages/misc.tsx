@@ -433,7 +433,7 @@ export function Corporate() {
   return (
     <div className="min-h-screen bg-white">
       <SEO
-        title="Corporate Solutions — Reliance Appliances Karachi"
+        title="Corporate Solutions — Tajalli's Karachi"
         description="Bulk appliance procurement for offices, hotels, hospitals, and developers. Volume pricing, dedicated account manager, and priority after-sale support."
       />
 
@@ -464,7 +464,7 @@ export function Corporate() {
         {/* Benefits */}
         <section>
           <div className="text-center mb-10">
-            <h2 className="text-2xl font-black text-gray-900">Why Businesses Choose Reliance</h2>
+            <h2 className="text-2xl font-black text-gray-900">Why Businesses Choose Tajalli's</h2>
             <p className="text-gray-500 mt-1 text-sm">Built for procurement teams that need reliability, not just a price list</p>
           </div>
           <div className="grid sm:grid-cols-2 gap-6">

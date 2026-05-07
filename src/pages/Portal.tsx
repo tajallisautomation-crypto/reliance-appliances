@@ -25,12 +25,12 @@ const SERVICES = [
 
 function buildWaMsg(type: string) {
   const msgs: Record<string, string> = {
-    warranty:    'Hi Reliance! I need to make a warranty claim for my product.',
-    service:     'Hi Reliance! I would like to schedule a service/repair visit.',
-    installment: 'Hi Reliance! I have a question about my installment plan.',
-    order:       'Hi Reliance! I would like an update on my order.',
+    warranty:    'Hi Tajalli's! I need to make a warranty claim for my product.',
+    service:     'Hi Tajalli's! I would like to schedule a service/repair visit.',
+    installment: 'Hi Tajalli's! I have a question about my installment plan.',
+    order:       'Hi Tajalli's! I would like an update on my order.',
   }
-  return waSales(msgs[type] || 'Hi Reliance!')
+  return waSales(msgs[type] || 'Hi Tajalli's!')
 }
 
 export default function Portal() {
@@ -270,7 +270,7 @@ export default function Portal() {
                 onClick={() => {
                   const fileNames = docFiles.map(f => f.name).join(', ')
                   const msg = encodeURIComponent(
-                    `Hi Reliance! I'd like to submit documents for an installment application.\n\nName: ${docName}\nPhone: ${docPhone}\nFiles: ${fileNames}\n\nI'll send the files in this chat.`
+                    `Hi Tajalli's! I'd like to submit documents for an installment application.\n\nName: ${docName}\nPhone: ${docPhone}\nFiles: ${fileNames}\n\nI'll send the files in this chat.`
                   )
                   openWhatsApp(`https://wa.me/923702578788?text=${msg}`)
                   setDocSent(true)

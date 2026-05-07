@@ -610,7 +610,7 @@ export default function ProductDetail() {
                               )}
                               {!isSolar && (
                                 <p className="text-xs text-amber-700">
-                                  PDC requirement is waived if an existing Reliance customer acts as guarantor.
+                                  PDC requirement is waived if an existing Tajalli's customer acts as guarantor.
                                 </p>
                               )}
                             </div>

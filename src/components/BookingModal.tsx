@@ -48,7 +48,7 @@ export default function BookingModal({ open, onClose, context }: Props) {
         products: [{
           id: context.packageName,
           model: context.packageName,
-          brand: 'Reliance',
+          brand: 'Tajalli\'s',
           qty: 1,
           price: context.estimatedPrice ?? 0,
         }],

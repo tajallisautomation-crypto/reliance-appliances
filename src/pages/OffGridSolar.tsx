@@ -447,7 +447,7 @@ export default function OffGridSolar() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
             <h2 className="text-3xl md:text-4xl font-black mb-3">From Bill to Battery in 4 Steps</h2>
-            <p className="text-gray-500">The Reliance Tajalli process — simple, transparent, fast.</p>
+            <p className="text-gray-500">The Tajalli's process — simple, transparent, fast.</p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {HOW_IT_WORKS.map((s, i) => (
@@ -478,7 +478,7 @@ export default function OffGridSolar() {
                 <span className="text-gray-500">Nothing Hidden.</span>
               </h2>
               <p className="text-gray-400 leading-relaxed mb-6">
-                Every Reliance off-grid system comes with Tier-1 panels, a certified off-grid inverter,
+                Every Tajalli's off-grid system comes with Tier-1 panels, a certified off-grid inverter,
                 your choice of Tubular or Lithium battery bank, full installation, and a 1-year service warranty.
               </p>
               <div className="space-y-2">

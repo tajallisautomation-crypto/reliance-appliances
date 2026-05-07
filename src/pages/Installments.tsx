@@ -15,7 +15,7 @@ const FAQS = [
   },
   {
     q: 'How many guarantors do I need?',
-    a: 'One guarantor is sufficient if either you (the buyer) or your guarantor is an existing Reliance customer. If neither of you is an existing customer, two guarantors are required — both must be homeowners with utility bills in their own names. Guarantors must not be tenants.',
+    a: 'One guarantor is sufficient if either you (the buyer) or your guarantor is an existing Tajalli's customer. If neither of you is an existing customer, two guarantors are required — both must be homeowners with utility bills in their own names. Guarantors must not be tenants.',
   },
   {
     q: 'Is the advance refundable if my application is rejected?',
@@ -277,7 +277,7 @@ export default function InstallmentsPage() {
                 <p className="font-bold text-amber-900 mb-1">Guarantor must be a homeowner</p>
                 <p className="text-amber-700">
                   Your guarantor must own their home — a utility bill in the guarantor's name is accepted as proof.
-                  <strong> One guarantor is sufficient if either the buyer or the guarantor is an existing Reliance customer.</strong>{' '}
+                  <strong> One guarantor is sufficient if either the buyer or the guarantor is an existing Tajalli's customer.</strong>{' '}
                   If neither is an existing customer, <strong>two guarantors (both homeowners)</strong> are required.
                   The guarantor takes legal responsibility for the installment payments.
                 </p>

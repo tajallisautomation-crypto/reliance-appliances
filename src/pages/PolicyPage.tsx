@@ -86,7 +86,7 @@ const POLICIES: Record<PolicyType, { title: string; description: string; content
         body: `To claim warranty, WhatsApp us at +92 370 2578788 with your order reference number and a description / photo of the issue. We will coordinate with the brand's authorised service centre on your behalf. Most claims are processed within 3–7 working days.`,
       },
       {
-        heading: 'Reliance After-Sale Support',
+        heading: 'Tajalli\'s After-Sale Support',
         body: `Beyond manufacturer warranty, we provide our own after-sale support. Our team follows up with customers after purchase, assists with service scheduling, and ensures warranty claims are handled efficiently. We act as your advocate with the brand.`,
       },
     ],

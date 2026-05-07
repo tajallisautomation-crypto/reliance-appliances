@@ -96,7 +96,7 @@ function FlyerGroupCard({ cat, group, products }: { cat: CatalogCategory; group:
     setBusy(true)
     try {
       const slug = `${cat.id}-${group.replace(/[^a-z0-9]/gi, '-').toLowerCase()}`
-      await downloadEl(cardRef.current, `reliance-${slug}`)
+      await downloadEl(cardRef.current, `tajallis-${slug}`)
     } finally { setBusy(false) }
   }
 
@@ -125,8 +125,7 @@ function FlyerGroupCard({ cat, group, products }: { cat: CatalogCategory; group:
             <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-black text-sm shrink-0"
               style={{ background: 'linear-gradient(135deg,#f97316,#f5c842)' }}>R</div>
             <div>
-              <div className="text-white font-black text-sm leading-tight">Reliance</div>
-              <div className="text-blue-200 text-[10px] font-medium">by Tajallis</div>
+              <div className="text-white font-black text-sm leading-tight">Tajalli's</div>
             </div>
           </div>
           <div className="text-right">
