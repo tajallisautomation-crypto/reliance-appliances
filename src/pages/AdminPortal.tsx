@@ -5475,7 +5475,7 @@ async function generateQuotationPdf(opts: {
   y += payBankH + 2;
 
   // ── TRUST + COMMUNITY STRIP ───────────────────────────────────────────────────
-  const trustH = 18;
+  const trustH = 22;
   const trustStatW = Math.round(printW * 0.74);
   const commAreaX = margin + trustStatW;
   const commAreaW = printW - trustStatW;
@@ -5503,16 +5503,21 @@ async function generateQuotationPdf(opts: {
     doc.text(lbl, sx, y + 11, { align: 'center' });
   });
 
-  // Facebook community QR in blue zone
+  // Facebook community QR — group name, join prompt, website reminder
   if (fbQrData) {
-    const FB_QR = 12;
+    const FB_QR = 10;
+    const cx = commAreaX + commAreaW / 2;
     const fbQrX = commAreaX + (commAreaW - FB_QR) / 2;
-    const fbQrY = y + 2;
+    const fbQrY = y + 5;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(4); doc.setTextColor(255, 255, 255);
+    doc.text('JOIN OUR FB GROUP', cx, y + 3, { align: 'center' });
     doc.setFillColor(255, 255, 255);
     doc.rect(fbQrX - 1, fbQrY - 1, FB_QR + 2, FB_QR + 2, 'F');
     doc.addImage(fbQrData, 'PNG', fbQrX, fbQrY, FB_QR, FB_QR);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(4.5); doc.setTextColor(255, 255, 255);
-    doc.text('Join', commAreaX + commAreaW / 2, fbQrY + FB_QR + 3, { align: 'center' });
+    doc.text('Appliance Reliance', cx, fbQrY + FB_QR + 3, { align: 'center' });
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(3.5); doc.setTextColor(180, 210, 255);
+    doc.text('Post queries: reliance.tajallis.com.pk', cx, fbQrY + FB_QR + 5.5, { align: 'center' });
   }
   y += trustH + 2;
 
