@@ -37,6 +37,7 @@ const Support         = lazy(() => import('./pages/Support'))
 // SalesCatalog is admin-only — /catalog redirects to /admin (route kept for bookmarks)
 const MYOP            = lazy(() => import('./pages/MYOP'))
 const Gallery         = lazy(() => import('./pages/Gallery'))
+const ReportsPortal   = lazy(() => import('./pages/ReportsPortal'))
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -83,6 +84,7 @@ export default function App() {
             <Route path="/support"                          element={<Support />} />
             <Route path="/catalog"                          element={<Navigate to="/admin" replace />} />
             <Route path="/gallery"                          element={<Gallery />} />
+            <Route path="/reports"                          element={<ErrorBoundary><ReportsPortal /></ErrorBoundary>} />
             <Route path="/policy/:type"                     element={<PolicyPage />} />
             <Route path="*" element={
               <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">

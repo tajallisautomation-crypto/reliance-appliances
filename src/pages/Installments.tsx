@@ -15,7 +15,7 @@ const FAQS = [
   },
   {
     q: 'How many guarantors do I need?',
-    a: 'One guarantor is sufficient if either you (the buyer) or your guarantor is an existing Tajalli's customer. If neither of you is an existing customer, two guarantors are required — both must be homeowners with utility bills in their own names. Guarantors must not be tenants.',
+    a: "One guarantor is sufficient if either you (the buyer) or your guarantor is an existing Tajalli's customer. If neither of you is an existing customer, two guarantors are required — both must be homeowners with utility bills in their own names. Guarantors must not be tenants.",
   },
   {
     q: 'Is the advance refundable if my application is rejected?',

@@ -5141,73 +5141,7 @@ async function generateQuotationPdf(opts: {
     }
   }
 
-  // POWER CONSUMPTION — per-product breakdown + total + bill estimate
-  const pwrLines = opts.lines.filter(l => (l.kwhPerMonth ?? 0) > 0);
-  if (totalKwhLoad > 0 && pwrLines.length > 0) {
-    const pwrRowH = 3.0;
-    const pwrBoxH = 4 + pwrLines.length * pwrRowH + 3.5 + 3.5 + 1;
-    if (rightY + 3.5 + pwrBoxH + 2 <= RIGHT_CAP) {
-      secLabel('POWER CONSUMPTION', rightX, rightY);
-      rightY += 3.5;
-      doc.setFillColor(255, 252, 232);
-      doc.rect(rightX, rightY, rightW, pwrBoxH, 'F');
-      doc.setDrawColor(202, 138, 4); doc.setLineWidth(0.4);
-      doc.line(rightX, rightY, rightX, rightY + pwrBoxH);
-      doc.setLineWidth(0.2);
-      let py2 = rightY + 4;
-      for (const pl of pwrLines) {
-        const pFullName = pl.displayPrefix ? `${pl.displayPrefix}${pl.name}` : pl.name;
-        const pName = pFullName.length > 22 ? pFullName.slice(0, 20) + '...' : pFullName;
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(80, 60, 0);
-        doc.text(`· ${pName}`, rightX + 2, py2);
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(101, 61, 0);
-        doc.text(`${(pl.kwhPerMonth ?? 0) * pl.qty} kWh/mo`, rightX + rightW - 2, py2, { align: 'right' });
-        py2 += pwrRowH;
-      }
-      doc.setDrawColor(180, 140, 0); doc.setLineWidth(0.2);
-      doc.line(rightX + 2, py2 - 0.5, rightX + rightW - 2, py2 - 0.5);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(101, 61, 0);
-      doc.text('TOTAL', rightX + 2, py2 + 3.0);
-      doc.text(`${totalKwhLoad} kWh/mo`, rightX + rightW - 2, py2 + 3.0, { align: 'right' });
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(120, 80, 0);
-      doc.text(`~${PKR(Math.round(totalKwhLoad * 50))}/mo est. bill`, rightX + rightW - 2, py2 + 6.5, { align: 'right' });
-      rightY += pwrBoxH + 2;
-    }
-  }
-
-  // ENERGY ADVISORY — first paragraph of buildDetailedAdvisory
-  const _advisoryLines = opts.lines.map(l => ({
-    name: l.displayPrefix ? `${l.displayPrefix}${l.name}` : l.name,
-    category: l.category || '',
-    kwhPerMonth: l.kwhPerMonth || 0,
-    qty: l.qty,
-    keySpec: l.keySpec,
-  }));
-  const _advisory = buildDetailedAdvisory(opts.customerType, _advisoryLines);
-  if (_advisory && _advisory.paragraphs.length > 0) {
-    const advPara = _advisory.paragraphs[0];
-    const advWrapped = doc.splitTextToSize(advPara, rightW - 6);
-    const advLineCount = Math.min(advWrapped.length, 5);
-    const advBoxH = 4 + advLineCount * 3.0 + 2;
-    if (rightY + 3.5 + advBoxH + 2 <= RIGHT_CAP) {
-      const _advTitle = _advisory.sectionLabel
-        .replace(/^FOR\s+/i, '')
-        .replace(/\s+CUSTOMERS?$/i, '')
-        .replace(/\s+\/\s+INDEPENDENT\s+UNIT/i, '');
-      secLabel(_advTitle, rightX, rightY);
-      rightY += 3.5;
-      const advFill: [number,number,number] = _advisory.color === 'blue' ? [239, 246, 255] : _advisory.color === 'green' ? [240, 253, 244] : [248, 248, 248];
-      const advBorder: [number,number,number] = _advisory.color === 'blue' ? [59, 130, 246] : _advisory.color === 'green' ? [34, 197, 94] : [160, 160, 160];
-      doc.setFillColor(...advFill);
-      doc.rect(rightX, rightY, rightW, advBoxH, 'F');
-      doc.setDrawColor(...advBorder); doc.setLineWidth(0.5);
-      doc.line(rightX, rightY, rightX, rightY + advBoxH);
-      doc.setLineWidth(0.2);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(40, 40, 40);
-      doc.text(advWrapped.slice(0, advLineCount), rightX + 3, rightY + 3.5, { lineHeightFactor: 1.5 });
-      rightY += advBoxH + 2;
-    }
-  }
+  // Energy consumption + advisory are rendered full-width after column sync (see below).
 
   // INSTALLMENT BLOCK — 12-month option shown on cash invoices only
   // (installment invoices already show full schedule full-width below)
@@ -5306,6 +5240,119 @@ async function generateQuotationPdf(opts: {
 
   // ── SYNC COLUMNS → FULL-WIDTH ZONE ───────────────────────────────────────────
   let y = Math.max(leftY, rightY) + 1;
+
+  // ── FULL-WIDTH ENERGY CONSUMPTION + SOLAR/UPS ADVISORY ───────────────────────
+  // Always rendered. Category-based kWh estimates fill in when product specs lack
+  // explicit energy data, so every invoice shows consumption figures.
+  {
+    const catKwh = (kwhPerMonth: number, category: string, name: string): { kwh: number; isEst: boolean } => {
+      if (kwhPerMonth > 0) return { kwh: kwhPerMonth, isEst: false };
+      const cat = category.toLowerCase();
+      const nm  = name.toLowerCase();
+      if (/air.?cond|split\s+ac|window\s+ac/i.test(cat) || /\bac\b/.test(nm))           return { kwh: 120, isEst: true };
+      if (/refrigerator|fridge/i.test(cat) || /fridge|refrig/i.test(nm))                return { kwh: 35,  isEst: true };
+      if (/deep.?freez|chest.?freez|vertical.?freez/i.test(cat) || /freezer/i.test(nm)) return { kwh: 42,  isEst: true };
+      if (/washing|washer/i.test(cat))                                                   return { kwh: 30,  isEst: true };
+      if (/microwave/i.test(cat))                                                        return { kwh: 12,  isEst: true };
+      if (/water.?heater|geyser/i.test(cat))                                             return { kwh: 45,  isEst: true };
+      if (/television|led.*tv/i.test(cat) || /\btv\b/.test(nm))                         return { kwh: 10,  isEst: true };
+      return { kwh: 0, isEst: false };
+    };
+
+    const energyLines2 = opts.lines
+      .map(l => {
+        const fullName = l.displayPrefix ? `${l.displayPrefix}${l.name}` : l.name;
+        const { kwh, isEst } = catKwh(l.kwhPerMonth || 0, l.category || '', fullName);
+        return { line: l, fullName, kwh, isEst };
+      })
+      .filter(l => l.kwh > 0 && !/solar.*inv|inverter.*sys/i.test(l.line.category || ''));
+    const totalEffKwh = energyLines2.reduce((s, l) => s + l.kwh * l.line.qty, 0);
+
+    const advisoryLines2 = opts.lines.map(l => ({
+      name: l.displayPrefix ? `${l.displayPrefix}${l.name}` : l.name,
+      category: l.category || '',
+      kwhPerMonth: l.kwhPerMonth || 0,
+      qty: l.qty,
+      keySpec: l.keySpec,
+    }));
+    const advisory2 = buildDetailedAdvisory(opts.customerType, advisoryLines2);
+
+    const pwrRowH2  = 3.0;
+    const dispRows2 = Math.min(energyLines2.length, 6);
+    const stripH2   = Math.max(24, 7 + dispRows2 * pwrRowH2 + 8);
+
+    const eColW2 = Math.round(printW * 0.48);
+    const aColX2 = margin + eColW2 + 3;
+    const aColW2 = printW - eColW2 - 3;
+
+    // Left: Energy consumption
+    doc.setFillColor(255, 253, 234);
+    doc.rect(margin, y, eColW2, stripH2, 'F');
+    doc.setDrawColor(202, 138, 4); doc.setLineWidth(0.4);
+    doc.line(margin, y, margin, y + stripH2);
+    doc.setLineWidth(0.2);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(ORANGE);
+    doc.text('ENERGY CONSUMPTION', margin + 3, y + 5);
+
+    if (energyLines2.length === 0) {
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(5.5); doc.setTextColor(120, 80, 0);
+      doc.text('Energy data not available — contact us for a consumption estimate.', margin + 3, y + 10, { maxWidth: eColW2 - 6 });
+    } else {
+      let ey = y + 9;
+      for (const pl of energyLines2.slice(0, 6)) {
+        const pName = pl.fullName.length > 30 ? pl.fullName.slice(0, 28) + '..' : pl.fullName;
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(80, 60, 0);
+        doc.text(`· ${pName}`, margin + 3, ey);
+        const kwhLabel = pl.isEst ? `~${pl.kwh * pl.line.qty} kWh/mo` : `${pl.kwh * pl.line.qty} kWh/mo`;
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(101, 61, 0);
+        doc.text(kwhLabel, margin + eColW2 - 2, ey, { align: 'right' });
+        ey += pwrRowH2;
+      }
+      if (energyLines2.length > 6) {
+        doc.setFont('helvetica', 'italic'); doc.setFontSize(5); doc.setTextColor(130, 100, 30);
+        doc.text(`+ ${energyLines2.length - 6} more items`, margin + 3, ey);
+        ey += pwrRowH2;
+      }
+      doc.setDrawColor(180, 140, 0); doc.setLineWidth(0.15);
+      doc.line(margin + 3, ey, margin + eColW2 - 3, ey);
+      ey += 3.5;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(101, 61, 0);
+      doc.text('TOTAL', margin + 3, ey);
+      doc.text(`${totalEffKwh} kWh/mo`, margin + eColW2 - 2, ey, { align: 'right' });
+      const hasEst2 = energyLines2.some(l => l.isEst);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(120, 80, 0);
+      doc.text(`${hasEst2 ? 'Est. ' : ''}electricity bill ~${PKR(Math.round(totalEffKwh * 50))}/month`, margin + 3, ey + 3.5);
+    }
+
+    // Right: Solar / UPS advisory
+    const advFill2: [number,number,number]   = !advisory2 ? [248,248,248] : advisory2.color === 'blue' ? [239,246,255] : advisory2.color === 'green' ? [240,253,244] : [248,248,248];
+    const advBorder2: [number,number,number] = !advisory2 ? [160,160,160] : advisory2.color === 'blue' ? [59,130,246]  : advisory2.color === 'green' ? [34,197,94]   : [160,160,160];
+    doc.setFillColor(...advFill2);
+    doc.rect(aColX2, y, aColW2, stripH2, 'F');
+    doc.setDrawColor(...advBorder2); doc.setLineWidth(0.5);
+    doc.line(aColX2, y, aColX2, y + stripH2);
+    doc.setLineWidth(0.2);
+    const advTitle2 = advisory2
+      ? advisory2.sectionLabel.replace(/^FOR\s+/i, '').replace(/\s+CUSTOMERS?$/i, '').replace(/\s+\/\s+INDEPENDENT\s+UNIT/i, '')
+      : 'ENERGY ADVISORY';
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(ORANGE);
+    doc.text(advTitle2, aColX2 + 3, y + 5);
+    const advParas2 = advisory2
+      ? advisory2.paragraphs
+      : ['Ask us for an energy-saving assessment and solar proposal tailored to your property type.'];
+    let ay = y + 9;
+    for (const para of advParas2) {
+      const wrapped = doc.splitTextToSize(para, aColW2 - 5);
+      const available = Math.max(1, Math.floor((y + stripH2 - ay - 2) / 3.2));
+      const toShow = wrapped.slice(0, available);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(40, 40, 40);
+      doc.text(toShow, aColX2 + 3, ay, { lineHeightFactor: 1.4 });
+      ay += toShow.length * 3.2 + 2;
+      if (ay >= y + stripH2 - 2) break;
+    }
+
+    y += stripH2 + 3;
+  }
 
   // ── INSTALLMENT SCHEDULE (full-width, when saleType=installment) ─────────────
   if (opts.saleType === 'installment' && (opts.instTotalPrice ?? 0) > 0 && (opts.instMonths ?? 0) > 0 && opts.instFirstDate) {
@@ -5875,6 +5922,7 @@ async function generateInstallmentPaymentPdf(opts: {
   instMonthlyAmt: number;
   instFirstDate: string;
   paymentNumber: number;
+  customCharges?: Array<{ name: string; amount: number }>;
   showNtn?: boolean;
 }): Promise<Blob> {
   const ORANGE = '#EA580C';
@@ -5898,6 +5946,8 @@ async function generateInstallmentPaymentPdf(opts: {
   try { logoData = await loadLogoWhite(); } catch { /* fallback */ }
   let qrData: string | null = null;
   try { qrData = await loadQrBase64(); } catch { /* skip */ }
+  let fbQrData: string | null = null;
+  try { fbQrData = await generateQrDataUrl('https://www.facebook.com/share/g/18be5ayTCF/'); } catch { /* skip */ }
 
   // ── 1. Header band ────────────────────────────────────────────────────────
   doc.setFillColor(ORANGE);
@@ -6034,6 +6084,58 @@ async function generateInstallmentPaymentPdf(opts: {
   });
   // @ts-ignore
   y = (doc as any).lastAutoTable.finalY + 8;
+
+  // ── 6b. Custom charges ─────────────────────────────────────────────────────
+  if ((opts.customCharges ?? []).length > 0) {
+    const ccBody = opts.customCharges!.map(c => [
+      { content: c.name, styles: { fontStyle: 'bold' as const } },
+      { content: PKR(c.amount), styles: { halign: 'right' as const, fontStyle: 'bold' as const } },
+    ]);
+    autoTable(doc, {
+      startY: y, margin: { left: margin, right: margin },
+      head: [['ADDITIONAL CHARGE', 'AMOUNT']],
+      body: ccBody,
+      columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 35, halign: 'right' as const } },
+      headStyles: { fillColor: [45, 45, 55] as [number,number,number], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+      bodyStyles: { fontSize: 7, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
+      styles: { overflow: 'linebreak', cellPadding: 1.5 },
+    });
+    // @ts-ignore
+    y = (doc as any).lastAutoTable.finalY + 6;
+  }
+
+  // ── 6c. Community strip ────────────────────────────────────────────────────
+  const commH = 18;
+  const trustStatW = Math.round(printW * 0.74);
+  const commAreaX = margin + trustStatW;
+  const commAreaW = printW - trustStatW;
+  doc.setFillColor(26, 26, 26);
+  doc.rect(margin, y, trustStatW, commH, 'F');
+  doc.setFillColor(18, 90, 210);
+  doc.rect(commAreaX, y, commAreaW, commH, 'F');
+  const payTrustStats = [['11+ yrs', 'IN BUSINESS'], ['24,000+', 'ORDERS FULFILLED'], ['14,000+', 'HOUSEHOLDS SERVED'], ['1,600+', 'COMMUNITY']];
+  const paySegW = trustStatW / payTrustStats.length;
+  payTrustStats.forEach(([num, lbl], i) => {
+    const sx = margin + i * paySegW + paySegW / 2;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(234, 88, 12);
+    doc.text(num, sx, y + 6, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(4); doc.setTextColor(170, 170, 170);
+    doc.text(lbl, sx, y + 11, { align: 'center' });
+  });
+  if (fbQrData) {
+    const FB_QR = 10;
+    const cx = commAreaX + commAreaW / 2;
+    const fbQrX = commAreaX + (commAreaW - FB_QR) / 2;
+    const fbQrY = y + 4;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(4); doc.setTextColor(255, 255, 255);
+    doc.text('JOIN OUR FB GROUP', cx, y + 2.5, { align: 'center' });
+    doc.setFillColor(255, 255, 255);
+    doc.rect(fbQrX - 1, fbQrY - 1, FB_QR + 2, FB_QR + 2, 'F');
+    doc.addImage(fbQrData, 'PNG', fbQrX, fbQrY, FB_QR, FB_QR);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(4); doc.setTextColor(255, 255, 255);
+    doc.text('Appliance Reliance', cx, fbQrY + FB_QR + 2.5, { align: 'center' });
+  }
+  y += commH + 6;
 
   // ── 7. Bank details ────────────────────────────────────────────────────────
   const bdH = 28;
@@ -7470,45 +7572,124 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
         isPackage:         l.key_specs_json?.isPackage ?? false,
         packageComponents: l.key_specs_json?.packageComponents ?? [],
       }));
+      const customCharges = row.custom_charges_json ?? [];
       const discountIsFixed = (row.discount_pct ?? 0) > 100;
-      const docType: 'quotation' | 'invoice' =
-        row.doc_type === 'quotation' ? 'quotation' : 'invoice';
-      const grandTotal = row.grand_total ?? 0;
-      const blob = await generateQuotationPdf({
-        customerName: row.customer_name ?? '',
-        customerPhone: (row.customer_phone ?? '').replace(/\D/g, ''),
-        customerEmail: row.customer_email ?? '',
-        customerAddress: row.customer_address ?? '',
-        customerCnic: row.customer_cnic ?? '',
-        customerType: (row.customer_type ?? 'house') as 'house' | 'apartment' | 'commercial',
-        customerArea: row.customer_area ?? '',
-        isExistingCustomer: null,
-        lines,
-        services: REPRINT_DEFAULT_SERVICES,
-        discount: row.discount_pct ?? 0,
-        discountMode: discountIsFixed ? 'fixed' : 'percentage',
-        discountType: row.discount_type ?? '',
-        discountReason: row.discount_reason ?? '',
-        docType,
-        saleType: (row.sale_type ?? 'cash') as 'cash' | 'installment',
-        refNumber: row.ref_number,
-        preparedBy: '',
-        stockStatus: 'Reprint copy',
-        validityHours: 72,
-        installationType: row.service_level === 'supply_install' ? 'installation-included' : 'supply-only',
-        installationLines: [],
-        advancePct: row.advance_pct ?? 50,
-        balanceNote: 'delivery',
-        advancePaid: false,
-        deliveryEta: '',
-        showNtn: true,
-        instTeaserMonthly: grandTotal > 0 ? Math.round(grandTotal * 1.25 / 12) : undefined,
-        instTeaserMonths: 12,
-      });
+      let blob: Blob;
+      let filename: string;
+
+      if (row.doc_type === 'installment_payment_receipt') {
+        // Extract payment number from ref suffix e.g. "TJ-20260101-123456-P3" → 3
+        const paymentNumber = parseInt(row.ref_number.split('-P').pop() ?? '1', 10) || 1;
+        blob = await generateInstallmentPaymentPdf({
+          customerName: row.customer_name ?? '',
+          customerPhone: (row.customer_phone ?? '').replace(/\D/g, ''),
+          customerEmail: row.customer_email ?? '',
+          customerAddress: row.customer_address ?? '',
+          customerCnic: row.customer_cnic ?? '',
+          lines,
+          discount: row.discount_pct ?? 0,
+          refNumber: row.ref_number,
+          instTotalPrice: row.inst_total_price ?? 0,
+          instAdvanceAmt: row.inst_advance_amt ?? 0,
+          instMonths: row.inst_months ?? 0,
+          instMonthlyAmt: row.inst_monthly_amt ?? 0,
+          instFirstDate: row.inst_first_date ?? new Date().toISOString().slice(0, 10),
+          paymentNumber,
+          customCharges,
+          showNtn: true,
+        });
+        filename = `${(row.customer_name || 'Customer').replace(/[/\\:*?"<>|]/g, '').trim()} - ${row.ref_number}.pdf`;
+
+      } else if (row.doc_type === 'installment-invoice') {
+        const services = (row.invoice_services ?? []).map(s => ({
+          service_name: s.service_name,
+          description: s.description,
+          status: s.status,
+          visible_value: s.visible_value,
+          charged_amount: s.charged_amount,
+        }));
+        blob = await generateInstallmentAdvancePdf({
+          customerName: row.customer_name ?? '',
+          customerPhone: (row.customer_phone ?? '').replace(/\D/g, ''),
+          customerEmail: row.customer_email ?? '',
+          customerAddress: row.customer_address ?? '',
+          customerCnic: row.customer_cnic ?? '',
+          lines,
+          services,
+          customCharges,
+          guarantorName: row.guarantor_name ?? '',
+          guarantorPhone: row.guarantor_phone ?? '',
+          guarantorCnic: row.guarantor_cnic ?? '',
+          discount: row.discount_pct ?? 0,
+          discountMode: discountIsFixed ? 'fixed' : 'percentage',
+          refNumber: row.ref_number,
+          instTotalPrice: row.inst_total_price ?? 0,
+          instAdvanceAmt: row.inst_advance_amt ?? 0,
+          instMonths: row.inst_months ?? 0,
+          instMonthlyAmt: row.inst_monthly_amt ?? 0,
+          instFirstDate: row.inst_first_date ?? new Date().toISOString().slice(0, 10),
+          showNtn: true,
+        });
+        filename = `${(row.customer_name || 'Customer').replace(/[/\\:*?"<>|]/g, '').trim()} - ${row.ref_number}.pdf`;
+
+      } else {
+        const docType: 'quotation' | 'invoice' =
+          row.doc_type === 'quotation' ? 'quotation' : 'invoice';
+        const grandTotal = row.grand_total ?? 0;
+        const services = row.invoice_services?.length
+          ? row.invoice_services.map(s => ({
+              service_type: s.service_type,
+              service_name: s.service_name,
+              description: s.description,
+              status: s.status,
+              visible_value: s.visible_value,
+              charged_amount: s.charged_amount,
+            }))
+          : REPRINT_DEFAULT_SERVICES;
+        blob = await generateQuotationPdf({
+          customerName: row.customer_name ?? '',
+          customerPhone: (row.customer_phone ?? '').replace(/\D/g, ''),
+          customerEmail: row.customer_email ?? '',
+          customerAddress: row.customer_address ?? '',
+          customerCnic: row.customer_cnic ?? '',
+          customerType: (row.customer_type ?? 'house') as 'house' | 'apartment' | 'commercial',
+          customerArea: row.customer_area ?? '',
+          isExistingCustomer: null,
+          lines,
+          services,
+          discount: row.discount_pct ?? 0,
+          discountMode: discountIsFixed ? 'fixed' : 'percentage',
+          discountType: row.discount_type ?? '',
+          discountReason: row.discount_reason ?? '',
+          docType,
+          saleType: (row.sale_type ?? 'cash') as 'cash' | 'installment',
+          refNumber: row.ref_number,
+          preparedBy: '',
+          stockStatus: 'Reprint copy',
+          validityHours: 72,
+          installationType: row.service_level === 'supply_install' ? 'installation-included' : 'supply-only',
+          installationLines: [],
+          advancePct: row.advance_pct ?? 50,
+          balanceNote: 'delivery',
+          advancePaid: false,
+          deliveryEta: '',
+          showNtn: true,
+          customCharges,
+          instTotalPrice: row.inst_total_price ?? undefined,
+          instAdvanceAmt: row.inst_advance_amt ?? undefined,
+          instMonths: row.inst_months ?? undefined,
+          instMonthlyAmt: row.inst_monthly_amt ?? undefined,
+          instFirstDate: row.inst_first_date ?? undefined,
+          instTeaserMonthly: grandTotal > 0 ? Math.round(grandTotal * 1.25 / 12) : undefined,
+          instTeaserMonths: 12,
+        });
+        filename = `${(row.customer_name || 'Customer').replace(/[/\\:*?"<>|]/g, '').trim()} - ${row.ref_number}.pdf`;
+      }
+
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `tajallis_${docType}_${row.ref_number}_copy.pdf`;
+      a.download = filename;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     } catch (e) {
@@ -8598,7 +8779,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
       const a = document.createElement('a');
-      a.href = url; a.download = `tajallis_${docType}_${refNumber}.pdf`; a.click();
+      a.href = url; a.download = `${(customerName || 'Customer').replace(/[/\\:*?"<>|]/g, '').trim()} - ${refNumber}.pdf`; a.click();
       const logPayload: InvoiceLogPayload = {
         refNumber,
         docType: docType as 'quotation' | 'invoice' | 'installment-invoice' | 'installment_payment_receipt' | 'service_receipt',
@@ -8678,7 +8859,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       clearTimeout(timeout);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = `tajallis_advance_invoice_${refNumber}.pdf`; a.click();
+      a.href = url; a.download = `${(customerName || 'Customer').replace(/[/\\:*?"<>|]/g, '').trim()} - ${refNumber}.pdf`; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
       const advPayload: InvoiceLogPayload = {
         refNumber, docType: 'installment-invoice',
@@ -8716,11 +8897,12 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
         lines, discount, refNumber,
         instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate,
         paymentNumber: instPaymentNumber, showNtn,
+        customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
       });
       clearTimeout(timeout);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = `tajallis_installment_${instPaymentNumber}_${refNumber}.pdf`; a.click();
+      a.href = url; a.download = `${(customerName || 'Customer').replace(/[/\\:*?"<>|]/g, '').trim()} - ${refNumber}.pdf`; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
       logInvoiceToSupabase({
         refNumber: `${refNumber}-P${instPaymentNumber}`,
