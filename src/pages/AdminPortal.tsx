@@ -5517,7 +5517,9 @@ async function generateQuotationPdf(opts: {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(4.5); doc.setTextColor(255, 255, 255);
     doc.text('Appliance Reliance', cx, fbQrY + FB_QR + 3, { align: 'center' });
     doc.setFont('helvetica', 'italic'); doc.setFontSize(3.5); doc.setTextColor(180, 210, 255);
-    doc.text('Post queries: reliance.tajallis.com.pk', cx, fbQrY + FB_QR + 5.5, { align: 'center' });
+    doc.text('Post queries in the group', cx, fbQrY + FB_QR + 5.5, { align: 'center' });
+    const linkTextY = fbQrY + FB_QR + 5.5;
+    doc.link(commAreaX + 1, linkTextY - 3, commAreaW - 2, 4, { url: 'https://www.facebook.com/share/g/18be5ayTCF/' });
   }
   y += trustH + 2;
 
