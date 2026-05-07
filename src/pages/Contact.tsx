@@ -51,7 +51,7 @@ export default function Contact() {
       <SEO
         title="Contact Us — Tajalli's Karachi"
         description="Get in touch with Tajalli's. Call, WhatsApp, or send us a message. We're here to help with product enquiries, orders, and after-sale support."
-        keywords="contact reliance appliances karachi, appliance store phone number, whatsapp appliances pakistan"
+        keywords="contact tajallis karachi, appliance store phone number, whatsapp appliances pakistan"
       />
 
       {/* Hero */}

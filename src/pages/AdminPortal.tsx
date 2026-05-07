@@ -10801,7 +10801,7 @@ function PartnerLeadsTab() {
                       </td>
                       <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                         <a
-                          href={`https://wa.me/${lead.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${lead.contact_person}, this is Reliance Appliances regarding your partner application.`)}`}
+                          href={`https://wa.me/${lead.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${lead.contact_person}, this is Tajalli's regarding your partner application.`)}`}
                           target="_blank" rel="noreferrer"
                           className="p-1.5 hover:bg-green-50 text-green-600 rounded-lg flex items-center justify-center w-8 h-8"
                           title="WhatsApp">
@@ -11072,7 +11072,7 @@ function OrdersTab() {
                         </td>
                         <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                           <a
-                            href={`https://wa.me/${order.customer_phone?.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${order.customer_name}, your Reliance Appliances order (ref: ${order.id.slice(0, 8)}) has been received. We'll confirm shortly.`)}`}
+                            href={`https://wa.me/${order.customer_phone?.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${order.customer_name}, your Tajalli's order (ref: ${order.id.slice(0, 8)}) has been received. We'll confirm shortly.`)}`}
                             target="_blank" rel="noreferrer"
                             className="p-1.5 hover:bg-green-50 text-green-600 rounded-lg flex items-center justify-center w-8 h-8">
                             <MessageCircle className="w-4 h-4" />
@@ -11288,7 +11288,7 @@ function EnquiriesTab() {
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
                         {item.phone && (
-                          <a href={`https://wa.me/${item.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${item.name || ''}, thank you for contacting Reliance Appliances!`)}`}
+                          <a href={`https://wa.me/${item.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${item.name || ''}, thank you for contacting Tajalli's!`)}`}
                             target="_blank" rel="noreferrer"
                             className="p-1.5 hover:bg-green-50 text-green-600 rounded-lg">
                             <MessageCircle className="w-3.5 h-3.5" />

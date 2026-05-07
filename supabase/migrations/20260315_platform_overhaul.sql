@@ -1,5 +1,5 @@
 -- ============================================================
--- Reliance Platform Overhaul — 2026-03-15
+-- Tajalli's Platform Overhaul — 2026-03-15
 -- Run this in: Supabase Dashboard → SQL Editor → New Query
 -- ============================================================
 

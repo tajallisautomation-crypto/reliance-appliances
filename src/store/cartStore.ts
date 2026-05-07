@@ -35,6 +35,6 @@ export const useCartStore = create<CartStore>()(
       total: () => get().items.reduce((t, i) => t + (i.price?.cash_floor || 0) * i.qty, 0),
       setSelectedPlan: (plan) => set({ selectedPlan: plan }),
     }),
-    { name: 'reliance-cart' }
+    { name: 'tajallis-cart' }
   )
 )

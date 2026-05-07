@@ -126,13 +126,13 @@ export default function Partner() {
     }
   }
 
-  const waPartner = waSales('Hi, I\'d like to enquire about a brand partnership with Reliance Appliances.')
+  const waPartner = waSales('Hi, I\'d like to enquire about a brand partnership with Tajalli\'s.')
 
   return (
     <div className="min-h-screen bg-white">
       <SEO
         path="/partner"
-        title="Partner With Us — Reliance Appliances B2B"
+        title="Partner With Us — Tajalli's B2B"
         description="Partner with Karachi's most trusted appliance distributor. Zero-risk consignment model. 14,400 clients, 98% credit recovery, 11 years in business."
         keywords="distributor karachi, appliance brand partner pakistan, consignment sales karachi, solar distributor karachi"
       />

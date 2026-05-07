@@ -33,7 +33,7 @@ const CROWN_INV_8:   ComponentOption = { label: 'Crown 8kW Hybrid Inverter',    
 const CROWN_BAT_24:  ComponentOption = { label: 'Crown 2.4kWh LiFePO4 Battery',   brand: 'Crown', slug: 'crown-elektra-boost-pro-2-4kw'    }
 const CROWN_BAT_512: ComponentOption = { label: 'Crown 5.12kWh LiFePO4 Battery',  brand: 'Crown', slug: 'crown-elektra-boost-pro-5-12kw'   }
 
-// ── Ziewnic component definitions (Ziewnic Jan 2026 catalog + 15% Reliance margin, rounded) ─
+// ── Ziewnic component definitions (Ziewnic Jan 2026 catalog + 15% Tajalli's margin, rounded) ─
 
 function zn(label: string, catalogPrice: number): ComponentOption {
   return { label, brand: 'Ziewnic', price: Math.round(catalogPrice * 1.15 / 1000) * 1000 }

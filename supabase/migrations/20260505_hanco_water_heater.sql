@@ -121,7 +121,7 @@ VALUES (
   '[]'::jsonb,
 
   -- SEO
-  'Hanco HEG-50L 50L Solar-Compatible Electric Water Heater | Reliance',
+  'Hanco HEG-50L 50L Solar-Compatible Electric Water Heater | Tajalli''s',
   'Buy the Hanco HEG-50L 50L electric geyser with adjustable 800W/1200W/2000W wattage, solar inverter compatibility, Incoloy 840 element, and IPX4 rating. 2-year leakage warranty. Rs. 27,150.',
   'hanco electric water heater, hanco geyser, heg-50l, 50 litre geyser, solar geyser pakistan, solar compatible electric geyser, hanco solar water heater',
 

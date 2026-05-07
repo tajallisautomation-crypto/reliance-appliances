@@ -1,5 +1,5 @@
 /**
- * RELIANCE APPLIANCES — Complete WhatsApp Communication Strategy
+ * TAJALLI'S — Complete WhatsApp Communication Strategy
  * 
  * Every template covers:
  *  - Bilingual (English + Roman Urdu)

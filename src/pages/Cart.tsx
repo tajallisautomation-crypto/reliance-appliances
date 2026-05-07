@@ -32,7 +32,7 @@ export default function Cart() {
     <>
       {/* Extra bottom padding on mobile so sticky bar doesn't overlap last item */}
       <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-10 pb-32 md:pb-10">
-        <SEO title="Your Cart — Reliance Appliances" noIndex />
+        <SEO title="Your Cart — Tajalli's" noIndex />
         <h1 className="text-xl sm:text-2xl font-black text-gray-900 mb-5 sm:mb-8">
           Your Cart <span className="text-gray-400 font-medium">({items.length} item{items.length !== 1 ? 's' : ''})</span>
         </h1>

@@ -98,7 +98,7 @@ export default function Support() {
       <SEO
         title="Customer Support — Tajalli's Karachi"
         description="Submit a complaint, warranty claim, or support request to Tajalli's. We respond within 48 hours — urgent cases same day."
-        keywords="reliance appliances support, complaint, warranty claim karachi, after sale service"
+        keywords="tajallis support, complaint, warranty claim karachi, after sale service"
         path="/support"
       />
 

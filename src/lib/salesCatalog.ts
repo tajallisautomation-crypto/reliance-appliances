@@ -456,7 +456,7 @@ export function buildPrintHTML(cat: CatalogCategory, grouped: Map<string, Produc
 <body>
 <div class="header">
   <div>
-    <div class="brand-name">Reliance <span style="font-size:13px;font-weight:400;color:#888">by Tajallis</span></div>
+    <div class="brand-name">Tajalli's</div>
     <div style="font-size:10px;color:#888;margin-top:2px">Karachi's trusted appliance partner since 2015 · 14,400+ clients</div>
   </div>
   <div style="text-align:right">

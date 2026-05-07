@@ -9,5 +9,6 @@ CREATE TABLE IF NOT EXISTS customer_notes (
 CREATE INDEX IF NOT EXISTS customer_notes_phone_idx
   ON customer_notes (customer_phone, created_at DESC);
 ALTER TABLE customer_notes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "authenticated_all" ON customer_notes;
 CREATE POLICY "authenticated_all" ON customer_notes
   FOR ALL USING (auth.role() = 'authenticated');

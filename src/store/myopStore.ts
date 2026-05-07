@@ -94,7 +94,7 @@ export const useMyopStore = create<MyopStore>()(
         get().items.find(i => i.product.id === productId),
     }),
     {
-      name: 'reliance-myop',
+      name: 'tajallis-myop',
       // Serialize only the stable fields — exclude function selectors
       partialize: (s) => ({
         activeTab:   s.activeTab,
