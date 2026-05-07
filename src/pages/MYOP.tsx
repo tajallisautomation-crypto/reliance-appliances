@@ -65,77 +65,232 @@ const DISCOUNT_PCT       = 0.05   // 5%
 const TABS = [
   { id: 'ac',      label: 'Air Conditioners', icon: '❄️' },
   { id: 'fridge',  label: 'Refrigerators',    icon: '🧊' },
+  { id: 'freezer', label: 'Freezers',         icon: '❄️' },
   { id: 'washing', label: 'Washing Machines', icon: '👕' },
   { id: 'tv',      label: 'Televisions',      icon: '📺' },
-  { id: 'solar',   label: 'Solar',            icon: '☀️' },
+  { id: 'solar',   label: 'Solar / UPS',      icon: '☀️' },
   { id: 'kitchen', label: 'Kitchen',          icon: '🍳' },
   { id: 'small',   label: 'Small Appliances', icon: '🔌' },
+  { id: 'water',   label: 'Water Dispensers', icon: '💧' },
+  { id: 'fan',     label: 'Fans',             icon: '🌀' },
 ]
+
+interface PresetSlot {
+  tabId:    string
+  label:    string
+  required: boolean
+}
 
 interface PresetPack {
   id:          string
   name:        string
   tagline:     string
   icon:        string
+  positioning: string
+  bestFor:     string
+  houseType:   'house' | 'apartment' | 'both'
+  solarRec?:   string
+  upsRec?:     string
+  slots:       PresetSlot[]
   firstTab:    string
-  fromPrice:   number   // cash total before 5% bundle discount
-  items: Array<{ id: string; label: string; price: number }>
+  items?:      Array<{ id: string; label: string; price: number }>
 }
 
-// Starter packs built from real DB products (IDs verified April 2026)
 const PRESET_PACKS: PresetPack[] = [
+  // ── Priority 1: New Home Starter ────────────────────────────────────────
   {
-    id:        'budget-starter',
-    name:      'Budget Starter',
-    tagline:   '1T AC + Fridge + Washer',
-    icon:      '🏠',
-    firstTab:  'ac',
-    fromPrice: 190500,
+    id:          'new-home',
+    name:        'New Home Starter',
+    tagline:     'AC · Fridge · Washer · TV',
+    icon:        '🏠',
+    positioning: 'Everything essential to make a new home functional from day one.',
+    bestFor:     'Newly married couples, shifting homes, small families',
+    houseType:   'house',
+    solarRec:    'Solar-ready setup: adding a 3kW solar or UPS plan reduces running cost and covers load-shedding.',
+    slots: [
+      { tabId: 'ac',      label: 'Inverter AC',      required: true  },
+      { tabId: 'fridge',  label: 'Refrigerator',     required: true  },
+      { tabId: 'washing', label: 'Washing Machine',  required: true  },
+      { tabId: 'tv',      label: 'LED TV',           required: true  },
+      { tabId: 'water',   label: 'Water Dispenser',  required: false },
+    ],
+    firstTab: 'ac',
     items: [
-      { id: 'dawlance-infinity-pro-15-fix-speed-on-off', label: 'Dawlance 1T AC',     price: 100500 },
-      { id: 'dawlance-ref-9140wb-chrome',                label: 'Dawlance Fridge',    price:  59500 },
-      { id: 'haier-hwm-80-cs',                           label: 'Haier Washer 8kg',   price:  30500 },
+      { id: 'haier-hsu-18cfp-cm',             label: 'Haier 1.5T AC',       price: 113000 },
+      { id: 'haier-hrf-246-epb-epr-epcg',     label: 'Haier Fridge 246L',   price:  77000 },
+      { id: 'haier-hwm-120-as-mg',            label: 'Haier Washer 12kg',   price:  52000 },
+      { id: 'dawlance-kore-fhd-google-tv-43', label: 'Dawlance 43" TV',     price:  69000 },
     ],
   },
+  // ── Priority 2: Apartment Comfort ───────────────────────────────────────
   {
-    id:        'essential-home',
-    name:      'Essential Home',
-    tagline:   '1.5T AC + Fridge + Washer + TV',
-    icon:      '✨',
-    firstTab:  'ac',
-    fromPrice: 311000,
-    items: [
-      { id: 'haier-hsu-18cfp-cm',         label: 'Haier 1.5T AC',      price: 113000 },
-      { id: 'haier-hrf-246-epb-epr-epcg', label: 'Haier Fridge 246L',  price:  77000 },
-      { id: 'haier-hwm-120-as-mg',        label: 'Haier Washer 12kg',  price:  52000 },
-      { id: 'dawlance-kore-fhd-google-tv-43', label: 'Dawlance 43" TV', price:  69000 },
+    id:          'apartment-comfort',
+    name:        'Apartment Comfort',
+    tagline:     'AC · Fridge · Washer · UPS Backup',
+    icon:        '🏢',
+    positioning: 'Designed for apartments where roof solar may not be practical. UPS/inverter backup keeps essentials running during load-shedding.',
+    bestFor:     'Apartment residents, tenants, small families',
+    houseType:   'apartment',
+    upsRec:      'For flats, a UPS/inverter is more practical than rooftop solar. Add an inverter + battery to cover fans, lights, and fridge.',
+    slots: [
+      { tabId: 'ac',      label: 'Inverter AC',     required: true  },
+      { tabId: 'fridge',  label: 'Refrigerator',    required: true  },
+      { tabId: 'washing', label: 'Washing Machine', required: true  },
+      { tabId: 'solar',   label: 'UPS / Inverter',  required: true  },
+      { tabId: 'solar',   label: 'Battery Bank',    required: false },
     ],
+    firstTab: 'ac',
   },
+  // ── Priority 3: Summer Cooling ──────────────────────────────────────────
   {
-    id:        'solar-backup',
-    name:      'Solar Backup',
-    tagline:   '3KW Inverter + 2× Lithium Battery',
-    icon:      '☀️',
-    firstTab:  'solar',
-    fromPrice: 210000,
+    id:          'summer-cooling',
+    name:        'Summer Cooling',
+    tagline:     '1–2 Inverter ACs · Fridge · Fan',
+    icon:        '🌬️',
+    positioning: 'Cooling essentials for Karachi summers, with installation and support included.',
+    bestFor:     'Summer buyers, families replacing old ACs, repeat customers',
+    houseType:   'both',
+    solarRec:    'Multiple cooling appliances selected. A 3kW–5kW solar package can significantly reduce your summer electricity bill.',
+    slots: [
+      { tabId: 'ac',     label: '1st Inverter AC',   required: true  },
+      { tabId: 'ac',     label: '2nd AC (optional)', required: false },
+      { tabId: 'fridge', label: 'Refrigerator',      required: false },
+      { tabId: 'fan',    label: 'Fan',               required: false },
+    ],
+    firstTab: 'ac',
+  },
+  // ── Priority 4: Wedding / Jahez ─────────────────────────────────────────
+  {
+    id:          'wedding-jahez',
+    name:        'Wedding / Jahez Pack',
+    tagline:     'Fridge · Washer · TV · Microwave · More',
+    icon:        '💍',
+    positioning: 'A complete home-start package with transparent pricing, delivery, and after-sales support.',
+    bestFor:     'Wedding shopping, family gift purchases, parents buying for children',
+    houseType:   'both',
+    slots: [
+      { tabId: 'fridge',   label: 'Refrigerator',    required: true  },
+      { tabId: 'washing',  label: 'Washing Machine', required: true  },
+      { tabId: 'tv',       label: 'LED TV',          required: true  },
+      { tabId: 'kitchen',  label: 'Microwave Oven',  required: true  },
+      { tabId: 'small',    label: 'Iron',            required: false },
+      { tabId: 'water',    label: 'Water Dispenser', required: false },
+      { tabId: 'ac',       label: 'Air Conditioner', required: false },
+    ],
+    firstTab: 'fridge',
+  },
+  // ── Priority 5: Green Corridor ──────────────────────────────────────────
+  {
+    id:          'green-corridor',
+    name:        'Green Corridor',
+    tagline:     'Inverter AC · Inverter Fridge · 3kW Solar',
+    icon:        '☀️',
+    positioning: "Don't just buy solar. First reduce your load with inverter appliances, then size solar smartly.",
+    bestFor:     'Energy-conscious families, North Karachi, repeat buyers',
+    houseType:   'house',
+    solarRec:    'Your inverter appliances reduce required solar size. A 3kW system covers this load well.',
+    slots: [
+      { tabId: 'ac',     label: 'Inverter AC',     required: true  },
+      { tabId: 'fridge', label: 'Inverter Fridge', required: true  },
+      { tabId: 'solar',  label: '3kW Solar',       required: true  },
+      { tabId: 'fan',    label: 'Low-Load Fan',    required: false },
+      { tabId: 'solar',  label: 'Battery Backup',  required: false },
+    ],
+    firstTab: 'ac',
     items: [
       { id: 'ziewnic-pv3000',               label: 'Ziewnic PV3000 3KW',    price:  74000 },
       { id: 'ziewnic-12v-100ah-li-vietnam', label: 'Ziewnic 100AH Battery', price:  68000 },
-      { id: 'ziewnic-12v-100ah-li-vietnam', label: 'Ziewnic 100AH Battery', price:  68000 },
+    ],
+  },
+  // ── Priority 6: Load-Shedding Backup ────────────────────────────────────
+  {
+    id:          'loadshedding-backup',
+    name:        'Load-Shedding Backup',
+    tagline:     'UPS/Inverter · Battery · Fans',
+    icon:        '🔋',
+    positioning: 'Keep essentials running during load-shedding. Only compatible batteries are shown for your selected inverter.',
+    bestFor:     'Flats, tenants, areas with unreliable electricity',
+    houseType:   'apartment',
+    upsRec:      'Select your inverter first — only compatible batteries will be shown so you get the right setup.',
+    slots: [
+      { tabId: 'solar',  label: 'UPS / Inverter', required: true  },
+      { tabId: 'solar',  label: 'Battery',        required: true  },
+      { tabId: 'fan',    label: 'Fan(s)',         required: false },
+      { tabId: 'small',  label: 'Lights / Other', required: false },
+      { tabId: 'fridge', label: 'Refrigerator',   required: false },
+    ],
+    firstTab: 'solar',
+  },
+  // ── Extended packs 7–10 ─────────────────────────────────────────────────
+  {
+    id:          'solar-kitchen',
+    name:        'Solar-Ready Kitchen',
+    tagline:     'Fridge · Microwave · Air Fryer · Kettle',
+    icon:        '🍳',
+    positioning: 'Upgrade your kitchen with efficient appliances easier to support with solar later.',
+    bestFor:     'Home upgrades, wedding setups, kitchen renovations',
+    houseType:   'house',
+    solarRec:    'Kitchen load is low-to-medium. Pairing with an inverter fridge makes your future solar package more efficient.',
+    slots: [
+      { tabId: 'fridge',  label: 'Inverter Fridge', required: true  },
+      { tabId: 'kitchen', label: 'Microwave Oven',  required: true  },
+      { tabId: 'kitchen', label: 'Air Fryer',       required: false },
+      { tabId: 'water',   label: 'Water Dispenser', required: false },
+    ],
+    firstTab: 'fridge',
+    items: [
+      { id: 'dawlance-md-7',                            label: 'Dawlance Microwave',  price: 16500 },
+      { id: 'westpoint-5254',                           label: 'Westpoint Air Fryer', price: 28000 },
+      { id: 'dawlance-electric-kettle-dwek-7100-local', label: 'Dawlance Kettle',     price:  5500 },
     ],
   },
   {
-    id:        'kitchen-basics',
-    name:      'Kitchen Basics',
-    tagline:   'Microwave + Air Fryer + Kettle',
-    icon:      '🍳',
-    firstTab:  'kitchen',
-    fromPrice: 50000,
-    items: [
-      { id: 'dawlance-md-7',                              label: 'Dawlance Microwave',  price: 16500 },
-      { id: 'westpoint-5254',                             label: 'Westpoint Air Fryer', price: 28000 },
-      { id: 'dawlance-electric-kettle-dwek-7100-local',   label: 'Dawlance Kettle',     price:  5500 },
+    id:          'executive-cooling',
+    name:        'Executive Cooling',
+    tagline:     'Floor-Standing AC · Fridge · Freezer',
+    icon:        '🏢',
+    positioning: 'For large rooms, commercial spaces, offices, and high-load homes.',
+    bestFor:     'Large homes, offices, clinics, salons, small businesses',
+    houseType:   'both',
+    solarRec:    'High-load package detected. A 5kW–10kW solar assessment is recommended before finalizing.',
+    slots: [
+      { tabId: 'ac',      label: 'Floor-Standing AC',  required: true  },
+      { tabId: 'fridge',  label: 'Refrigerator',       required: false },
+      { tabId: 'freezer', label: 'Freezer',            required: false },
+      { tabId: 'solar',   label: 'Voltage Stabilizer', required: false },
     ],
+    firstTab: 'ac',
+  },
+  {
+    id:          'commercial-starter',
+    name:        'Commercial Starter',
+    tagline:     'Commercial AC · Fridge · Water Dispenser',
+    icon:        '🏪',
+    positioning: 'Reliable appliance setup for offices, shops, clinics, and small commercial spaces.',
+    bestFor:     'Clinics, offices, salons, shops, small warehouses',
+    houseType:   'both',
+    solarRec:    'Commercial setups benefit from solar. Ask us about a 5kW–10kW consultation.',
+    slots: [
+      { tabId: 'ac',     label: 'Commercial / Large AC', required: true  },
+      { tabId: 'fridge', label: 'Refrigerator/Freezer',  required: false },
+      { tabId: 'water',  label: 'Water Dispenser',       required: false },
+      { tabId: 'solar',  label: 'Solar / UPS',           required: false },
+    ],
+    firstTab: 'ac',
+  },
+  {
+    id:          'service-protection',
+    name:        'Service + Protection',
+    tagline:     'Any Appliance + Delivery + Install',
+    icon:        '🛠️',
+    positioning: 'Not just products — complete setup, installation, and after-sales support.',
+    bestFor:     'Customers wanting full installation, maintenance, and warranty coverage',
+    houseType:   'both',
+    slots: [
+      { tabId: 'ac',    label: 'Main Appliance', required: true  },
+      { tabId: 'small', label: 'Install / AMC',  required: false },
+    ],
+    firstTab: 'ac',
   },
 ]
 
@@ -160,6 +315,21 @@ function estimateKwhPerMonth(p: Product): number {
   if (nc.includes('microwave')) return 6
   if (nc.includes('kitchen') || nc.includes('small')) return 4
   return 0
+}
+
+/** Maps a product's category fields to one of the BYOP tab IDs. */
+function getProductTabId(p: Product): string {
+  const nc = (p.normalized_category || p.original_category || '').toLowerCase()
+  if (nc.includes('air cond') || nc.includes('ton air')) return 'ac'
+  if (nc.includes('freezer'))                             return 'freezer'
+  if (nc.includes('refriger'))                            return 'fridge'
+  if (nc.includes('washing'))                             return 'washing'
+  if (nc.includes('television') || nc.includes(' led') || nc.includes('smart tv') || nc.includes('qled')) return 'tv'
+  if (nc.includes('solar') || nc.includes('inverter') || nc.includes('batter') || nc.includes('power solution')) return 'solar'
+  if (nc.includes('water dispen'))                        return 'water'
+  if (nc.includes('fan'))                                 return 'fan'
+  if (nc.includes('kitchen') || nc.includes('microwave')) return 'kitchen'
+  return 'small'
 }
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -674,6 +844,8 @@ export default function MYOPPage() {
   const [searchQuery,   setSearchQuery]   = useState('')
   const [bundleLoading, setBundleLoading] = useState<string | null>(null)
   const [bundleLoaded,  setBundleLoaded]  = useState<string | null>(null)
+  const [houseType,     setHouseType]     = useState<'house' | 'apartment'>('house')
+  const [activePreset,  setActivePreset]  = useState<string | null>(null)
 
   // Solar compatibility: detect if user has an inverter in their package
   const selectedInverterItem = selected.find(item => isSolarInverter(item.product))
@@ -704,13 +876,13 @@ export default function MYOPPage() {
 
   // Load a preset bundle — fetch each product by ID and add to cart
   const loadBundle = useCallback(async (pack: PresetPack) => {
-    if (bundleLoading) return
+    if (bundleLoading || !pack.items?.length) return
     setBundleLoading(pack.id)
     setBundleLoaded(null)
     try {
       // Deduplicate IDs — if same product appears twice (e.g. 2 batteries), fetch once then addItem twice
       const idCounts: Record<string, number> = {}
-      for (const item of pack.items) {
+      for (const item of pack.items!) {
         idCounts[item.id] = (idCounts[item.id] || 0) + 1
       }
       const uniqueIds = Object.keys(idCounts)
@@ -729,6 +901,21 @@ export default function MYOPPage() {
     } catch { /* silent */ }
     finally { setBundleLoading(null) }
   }, [bundleLoading, store, setActiveTab])
+
+  // Start a guided preset — pre-load items (if any) and navigate to first slot tab
+  const startPreset = useCallback(async (pack: PresetPack) => {
+    const wasActive = activePreset === pack.id
+    setActivePreset(pack.id)
+    if (!wasActive && pack.items?.length) {
+      await loadBundle(pack)
+    } else {
+      // Navigate to first unfilled required slot, or first slot
+      const firstUnfilled = pack.slots.find(
+        slot => slot.required && !selected.some(i => getProductTabId(i.product) === slot.tabId)
+      )
+      setActiveTab(firstUnfilled?.tabId ?? pack.slots[0]?.tabId ?? pack.firstTab)
+    }
+  }, [activePreset, loadBundle, setActiveTab, selected])
 
   // Filter products by search query (model, simplified_name, brand)
   const filteredProducts = searchQuery.trim()
@@ -755,7 +942,8 @@ export default function MYOPPage() {
   const totalItems = store.itemCount()
   const qualifies  = totalItems >= DISCOUNT_THRESHOLD
 
-  // Solar load recommendation — only show when package has significant load + no inverter
+  // Solar / UPS load recommendation
+  const currentPreset     = activePreset ? PRESET_PACKS.find(p => p.id === activePreset) ?? null : null
   const hasInverter       = selected.some(i => isSolarInverter(i.product))
   const totalKwhPerMonth  = selected.reduce((sum, i) => sum + estimateKwhPerMonth(i.product) * i.qty, 0)
   const avgDailyKwh       = +(totalKwhPerMonth / 30).toFixed(1)
@@ -764,7 +952,8 @@ export default function MYOPPage() {
                           : avgDailyKwh < 10 ? 5
                           : avgDailyKwh < 15 ? 8
                           : 12
-  const showSolarBar = totalKwhPerMonth > 0 && !hasInverter
+  const showSolarBar = totalKwhPerMonth > 0 && !hasInverter && houseType === 'house'
+  const showUPSBar   = totalKwhPerMonth > 0 && !hasInverter && houseType === 'apartment'
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -821,66 +1010,134 @@ export default function MYOPPage() {
           {/* ── Left: Category tabs + product grid ── */}
           <div className="flex-1 min-w-0">
 
-            {/* Starter bundles — pre-priced, pre-selected */}
-            <div className="mb-6">
+            {/* ── Guided Starter Packs ── */}
+            <div className="mb-5">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Starter Bundles</p>
-                <p className="text-[10px] text-gray-400">Click to pre-load items into your package</p>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Guided Starter Packs</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">Start with a template, then swap any product</p>
+                </div>
+                {/* House / Apartment toggle */}
+                <div className="flex rounded-xl overflow-hidden border border-gray-200 text-[11px] font-bold shrink-0">
+                  <button onClick={() => setHouseType('house')}
+                    className={`px-3 py-1.5 transition-colors ${houseType === 'house' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                    🏠 House
+                  </button>
+                  <button onClick={() => setHouseType('apartment')}
+                    className={`px-3 py-1.5 transition-colors ${houseType === 'apartment' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                    🏢 Apartment
+                  </button>
+                </div>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
                 {PRESET_PACKS.map(pack => {
+                  const isActive  = activePreset === pack.id
                   const isLoading = bundleLoading === pack.id
                   const isLoaded  = bundleLoaded  === pack.id
-                  const disc5     = Math.round(pack.fromPrice * 0.95 / 1000)
+                  const filledCount = pack.slots.filter(slot =>
+                    selected.some(i => getProductTabId(i.product) === slot.tabId)
+                  ).length
                   return (
-                    <button
-                      key={pack.id}
-                      onClick={() => loadBundle(pack)}
-                      disabled={isLoading}
-                      className={`relative flex flex-col text-left bg-white border-2 rounded-2xl p-3.5 transition-all disabled:opacity-60 ${
-                        isLoaded
-                          ? 'border-green-400 shadow-md shadow-green-50'
-                          : 'border-gray-200 hover:border-orange-400 hover:shadow-md'
-                      }`}
-                    >
-                      {/* Bundle name + icon */}
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <span className="text-xl leading-none">{pack.icon}</span>
-                        <p className="text-xs font-black text-gray-900 leading-tight">{pack.name}</p>
+                    <div key={pack.id} className={`bg-white border-2 rounded-2xl p-4 flex flex-col gap-2 transition-all shrink-0 w-56 ${
+                      isActive
+                        ? 'border-orange-400 shadow-lg shadow-orange-50'
+                        : 'border-gray-200 hover:border-orange-200 hover:shadow-md'
+                    }`}>
+                      {/* Header */}
+                      <div className="flex items-start gap-2">
+                        <span className="text-2xl leading-none shrink-0">{pack.icon}</span>
+                        <div className="min-w-0">
+                          <p className="font-black text-gray-900 text-sm leading-tight">{pack.name}</p>
+                          <p className="text-[10px] text-gray-400 leading-tight mt-0.5">{pack.tagline}</p>
+                        </div>
                       </div>
-
-                      {/* Item list */}
-                      <ul className="space-y-0.5 mb-2.5">
-                        {pack.items.filter((it, i, arr) => arr.findIndex(x => x.id === it.id) === i).map((item, i) => {
-                          const dupeCount = pack.items.filter(x => x.id === item.id).length
+                      {/* Slot pills */}
+                      <div className="flex flex-wrap gap-1">
+                        {pack.slots.map((slot, i) => {
+                          const filled = selected.some(item => getProductTabId(item.product) === slot.tabId)
                           return (
-                            <li key={i} className="text-[10px] text-gray-500 leading-snug">
-                              {dupeCount > 1 ? `${dupeCount}× ` : ''}{item.label}
-                            </li>
+                            <span key={i} className={`text-[10px] px-2 py-0.5 rounded-full font-medium leading-tight ${
+                              filled
+                                ? 'bg-green-100 text-green-700'
+                                : slot.required
+                                  ? 'bg-orange-50 text-orange-600 border border-orange-200'
+                                  : 'bg-gray-50 text-gray-400'
+                            }`}>
+                              {filled ? '✓ ' : ''}{slot.label}
+                            </span>
                           )
                         })}
-                      </ul>
-
-                      {/* Price */}
-                      <div className="mt-auto">
-                        <p className="text-[9px] text-gray-400 leading-none mb-0.5">from PKR</p>
-                        <p className="text-sm font-black text-gray-900">{disc5}k</p>
-                        <p className="text-[9px] text-green-600">after 5% bundle disc.</p>
                       </div>
-
+                      {/* Positioning */}
+                      <p className="text-[10px] text-gray-500 leading-snug line-clamp-2">{pack.positioning}</p>
+                      <p className="text-[10px] text-gray-400 leading-tight">
+                        <span className="font-semibold">Best for:</span> {pack.bestFor}
+                      </p>
+                      {/* Progress bar (only when active + has items) */}
+                      {isActive && filledCount > 0 && (
+                        <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-orange-400 rounded-full transition-all"
+                            style={{ width: `${(filledCount / pack.slots.length) * 100}%` }}
+                          />
+                        </div>
+                      )}
                       {/* CTA */}
-                      <div className={`mt-2 w-full text-center text-[10px] font-bold py-1.5 rounded-lg transition-colors ${
-                        isLoaded
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-orange-50 text-orange-600 group-hover:bg-orange-100'
-                      }`}>
-                        {isLoading ? '⏳ Loading…' : isLoaded ? '✓ Added to package' : 'Build from this →'}
-                      </div>
-                    </button>
+                      <button
+                        onClick={() => startPreset(pack)}
+                        disabled={isLoading}
+                        className={`mt-auto py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 ${
+                          isLoaded  ? 'bg-green-500 text-white' :
+                          isActive  ? 'bg-orange-500 hover:bg-orange-600 text-white' :
+                                      'bg-gray-900 hover:bg-orange-500 text-white'
+                        }`}
+                      >
+                        {isLoading ? (
+                          <><span className="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full" /> Loading…</>
+                        ) : isLoaded ? '✓ Pack loaded!' : isActive ? 'Continue building →' : 'Start with this pack →'}
+                      </button>
+                    </div>
                   )
                 })}
               </div>
             </div>
+
+            {/* Guided preset progress strip */}
+            {activePreset && currentPreset && (
+              <div className="mb-4 bg-orange-50 border border-orange-200 rounded-2xl px-4 py-3">
+                <div className="flex items-center justify-between mb-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base leading-none">{currentPreset.icon}</span>
+                    <p className="text-xs font-black text-orange-900">{currentPreset.name}</p>
+                    <span className="text-[10px] text-orange-500 font-medium">
+                      {currentPreset.slots.filter(s => selected.some(i => getProductTabId(i.product) === s.tabId)).length}
+                      /{currentPreset.slots.length} filled
+                    </span>
+                  </div>
+                  <button onClick={() => setActivePreset(null)}
+                    className="text-xs text-orange-400 hover:text-orange-700 font-medium transition-colors">
+                    Clear ×
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {currentPreset.slots.map((slot, i) => {
+                    const filled = selected.some(item => getProductTabId(item.product) === slot.tabId)
+                    return (
+                      <button key={i} onClick={() => setActiveTab(slot.tabId)}
+                        className={`text-[10px] px-2.5 py-1 rounded-full font-bold border transition-colors ${
+                          filled
+                            ? 'bg-green-100 border-green-200 text-green-700'
+                            : slot.required
+                              ? 'bg-white border-orange-300 text-orange-700 hover:bg-orange-100'
+                              : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                        }`}>
+                        {filled ? '✓ ' : ''}{slot.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Category tabs */}
             <div className="flex gap-2 overflow-x-auto pb-2 mb-6 no-scrollbar">
@@ -918,21 +1175,48 @@ export default function MYOPPage() {
               )}
             </div>
 
-            {/* Solar load recommendation bar */}
+            {/* Solar recommendation bar — house mode */}
             {showSolarBar && (
               <div className="mb-4 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-3">
                 <span className="text-2xl leading-none mt-0.5">☀️</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-amber-900">
-                    Your package uses ~{totalKwhPerMonth} kWh/month ({avgDailyKwh} kWh/day)
+                    {currentPreset?.solarRec
+                      ? currentPreset.solarRec
+                      : `Your package uses ~${totalKwhPerMonth} kWh/month (${avgDailyKwh} kWh/day)`}
                   </p>
-                  <p className="text-xs text-amber-700 mt-0.5">
-                    A <strong>{recommendedKw} kW solar system</strong> would cover this load and reduce your electricity bill.
-                  </p>
+                  {!currentPreset?.solarRec && (
+                    <p className="text-xs text-amber-700 mt-0.5">
+                      A <strong>{recommendedKw} kW solar system</strong> would cover this load and reduce your electricity bill.
+                    </p>
+                  )}
                 </div>
                 <button onClick={() => setActiveTab('solar')}
                   className="shrink-0 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-xl transition-colors whitespace-nowrap">
                   Add Solar →
+                </button>
+              </div>
+            )}
+
+            {/* UPS recommendation bar — apartment mode */}
+            {showUPSBar && (
+              <div className="mb-4 bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 flex items-start gap-3">
+                <span className="text-2xl leading-none mt-0.5">🔋</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-blue-900">
+                    {currentPreset?.upsRec
+                      ? currentPreset.upsRec
+                      : 'For apartments, UPS/inverter backup is more practical than rooftop solar.'}
+                  </p>
+                  {!currentPreset?.upsRec && (
+                    <p className="text-xs text-blue-700 mt-0.5">
+                      Covers fans, lights, and fridge during load-shedding — ~{totalKwhPerMonth} kWh/month estimated load.
+                    </p>
+                  )}
+                </div>
+                <button onClick={() => setActiveTab('solar')}
+                  className="shrink-0 text-xs font-bold bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-xl transition-colors whitespace-nowrap">
+                  Add UPS →
                 </button>
               </div>
             )}

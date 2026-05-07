@@ -34,6 +34,7 @@ import {
   RefreshCw, AlertTriangle, Camera, ImageOff, Tag, Wand2, ListChecks, MessageCircle,
   CheckSquare, Square, Filter, History, Edit2, Star, MoveUp, MoveDown,
   Building2, Phone, Mail, Bell, Settings, ShoppingBag, CalendarDays, CheckCircle, Layers,
+  MapPin, Users,
 } from 'lucide-react';
 import { useSettingsStore, SETTING_DEFAULTS, DEFAULT_BANNERS, type OfferBanner } from '@/store/settingsStore';
 import * as XLSX from 'xlsx';
@@ -6309,6 +6310,589 @@ async function generateServiceReceiptPdf(opts: {
   return doc.output('blob');
 }
 
+// ── Customer CRM ──────────────────────────────────────────────────────────────
+
+interface CustomerProfile {
+  key: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  cnic: string | null;
+  area: string | null;
+  totalSpent: number;
+  invoiceCount: number;
+  transactionCount: number;
+  firstAt: string;
+  lastAt: string;
+  hasActiveInstallment: boolean;
+  hasServiceHistory: boolean;
+  invoices: InvoiceRow[];
+}
+
+interface CustomerNote {
+  id: string;
+  customer_phone: string;
+  note: string;
+  created_by: string | null;
+  created_at: string;
+}
+
+function getAutoTags(p: CustomerProfile): string[] {
+  const tags: string[] = [];
+  const daysSinceLast = (Date.now() - new Date(p.lastAt).getTime()) / 86400000;
+  if (p.totalSpent >= 200000) tags.push('VIP');
+  else if (p.totalSpent >= 100000) tags.push('High Value');
+  if (p.transactionCount >= 3) tags.push('Loyal');
+  else if (p.transactionCount >= 2) tags.push('Returning');
+  else if (p.transactionCount === 1) tags.push('New');
+  if (daysSinceLast > 90) tags.push('Lapsed');
+  if (p.hasActiveInstallment) tags.push('Installment');
+  if (p.hasServiceHistory) tags.push('Service');
+  return tags;
+}
+
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 30)  return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  return `${Math.floor(months / 12)}yr ago`;
+}
+
+const TAG_COLORS: Record<string, string> = {
+  'VIP':          'bg-yellow-100 text-yellow-800 border border-yellow-300',
+  'High Value':   'bg-amber-100 text-amber-800 border border-amber-300',
+  'Loyal':        'bg-green-100 text-green-800 border border-green-300',
+  'Returning':    'bg-blue-100 text-blue-800 border border-blue-300',
+  'New':          'bg-teal-100 text-teal-800 border border-teal-300',
+  'Lapsed':       'bg-red-100 text-red-700 border border-red-300',
+  'Installment':  'bg-purple-100 text-purple-800 border border-purple-300',
+  'Service':      'bg-orange-100 text-orange-800 border border-orange-300',
+};
+
+const CRM_DOC_TYPE_BADGE: Record<string, { label: string; color: string }> = {
+  quotation:                    { label: 'Quotation',     color: 'bg-gray-100 text-gray-600' },
+  invoice:                      { label: 'Invoice',       color: 'bg-blue-100 text-blue-700' },
+  'installment-invoice':        { label: 'Installment',   color: 'bg-purple-100 text-purple-700' },
+  service_receipt:              { label: 'Service',       color: 'bg-orange-100 text-orange-700' },
+  installment_payment_receipt:  { label: 'Inst. Receipt', color: 'bg-indigo-100 text-indigo-700' },
+};
+
+function CustomerCrmTab() {
+  const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [segment, setSegment] = useState<'all'|'vip'|'returning'|'new'|'installment'|'service'|'lapsed'>('all');
+  const [selected, setSelected] = useState<CustomerProfile | null>(null);
+  const [notes, setNotes] = useState<CustomerNote[]>([]);
+  const [noteText, setNoteText] = useState('');
+  const [noteBy, setNoteBy] = useState('');
+  const [addingNote, setAddingNote] = useState(false);
+  const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
+
+  async function fetchInvoices() {
+    setLoading(true);
+    const { data } = await supabase
+      .from('invoices')
+      .select('id,ref_number,doc_type,customer_name,customer_phone,customer_email,customer_address,customer_cnic,customer_area,sale_type,service_level,discount_reason,subtotal,discount_pct,discount_type,grand_total,advance_pct,payment_status,created_at,inst_total_price,inst_advance_amt,inst_months,inst_monthly_amt,inst_first_date,custom_charges_json,guarantor_name,guarantor_phone,guarantor_cnic,notes')
+      .order('created_at', { ascending: false });
+    if (data) setInvoices(data as InvoiceRow[]);
+    setLoading(false);
+  }
+
+  useEffect(() => { fetchInvoices(); }, []);
+
+  const profiles = useMemo((): CustomerProfile[] => {
+    const map = new Map<string, InvoiceRow[]>();
+    for (const inv of invoices) {
+      const rawPhone = (inv.customer_phone ?? '').replace(/\D/g, '');
+      const key = rawPhone || (inv.customer_name?.trim() ?? 'unknown');
+      if (!key) continue;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(inv);
+    }
+    const result: CustomerProfile[] = [];
+    for (const [key, rows] of map) {
+      rows.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      const getName = () => rows.find(r => r.customer_name?.trim())?.customer_name ?? 'Unknown';
+      const getLatest = <T,>(field: keyof InvoiceRow): T | null =>
+        (rows.find(r => r[field] != null)?.[field] as T) ?? null;
+      const transactions = rows.filter(r => r.doc_type !== 'quotation');
+      result.push({
+        key,
+        name: getName()!,
+        phone: getLatest<string>('customer_phone'),
+        email: getLatest<string>('customer_email'),
+        address: getLatest<string>('customer_address'),
+        cnic: getLatest<string>('customer_cnic'),
+        area: getLatest<string>('customer_area'),
+        totalSpent: transactions.reduce((s, r) => s + (r.grand_total || 0), 0),
+        invoiceCount: rows.length,
+        transactionCount: transactions.length,
+        firstAt: rows[rows.length - 1].created_at,
+        lastAt: rows[0].created_at,
+        hasActiveInstallment: rows.some(r => r.doc_type === 'installment-invoice' && r.payment_status === 'pending'),
+        hasServiceHistory: rows.some(r => r.doc_type === 'service_receipt'),
+        invoices: rows,
+      });
+    }
+    result.sort((a, b) => new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime());
+    return result;
+  }, [invoices]);
+
+  const filtered = useMemo(() => {
+    let list = profiles;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        (p.phone ?? '').includes(q) ||
+        (p.email ?? '').toLowerCase().includes(q) ||
+        (p.address ?? '').toLowerCase().includes(q)
+      );
+    }
+    if (segment !== 'all') {
+      list = list.filter(p => {
+        const tags = getAutoTags(p);
+        const daysSince = (Date.now() - new Date(p.lastAt).getTime()) / 86400000;
+        if (segment === 'vip')         return tags.includes('VIP') || tags.includes('High Value');
+        if (segment === 'returning')   return p.transactionCount >= 2;
+        if (segment === 'new')         return p.transactionCount === 1;
+        if (segment === 'installment') return p.hasActiveInstallment;
+        if (segment === 'service')     return p.hasServiceHistory;
+        if (segment === 'lapsed')      return daysSince > 90;
+        return true;
+      });
+    }
+    return list;
+  }, [profiles, search, segment]);
+
+  const stats = useMemo(() => ({
+    total: profiles.length,
+    vip: profiles.filter(p => p.totalSpent >= 100000).length,
+    returning: profiles.filter(p => p.transactionCount >= 2).length,
+    lapsed: profiles.filter(p => (Date.now() - new Date(p.lastAt).getTime()) / 86400000 > 90).length,
+    totalRevenue: profiles.reduce((s, p) => s + p.totalSpent, 0),
+  }), [profiles]);
+
+  async function fetchNotes(phone: string) {
+    const { data } = await supabase
+      .from('customer_notes')
+      .select('*')
+      .eq('customer_phone', phone)
+      .order('created_at', { ascending: false });
+    if (data) setNotes(data as CustomerNote[]);
+  }
+
+  async function addNote() {
+    if (!noteText.trim() || !selected?.phone) return;
+    setAddingNote(true);
+    await supabase.from('customer_notes').insert({
+      customer_phone: selected.phone,
+      note: noteText.trim(),
+      created_by: noteBy.trim() || null,
+    });
+    setNoteText('');
+    await fetchNotes(selected.phone);
+    setAddingNote(false);
+  }
+
+  async function deleteNote(id: string) {
+    await supabase.from('customer_notes').delete().eq('id', id);
+    if (selected?.phone) fetchNotes(selected.phone);
+  }
+
+  function selectCustomer(p: CustomerProfile) {
+    setSelected(p);
+    setNotes([]);
+    setNoteText('');
+    setExpandedInvoiceId(null);
+    if (p.phone) fetchNotes(p.phone);
+  }
+
+  const PKR_CRM = (n: number) => `PKR ${Math.round(n).toLocaleString('en-PK')}`;
+
+  const SEGMENTS: { id: typeof segment; label: string; count: number }[] = [
+    { id: 'all',         label: 'All',         count: profiles.length },
+    { id: 'vip',         label: 'VIP',         count: profiles.filter(p => p.totalSpent >= 100000).length },
+    { id: 'returning',   label: 'Returning',   count: profiles.filter(p => p.transactionCount >= 2).length },
+    { id: 'new',         label: 'New',         count: profiles.filter(p => p.transactionCount === 1).length },
+    { id: 'installment', label: 'Installment', count: profiles.filter(p => p.hasActiveInstallment).length },
+    { id: 'service',     label: 'Service',     count: profiles.filter(p => p.hasServiceHistory).length },
+    { id: 'lapsed',      label: 'Lapsed',      count: profiles.filter(p => (Date.now() - new Date(p.lastAt).getTime()) / 86400000 > 90).length },
+  ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64 text-gray-500 gap-2">
+        <Loader2 className="w-5 h-5 animate-spin" />
+        <span>Loading customers…</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Stats bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Total Customers', value: stats.total, color: 'text-gray-800' },
+          { label: 'Total Revenue',   value: PKR_CRM(stats.totalRevenue), color: 'text-green-700' },
+          { label: 'VIP / High Value',value: stats.vip,   color: 'text-yellow-700' },
+          { label: 'Lapsed (90d+)',   value: stats.lapsed, color: 'text-red-600' },
+        ].map(s => (
+          <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+            <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
+            <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Two-pane layout */}
+      <div className="grid md:grid-cols-[320px_1fr] gap-4 min-h-[600px]">
+        {/* ── Left pane ── */}
+        <div className="flex flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          {/* Search */}
+          <div className="p-3 border-b border-gray-100">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search name or phone…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Segment filters */}
+          <div className="p-2 border-b border-gray-100 flex flex-wrap gap-1">
+            {SEGMENTS.map(s => (
+              <button
+                key={s.id}
+                onClick={() => setSegment(s.id)}
+                className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors ${
+                  segment === s.id
+                    ? 'bg-orange-500 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {s.label} <span className="opacity-70">({s.count})</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Customer list */}
+          <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
+            {filtered.length === 0 ? (
+              <div className="flex items-center justify-center h-32 text-gray-400 text-sm">No customers found</div>
+            ) : (
+              filtered.map(p => {
+                const tags = getAutoTags(p);
+                const isSelected = selected?.key === p.key;
+                return (
+                  <button
+                    key={p.key}
+                    onClick={() => selectCustomer(p)}
+                    className={`w-full text-left px-3 py-2.5 hover:bg-orange-50 transition-colors ${
+                      isSelected ? 'bg-orange-50 border-l-2 border-orange-500' : ''
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-1">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-sm text-gray-900 truncate">{p.name}</div>
+                        {p.phone && <div className="text-xs text-gray-500">{p.phone}</div>}
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-xs text-gray-400">{relativeTime(p.lastAt)}</div>
+                        {p.totalSpent > 0 && (
+                          <div className="text-xs font-semibold text-green-700">{PKR_CRM(p.totalSpent)}</div>
+                        )}
+                      </div>
+                    </div>
+                    {tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {tags.map(t => (
+                          <span key={t} className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${TAG_COLORS[t] ?? 'bg-gray-100 text-gray-600'}`}>
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* ── Right pane ── */}
+        {selected === null ? (
+          <div className="hidden md:flex items-center justify-center bg-white rounded-xl border border-gray-200 shadow-sm text-gray-400 flex-col gap-3">
+            <Users className="w-12 h-12 text-gray-200" />
+            <span className="text-sm">Select a customer to view their profile</span>
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-sm">
+                  {selected.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900">{selected.name}</div>
+                  {selected.area && <div className="text-xs text-gray-500">{selected.area}</div>}
+                </div>
+              </div>
+              <button
+                onClick={() => setSelected(null)}
+                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-5">
+              {/* Auto-tags */}
+              {getAutoTags(selected).length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {getAutoTags(selected).map(t => (
+                    <span key={t} className={`text-xs px-2.5 py-1 rounded-full font-medium ${TAG_COLORS[t] ?? 'bg-gray-100 text-gray-600'}`}>
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Contact card */}
+              <div className="grid sm:grid-cols-2 gap-2 text-sm">
+                {selected.phone && (
+                  <div className="flex items-center gap-2 text-gray-700">
+                    <Phone className="w-4 h-4 text-gray-400 shrink-0" />
+                    <span className="truncate">{selected.phone}</span>
+                    <a
+                      href={`https://wa.me/92${selected.phone.replace(/^0/, '').replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="ml-1 text-green-600 hover:text-green-700"
+                      title="WhatsApp"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                    </a>
+                  </div>
+                )}
+                {selected.email && (
+                  <div className="flex items-center gap-2 text-gray-700">
+                    <Mail className="w-4 h-4 text-gray-400 shrink-0" />
+                    <span className="truncate">{selected.email}</span>
+                  </div>
+                )}
+                {selected.address && (
+                  <div className="flex items-start gap-2 text-gray-700 sm:col-span-2">
+                    <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                    <span>{selected.address}</span>
+                  </div>
+                )}
+                {selected.cnic && (
+                  <div className="flex items-center gap-2 text-gray-700">
+                    <span className="text-xs font-medium text-gray-400 uppercase tracking-wide w-10">CNIC</span>
+                    <span>{selected.cnic}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Spend summary */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { label: 'Total Spent',   value: PKR_CRM(selected.totalSpent),       color: 'text-green-700' },
+                  { label: 'Transactions',  value: selected.transactionCount,            color: 'text-blue-700' },
+                  { label: 'First Visit',   value: new Date(selected.firstAt).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' }), color: 'text-gray-700' },
+                  { label: 'Last Visit',    value: relativeTime(selected.lastAt),        color: 'text-gray-700' },
+                ].map(m => (
+                  <div key={m.label} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                    <div className={`text-base font-bold ${m.color}`}>{m.value}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">{m.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Invoice timeline */}
+              <div>
+                <div className="text-sm font-semibold text-gray-700 mb-2">
+                  Invoice History ({selected.invoices.length})
+                </div>
+                <div className="space-y-2">
+                  {selected.invoices.map(inv => {
+                    const badge = CRM_DOC_TYPE_BADGE[inv.doc_type] ?? { label: inv.doc_type, color: 'bg-gray-100 text-gray-600' };
+                    const isExpanded = expandedInvoiceId === inv.id;
+                    return (
+                      <div key={inv.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                        <button
+                          className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-gray-50 transition-colors text-left"
+                          onClick={() => setExpandedInvoiceId(isExpanded ? null : inv.id)}
+                        >
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${badge.color}`}>
+                              {badge.label}
+                            </span>
+                            <span className="text-xs text-gray-500 shrink-0">
+                              {new Date(inv.created_at).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </span>
+                            <span className="text-xs font-medium text-gray-700 truncate">{inv.ref_number}</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 ml-2">
+                            {inv.grand_total > 0 && (
+                              <span className="text-xs font-semibold text-gray-800">{PKR_CRM(inv.grand_total)}</span>
+                            )}
+                            {inv.payment_status && inv.payment_status !== 'paid' && (
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                                inv.payment_status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                inv.payment_status === 'partial' ? 'bg-blue-100 text-blue-700' :
+                                inv.payment_status === 'overdue' ? 'bg-red-100 text-red-700' :
+                                'bg-gray-100 text-gray-600'
+                              }`}>
+                                {inv.payment_status}
+                              </span>
+                            )}
+                            {isExpanded
+                              ? <ChevronUp className="w-3.5 h-3.5 text-gray-400" />
+                              : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                            }
+                          </div>
+                        </button>
+                        {isExpanded && (
+                          <div className="px-3 pb-3 pt-1 bg-gray-50 border-t border-gray-100 text-xs text-gray-600 space-y-1">
+                            {inv.subtotal > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Subtotal</span>
+                                <span>{PKR_CRM(inv.subtotal)}</span>
+                              </div>
+                            )}
+                            {(inv.discount_pct ?? 0) > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Discount</span>
+                                <span>{inv.discount_pct}%{inv.discount_reason ? ` — ${inv.discount_reason}` : ''}</span>
+                              </div>
+                            )}
+                            {inv.sale_type && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Sale type</span>
+                                <span className="capitalize">{inv.sale_type}</span>
+                              </div>
+                            )}
+                            {inv.inst_months && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Installment</span>
+                                <span>{inv.inst_months} months — {PKR_CRM(inv.inst_monthly_amt ?? 0)}/mo</span>
+                              </div>
+                            )}
+                            {inv.notes?.trim() && (
+                              <div className="mt-1 p-2 bg-yellow-50 rounded text-yellow-800 border border-yellow-100">
+                                {inv.notes}
+                              </div>
+                            )}
+                            {inv.invoice_lines && inv.invoice_lines.length > 0 && (
+                              <div className="mt-2 space-y-1">
+                                <div className="font-medium text-gray-700 mb-1">Items</div>
+                                {inv.invoice_lines.map((line, idx) => (
+                                  <div key={idx} className="flex justify-between gap-2">
+                                    <span className="truncate">{line.qty > 1 ? `${line.qty}× ` : ''}{line.name}{line.model ? ` (${line.model})` : ''}</span>
+                                    <span className="shrink-0 font-medium text-gray-700">{PKR_CRM(line.unit_price * line.qty)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Notes section */}
+              <div>
+                <div className="text-sm font-semibold text-gray-700 mb-2">Staff Notes</div>
+                {selected.phone ? (
+                  <>
+                    {/* Existing notes */}
+                    {notes.length > 0 && (
+                      <div className="space-y-2 mb-3">
+                        {notes.map(n => (
+                          <div key={n.id} className="flex items-start gap-2 p-2.5 bg-gray-50 rounded-lg border border-gray-100">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">{n.note}</p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                {n.created_by ? `${n.created_by} · ` : ''}
+                                {new Date(n.created_at).toLocaleString('en-PK', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => deleteNote(n.id)}
+                              className="shrink-0 p-1 text-gray-300 hover:text-red-500 transition-colors"
+                              title="Delete note"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {notes.length === 0 && (
+                      <p className="text-xs text-gray-400 mb-3">No notes yet.</p>
+                    )}
+
+                    {/* Add note form */}
+                    <div className="space-y-2">
+                      <textarea
+                        rows={3}
+                        value={noteText}
+                        onChange={e => setNoteText(e.target.value)}
+                        placeholder="Add a staff note…"
+                        className="w-full resize-none border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+                      />
+                      <div className="flex gap-2 items-center">
+                        <input
+                          type="text"
+                          value={noteBy}
+                          onChange={e => setNoteBy(e.target.value)}
+                          placeholder="Your name (optional)"
+                          className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+                        />
+                        <button
+                          onClick={addNote}
+                          disabled={addingNote || !noteText.trim()}
+                          className="px-3 py-1.5 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 shrink-0"
+                        >
+                          {addingNote ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-400">Notes require a phone number to be associated with the customer.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Brand alias map for fuzzy search tolerance ──
 const BRAND_ALIASES: Record<string, string[]> = {
   haier:     ['hair', 'haiir', 'haer'],
@@ -7254,6 +7838,22 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
   const [validityHours, setValidityHours] = useState<24 | 48 | 72 | 168>(48);
   // ── Custom charges ──
   const [customCharges, setCustomCharges] = useState<Array<{id: string; name: string; amount: number}>>([]);
+  // ── Custom product form ──
+  const [showCustomProductForm, setShowCustomProductForm] = useState(false);
+  const [customProductName,     setCustomProductName]     = useState('');
+  const [customProductModel,    setCustomProductModel]    = useState('');
+  const [customProductBrand,    setCustomProductBrand]    = useState('');
+  const [customProductCategory, setCustomProductCategory] = useState('General');
+  const [customProductPrice,    setCustomProductPrice]    = useState('');
+  const [customProductWarranty, setCustomProductWarranty] = useState('');
+  const [customProductKeySpec,  setCustomProductKeySpec]  = useState('');
+  const [savingCustomProduct,   setSavingCustomProduct]   = useState(false);
+  // ── Custom service form ──
+  const [showCustomServiceForm,   setShowCustomServiceForm]   = useState(false);
+  const [customServiceName,       setCustomServiceName]       = useState('');
+  const [customServiceDesc,       setCustomServiceDesc]       = useState('');
+  const [customServiceStatus,     setCustomServiceStatus]     = useState<'included' | 'charged'>('charged');
+  const [customServiceAmount,     setCustomServiceAmount]     = useState('');
   // ── Guarantor (installment) ──
   const [guarantorName,  setGuarantorName]  = useState('');
   const [guarantorPhone, setGuarantorPhone] = useState('');
@@ -7323,6 +7923,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber,
           customCharges, guarantorName, guarantorPhone, guarantorCnic, invoiceNotes,
           srDeviceBrand, srDeviceModel, srFaultDesc, srWarrantyDays, srJobLines,
+          services,
         }));
       }
     }, 1000);
@@ -7337,7 +7938,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       customerArea, isExistingCustomer, validityHours,
       instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber,
       customCharges, guarantorName, guarantorPhone, guarantorCnic, invoiceNotes,
-      srDeviceBrand, srDeviceModel, srFaultDesc, srWarrantyDays, srJobLines]);
+      srDeviceBrand, srDeviceModel, srFaultDesc, srWarrantyDays, srJobLines, services]);
 
   function restoreDraft() {
     try {
@@ -7386,6 +7987,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       if (draft.guarantorPhone) setGuarantorPhone(draft.guarantorPhone);
       if (draft.guarantorCnic)  setGuarantorCnic(draft.guarantorCnic);
       if (draft.invoiceNotes)   setInvoiceNotes(draft.invoiceNotes);
+      if (Array.isArray(draft.services) && draft.services.length > 0) setServices(draft.services);
     } catch { /* ignore */ }
     setDraftBanner(false);
   }
@@ -7471,15 +8073,27 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       packageComponents: l.key_specs_json?.packageComponents ?? [],
     }));
     setLines(editLines);
-    // Services — merge stored services into DEFAULT_SERVICES
+    // Services — merge stored services into DEFAULT_SERVICES, then append any custom ones
     if ((row.invoice_services ?? []).length > 0) {
       const stored = row.invoice_services!;
-      setServices(DEFAULT_SERVICES.map(def => {
+      const defaultDefaultServiceTypes = new Set(DEFAULT_SERVICES.map(d => d.service_type));
+      const restoredDefaults = DEFAULT_SERVICES.map(def => {
         const match = stored.find(s => s.service_type === def.service_type);
         return match
           ? { ...def, status: match.status, visible_value: match.visible_value, charged_amount: match.charged_amount }
           : def;
-      }));
+      });
+      const customServices = stored
+        .filter(s => !defaultDefaultServiceTypes.has(s.service_type))
+        .map(s => ({
+          service_type:   s.service_type,
+          service_name:   s.service_name,
+          description:    s.description ?? '',
+          status:         s.status as 'included' | 'charged' | 'not_selected',
+          visible_value:  s.visible_value ?? 0,
+          charged_amount: s.charged_amount ?? 0,
+        }));
+      setServices([...restoredDefaults, ...customServices]);
     }
     // Service receipt fields — restore from invoice_lines (category-based) + notes prefix
     if (row.doc_type === 'service_receipt') {
@@ -7623,6 +8237,79 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
     }]);
     setProductSearch('');
     setToastMsg(`${p.brand || ''} ${p.model} added`.trim());
+  }
+
+  async function addCustomProduct() {
+    const name  = customProductName.trim();
+    const price = Number(customProductPrice);
+    if (!name || !price) return;
+    setSavingCustomProduct(true);
+    const id   = crypto.randomUUID();
+    const slug = slugify(`${customProductBrand || name}-${customProductModel || name}-${Date.now()}`);
+    try {
+      await upsertProduct({
+        id,
+        slug,
+        brand:              customProductBrand.trim() || null,
+        model:              customProductModel.trim() || name,
+        simplified_name:    name,
+        category:           customProductCategory,
+        normalized_category: customProductCategory,
+        retail_price:       price,
+        cash_floor:         price,
+        min_price:          price,
+        taxonomy_status:    'review',
+        stock_status:       'In Stock',
+        warranty:           customProductWarranty.trim() || null,
+        import_date:        new Date().toISOString().slice(0, 10),
+      });
+      setLines(ls => [...ls, {
+        id,
+        name,
+        model:             customProductModel.trim() || name,
+        qty:               1,
+        unitPrice:         price,
+        category:          customProductCategory,
+        warranty:          customProductWarranty.trim(),
+        keySpec:           customProductKeySpec.trim(),
+        kwhPerMonth:       0,
+        savingsPct:        0,
+        minPrice:          price,
+        floorPrice:        price,
+        overrideReason:    '',
+        displayPrefix:     '',
+        packageNote:       '',
+        isPackage:         false,
+        packageComponents: [],
+      }]);
+      setToastMsg(`"${name}" saved to DB for review and added to quote`);
+      setCustomProductName(''); setCustomProductModel(''); setCustomProductBrand('');
+      setCustomProductCategory('General'); setCustomProductPrice('');
+      setCustomProductWarranty(''); setCustomProductKeySpec('');
+      setShowCustomProductForm(false);
+    } catch {
+      setToastMsg('Failed to save custom product — check console');
+    } finally {
+      setSavingCustomProduct(false);
+    }
+  }
+
+  function addCustomService() {
+    const name   = customServiceName.trim();
+    const amount = Number(customServiceAmount) || 0;
+    if (!name) return;
+    setServices(prev => [...prev, {
+      service_type:   `custom_${Date.now()}`,
+      service_name:   name,
+      description:    customServiceDesc.trim(),
+      status:         customServiceStatus,
+      visible_value:  customServiceStatus === 'charged' ? amount : 0,
+      charged_amount: customServiceStatus === 'charged' ? amount : 0,
+    }]);
+    setToastMsg(`"${name}" added to services`);
+    setCustomServiceName(''); setCustomServiceDesc('');
+    setCustomServiceStatus('charged'); setCustomServiceAmount('');
+    setShowCustomServiceForm(false);
   }
 
   function updateLine(id: string, field: 'qty' | 'unitPrice', val: number) {
@@ -8777,28 +9464,95 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
         </div>}
 
         {docType !== 'service_receipt' && <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Add Products</p>
-          <input value={productSearch} onChange={e => setProductSearch(e.target.value)}
-            placeholder="Search by name, model, or brand…"
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
-          {productSearch.trim() && (
-            <div className="border border-gray-100 rounded-xl overflow-hidden max-h-44 overflow-y-auto">
-              {filteredProducts.map(p => (
-                <button key={p.id} onClick={() => addLine(p)}
-                  className="w-full flex items-center justify-between px-3 py-2 hover:bg-orange-50 text-left border-b border-gray-50 last:border-0">
-                  <div>
-                    <p className="text-xs font-semibold text-gray-800">{p.simplified_name || p.model}</p>
-                    <p className="text-[10px] text-gray-400">{p.brand} · {p.model}</p>
-                  </div>
-                  <p className="text-xs font-bold text-orange-600 shrink-0 ml-3">
-                    PKR {p.price.cash_floor.toLocaleString('en-PK')}
-                  </p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Add Products</p>
+            <button
+              onClick={() => { setShowCustomProductForm(v => !v); setProductSearch(''); }}
+              className="px-3 py-1.5 text-xs font-semibold bg-gray-800 hover:bg-orange-500 text-white rounded-lg transition-colors">
+              + Custom Item
+            </button>
+          </div>
+
+          {/* ── Custom product form ── */}
+          {showCustomProductForm && (
+            <div className="border border-orange-200 rounded-xl p-4 space-y-2.5 bg-orange-50">
+              <p className="text-xs font-semibold text-orange-700">New custom product — will be saved to DB (status: Needs Review)</p>
+              <div className="grid grid-cols-2 gap-2">
+                <input value={customProductName} onChange={e => setCustomProductName(e.target.value)}
+                  placeholder="Product name *"
+                  className="col-span-2 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+                <input value={customProductBrand} onChange={e => setCustomProductBrand(e.target.value)}
+                  placeholder="Brand (e.g. Haier)"
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+                <input value={customProductModel} onChange={e => setCustomProductModel(e.target.value)}
+                  placeholder="Model number"
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+                <select value={customProductCategory} onChange={e => setCustomProductCategory(e.target.value)}
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+                  {['Air Conditioners','Refrigerators','Deep Freezers','Washing Machines','Televisions',
+                    'Microwaves','Water Heaters','Fans','UPS / Inverters','Solar Inverters','Solar Panels',
+                    'Solar Batteries','Solar Systems','Kitchen Appliances','Small Appliances','General'].map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <input type="number" min={0} value={customProductPrice} onChange={e => setCustomProductPrice(e.target.value)}
+                  placeholder="Price (PKR) *"
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+                <input value={customProductWarranty} onChange={e => setCustomProductWarranty(e.target.value)}
+                  placeholder="Warranty (e.g. 1 year)"
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+                <input value={customProductKeySpec} onChange={e => setCustomProductKeySpec(e.target.value)}
+                  placeholder="Key spec (e.g. 1.5 Ton · Inverter)"
+                  className="col-span-2 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={addCustomProduct}
+                  disabled={!customProductName.trim() || !customProductPrice || savingCustomProduct}
+                  className="flex-1 py-2 text-sm font-semibold bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white rounded-lg transition-colors">
+                  {savingCustomProduct ? 'Saving…' : 'Add to Quote & Save to DB'}
                 </button>
-              ))}
-              {filteredProducts.length === 0 && (
-                <p className="text-xs text-gray-400 text-center py-4">No products found</p>
-              )}
+                <button onClick={() => setShowCustomProductForm(false)}
+                  className="px-4 py-2 text-sm text-gray-500 hover:text-gray-800 border border-gray-200 rounded-lg transition-colors">
+                  Cancel
+                </button>
+              </div>
             </div>
+          )}
+
+          {/* ── Catalog search ── */}
+          {!showCustomProductForm && (
+            <>
+              <input value={productSearch} onChange={e => setProductSearch(e.target.value)}
+                placeholder="Search by name, model, or brand…"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+              {productSearch.trim() && (
+                <div className="border border-gray-100 rounded-xl overflow-hidden max-h-44 overflow-y-auto">
+                  {filteredProducts.map(p => (
+                    <button key={p.id} onClick={() => addLine(p)}
+                      className="w-full flex items-center justify-between px-3 py-2 hover:bg-orange-50 text-left border-b border-gray-50 last:border-0">
+                      <div>
+                        <p className="text-xs font-semibold text-gray-800">{p.simplified_name || p.model}</p>
+                        <p className="text-[10px] text-gray-400">{p.brand} · {p.model}</p>
+                      </div>
+                      <p className="text-xs font-bold text-orange-600 shrink-0 ml-3">
+                        PKR {p.price.cash_floor.toLocaleString('en-PK')}
+                      </p>
+                    </button>
+                  ))}
+                  {filteredProducts.length === 0 && (
+                    <div className="px-3 py-3 text-center space-y-1">
+                      <p className="text-xs text-gray-400">No catalog match for "{productSearch}"</p>
+                      <button
+                        onClick={() => { setCustomProductName(productSearch); setProductSearch(''); setShowCustomProductForm(true); }}
+                        className="text-xs font-semibold text-orange-600 hover:text-orange-800 underline">
+                        Add "{productSearch}" as a custom product →
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>}
       </div>
@@ -9024,7 +9778,52 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
 
       {/* ── Services Panel ── */}
       {docType !== 'service_receipt' && <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
-        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Services</p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Services</p>
+          <button
+            onClick={() => setShowCustomServiceForm(v => !v)}
+            className="px-3 py-1.5 text-xs font-semibold bg-gray-800 hover:bg-orange-500 text-white rounded-lg transition-colors">
+            + Custom Service
+          </button>
+        </div>
+
+        {/* ── Custom service form ── */}
+        {showCustomServiceForm && (
+          <div className="border border-orange-200 rounded-xl p-4 space-y-2.5 bg-orange-50">
+            <p className="text-xs font-semibold text-orange-700">Add a service not in the standard list</p>
+            <input value={customServiceName} onChange={e => setCustomServiceName(e.target.value)}
+              placeholder="Service name *"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+            <input value={customServiceDesc} onChange={e => setCustomServiceDesc(e.target.value)}
+              placeholder="Description (optional)"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+            <div className="flex gap-2 items-center">
+              <select value={customServiceStatus} onChange={e => setCustomServiceStatus(e.target.value as 'included' | 'charged')}
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+                <option value="charged">Charged</option>
+                <option value="included">Included (no extra charge)</option>
+              </select>
+              {customServiceStatus === 'charged' && (
+                <input type="number" min={0} value={customServiceAmount} onChange={e => setCustomServiceAmount(e.target.value)}
+                  placeholder="PKR amount"
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+              )}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={addCustomService}
+                disabled={!customServiceName.trim()}
+                className="flex-1 py-2 text-sm font-semibold bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white rounded-lg transition-colors">
+                Add Service
+              </button>
+              <button onClick={() => setShowCustomServiceForm(false)}
+                className="px-4 py-2 text-sm text-gray-500 hover:text-gray-800 border border-gray-200 rounded-lg transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         {services.map((svc, i) => (
           <div key={svc.service_type} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
             <div className="flex-1 min-w-0">
@@ -9072,6 +9871,13 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                   className="w-24 border border-orange-200 rounded-lg px-2 py-1 text-xs text-right focus:outline-none focus:ring-1 focus:ring-orange-400"
                 />
               </div>
+            )}
+            {/* Remove button only for custom (non-default) services */}
+            {svc.service_type.startsWith('custom_') && (
+              <button onClick={() => setServices(prev => prev.filter((_, j) => j !== i))}
+                className="text-gray-300 hover:text-red-500 transition-colors p-1 shrink-0">
+                <X className="w-4 h-4" />
+              </button>
             )}
           </div>
         ))}
@@ -11118,8 +11924,8 @@ export default function AdminPortal() {
   const [deleteId, setDeleteId]   = useState<string | null>(null);
   const [deleting, setDeleting]   = useState(false);
   const [quickImg, setQuickImg]   = useState<Product | null>(null);
-  type AdminTab = 'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'quotation' | 'invoices' | 'installment_ledger' | 'settings' | 'schema' | 'audit' | 'catalog' | 'solar' | 'compatibility';
-  const VALID_TABS: AdminTab[] = ['products','images','import','tools','qc','reviews','leads','orders','enquiries','quotation','invoices','installment_ledger','settings','schema','audit','catalog','solar','compatibility'];
+  type AdminTab = 'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'quotation' | 'invoices' | 'installment_ledger' | 'customers' | 'settings' | 'schema' | 'audit' | 'catalog' | 'solar' | 'compatibility';
+  const VALID_TABS: AdminTab[] = ['products','images','import','tools','qc','reviews','leads','orders','enquiries','quotation','invoices','installment_ledger','customers','settings','schema','audit','catalog','solar','compatibility'];
   const tabFromHash = (): AdminTab => {
     const h = window.location.hash.slice(1) as AdminTab;
     return VALID_TABS.includes(h) ? h : 'products';
@@ -11393,6 +12199,7 @@ export default function AdminPortal() {
             { id: 'quotation',          label: '📄 Quotation',         group: 'crm' },
             { id: 'invoices',           label: '🗂 Invoice Log',        group: 'crm' },
             { id: 'installment_ledger', label: '📅 Installment Ledger', group: 'crm' },
+            { id: 'customers',          label: '👥 Customers',          group: 'crm' },
             { id: 'reviews',            label: 'Reviews',               group: 'crm' },
             { id: 'solar',     label: '☀️ Solar Leads', group: 'crm' },
             { id: 'leads',     label: 'Partners',    group: 'crm' },
@@ -11436,6 +12243,8 @@ export default function AdminPortal() {
           <InvoiceHistoryTab onEditRequest={row => { setEditRequest(row); changeTab('quotation'); }} />
         ) : tab === 'installment_ledger' ? (
           <InstallmentLedgerTab />
+        ) : tab === 'customers' ? (
+          <CustomerCrmTab />
         ) : tab === 'reviews' ? (
           <ReviewsTab />
         ) : tab === 'solar' ? (

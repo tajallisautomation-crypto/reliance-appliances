@@ -859,6 +859,12 @@ const WARRANTY_TABLE: Record<string, string> = {
   // Waves
   'waves::air conditioners':       '5 years compressor, 1 year parts',
   'waves::refrigerators':          '5 years compressor, 1 year parts',
+  // GFC fans
+  'gfc::ceiling fans':             '5 year brand warranty',
+  'gfc::fans':                     '5 year brand warranty',
+  // Hanco
+  'hanco::electric water heaters': '2 year leakage warranty',
+  'hanco::geysers':                '2 year leakage warranty',
   // Gas appliance brands
   'hanco::gas appliances':         '1 year parts & labour',
   'welcome::gas appliances':       '1 year parts & labour',
