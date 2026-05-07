@@ -7632,6 +7632,49 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
         });
         filename = `${(row.customer_name || 'Customer').replace(/[/\\:*?"<>|]/g, '').trim()} - ${row.ref_number}.pdf`;
 
+      } else if (row.doc_type === 'service_receipt') {
+        const jobLines = (row.invoice_lines ?? [])
+          .filter(l => l.category === 'Service Work' || l.category === 'Spare Part')
+          .map(l => ({
+            type: (l.category === 'Spare Part' ? 'part' : 'work') as 'work' | 'part',
+            description: l.name,
+            qty: l.qty,
+            unitPrice: l.unit_price,
+          }));
+        const notesRaw = row.notes ?? '';
+        let deviceBrand = '', deviceModel = '', faultDesc = '', warrantyDays = 0, srNotes = notesRaw;
+        const prefixMatch = notesRaw.match(/^\[Device:\s*(.*?)\s*\|\s*Fault:\s*(.*?)(?:\s*\|\s*Warranty:\s*(\d+)\s*days)?\]\n?\n?/s);
+        if (prefixMatch) {
+          const devicePart = prefixMatch[1].trim();
+          const spaceIdx = devicePart.indexOf(' ');
+          deviceBrand = spaceIdx > -1 ? devicePart.slice(0, spaceIdx) : devicePart;
+          deviceModel = spaceIdx > -1 ? devicePart.slice(spaceIdx + 1) : '';
+          faultDesc = prefixMatch[2].trim();
+          warrantyDays = prefixMatch[3] ? Number(prefixMatch[3]) : 0;
+          srNotes = notesRaw.replace(prefixMatch[0], '').trim();
+        }
+        blob = await generateServiceReceiptPdf({
+          customerName: row.customer_name ?? '',
+          customerPhone: (row.customer_phone ?? '').replace(/\D/g, ''),
+          customerEmail: row.customer_email ?? '',
+          customerAddress: row.customer_address ?? '',
+          refNumber: row.ref_number,
+          deviceBrand,
+          deviceModel,
+          faultDesc,
+          jobLines,
+          warrantyDays,
+          customCharges,
+          discount: row.discount_pct ?? 0,
+          discountMode: discountIsFixed ? 'fixed' : 'percentage',
+          discountType: row.discount_type ?? '',
+          discountReason: row.discount_reason ?? '',
+          notes: srNotes,
+          preparedBy: '',
+          showNtn: true,
+        });
+        filename = `${(row.customer_name || 'Customer').replace(/[/\\:*?"<>|]/g, '').trim()} - ${row.ref_number}.pdf`;
+
       } else {
         const docType: 'quotation' | 'invoice' =
           row.doc_type === 'quotation' ? 'quotation' : 'invoice';
