@@ -5319,11 +5319,17 @@ async function generateQuotationPdf(opts: {
 
     const pwrRowH2  = 3.0;
     const dispRows2 = Math.min(energyLines2.length, 6);
-    const stripH2   = Math.max(32, 7 + dispRows2 * pwrRowH2 + 14);
 
     const eColW2 = Math.round(printW * 0.48);
     const aColX2 = margin + eColW2 + 3;
     const aColW2 = printW - eColW2 - 3;
+
+    const energyH2 = 7 + dispRows2 * pwrRowH2 + 14;
+    // Estimate advisory column height: 48 chars/line at 5.5pt in ~91mm column, 3.2pt line, 2pt para gap
+    const advEstH2 = 9 + (advisory2 ? advisory2.paragraphs : ['']).reduce(
+      (sum, p) => sum + Math.ceil(p.length / 48) * 3.2 + 2, 0
+    );
+    const stripH2 = Math.max(32, Math.max(energyH2, advEstH2));
 
     // Left: Energy consumption
     doc.setFillColor(255, 253, 234);
@@ -5340,9 +5346,9 @@ async function generateQuotationPdf(opts: {
     } else {
       let ey = y + 9;
       for (const pl of energyLines2.slice(0, 6)) {
-        const pName = pl.fullName.length > 30 ? pl.fullName.slice(0, 28) + '..' : pl.fullName;
         doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(80, 60, 0);
-        doc.text(`· ${pName}`, margin + 3, ey);
+        const pNameFit = doc.splitTextToSize(pl.fullName, eColW2 - 22);
+        doc.text(`· ${pNameFit[0]}`, margin + 3, ey);
         const kwhLabel = pl.isEst ? `~${pl.kwh * pl.line.qty} kWh/mo` : `${pl.kwh * pl.line.qty} kWh/mo`;
         doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(101, 61, 0);
         doc.text(kwhLabel, margin + eColW2 - 2, ey, { align: 'right' });
@@ -5375,7 +5381,7 @@ async function generateQuotationPdf(opts: {
     doc.line(aColX2, y, aColX2, y + stripH2);
     doc.setLineWidth(0.2);
     const advTitle2 = advisory2
-      ? advisory2.sectionLabel.replace(/^FOR\s+/i, '').replace(/\s+CUSTOMERS?$/i, '').replace(/\s+\/\s+INDEPENDENT\s+UNIT/i, '')
+      ? (advisory2.color === 'green' ? 'SOLAR RECOMMENDATION' : advisory2.color === 'blue' ? 'UPS / BACKUP ADVISORY' : 'ENERGY ADVISORY')
       : 'ENERGY ADVISORY';
     doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(ORANGE);
     doc.text(advTitle2, aColX2 + 3, y + 5);
