@@ -70,11 +70,11 @@ export default function OfferBannerSlider() {
                   {b.badge}
                 </span>
               )}
-              <h2 className="text-white text-xl md:text-2xl font-black leading-tight mb-1.5 tracking-tight">
+              <h2 className="text-white text-xl md:text-2xl font-black leading-tight mb-1.5 tracking-tight line-clamp-2">
                 {b.title}
               </h2>
               {b.subtitle && (
-                <p className={`${theme.muted} text-sm mb-4 max-w-lg leading-relaxed`}>{b.subtitle}</p>
+                <p className={`${theme.muted} text-sm mb-4 max-w-lg leading-relaxed line-clamp-2`}>{b.subtitle}</p>
               )}
               {b.cta && b.ctaLink && (
                 <Link
@@ -113,7 +113,7 @@ export default function OfferBannerSlider() {
                     className="p-1.5"
                   >
                     <span className={`block rounded-full transition-all duration-300 ${
-                      i === idx ? 'bg-white w-4 h-1' : 'bg-white/35 w-1.5 h-1.5 hover:bg-white/55'
+                      i === idx ? 'bg-white w-4 h-1' : 'bg-white/35 w-1 h-1 hover:bg-white/55'
                     }`} />
                   </button>
                 ))}
