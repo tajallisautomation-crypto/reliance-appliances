@@ -260,7 +260,7 @@ export function buildDetailedAdvisory(
         `Setup cost: ${PKRfmt(equipCost)} equipment + ${PKRfmt(structCost)} structure = ${PKRfmt(totalSetupCost)} total.`
       );
       paras.push(
-        `Est. monthly savings: ~${PKRfmt(monthlyBillSaving)} on your KE bill. Cash & 12–36 month installment options.`
+        `Est. monthly savings: ~${PKRfmt(monthlyBillSaving)} on your KE bill. Cash & 2–12 month installment options.`
       );
     } else {
       paras.push(
@@ -296,7 +296,7 @@ export function buildDetailedAdvisory(
     paras.push(
       'Solar energy can offset a significant portion of your monthly electricity bill. ' +
       'Ask us for a free sizing proposal tailored to your home. ' +
-      'We install 1.5kW–10kW hybrid and off-grid systems with 12–36 month installment options.'
+      'We install 1.5kW–10kW hybrid and off-grid systems with 2–12 month installment options.'
     );
   }
 

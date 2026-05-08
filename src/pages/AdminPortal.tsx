@@ -4900,9 +4900,11 @@ async function generateQuotationPdf(opts: {
       }
     } else if (_line.warranty) {
       const _dn = _line.displayPrefix ? `${_line.displayPrefix}${_line.name}` : _line.name;
-      if (!_wtySet.has(_line.name)) {
-        _wtySet.add(_line.name);
-        warrantyEntries.push({ name: _dn, coverage: formatWty(_line.warranty) });
+      const _wtyKey = `${_line.name}|${_line.model || ''}`;
+      if (!_wtySet.has(_wtyKey)) {
+        _wtySet.add(_wtyKey);
+        const _wtyName = _line.model ? `${_dn} — ${_line.model}` : _dn;
+        warrantyEntries.push({ name: _wtyName, coverage: formatWty(_line.warranty) });
       }
     }
   }
@@ -5056,116 +5058,47 @@ async function generateQuotationPdf(opts: {
     styles: { overflow: 'linebreak', cellPadding: cellPad },
   });
   // @ts-ignore
-  leftY = (doc as any).lastAutoTable.finalY + 2;
+  leftY = (doc as any).lastAutoTable.finalY + 5;
 
-  // ── ROW 2 RIGHT: Pricing ──────────────────────────────────────────────────────
-  secLabel('PRICING', rightX, rightY);
-  rightY += 3.5;
+  // ── ROW 2 RIGHT: Warranty → 12-Month Option → Pricing (balanced) ─────────────
+  // Warranty and 12-month are capped; Pricing always renders at bottom of column.
+  const RIGHT_CAP = 200;
 
-  const totalKwhLoad = opts.lines.reduce((s, l) => s + (l.kwhPerMonth || 0) * l.qty, 0);
-
-  const pricingRows: Array<[string, string]> = [
-    ['Product subtotal', PKR(productSubtotal)],
-    ...(installSubtotal > 0 ? [['Installation', PKR(installSubtotal)] as [string, string]] : []),
-    ...(chargedSvcTotal > 0 ? [['Services', PKR(chargedSvcTotal)] as [string, string]] : []),
-    ...(customChargesTotal > 0 ? [['Additional Charges', PKR(customChargesTotal)] as [string, string]] : []),
-  ];
-
-  if (discountAmt > 0) {
-    const discLabel = opts.discountMode === 'fixed'
-      ? `${opts.discountType} Discount (fixed)`
-      : `${opts.discountType} Discount (${opts.discount}%)`;
-    pricingRows.push([discLabel, `- ${PKR(discountAmt)}`]);
-    if (opts.discountReason) pricingRows.push(['Reason', opts.discountReason]);
-  }
-
-  const pricingRowH = 4.8;
-  const pricingH = pricingRows.length * pricingRowH + 23;
-  doc.setFillColor(250, 250, 250);
-  doc.rect(rightX, rightY, rightW, pricingH, 'F');
-  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
-  doc.rect(rightX, rightY, rightW, pricingH, 'S');
-
-  let pry = rightY + 4.5;
-  for (const [lbl, val] of pricingRows) {
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(80, 80, 80);
-    doc.text(lbl, rightX + 3, pry);
-    doc.text(val, rightX + rightW - 3, pry, { align: 'right' });
-    pry += pricingRowH;
-  }
-
-  doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
-  doc.line(rightX + 3, pry - 1, rightX + rightW - 3, pry - 1);
-
-  // Grand total band (18mm tall) with balance/paid sub-label
-  doc.setFillColor(ORANGE);
-  doc.rect(rightX, pry - 1, rightW, 18, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
-  doc.text('GRAND TOTAL', rightX + 3, pry + 5.5);
-  doc.text(PKR(grandTotal), rightX + rightW - 3, pry + 5.5, { align: 'right' });
-
-  // Balance due / amount paid sub-label
-  const _gtAdvAmt = opts.advanceAmtFixed && opts.advanceAmtFixed > 0
-    ? opts.advanceAmtFixed
-    : Math.round(grandTotal * opts.advancePct / 100);
-  const _isFullyPaid = opts.advancePaid && _gtAdvAmt >= grandTotal;
-  const _balStatusLabel = _isFullyPaid ? 'AMOUNT PAID' : 'BALANCE DUE';
-  const _balStatusAmt = _isFullyPaid ? grandTotal : (grandTotal - (opts.advancePaid ? _gtAdvAmt : 0));
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 220, 185);
-  doc.text(_balStatusLabel, rightX + 3, pry + 13);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(255, 255, 255);
-  doc.text(PKR(_balStatusAmt), rightX + rightW - 3, pry + 13, { align: 'right' });
-  rightY += pricingH + 5;
-
-  // ── RIGHT COLUMN EXTRAS (warranty, power, advisory, installment) ─────────────
-  // Capped at RIGHT_CAP so the sync point stays within the single-page budget.
-  const RIGHT_CAP = 190;
-
-  // WARRANTY — compact list
+  // WARRANTY — first in right column, no top separator
   if (warrantyEntries.length > 0) {
     const wtyRowH = 2.9;
-    const wtyBoxH = 3.5 + warrantyEntries.length * wtyRowH + 1;
-    if (rightY + 3.5 + wtyBoxH + 5 <= RIGHT_CAP) {
-      // Separator before warranty
-      doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.3);
-      doc.line(rightX, rightY + 1, rightX + rightW, rightY + 1);
-      doc.setLineWidth(0.2);
-      rightY += 4;
-      secLabel('WARRANTY', rightX, rightY);
-      rightY += 3.5;
-      doc.setFillColor(26, 26, 26);
-      doc.rect(rightX, rightY, rightW, 3.5, 'F');
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(255, 255, 255);
-      doc.text('WARRANTY COVERAGE', rightX + 3, rightY + 2.5);
-      rightY += 3.5;
-      doc.setFillColor(248, 250, 252);
-      doc.rect(rightX, rightY, rightW, warrantyEntries.length * wtyRowH + 1, 'F');
-      doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.15);
-      doc.rect(rightX, rightY, rightW, warrantyEntries.length * wtyRowH + 1, 'S');
-      doc.setLineWidth(0.2);
-      let wy = rightY + wtyRowH;
-      for (const we of warrantyEntries) {
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(25, 25, 25);
-        const wName = we.name.length > 30 ? we.name.slice(0, 28) + '..' : we.name;
-        doc.text(`· ${wName}`, rightX + 2, wy);
-        if (we.coverage) {
-          doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(80, 80, 80);
-          const covTxt = doc.splitTextToSize(we.coverage, rightW - 42);
-          doc.text(covTxt[0] || we.coverage, rightX + rightW - 2, wy, { align: 'right' });
-        }
-        wy += wtyRowH;
+    secLabel('WARRANTY', rightX, rightY);
+    rightY += 3.5;
+    doc.setFillColor(26, 26, 26);
+    doc.rect(rightX, rightY, rightW, 3.5, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(255, 255, 255);
+    doc.text('WARRANTY COVERAGE', rightX + 3, rightY + 2.5);
+    rightY += 3.5;
+    doc.setFillColor(248, 250, 252);
+    doc.rect(rightX, rightY, rightW, warrantyEntries.length * wtyRowH + 1, 'F');
+    doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.15);
+    doc.rect(rightX, rightY, rightW, warrantyEntries.length * wtyRowH + 1, 'S');
+    doc.setLineWidth(0.2);
+    let wy = rightY + wtyRowH;
+    for (const we of warrantyEntries) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(25, 25, 25);
+      const wName = we.name.length > 34 ? we.name.slice(0, 32) + '..' : we.name;
+      doc.text(`· ${wName}`, rightX + 2, wy);
+      if (we.coverage) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(80, 80, 80);
+        const covTxt = doc.splitTextToSize(we.coverage, rightW - 42);
+        doc.text(covTxt[0] || we.coverage, rightX + rightW - 2, wy, { align: 'right' });
       }
-      rightY += warrantyEntries.length * wtyRowH + 1 + 5;
+      wy += wtyRowH;
     }
+    rightY += warrantyEntries.length * wtyRowH + 1 + 4;
   }
 
-  // Energy consumption + advisory are rendered full-width after column sync (see below).
-
-  // INSTALLMENT BLOCK — 12-month option on cash invoices, using canonical plan rates
+  // 12-MONTH OPTION — separator above, capped at RIGHT_CAP
   const _p12 = calcPlan(grandTotal, '12m');
   if (opts.saleType === 'cash' && grandTotal > 0) {
     const instBoxH = 3 * 3.5 + 4;
-    if (rightY + 3.5 + instBoxH + 5 <= RIGHT_CAP) {
+    if (rightY + 7 + instBoxH <= RIGHT_CAP) {
       doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.3);
       doc.line(rightX, rightY + 1, rightX + rightW, rightY + 1);
       doc.setLineWidth(0.2);
@@ -5194,6 +5127,66 @@ async function generateQuotationPdf(opts: {
       doc.text('Ask us to activate this plan', rightX + 3, rightY + instBoxH - 1.5);
       rightY += instBoxH + 2;
     }
+  }
+
+  // PRICING — separator above, always rendered below warranty + 12-month
+  {
+    doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.3);
+    doc.line(rightX, rightY + 1, rightX + rightW, rightY + 1);
+    doc.setLineWidth(0.2);
+    rightY += 4;
+    secLabel('PRICING', rightX, rightY);
+    rightY += 3.5;
+
+    const pricingRows: Array<[string, string]> = [
+      ['Product subtotal', PKR(productSubtotal)],
+      ...(installSubtotal > 0 ? [['Installation', PKR(installSubtotal)] as [string, string]] : []),
+      ...(chargedSvcTotal > 0 ? [['Services', PKR(chargedSvcTotal)] as [string, string]] : []),
+      ...(customChargesTotal > 0 ? [['Additional Charges', PKR(customChargesTotal)] as [string, string]] : []),
+    ];
+    if (discountAmt > 0) {
+      const discLabel = opts.discountMode === 'fixed'
+        ? `${opts.discountType} Discount (fixed)`
+        : `${opts.discountType} Discount (${opts.discount}%)`;
+      pricingRows.push([discLabel, `- ${PKR(discountAmt)}`]);
+      if (opts.discountReason) pricingRows.push(['Reason', opts.discountReason]);
+    }
+
+    const pricingRowH = 4.8;
+    const pricingH = pricingRows.length * pricingRowH + 23;
+    doc.setFillColor(250, 250, 250);
+    doc.rect(rightX, rightY, rightW, pricingH, 'F');
+    doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
+    doc.rect(rightX, rightY, rightW, pricingH, 'S');
+
+    let pry = rightY + 4.5;
+    for (const [lbl, val] of pricingRows) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(80, 80, 80);
+      doc.text(lbl, rightX + 3, pry);
+      doc.text(val, rightX + rightW - 3, pry, { align: 'right' });
+      pry += pricingRowH;
+    }
+
+    doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
+    doc.line(rightX + 3, pry - 1, rightX + rightW - 3, pry - 1);
+
+    doc.setFillColor(ORANGE);
+    doc.rect(rightX, pry - 1, rightW, 18, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
+    doc.text('GRAND TOTAL', rightX + 3, pry + 5.5);
+    doc.text(PKR(grandTotal), rightX + rightW - 3, pry + 5.5, { align: 'right' });
+
+    const _gtAdvAmt = opts.advanceAmtFixed && opts.advanceAmtFixed > 0
+      ? opts.advanceAmtFixed
+      : Math.round(grandTotal * opts.advancePct / 100);
+    const _isFullyPaid = opts.advancePaid && _gtAdvAmt >= grandTotal;
+    const _balStatusLabel = _isFullyPaid ? 'AMOUNT PAID' : 'BALANCE DUE';
+    const _balStatusAmt = _isFullyPaid ? grandTotal : (grandTotal - (opts.advancePaid ? _gtAdvAmt : 0));
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 220, 185);
+    doc.text(_balStatusLabel, rightX + 3, pry + 13);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(255, 255, 255);
+    doc.text(PKR(_balStatusAmt), rightX + rightW - 3, pry + 13, { align: 'right' });
+    rightY += pricingH + 5;
   }
 
   // ── ROW 3 LEFT: Services (active) + Optional suggestions ─────────────────────
@@ -5250,7 +5243,7 @@ async function generateQuotationPdf(opts: {
       styles: { overflow: 'linebreak', cellPadding: cellPad },
     });
     // @ts-ignore
-    leftY = (doc as any).lastAutoTable.finalY + 2;
+    leftY = (doc as any).lastAutoTable.finalY + 5;
   }
 
   if (optionalServices.length > 0) {
@@ -5639,10 +5632,6 @@ async function generateQuotationPdf(opts: {
   y += 3;
 
   // ── TERMS & CONDITIONS (3-column micro-text) ──────────────────────────────────
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(ORANGE);
-  doc.text('TERMS & CONDITIONS', margin, y);
-  y += 3.0;
-
   const tcItems = [
     'Prices valid until stated validity date.',
     'Stock subject to confirmation before payment.',
@@ -5662,21 +5651,26 @@ async function generateQuotationPdf(opts: {
   const tcPerCol = Math.ceil(tcItems.length / tcCols);
   const colTcW = (printW - (tcCols - 1) * 3) / tcCols;
   const tcRowH = 2.8;
-  const tcBgH = tcPerCol * tcRowH + 4.0;
+  const tcBgH = tcPerCol * tcRowH + 5;
+  // Anchor T&C to footer (286mm) so it always fits regardless of content above
+  const tcTitleY = Math.min(y, 286 - tcBgH - 5);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(ORANGE);
+  doc.text('TERMS & CONDITIONS', margin, tcTitleY);
+  const tcBodyY = tcTitleY + 3.5;
   doc.setFillColor(249, 249, 249);
-  doc.rect(margin, y, printW, tcBgH, 'F');
+  doc.rect(margin, tcBodyY, printW, tcBgH, 'F');
 
   for (let i = 0; i < tcItems.length; i++) {
     const col = Math.floor(i / tcPerCol);
     const row = i % tcPerCol;
     const tx = margin + 3 + col * (colTcW + 3);
-    const tcy = y + 3.2 + row * tcRowH;
+    const tcy = tcBodyY + 3.5 + row * tcRowH;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(120, 120, 120);
     doc.text(`${i + 1}.`, tx, tcy);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(80, 80, 80);
     doc.text(tcItems[i], tx + 4, tcy, { maxWidth: colTcW - 5 });
   }
-  y += tcBgH + 2;
+  y = tcBodyY + tcBgH + 2;
 
   // ── FOOTER ────────────────────────────────────────────────────────────────────
   const footerY = 286;
