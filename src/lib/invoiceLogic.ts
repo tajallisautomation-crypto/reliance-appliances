@@ -1,3 +1,5 @@
+import { UNIT_RATE_PKR } from './solarRules';
+
 export type CustomerType = 'house' | 'apartment' | 'commercial';
 export type DiscountType = 'percentage' | 'fixed';
 export type ServiceStatus = 'included' | 'charged' | 'not_selected';
@@ -247,7 +249,7 @@ export function buildDetailedAdvisory(
 
     const monthlyGen = Math.round(systemKw * 5 * 30);
     const offsetUnits = totalKwh > 0 ? Math.min(totalKwh, monthlyGen) : monthlyGen;
-    const monthlyBillSaving = Math.round(offsetUnits * 50);
+    const monthlyBillSaving = Math.round(offsetUnits * UNIT_RATE_PKR);
 
     if (totalKwh >= 30) {
       paras.push(

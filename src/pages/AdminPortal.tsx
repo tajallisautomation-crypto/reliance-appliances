@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 import {
   getProducts, upsertProduct, deleteProduct,
   uploadBrandImage, updateProductImages, fetchAndUploadOrSaveUrl, saveProductImages,
-  calcAllPlans, roundUp500, fmtPKR, CATEGORY_MAP,
+  calcAllPlans, calcPlan, roundUp500, fmtPKR, CATEGORY_MAP,
   processCSVImport, reenrichAllProducts, rematchAllImages, getDataAudit, scanBucket, fixAllCategories,
   rebalanceCategories, getCategoryCounts, CAT_MIN, CAT_MAX,
   mergeDuplicates, findNearDuplicates, normalizeCategoryNames, type MergeResult, type MergePreviewGroup, type NearDupeGroup,
@@ -5161,20 +5161,11 @@ async function generateQuotationPdf(opts: {
 
   // Energy consumption + advisory are rendered full-width after column sync (see below).
 
-  // INSTALLMENT BLOCK — 12-month option shown on cash invoices only
-  // (installment invoices already show full schedule full-width below)
-  const _iMonths = opts.instTeaserMonths ?? 12;
-  const _iAdvPct = opts.advancePct > 0 ? opts.advancePct : 20;
-  const _iBase = opts.instTeaserMonthly && opts.instTeaserMonths
-    ? opts.instTeaserMonthly * opts.instTeaserMonths + Math.round(grandTotal * _iAdvPct / 100)
-    : Math.round(grandTotal * 1.08);
-  const _iTotal  = _iBase;
-  const _iAdv    = Math.round(_iTotal * _iAdvPct / 100);
-  const _iMonthly = opts.instTeaserMonthly ?? (_iMonths > 0 ? Math.round((_iTotal - _iAdv) / _iMonths) : 0);
-  if (opts.saleType === 'cash' && _iTotal > 0 && _iMonthly > 0) {
+  // INSTALLMENT BLOCK — 12-month option on cash invoices, using canonical plan rates
+  const _p12 = calcPlan(grandTotal, '12m');
+  if (opts.saleType === 'cash' && grandTotal > 0) {
     const instBoxH = 3 * 3.5 + 4;
     if (rightY + 3.5 + instBoxH + 5 <= RIGHT_CAP) {
-      // Separator before installment option
       doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.3);
       doc.line(rightX, rightY + 1, rightX + rightW, rightY + 1);
       doc.setLineWidth(0.2);
@@ -5187,9 +5178,9 @@ async function generateQuotationPdf(opts: {
       doc.line(rightX, rightY, rightX, rightY + instBoxH);
       doc.setLineWidth(0.2);
       const instRows: Array<[string, string]> = [
-        ['Inst. Total', PKR(_iTotal)],
-        [`Advance (${_iAdvPct}%)`, PKR(_iAdv)],
-        [`Monthly × ${_iMonths}`, `${PKR(_iMonthly)}/mo`],
+        ['Total', PKR(_p12.total)],
+        [`Advance (${Math.round(_p12.advancePct * 100)}%)`, PKR(_p12.advance)],
+        [`Monthly × ${_p12.monthlyPayments}`, `${PKR(_p12.monthly)}/mo`],
       ];
       let iiy = rightY + 3.5;
       for (const [lbl, val] of instRows) {
@@ -5205,8 +5196,7 @@ async function generateQuotationPdf(opts: {
     }
   }
 
-  // ── ROW 3 LEFT: Services table (starts at leftY, not synced — fills column gap) ─
-  // Suppress any "installation" service that's already an included package component
+  // ── ROW 3 LEFT: Services (active) + Optional suggestions ─────────────────────
   const pkgInstallCovered = opts.lines.some(l =>
     l.isPackage && (l.packageComponents as PackageComponent[] || [])
       .some((c: PackageComponent) => !c.hidden && c.status === 'included' && /install/i.test(c.name))
@@ -5215,60 +5205,73 @@ async function generateQuotationPdf(opts: {
     ? opts.services.filter(svc => !/install/i.test(svc.service_name))
     : opts.services;
 
-  if (filteredServices.length > 0) {
-  secLabel('SERVICES', margin, leftY);
-  leftY += 3.5;
-
-  const svcBody: any[] = filteredServices.map(svc => {
-    // When installationType is 'installation-included', force install services to display as included
-    const overrideIncluded = opts.installationType === 'installation-included'
-      && /install/i.test(svc.service_name)
-      && svc.status === 'not_selected';
-    const effectiveStatus = overrideIncluded ? 'included' : svc.status;
-
-    // ASCII-only labels — Unicode symbols corrupt in jsPDF Helvetica (Latin-1 only)
-    const statusLabel = effectiveStatus === 'included' ? 'INCL'
-      : effectiveStatus === 'charged' ? 'BILLED'
-      : (svc.visible_value > 0 || svc.display_value) ? 'OPT' : 'N/A';
-    const statusColor: [number, number, number] = effectiveStatus === 'included' ? [22, 163, 74]
-      : effectiveStatus === 'charged' ? [234, 88, 12]
-      : (svc.visible_value > 0 || svc.display_value) ? [100, 100, 100]
-      : [180, 180, 180];
-    const valueLabel = svc.display_value ? svc.display_value
-      : svc.visible_value > 0 ? PKR(svc.visible_value) : '-';
-    // Replace ambiguous 'Ask' with definitive price or 'Not incl.' label
-    const chargedLabel = effectiveStatus === 'included' ? 'PKR 0'
-      : effectiveStatus === 'charged' ? PKR(svc.charged_amount)
-      : svc.display_value ? svc.display_value
-      : svc.visible_value > 0 ? PKR(svc.visible_value)
-      : 'Not incl.';
-    return [
-      { content: svc.service_name, styles: { fontStyle: 'bold' as const } },
-      { content: statusLabel, styles: { textColor: statusColor, fontStyle: 'bold' as const, halign: 'center' as const } },
-      valueLabel,
-      chargedLabel,
-    ];
+  // Active: included or charged (displayed in table)
+  const activeServices = filteredServices.filter(svc => {
+    const override = opts.installationType === 'installation-included'
+      && /install/i.test(svc.service_name) && svc.status === 'not_selected';
+    return override || svc.status === 'included' || svc.status === 'charged';
+  });
+  // Suggestions: not selected but have a visible price
+  const optionalServices = filteredServices.filter(svc => {
+    const override = opts.installationType === 'installation-included'
+      && /install/i.test(svc.service_name) && svc.status === 'not_selected';
+    return !override && svc.status === 'not_selected' && (svc.visible_value > 0 || svc.display_value);
   });
 
-  autoTable(doc, {
-    startY: leftY,
-    margin: { left: margin, right: leftAutoMarginRight },
-    head: [['SERVICE', 'STATUS', 'VALUE', 'CHARGED']],
-    body: svcBody,
-    columnStyles: {
-      0: { cellWidth: 'auto' },
-      1: { cellWidth: 14, halign: 'center' as const },
-      2: { cellWidth: 20, halign: 'right' as const },
-      3: { cellWidth: 20, halign: 'right' as const },
-    },
-    headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6 },
-    bodyStyles: { fontSize: 6, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
-    alternateRowStyles: { fillColor: [250, 250, 250] },
-    styles: { overflow: 'linebreak', cellPadding: cellPad },
-  });
-  // @ts-ignore
-  leftY = (doc as any).lastAutoTable.finalY + 2;
-  } // end if services
+  if (activeServices.length > 0) {
+    secLabel('SERVICES', margin, leftY);
+    leftY += 3.5;
+    const activeSvcBody: any[] = activeServices.map(svc => {
+      const override = opts.installationType === 'installation-included'
+        && /install/i.test(svc.service_name) && svc.status === 'not_selected';
+      const effStatus = override ? 'included' : svc.status;
+      const statusLabel = effStatus === 'included' ? 'INCL' : 'BILLED';
+      const statusColor: [number, number, number] = effStatus === 'included' ? [22, 163, 74] : [234, 88, 12];
+      const amtLabel = effStatus === 'included' ? 'PKR 0' : PKR(svc.charged_amount);
+      return [
+        { content: svc.service_name, styles: { fontStyle: 'bold' as const } },
+        { content: statusLabel, styles: { textColor: statusColor, fontStyle: 'bold' as const, halign: 'center' as const } },
+        amtLabel,
+      ];
+    });
+    autoTable(doc, {
+      startY: leftY,
+      margin: { left: margin, right: leftAutoMarginRight },
+      head: [['SERVICE', 'STATUS', 'AMOUNT']],
+      body: activeSvcBody,
+      columnStyles: {
+        0: { cellWidth: 'auto' },
+        1: { cellWidth: 14, halign: 'center' as const },
+        2: { cellWidth: 24, halign: 'right' as const },
+      },
+      headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6 },
+      bodyStyles: { fontSize: 6, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
+      alternateRowStyles: { fillColor: [250, 250, 250] },
+      styles: { overflow: 'linebreak', cellPadding: cellPad },
+    });
+    // @ts-ignore
+    leftY = (doc as any).lastAutoTable.finalY + 2;
+  }
+
+  if (optionalServices.length > 0) {
+    secLabel('AVAILABLE ADD-ONS', margin, leftY);
+    leftY += 3.5;
+    const suggBoxH = optionalServices.length * 4.0 + 3;
+    doc.setFillColor(250, 250, 250);
+    doc.rect(margin, leftY, leftW, suggBoxH, 'F');
+    doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
+    doc.rect(margin, leftY, leftW, suggBoxH, 'S');
+    let sy = leftY + 3.0;
+    for (const svc of optionalServices) {
+      const priceStr = svc.display_value ?? (svc.visible_value > 0 ? PKR(svc.visible_value) : 'Contact us');
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(80, 80, 80);
+      doc.text(`· ${svc.service_name}`, margin + 3, sy);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(234, 88, 12);
+      doc.text(priceStr, margin + leftW - 3, sy, { align: 'right' });
+      sy += 4.0;
+    }
+    leftY += suggBoxH + 2;
+  }
 
   // ── SYNC COLUMNS → FULL-WIDTH ZONE ───────────────────────────────────────────
   let y = Math.max(leftY, rightY) + 6;
@@ -5325,8 +5328,9 @@ async function generateQuotationPdf(opts: {
     const aColW2 = printW - eColW2 - 3;
 
     const energyH2 = 7 + dispRows2 * pwrRowH2 + 14;
-    // Estimate advisory column height: 48 chars/line at 5.5pt in ~91mm column, 3.2pt line, 2pt para gap
-    const advEstH2 = 9 + (advisory2 ? advisory2.paragraphs : ['']).reduce(
+    // Limit advisory to 3 paragraphs for single-page layout; estimate height at 48 chars/line
+    const advParas2Preview = (advisory2 ? advisory2.paragraphs : ['']).slice(0, 3);
+    const advEstH2 = 9 + advParas2Preview.reduce(
       (sum, p) => sum + Math.ceil(p.length / 48) * 3.2 + 2, 0
     );
     const stripH2 = Math.max(32, Math.max(energyH2, advEstH2));
@@ -5367,7 +5371,7 @@ async function generateQuotationPdf(opts: {
       doc.text(`${totalEffKwh} kWh/mo`, margin + eColW2 - 2, ey, { align: 'right' });
       const hasEst2 = energyLines2.some(l => l.isEst);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(120, 80, 0);
-      doc.text(`${hasEst2 ? 'Est. ' : ''}electricity bill ~${PKR(Math.round(totalEffKwh * 50))}/month`, margin + 3, ey + 3.5);
+      doc.text(`${hasEst2 ? 'Est. ' : ''}electricity bill ~${PKR(totalEffKwh * UNIT_RATE_PKR)}/month`, margin + 3, ey + 3.5);
       doc.setFont('helvetica', 'italic'); doc.setFontSize(4.8); doc.setTextColor(160, 110, 40);
       doc.text('Basis: AC ~8h/day  |  Fridge/Freezer ~24h/day', margin + 3, ey + 7.0);
     }
@@ -5385,9 +5389,10 @@ async function generateQuotationPdf(opts: {
       : 'ENERGY ADVISORY';
     doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(ORANGE);
     doc.text(advTitle2, aColX2 + 3, y + 5);
-    const advParas2 = advisory2
+    const advParas2 = (advisory2
       ? advisory2.paragraphs
-      : ['Ask us for an energy-saving assessment and solar proposal tailored to your property type.'];
+      : ['Ask us for an energy-saving assessment and solar proposal tailored to your property type.']
+    ).slice(0, 3);
     let ay = y + 9;
     for (const para of advParas2) {
       const wrapped = doc.splitTextToSize(para, aColW2 - 5);
@@ -5407,63 +5412,69 @@ async function generateQuotationPdf(opts: {
     y += 5;
   }
 
-  // ── INSTALLMENT SCHEDULE (full-width, when saleType=installment) ─────────────
+  // ── INSTALLMENT SCHEDULE — compact 2-column layout ───────────────────────────
   if (opts.saleType === 'installment' && (opts.instTotalPrice ?? 0) > 0 && (opts.instMonths ?? 0) > 0 && opts.instFirstDate) {
-    const fmtDateInst = (d: Date) => d.toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' });
-    const instSchedBody: any[] = [];
-    instSchedBody.push([
-      { content: '0', styles: { fillColor: [234, 88, 12] as [number,number,number], textColor: [255, 255, 255] as [number,number,number], fontStyle: 'bold' as const } },
-      { content: 'Advance Payment', styles: { fillColor: [234, 88, 12] as [number,number,number], textColor: [255, 255, 255] as [number,number,number], fontStyle: 'bold' as const } },
-      { content: PKR(opts.instAdvanceAmt ?? 0), styles: { fillColor: [234, 88, 12] as [number,number,number], textColor: [255, 255, 255] as [number,number,number], fontStyle: 'bold' as const, halign: 'right' as const } },
-      { content: 'Upon Confirmation', styles: { fillColor: [234, 88, 12] as [number,number,number], textColor: [255, 255, 255] as [number,number,number], fontStyle: 'bold' as const } },
-    ]);
-    for (let i = 1; i <= (opts.instMonths ?? 0); i++) {
-      const d = new Date(opts.instFirstDate);
-      d.setMonth(d.getMonth() + (i - 1));
-      instSchedBody.push([String(i), `Installment ${i}`, PKR(opts.instMonthlyAmt ?? 0), fmtDateInst(d)]);
+    const instMonths = opts.instMonths ?? 0;
+    const fmtDI = (d: Date) => d.toLocaleDateString('en-PK', { month: 'short', day: 'numeric', year: 'numeric' });
+
+    // Full-width dark header
+    doc.setFillColor(26, 26, 26);
+    doc.rect(margin, y, printW, 5.5, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
+    doc.text('INSTALLMENT SCHEDULE', W / 2, y + 3.8, { align: 'center' });
+    y += 5.5;
+
+    const schedColW = (printW - 3) / 2;
+    const cPad = { top: 0.5, bottom: 0.5, left: 1.5, right: 1.5 };
+    const hStyles = { fillColor: [50, 50, 50] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, cellPadding: { top: 1, bottom: 1, left: 1.5, right: 1.5 } };
+    const bStyles = { fontSize: 5.5, textColor: [40,40,40] as [number,number,number], lineColor: [229,231,235] as [number,number,number], lineWidth: 0.15 as number, cellPadding: cPad };
+    const altStyles = { fillColor: [250,250,250] as [number,number,number] };
+    const colStyles = { 0: { cellWidth: 7 }, 2: { cellWidth: 26, halign: 'right' as const }, 3: { cellWidth: 24 } };
+
+    const advRow: any[] = [
+      { content: '0', styles: { fillColor: [234,88,12] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' as const } },
+      { content: 'Advance', styles: { fillColor: [234,88,12] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' as const } },
+      { content: PKR(opts.instAdvanceAmt ?? 0), styles: { fillColor: [234,88,12] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' as const, halign: 'right' as const } },
+      { content: 'On confirm', styles: { fillColor: [234,88,12] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' as const } },
+    ];
+    const instRows2: any[][] = [];
+    for (let i = 1; i <= instMonths; i++) {
+      const d = new Date(opts.instFirstDate); d.setMonth(d.getMonth() + (i - 1));
+      instRows2.push([String(i), `Month ${i}`, PKR(opts.instMonthlyAmt ?? 0), fmtDI(d)]);
     }
-    instSchedBody.push([
-      { content: '', styles: { fillColor: [248, 248, 248] as [number,number,number] } },
-      { content: 'CONTRACT TOTAL', styles: { fillColor: [248, 248, 248] as [number,number,number], fontStyle: 'bold' as const, textColor: [40, 40, 40] as [number,number,number] } },
-      { content: PKR(opts.instTotalPrice ?? 0), styles: { fillColor: [248, 248, 248] as [number,number,number], fontStyle: 'bold' as const, halign: 'right' as const, textColor: [40, 40, 40] as [number,number,number] } },
-      { content: '', styles: { fillColor: [248, 248, 248] as [number,number,number] } },
-    ]);
+    const totalRow2: any[] = [
+      { content: '', styles: { fillColor: [248,248,248] as [number,number,number] } },
+      { content: 'CONTRACT TOTAL', styles: { fillColor: [248,248,248] as [number,number,number], fontStyle: 'bold' as const, textColor: [40,40,40] as [number,number,number] } },
+      { content: PKR(opts.instTotalPrice ?? 0), styles: { fillColor: [248,248,248] as [number,number,number], fontStyle: 'bold' as const, halign: 'right' as const, textColor: [40,40,40] as [number,number,number] } },
+      { content: '', styles: { fillColor: [248,248,248] as [number,number,number] } },
+    ];
+
+    const half = Math.ceil(instMonths / 2);
+    const leftSched = [advRow, ...instRows2.slice(0, half)];
+    const rightSched = [...instRows2.slice(half), totalRow2];
+
     autoTable(doc, {
-      startY: y,
-      margin: { left: margin, right: margin },
-      head: [[
-        { content: 'INSTALLMENT SCHEDULE', colSpan: 4, styles: {
-          fillColor: [26, 26, 26] as [number,number,number], textColor: [255, 255, 255] as [number,number,number],
-          fontStyle: 'bold' as const, fontSize: 7,
-          cellPadding: { top: 2, bottom: 2, left: 3, right: 3 },
-        }},
-      ], ['#', 'DESCRIPTION', 'AMOUNT', 'DUE DATE']],
-      body: instSchedBody,
-      columnStyles: {
-        0: { cellWidth: 10 },
-        1: { cellWidth: 'auto' },
-        2: { cellWidth: 36, halign: 'right' as const },
-        3: { cellWidth: 36 },
-      },
-      headStyles: { fillColor: [26, 26, 26] as [number,number,number], textColor: [255, 255, 255] as [number,number,number], fontStyle: 'bold' as const, fontSize: 6 },
-      bodyStyles: { fontSize: 6, textColor: [40, 40, 40] as [number,number,number], lineColor: [229, 231, 235] as [number,number,number], lineWidth: 0.15, cellPadding: cellPad },
-      alternateRowStyles: { fillColor: [250, 250, 250] as [number,number,number] },
-      styles: { overflow: 'linebreak' },
+      startY: y, margin: { left: margin, right: margin + schedColW + 3 },
+      head: [['#', 'DESCRIPTION', 'AMOUNT', 'DATE']],
+      body: leftSched,
+      headStyles: hStyles, bodyStyles: bStyles, alternateRowStyles: altStyles,
+      columnStyles: colStyles, styles: { overflow: 'linebreak' },
+    });
+    const leftSchedFinalY = (doc as any).lastAutoTable.finalY;
+
+    autoTable(doc, {
+      startY: y, margin: { left: margin + schedColW + 3, right: margin },
+      head: [['#', 'DESCRIPTION', 'AMOUNT', 'DATE']],
+      body: rightSched,
+      headStyles: hStyles, bodyStyles: bStyles, alternateRowStyles: altStyles,
+      columnStyles: colStyles, styles: { overflow: 'linebreak' },
     });
     // @ts-ignore
-    y = (doc as any).lastAutoTable.finalY + 3;
+    y = Math.max(leftSchedFinalY, (doc as any).lastAutoTable.finalY) + 2;
 
-    // Late payment penalty note
-    doc.setFont('helvetica', 'italic'); doc.setFontSize(6); doc.setTextColor(120, 80, 0);
-    doc.text('Late payment penalty: 1% of outstanding balance per additional day past due date. Post-dated cheques required.', margin, y);
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(5.5); doc.setTextColor(120, 80, 0);
+    doc.text('Late payment: 1% per day past due. Post-dated cheques required.', margin, y);
     y += 4;
-  }
-
-  // ── Page-break guard — if bottom sections won't fit, start fresh page ─────────
-  const BOTTOM_H = 50 + 28 + 32; // payment+label (50) + trust strip (28) + T&C+label (32) = 110
-  if (y + BOTTOM_H > 282) {
-    doc.addPage();
-    y = margin + 5;
   }
 
   // ── PAYMENT + BANK + QR (merged full-width block) ─────────────────────────────
@@ -5579,17 +5590,14 @@ async function generateQuotationPdf(opts: {
   doc.setLineWidth(0.2);
   y += 3;
 
-  // ── TRUST + COMMUNITY STRIP ───────────────────────────────────────────────────
-  const trustH = 22;
+  // ── TRUST + COMMUNITY STRIP (compact 16mm) ───────────────────────────────────
+  const trustH = 16;
   const trustStatW = Math.round(printW * 0.74);
   const commAreaX = margin + trustStatW;
   const commAreaW = printW - trustStatW;
 
-  // Stats zone — dark
   doc.setFillColor(26, 26, 26);
   doc.rect(margin, y, trustStatW, trustH, 'F');
-
-  // Community zone — blue
   doc.setFillColor(18, 90, 210);
   doc.rect(commAreaX, y, commAreaW, trustH, 'F');
 
@@ -5602,29 +5610,27 @@ async function generateQuotationPdf(opts: {
   const segW = trustStatW / trustStats.length;
   trustStats.forEach(([num, lbl], i) => {
     const sx = margin + i * segW + segW / 2;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(234, 88, 12);
-    doc.text(num, sx, y + 6, { align: 'center' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(170, 170, 170);
-    doc.text(lbl, sx, y + 11, { align: 'center' });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(234, 88, 12);
+    doc.text(num, sx, y + 5.5, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(4); doc.setTextColor(170, 170, 170);
+    doc.text(lbl, sx, y + 10, { align: 'center' });
   });
 
-  // Facebook community QR — group name, join prompt, website reminder
   if (fbQrData) {
-    const FB_QR = 10;
+    const FB_QR = 7;
     const cx = commAreaX + commAreaW / 2;
     const fbQrX = commAreaX + (commAreaW - FB_QR) / 2;
-    const fbQrY = y + 5;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(4); doc.setTextColor(255, 255, 255);
-    doc.text('JOIN OUR FB GROUP', cx, y + 3, { align: 'center' });
+    const fbQrY = y + 3;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(3.5); doc.setTextColor(255, 255, 255);
+    doc.text('JOIN OUR FB GROUP', cx, y + 2, { align: 'center' });
     doc.setFillColor(255, 255, 255);
     doc.rect(fbQrX - 1, fbQrY - 1, FB_QR + 2, FB_QR + 2, 'F');
     doc.addImage(fbQrData, 'PNG', fbQrX, fbQrY, FB_QR, FB_QR);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(4.5); doc.setTextColor(255, 255, 255);
-    doc.text('Appliance Reliance', cx, fbQrY + FB_QR + 3, { align: 'center' });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(4); doc.setTextColor(255, 255, 255);
+    doc.text('Appliance Reliance', cx, fbQrY + FB_QR + 2.5, { align: 'center' });
     doc.setFont('helvetica', 'normal'); doc.setFontSize(3.5); doc.setTextColor(180, 210, 255);
-    doc.text('Facebook Group', cx, fbQrY + FB_QR + 5.5, { align: 'center' });
-    const linkTextY = fbQrY + FB_QR + 5.5;
-    doc.link(commAreaX + 1, linkTextY - 3, commAreaW - 2, 4, { url: 'https://www.facebook.com/share/g/18be5ayTCF/' });
+    doc.text('Facebook Group', cx, fbQrY + FB_QR + 4.5, { align: 'center' });
+    doc.link(commAreaX + 1, fbQrY + FB_QR + 1, commAreaW - 2, 4, { url: 'https://www.facebook.com/share/g/18be5ayTCF/' });
   }
   y += trustH + 2;
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
@@ -5632,41 +5638,42 @@ async function generateQuotationPdf(opts: {
   doc.setLineWidth(0.2);
   y += 3;
 
-  // ── TERMS & CONDITIONS (2-column micro-text) ──────────────────────────────────
+  // ── TERMS & CONDITIONS (3-column micro-text) ──────────────────────────────────
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(ORANGE);
   doc.text('TERMS & CONDITIONS', margin, y);
   y += 3.0;
 
   const tcItems = [
-    'Prices are valid only until the stated validity date.',
-    'Stock is subject to confirmation before payment.',
-    'Warranty is provided by the official brand / manufacturer.',
-    "Tajalli's facilitates warranty claims; manufacturer decides.",
-    'Installation is included only if explicitly listed in services section.',
-    'Physical damage must be reported within 24 hours of delivery.',
-    'Goods once unboxed are non-refundable unless under warranty.',
+    'Prices valid until stated validity date.',
+    'Stock subject to confirmation before payment.',
+    'Warranty by official brand / manufacturer.',
+    "Tajalli's facilitates; manufacturer decides.",
+    'Installation included only if listed in services.',
+    'Physical damage: report within 24 hours.',
+    'Unboxed goods non-refundable unless warranty.',
     'Payment terms apply as agreed before dispatch.',
-    'Installment sales require CNIC verification and documentation.',
-    'Supply Only: liability transfers at point of handover.',
-    'Send payment proof to +92 370 2578788 (WhatsApp) to confirm order.',
-    'Post-install issues must be reported within 48 hours of installation.',
+    'Installments require CNIC verification.',
+    'Supply Only: liability at point of handover.',
+    'Payment proof to +92 370 2578788 (WhatsApp).',
+    'Post-install issues: report within 48 hours.',
   ];
 
-  const half = Math.ceil(tcItems.length / 2);
-  const colTcW = (printW - 4) / 2;
+  const tcCols = 3;
+  const tcPerCol = Math.ceil(tcItems.length / tcCols);
+  const colTcW = (printW - (tcCols - 1) * 3) / tcCols;
   const tcRowH = 2.8;
-  const tcBgH = half * tcRowH + 4.5;
+  const tcBgH = tcPerCol * tcRowH + 4.0;
   doc.setFillColor(249, 249, 249);
   doc.rect(margin, y, printW, tcBgH, 'F');
 
   for (let i = 0; i < tcItems.length; i++) {
-    const col = i < half ? 0 : 1;
-    const row = i < half ? i : i - half;
-    const tx = margin + 3 + col * (colTcW + 4);
-    const tcy = y + 3.5 + row * tcRowH;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(120, 120, 120);
+    const col = Math.floor(i / tcPerCol);
+    const row = i % tcPerCol;
+    const tx = margin + 3 + col * (colTcW + 3);
+    const tcy = y + 3.2 + row * tcRowH;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(120, 120, 120);
     doc.text(`${i + 1}.`, tx, tcy);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(80, 80, 80);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(80, 80, 80);
     doc.text(tcItems[i], tx + 4, tcy, { maxWidth: colTcW - 5 });
   }
   y += tcBgH + 2;
