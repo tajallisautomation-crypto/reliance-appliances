@@ -4646,7 +4646,7 @@ async function generateQuotationPdf(opts: {
   const printW = W - margin * 2;
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const PKR = (n: number) => `PKR ${Math.round(n).toLocaleString('en-PK')}`;
+  const PKR = (n: number) => `PKR ${(Math.ceil(n / 100) * 100).toLocaleString('en-PK')}`;
   const fmtPKPhone = (p: string) => {
     const d = p.replace(/\D/g, '');
     if (d.length === 11 && d.startsWith('0')) return '+92 ' + d.slice(1, 4) + ' ' + d.slice(4);
@@ -5146,7 +5146,7 @@ async function generateQuotationPdf(opts: {
       let wy = rightY + wtyRowH;
       for (const we of warrantyEntries) {
         doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(25, 25, 25);
-        const wName = we.name.length > 20 ? we.name.slice(0, 18) + '...' : we.name;
+        const wName = we.name.length > 30 ? we.name.slice(0, 28) + '..' : we.name;
         doc.text(`· ${wName}`, rightX + 2, wy);
         if (we.coverage) {
           doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(80, 80, 80);
@@ -5518,7 +5518,7 @@ async function generateQuotationPdf(opts: {
       ['Balance', `${100 - advancePctDisplay}%  ${PKR(balanceAmt)}`],
       ['Due on', opts.advancePct === 0 ? 'Delivery' : opts.balanceNote || 'Delivery'],
       ...(opts.docType !== 'invoice' ? [['Valid', opts.validityHours >= 168 ? '7 days' : `${opts.validityHours}h`] as [string, string]] : []),
-      ...(showInstTeaser ? [['Installment', `~${PKR(opts.instTeaserMonthly!)}/mo  (${opts.instTeaserMonths} months)`] as [string, string]] : []),
+      // Installment teaser intentionally omitted — details shown in 12-MONTH OPTION block above
     ];
     for (const [lbl, val] of payRows) {
       const isOpt = lbl === 'Installment';
@@ -5543,11 +5543,7 @@ async function generateQuotationPdf(opts: {
   doc.text('Meezan Bank — F.B Area Branch', bankColX + 3, y + 24);
   if (!opts.advancePaid) {
     doc.setFont('helvetica', 'italic'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
-    const instrLines = doc.splitTextToSize(
-      'Send deposit slip on WhatsApp +92 370 2578788 to confirm order.',
-      bankColW - 6
-    );
-    doc.text(instrLines, bankColX + 3, y + 30);
+    doc.text('Send payment proof via WhatsApp to confirm.', bankColX + 3, y + 30, { maxWidth: bankColW - 6 });
   }
 
   // QR col — Raast payment QR only, centered
@@ -5566,8 +5562,10 @@ async function generateQuotationPdf(opts: {
     doc.rect(qr1X - 1, qrY - 1, QR_S + 2, QR_S + 2, 'S');
     doc.setLineWidth(0.2);
     doc.addImage(qrData, 'JPEG', qr1X, qrY, QR_S, QR_S);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(22, 101, 52);
-    doc.text('Raast / IBAN', qrColX + qrColW / 2, qrY + QR_S + 5, { align: 'center' });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(22, 101, 52);
+    doc.text("Tajalli's — Meezan Bank", qrColX + qrColW / 2, qrY + QR_S + 4.5, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(80, 80, 80);
+    doc.text('Raast / IBAN', qrColX + qrColW / 2, qrY + QR_S + 8, { align: 'center' });
   }
   y += payBankH + 2;
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
@@ -5617,8 +5615,8 @@ async function generateQuotationPdf(opts: {
     doc.addImage(fbQrData, 'PNG', fbQrX, fbQrY, FB_QR, FB_QR);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(4.5); doc.setTextColor(255, 255, 255);
     doc.text('Appliance Reliance', cx, fbQrY + FB_QR + 3, { align: 'center' });
-    doc.setFont('helvetica', 'italic'); doc.setFontSize(3.5); doc.setTextColor(180, 210, 255);
-    doc.text('Post queries in the group', cx, fbQrY + FB_QR + 5.5, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(3.5); doc.setTextColor(180, 210, 255);
+    doc.text('Facebook Group', cx, fbQrY + FB_QR + 5.5, { align: 'center' });
     const linkTextY = fbQrY + FB_QR + 5.5;
     doc.link(commAreaX + 1, linkTextY - 3, commAreaW - 2, 4, { url: 'https://www.facebook.com/share/g/18be5ayTCF/' });
   }
@@ -5638,12 +5636,14 @@ async function generateQuotationPdf(opts: {
     'Stock is subject to confirmation before payment.',
     'Warranty is provided by the official brand / manufacturer.',
     "Tajalli's facilitates warranty claims; manufacturer decides.",
-    'Installation is included only if listed in services above.',
+    'Installation is included only if explicitly listed in services section.',
     'Physical damage must be reported within 24 hours of delivery.',
     'Goods once unboxed are non-refundable unless under warranty.',
     'Payment terms apply as agreed before dispatch.',
-    'Installment sales require verification and documentation.',
-    'Supply Only: liability transfers after handover at delivery address.',
+    'Installment sales require CNIC verification and documentation.',
+    'Supply Only: liability transfers at point of handover.',
+    'Send payment proof to +92 370 2578788 (WhatsApp) to confirm order.',
+    'Post-install issues must be reported within 48 hours of installation.',
   ];
 
   const half = Math.ceil(tcItems.length / 2);
@@ -5671,7 +5671,7 @@ async function generateQuotationPdf(opts: {
   doc.line(margin, footerY, W - margin, footerY);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(120, 120, 120);
   doc.text(`${opts.refNumber}  ·  ${badgeLabel}  ·  PAGE 1 OF 1${opts.showNtn ? '  ·  NTN: 42101-3836602-3' : ''}`, margin, footerY + 4.5);
-  doc.text('tajallis.com.pk  ·  support@tajallis.com.pk  ·  +92 370 2578788', W - margin, footerY + 4.5, { align: 'right' });
+  doc.text('tajallis.com.pk  ·  support@tajallis.com.pk', W - margin, footerY + 4.5, { align: 'right' });
 
   return doc.output('blob');
 }
@@ -5715,7 +5715,7 @@ async function generateInstallmentAdvancePdf(opts: {
   const printW = W - margin * 2;
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const PKR = (n: number) => `PKR ${Math.round(n).toLocaleString('en-PK')}`;
+  const PKR = (n: number) => `PKR ${(Math.ceil(n / 100) * 100).toLocaleString('en-PK')}`;
   const now = new Date();
   const fmtDate = (d: Date) => d.toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' });
   const dateStr = fmtDate(now);
@@ -5952,7 +5952,13 @@ async function generateInstallmentAdvancePdf(opts: {
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(60, 60, 60);
   doc.text('IBAN: PK33MEZN0001060101874794', margin + 3, y + 19);
   doc.text('Meezan Bank — F.B Area Branch, KHI', margin + 3, y + 25);
-  if (qrData) { doc.addImage(qrData, 'JPEG', margin + printW - 21, y + 4, 18, 18); }
+  if (qrData) {
+    doc.addImage(qrData, 'JPEG', margin + printW - 21, y + 4, 18, 18);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(4.5); doc.setTextColor(22, 101, 52);
+    doc.text("Tajalli's — Meezan Bank", margin + printW - 12, y + 24, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(4); doc.setTextColor(80, 80, 80);
+    doc.text('Raast / IBAN', margin + printW - 12, y + 27, { align: 'center' });
+  }
   y += bdH + 6;
 
   // ── 8. CTA ────────────────────────────────────────────────────────────────
@@ -5996,7 +6002,7 @@ async function generateInstallmentPaymentPdf(opts: {
   const printW = W - margin * 2;
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const PKR = (n: number) => `PKR ${Math.round(n).toLocaleString('en-PK')}`;
+  const PKR = (n: number) => `PKR ${(Math.ceil(n / 100) * 100).toLocaleString('en-PK')}`;
   const fmtDate = (d: Date) => d.toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' });
   const now = new Date();
   const dateStr = fmtDate(now);
@@ -6206,6 +6212,8 @@ async function generateInstallmentPaymentPdf(opts: {
     doc.addImage(fbQrData, 'PNG', fbQrX, fbQrY, FB_QR, FB_QR);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(4); doc.setTextColor(255, 255, 255);
     doc.text('Appliance Reliance', cx, fbQrY + FB_QR + 2.5, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(3.5); doc.setTextColor(180, 210, 255);
+    doc.text('Facebook Group', cx, fbQrY + FB_QR + 4.5, { align: 'center' });
   }
   y += commH + 6;
 
@@ -6220,7 +6228,13 @@ async function generateInstallmentPaymentPdf(opts: {
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(60, 60, 60);
   doc.text('IBAN: PK33MEZN0001060101874794', margin + 3, y + 19);
   doc.text('Meezan Bank — F.B Area Branch, KHI', margin + 3, y + 25);
-  if (qrData) { doc.addImage(qrData, 'JPEG', margin + printW - 21, y + 4, 18, 18); }
+  if (qrData) {
+    doc.addImage(qrData, 'JPEG', margin + printW - 21, y + 4, 18, 18);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(4.5); doc.setTextColor(22, 101, 52);
+    doc.text("Tajalli's — Meezan Bank", margin + printW - 12, y + 24, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(4); doc.setTextColor(80, 80, 80);
+    doc.text('Raast / IBAN', margin + printW - 12, y + 27, { align: 'center' });
+  }
   y += bdH + 6;
 
   // ── 8. CTA ────────────────────────────────────────────────────────────────
@@ -6268,7 +6282,7 @@ async function generateServiceReceiptPdf(opts: {
   const printW = W - margin * 2;
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const PKR = (n: number) => `PKR ${Math.round(n).toLocaleString('en-PK')}`;
+  const PKR = (n: number) => `PKR ${(Math.ceil(n / 100) * 100).toLocaleString('en-PK')}`;
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' });
 
@@ -6563,7 +6577,13 @@ async function generateServiceReceiptPdf(opts: {
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(60, 60, 60);
   doc.text('IBAN: PK33MEZN0001060101874794', margin + 3, y + 19);
   doc.text('Meezan Bank — F.B Area Branch, KHI', margin + 3, y + 25);
-  if (qrData) doc.addImage(qrData, 'JPEG', margin + printW - 21, y + 4, 18, 18);
+  if (qrData) {
+    doc.addImage(qrData, 'JPEG', margin + printW - 21, y + 4, 18, 18);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(4.5); doc.setTextColor(22, 101, 52);
+    doc.text("Tajalli's — Meezan Bank", margin + printW - 12, y + 24, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(4); doc.setTextColor(80, 80, 80);
+    doc.text('Raast / IBAN', margin + printW - 12, y + 27, { align: 'center' });
+  }
   y += bdH + 4;
 
   // ── Footer ────────────────────────────────────────────────────────────────
