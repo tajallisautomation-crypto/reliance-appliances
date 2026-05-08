@@ -259,8 +259,9 @@ export function buildDetailedAdvisory(
       paras.push(
         `Setup cost: ${PKRfmt(equipCost)} equipment + ${PKRfmt(structCost)} structure = ${PKRfmt(totalSetupCost)} total.`
       );
+      const paybackYrs = monthlyBillSaving > 0 ? (totalSetupCost / (monthlyBillSaving * 12)).toFixed(1) : null;
       paras.push(
-        `Est. monthly savings: ~${PKRfmt(monthlyBillSaving)} on your KE bill. Cash & 2–12 month installment options.`
+        `Est. monthly savings: ~${PKRfmt(monthlyBillSaving)} on your KE bill${paybackYrs ? ` · Payback ~${paybackYrs} yrs` : ''}. Cash & 2–12 month options.`
       );
     } else {
       paras.push(

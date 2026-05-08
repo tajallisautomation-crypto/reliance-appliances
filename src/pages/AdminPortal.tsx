@@ -5149,11 +5149,11 @@ async function generateQuotationPdf(opts: {
         ? `${opts.discountType} Discount (fixed)`
         : `${opts.discountType} Discount (${opts.discount}%)`;
       pricingRows.push([discLabel, `- ${PKR(discountAmt)}`]);
-      if (opts.discountReason) pricingRows.push(['Reason', opts.discountReason]);
     }
 
     const pricingRowH = 4.8;
-    const pricingH = pricingRows.length * pricingRowH + 23;
+    const reasonH = (discountAmt > 0 && opts.discountReason) ? 7 : 0;
+    const pricingH = pricingRows.length * pricingRowH + 23 + reasonH;
     doc.setFillColor(250, 250, 250);
     doc.rect(rightX, rightY, rightW, pricingH, 'F');
     doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
@@ -5186,6 +5186,18 @@ async function generateQuotationPdf(opts: {
     doc.text(_balStatusLabel, rightX + 3, pry + 13);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(255, 255, 255);
     doc.text(PKR(_balStatusAmt), rightX + rightW - 3, pry + 13, { align: 'right' });
+
+    if (discountAmt > 0 && opts.discountReason) {
+      const calloutY = pry + 19;
+      doc.setFillColor(255, 247, 237);
+      doc.rect(rightX, calloutY, rightW, 7, 'F');
+      doc.setDrawColor(234, 88, 12); doc.setLineWidth(0.3);
+      doc.line(rightX, calloutY, rightX, calloutY + 7);
+      doc.setLineWidth(0.2);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(180, 80, 20);
+      doc.text('✶ ' + opts.discountReason, rightX + 3, calloutY + 4.5, { maxWidth: rightW - 6 });
+    }
+
     rightY += pricingH + 5;
   }
 
@@ -5221,10 +5233,16 @@ async function generateQuotationPdf(opts: {
       const statusLabel = effStatus === 'included' ? 'INCL' : 'BILLED';
       const statusColor: [number, number, number] = effStatus === 'included' ? [22, 163, 74] : [234, 88, 12];
       const amtLabel = effStatus === 'included' ? 'PKR 0' : PKR(svc.charged_amount);
+      const mktNote = effStatus === 'included' && svc.visible_value > 0
+        ? `↳ Market: ${PKR(svc.visible_value)}`
+        : '';
       return [
-        { content: svc.service_name, styles: { fontStyle: 'bold' as const } },
+        { content: mktNote ? `${svc.service_name}\n${mktNote}` : svc.service_name,
+          styles: { fontStyle: 'bold' as const } },
         { content: statusLabel, styles: { textColor: statusColor, fontStyle: 'bold' as const, halign: 'center' as const } },
-        amtLabel,
+        { content: amtLabel, styles: { fontStyle: 'bold' as const,
+          textColor: effStatus === 'included' ? [22, 163, 74] as [number,number,number] : [40,40,40] as [number,number,number],
+          halign: 'right' as const } },
       ];
     });
     autoTable(doc, {
@@ -5320,7 +5338,8 @@ async function generateQuotationPdf(opts: {
     const aColX2 = margin + eColW2 + 3;
     const aColW2 = printW - eColW2 - 3;
 
-    const energyH2 = 7 + dispRows2 * pwrRowH2 + 14;
+    const hasInverterAcKwh2 = energyLines2.some(l => /air.?cond|split.*ac/i.test(l.line.category || '') && /inverter/i.test(l.fullName));
+    const energyH2 = 7 + dispRows2 * pwrRowH2 + (hasInverterAcKwh2 ? 18 : 14);
     // Limit advisory to 3 paragraphs for single-page layout; estimate height at 48 chars/line
     const advParas2Preview = (advisory2 ? advisory2.paragraphs : ['']).slice(0, 3);
     const advEstH2 = 9 + advParas2Preview.reduce(
@@ -5365,8 +5384,19 @@ async function generateQuotationPdf(opts: {
       const hasEst2 = energyLines2.some(l => l.isEst);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(120, 80, 0);
       doc.text(`${hasEst2 ? 'Est. ' : ''}electricity bill ~${PKR(totalEffKwh * UNIT_RATE_PKR)}/month`, margin + 3, ey + 3.5);
-      doc.setFont('helvetica', 'italic'); doc.setFontSize(4.8); doc.setTextColor(160, 110, 40);
-      doc.text('Basis: AC ~8h/day  |  Fridge/Freezer ~24h/day', margin + 3, ey + 7.0);
+      const inverterAcKwh2 = energyLines2
+        .filter(l => /air.?cond|split.*ac/i.test(l.line.category || '') && /inverter/i.test(l.fullName))
+        .reduce((s, l) => s + l.kwh * l.line.qty, 0);
+      if (inverterAcKwh2 > 0) {
+        const co2SavedKg = Math.round(inverterAcKwh2 * 0.35 * 0.45);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(4.8); doc.setTextColor(34, 120, 60);
+        doc.text(`♻ ~${co2SavedKg} kg CO₂ saved/mo vs fixed-speed AC`, margin + 3, ey + 7.0);
+        doc.setFont('helvetica', 'italic'); doc.setFontSize(4.8); doc.setTextColor(160, 110, 40);
+        doc.text('Basis: AC ~8h/day  |  Fridge/Freezer ~24h/day', margin + 3, ey + 10.0);
+      } else {
+        doc.setFont('helvetica', 'italic'); doc.setFontSize(4.8); doc.setTextColor(160, 110, 40);
+        doc.text('Basis: AC ~8h/day  |  Fridge/Freezer ~24h/day', margin + 3, ey + 7.0);
+      }
     }
 
     // Right: Solar / UPS advisory
@@ -5540,6 +5570,12 @@ async function generateQuotationPdf(opts: {
       doc.text(val, margin + payColW - 3, ppy, { align: 'right' });
       ppy += 5.0;
     }
+    // Signature / acknowledgement line
+    const sigLineY = Math.min(ppy + 1, y + payBankH - 9);
+    doc.setDrawColor(160, 160, 160); doc.setLineWidth(0.3);
+    doc.line(margin + 3, sigLineY + 5, margin + payColW - 3, sigLineY + 5);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(140, 140, 140);
+    doc.text('Customer Acknowledgement', margin + 3, sigLineY + 7.5);
   }
 
   // Bank col
@@ -5615,15 +5651,15 @@ async function generateQuotationPdf(opts: {
     const fbQrX = commAreaX + (commAreaW - FB_QR) / 2;
     const fbQrY = y + 3;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(3.5); doc.setTextColor(255, 255, 255);
-    doc.text('JOIN OUR FB GROUP', cx, y + 2, { align: 'center' });
+    doc.text('PRIORITY SUPPORT', cx, y + 2, { align: 'center' });
     doc.setFillColor(255, 255, 255);
     doc.rect(fbQrX - 1, fbQrY - 1, FB_QR + 2, FB_QR + 2, 'F');
     doc.addImage(fbQrData, 'PNG', fbQrX, fbQrY, FB_QR, FB_QR);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(4); doc.setTextColor(255, 255, 255);
-    doc.text('Appliance Reliance', cx, fbQrY + FB_QR + 2.5, { align: 'center' });
+    doc.text('Emergency Repair', cx, fbQrY + FB_QR + 2.5, { align: 'center' });
     doc.setFont('helvetica', 'normal'); doc.setFontSize(3.5); doc.setTextColor(180, 210, 255);
-    doc.text('Facebook Group', cx, fbQrY + FB_QR + 4.5, { align: 'center' });
-    doc.link(commAreaX + 1, fbQrY + FB_QR + 1, commAreaW - 2, 4, { url: 'https://www.facebook.com/share/g/18be5ayTCF/' });
+    doc.text('+92 370 2578788', cx, fbQrY + FB_QR + 4.5, { align: 'center' });
+    doc.link(commAreaX + 1, fbQrY, commAreaW - 2, FB_QR + 6, { url: 'https://wa.me/923702578788' });
   }
   y += trustH + 2;
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
