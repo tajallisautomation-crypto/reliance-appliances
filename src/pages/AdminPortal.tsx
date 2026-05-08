@@ -4751,9 +4751,6 @@ async function generateQuotationPdf(opts: {
   };
 
   // ── ROW 1 LEFT: Client ────────────────────────────────────────────────────────
-  secLabel('CLIENT', margin, leftY);
-  leftY += 2.0;
-
   const custFields: Array<[string, string]> = [
     ['NAME', opts.customerName || '—'],
     ['PHONE', opts.customerPhone ? fmtPKPhone(opts.customerPhone) : '—'],
@@ -4778,15 +4775,19 @@ async function generateQuotationPdf(opts: {
     const rowH = custRowH + Math.max(0, vl.length - 1) * EXTRA_LINE_H;
     return { lbl, val, vl, rowH, isName };
   });
-  const custBlockH = custRows.reduce((s, r) => s + r.rowH, 0) + 5;
+  const custBlockH = custRows.reduce((s, r) => s + r.rowH, 0) + 9;
 
   doc.setFillColor(255, 247, 237);
   doc.rect(margin, leftY, leftW, custBlockH, 'F');
   doc.setDrawColor(234, 88, 12); doc.setLineWidth(0.5);
   doc.line(margin, leftY, margin, leftY + custBlockH);
   doc.setLineWidth(0.2);
+  doc.setFillColor(ORANGE);
+  doc.rect(margin, leftY, leftW, 4, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
+  doc.text('CLIENT', margin + 3, leftY + 3);
 
-  let cy = leftY + custRowH;
+  let cy = leftY + 4 + custRowH;
   for (const { lbl, vl, rowH, isName } of custRows) {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(180, 100, 50);
     doc.text(lbl, margin + 3, cy);
@@ -4798,9 +4799,6 @@ async function generateQuotationPdf(opts: {
   leftY += custBlockH + 2;
 
   // ── ROW 1 RIGHT: Invoice Meta ─────────────────────────────────────────────────
-  secLabel('INVOICE DETAILS', rightX, rightY);
-  rightY += 2.0;
-
   const metaFields: Array<[string, string]> = [
     ['REF', opts.refNumber],
     ['DATE', dateStr],
@@ -4811,11 +4809,15 @@ async function generateQuotationPdf(opts: {
     ...(opts.docType !== 'invoice' ? [['VALID', `${validUntilStr} (${opts.validityHours}h)`] as [string, string]] : []),
   ];
 
-  const metaBlockH = metaFields.length * 4.0 + 4;
+  const metaBlockH = metaFields.length * 4.0 + 8;
   doc.setFillColor(243, 244, 246);
   doc.rect(rightX, rightY, rightW, metaBlockH, 'F');
+  doc.setFillColor(DARK);
+  doc.rect(rightX, rightY, rightW, 4, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
+  doc.text('INVOICE DETAILS', rightX + 3, rightY + 3);
 
-  let my = rightY + 4.0;
+  let my = rightY + 4 + 4.0;
   for (const [lbl, val] of metaFields) {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(120, 120, 120);
     doc.text(lbl, rightX + 3, my);
@@ -4831,9 +4833,6 @@ async function generateQuotationPdf(opts: {
   rightY = leftY;
 
   // ── ROW 2 LEFT: Items table ───────────────────────────────────────────────────
-  secLabel('ITEMS', margin, leftY);
-  leftY += 2.0;
-
   // Merge similar categories: "Solar Systems" → "Solar", "AC Systems" → "AC" etc.
   const normCat = (c: string) => c.replace(/\s+systems?\s*$/i, '').replace(/\s+/g, ' ').trim() || c;
 
@@ -5043,7 +5042,10 @@ async function generateQuotationPdf(opts: {
   autoTable(doc, {
     startY: leftY,
     margin: { left: margin, right: leftAutoMarginRight },
-    head: [['PRODUCT / SPECS', 'QTY', 'UNIT', 'TOTAL']],
+    head: [
+      [{ content: 'ITEMS', colSpan: 4, styles: { fillColor: ORANGE, textColor: [255,255,255] as [number,number,number], fontSize: 7, fontStyle: 'bold' as const, cellPadding: { top: 2, bottom: 2, left: 3 } } }],
+      ['PRODUCT / SPECS', 'QTY', 'UNIT', 'TOTAL'],
+    ],
     body: itemsBody,
     columnStyles: {
       0: { cellWidth: 'auto' },
@@ -5068,8 +5070,6 @@ async function generateQuotationPdf(opts: {
     const wtyRowH = 2.9;
     const wtyModelH = 2.5;
     const totalWtyBodyH = warrantyEntries.reduce((s, we) => s + wtyRowH + (we.model ? wtyModelH : 0), 0) + 1;
-    secLabel('WARRANTY', rightX, rightY);
-    rightY += 2.0;
     doc.setFillColor(26, 26, 26);
     doc.rect(rightX, rightY, rightW, 3.5, 'F');
     doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(255, 255, 255);
@@ -5103,16 +5103,19 @@ async function generateQuotationPdf(opts: {
   // 12-MONTH OPTION — separator above, capped at RIGHT_CAP
   const _p12 = calcPlan(grandTotal, '12m');
   if (opts.saleType === 'cash' && grandTotal > 0) {
-    const instBoxH = 3 * 3.5 + 4;
-    if (rightY + 7 + instBoxH <= RIGHT_CAP) {
+    const _instBoxHCheck = 3 * 3.5 + 4 + 4;
+    if (rightY + 7 + _instBoxHCheck <= RIGHT_CAP) {
       doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.3);
       doc.line(rightX, rightY + 1, rightX + rightW, rightY + 1);
       doc.setLineWidth(0.2);
       rightY += 4;
-      secLabel('12-MONTH OPTION', rightX, rightY);
-      rightY += 2.0;
+      const instBoxH = 3 * 3.5 + 4 + 4;
       doc.setFillColor(255, 247, 237);
       doc.rect(rightX, rightY, rightW, instBoxH, 'F');
+      doc.setFillColor(ORANGE);
+      doc.rect(rightX, rightY, rightW, 4, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
+      doc.text('12-MONTH OPTION', rightX + 3, rightY + 3);
       doc.setDrawColor(ORANGE); doc.setLineWidth(0.4);
       doc.line(rightX, rightY, rightX, rightY + instBoxH);
       doc.setLineWidth(0.2);
@@ -5121,7 +5124,7 @@ async function generateQuotationPdf(opts: {
         [`Advance (${Math.round(_p12.advancePct * 100)}%)`, PKR(_p12.advance)],
         [`Monthly × ${_p12.monthlyPayments}`, `${PKR(_p12.monthly)}/mo`],
       ];
-      let iiy = rightY + 3.5;
+      let iiy = rightY + 4 + 3.5;
       for (const [lbl, val] of instRows) {
         doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(180, 80, 20);
         doc.text(lbl, rightX + 3, iiy);
@@ -5141,9 +5144,6 @@ async function generateQuotationPdf(opts: {
     doc.line(rightX, rightY + 1, rightX + rightW, rightY + 1);
     doc.setLineWidth(0.2);
     rightY += 4;
-    secLabel('PRICING', rightX, rightY);
-    rightY += 2.0;
-
     const pricingRows: Array<[string, string]> = [
       ['Product subtotal', PKR(productSubtotal)],
       ...(installSubtotal > 0 ? [['Installation', PKR(installSubtotal)] as [string, string]] : []),
@@ -5159,13 +5159,17 @@ async function generateQuotationPdf(opts: {
 
     const pricingRowH = 4.8;
     const reasonH = (discountAmt > 0 && opts.discountReason) ? 7 : 0;
-    const pricingH = pricingRows.length * pricingRowH + 23 + reasonH;
+    const pricingH = pricingRows.length * pricingRowH + 27 + reasonH;
     doc.setFillColor(250, 250, 250);
     doc.rect(rightX, rightY, rightW, pricingH, 'F');
     doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
     doc.rect(rightX, rightY, rightW, pricingH, 'S');
+    doc.setFillColor(DARK);
+    doc.rect(rightX, rightY, rightW, 4, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
+    doc.text('PRICING', rightX + 3, rightY + 3);
 
-    let pry = rightY + 4.5;
+    let pry = rightY + 4 + 4.5;
     for (const [lbl, val] of pricingRows) {
       doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(80, 80, 80);
       doc.text(lbl, rightX + 3, pry);
@@ -5230,8 +5234,6 @@ async function generateQuotationPdf(opts: {
   });
 
   if (activeServices.length > 0) {
-    secLabel('SERVICES', margin, leftY);
-    leftY += 2.0;
     const activeSvcBody: any[] = activeServices.map(svc => {
       const override = opts.installationType === 'installation-included'
         && /install/i.test(svc.service_name) && svc.status === 'not_selected';
@@ -5252,7 +5254,10 @@ async function generateQuotationPdf(opts: {
     autoTable(doc, {
       startY: leftY,
       margin: { left: margin, right: leftAutoMarginRight },
-      head: [['SERVICE', 'MARKET RATE', 'STATUS', 'AMOUNT']],
+      head: [
+        [{ content: 'SERVICES', colSpan: 4, styles: { fillColor: DARK, textColor: [255,255,255] as [number,number,number], fontSize: 7, fontStyle: 'bold' as const, cellPadding: { top: 2, bottom: 2, left: 3 } } }],
+        ['SERVICE', 'MARKET RATE', 'STATUS', 'AMOUNT'],
+      ],
       body: activeSvcBody,
       columnStyles: {
         0: { cellWidth: 'auto' },
@@ -5270,14 +5275,16 @@ async function generateQuotationPdf(opts: {
   }
 
   if (optionalServices.length > 0) {
-    secLabel('AVAILABLE ADD-ONS', margin, leftY);
-    leftY += 2.0;
-    const suggBoxH = optionalServices.length * 4.0 + 3;
+    const suggBoxH = optionalServices.length * 4.0 + 7;
     doc.setFillColor(250, 250, 250);
     doc.rect(margin, leftY, leftW, suggBoxH, 'F');
     doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
     doc.rect(margin, leftY, leftW, suggBoxH, 'S');
-    let sy = leftY + 3.0;
+    doc.setFillColor(DARK);
+    doc.rect(margin, leftY, leftW, 4, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
+    doc.text('AVAILABLE ADD-ONS', margin + 3, leftY + 3);
+    let sy = leftY + 4 + 3.0;
     for (const svc of optionalServices) {
       const priceStr = svc.display_value ?? (svc.visible_value > 0 ? PKR(svc.visible_value) : 'Contact us');
       doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(80, 80, 80);
@@ -5344,7 +5351,8 @@ async function generateQuotationPdf(opts: {
     const aColW2 = printW - eColW2 - 3;
 
     const hasInverterAcKwh2 = energyLines2.some(l => /air.?cond|split.*ac/i.test(l.line.category || '') && /inverter/i.test(l.fullName));
-    const energyH2 = 7 + dispRows2 * pwrRowH2 + (hasInverterAcKwh2 ? 18 : 14);
+    const hasAnyInverter2 = energyLines2.some(l => /inverter/i.test(l.fullName));
+    const energyH2 = 7 + dispRows2 * pwrRowH2 + (hasInverterAcKwh2 ? 18 : 14) + (hasAnyInverter2 ? 3 : 0);
     // Limit advisory to 3 paragraphs for single-page layout; estimate height at 48 chars/line
     const advParas2Preview = (advisory2 ? advisory2.paragraphs : ['']).slice(0, 3);
     const advEstH2 = 9 + advParas2Preview.reduce(
@@ -5401,6 +5409,19 @@ async function generateQuotationPdf(opts: {
       } else {
         doc.setFont('helvetica', 'italic'); doc.setFontSize(4.8); doc.setTextColor(160, 110, 40);
         doc.text('Basis: AC ~8h/day  |  Fridge/Freezer ~24h/day', margin + 3, ey + 7.0);
+      }
+      // Inverter savings vs non-inverter equivalents
+      if (hasAnyInverter2) {
+        const invSavingsKwh = energyLines2
+          .filter(l => /inverter/i.test(l.fullName))
+          .reduce((s, l) => {
+            const isAc = /air.?cond|split.*ac/i.test(l.line.category || '');
+            const factor = isAc ? 0.35 : 0.30;
+            return s + Math.round(l.kwh * l.line.qty * factor / (1 - factor));
+          }, 0);
+        const invBaseY = inverterAcKwh2 > 0 ? ey + 13.5 : ey + 10.5;
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(4.8); doc.setTextColor(22, 100, 50);
+        doc.text(`⚡ Inverter saving: ~${invSavingsKwh} kWh/mo vs non-inverter equivalents`, margin + 3, invBaseY);
       }
     }
 
@@ -5638,7 +5659,7 @@ async function generateQuotationPdf(opts: {
   const trustStats = [
     ['11+ yrs', 'IN BUSINESS'],
     ['24,000+', 'ORDERS FULFILLED'],
-    ['14,000+', 'HOUSEHOLDS SERVED'],
+    ['14,000+', 'LOCATIONS SERVED'],
     ['1,600+', 'COMMUNITY'],
   ];
   const segW = trustStatW / trustStats.length;
@@ -5666,53 +5687,6 @@ async function generateQuotationPdf(opts: {
     doc.text('+92 370 2578788', cx, fbQrY + FB_QR + 4.5, { align: 'center' });
     doc.link(commAreaX + 1, fbQrY, commAreaW - 2, FB_QR + 6, { url: 'https://wa.me/923702578788' });
   }
-  y += trustH + 2;
-  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
-  doc.line(margin, y, W - margin, y);
-  doc.setLineWidth(0.2);
-  y += 3;
-
-  // ── TERMS & CONDITIONS (3-column micro-text) ──────────────────────────────────
-  const tcItems = [
-    'Prices valid until stated validity date.',
-    'Stock subject to confirmation before payment.',
-    'Warranty by official brand / manufacturer.',
-    "Tajalli's facilitates; manufacturer decides.",
-    'Installation included only if listed in services.',
-    'Physical damage: report within 24 hours.',
-    'Unboxed goods non-refundable unless warranty.',
-    'Payment terms apply as agreed before dispatch.',
-    'Installments require CNIC verification.',
-    'Supply Only: liability at point of handover.',
-    'Payment proof to +92 370 2578788 (WhatsApp).',
-    'Post-install issues: report within 48 hours.',
-  ];
-
-  const tcCols = 3;
-  const tcPerCol = Math.ceil(tcItems.length / tcCols);
-  const colTcW = (printW - (tcCols - 1) * 3) / tcCols;
-  const tcRowH = 2.8;
-  const tcBgH = tcPerCol * tcRowH + 5;
-  // Anchor T&C to footer (286mm) so it always fits regardless of content above
-  const tcTitleY = Math.min(y, 286 - tcBgH - 5);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(ORANGE);
-  doc.text('TERMS & CONDITIONS', margin, tcTitleY);
-  const tcBodyY = tcTitleY + 3.5;
-  doc.setFillColor(249, 249, 249);
-  doc.rect(margin, tcBodyY, printW, tcBgH, 'F');
-
-  for (let i = 0; i < tcItems.length; i++) {
-    const col = Math.floor(i / tcPerCol);
-    const row = i % tcPerCol;
-    const tx = margin + 3 + col * (colTcW + 3);
-    const tcy = tcBodyY + 3.5 + row * tcRowH;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(120, 120, 120);
-    doc.text(`${i + 1}.`, tx, tcy);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(80, 80, 80);
-    doc.text(tcItems[i], tx + 4, tcy, { maxWidth: colTcW - 5 });
-  }
-  y = tcBodyY + tcBgH + 2;
-
   // ── FOOTER ────────────────────────────────────────────────────────────────────
   const footerY = 286;
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.3);
