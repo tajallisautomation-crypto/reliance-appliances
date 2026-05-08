@@ -4667,6 +4667,8 @@ async function generateQuotationPdf(opts: {
   try { qrData = await loadQrBase64(); } catch { /* skip */ }
   let fbQrData: string | null = null;
   try { fbQrData = await generateQrDataUrl('https://www.facebook.com/share/g/18be5ayTCF/'); } catch { /* skip */ }
+  let waQrData: string | null = null;
+  try { waQrData = await generateQrDataUrl('https://wa.me/923702578788'); } catch { /* skip */ }
 
   // ── Totals ───────────────────────────────────────────────────────────────────
   const productSubtotal   = opts.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
@@ -5100,40 +5102,33 @@ async function generateQuotationPdf(opts: {
     rightY += totalWtyBodyH + 4;
   }
 
-  // 12-MONTH OPTION — separator above, capped at RIGHT_CAP
+  // 12-MONTH OPTION — compact 2-line format, capped at RIGHT_CAP
   const _p12 = calcPlan(grandTotal, '12m');
   if (opts.saleType === 'cash' && grandTotal > 0) {
-    const _instBoxHCheck = 3 * 3.5 + 4 + 4;
-    if (rightY + 7 + _instBoxHCheck <= RIGHT_CAP) {
+    const instBoxH = 4 + 4 + 4; // header 4 + line1 4 + line2 4 = 12mm
+    if (rightY + 4 + instBoxH <= RIGHT_CAP) {
       doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.3);
       doc.line(rightX, rightY + 1, rightX + rightW, rightY + 1);
       doc.setLineWidth(0.2);
       rightY += 4;
-      const instBoxH = 3 * 3.5 + 4 + 4;
       doc.setFillColor(255, 247, 237);
       doc.rect(rightX, rightY, rightW, instBoxH, 'F');
       doc.setFillColor(ORANGE);
       doc.rect(rightX, rightY, rightW, 4, 'F');
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
-      doc.text('12-MONTH OPTION', rightX + 3, rightY + 3);
       doc.setDrawColor(ORANGE); doc.setLineWidth(0.4);
       doc.line(rightX, rightY, rightX, rightY + instBoxH);
       doc.setLineWidth(0.2);
-      const instRows: Array<[string, string]> = [
-        ['Total', PKR(_p12.total)],
-        [`Advance (${Math.round(_p12.advancePct * 100)}%)`, PKR(_p12.advance)],
-        [`Monthly × ${_p12.monthlyPayments}`, `${PKR(_p12.monthly)}/mo`],
-      ];
-      let iiy = rightY + 4 + 3.5;
-      for (const [lbl, val] of instRows) {
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(180, 80, 20);
-        doc.text(lbl, rightX + 3, iiy);
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(30, 30, 30);
-        doc.text(val, rightX + rightW - 3, iiy, { align: 'right' });
-        iiy += 3.5;
-      }
-      doc.setFont('helvetica', 'italic'); doc.setFontSize(4.5); doc.setTextColor(150, 100, 40);
-      doc.text('Ask us to activate this plan', rightX + 3, rightY + instBoxH - 1.5);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
+      doc.text('12-MONTH OPTION', rightX + 3, rightY + 3);
+      // Line 1: Total
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(180, 80, 20);
+      doc.text('Total', rightX + 3, rightY + 8);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(30, 30, 30);
+      doc.text(PKR(_p12.total), rightX + rightW - 3, rightY + 8, { align: 'right' });
+      // Line 2: Advance + Monthly combined
+      const advPct = Math.round(_p12.advancePct * 100);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(100, 60, 20);
+      doc.text(`${advPct}% adv ${PKR(_p12.advance)}  ·  ${PKR(_p12.monthly)}/mo × ${_p12.monthlyPayments}`, rightX + 3, rightY + 11.5, { maxWidth: rightW - 5 });
       rightY += instBoxH + 2;
     }
   }
@@ -5353,12 +5348,16 @@ async function generateQuotationPdf(opts: {
     const hasInverterAcKwh2 = energyLines2.some(l => /air.?cond|split.*ac/i.test(l.line.category || '') && /inverter/i.test(l.fullName));
     const hasAnyInverter2 = energyLines2.some(l => /inverter/i.test(l.fullName));
     const energyH2 = 7 + dispRows2 * pwrRowH2 + (hasInverterAcKwh2 ? 18 : 14) + (hasAnyInverter2 ? 3 : 0);
-    // Limit advisory to 3 paragraphs for single-page layout; estimate height at 48 chars/line
-    const advParas2Preview = (advisory2 ? advisory2.paragraphs : ['']).slice(0, 3);
+    // Estimate advisory height without paragraph limit so strip can stretch to fill whitespace
+    const advParas2Preview = advisory2 ? advisory2.paragraphs : [''];
     const advEstH2 = 9 + advParas2Preview.reduce(
       (sum, p) => sum + Math.ceil(p.length / 48) * 3.2 + 2, 0
     );
-    const stripH2 = Math.max(32, Math.max(energyH2, advEstH2));
+    const naturalStripH = Math.max(32, Math.max(energyH2, advEstH2));
+    // Stretch strip to fill whitespace before the fixed payment/trust/T&C block
+    const PAY_START_Y = 196;
+    const stretchTarget = PAY_START_Y - y - 12;
+    const stripH2 = Math.max(naturalStripH, Math.min(stretchTarget, naturalStripH + 55));
 
     // Left: Energy consumption
     doc.setFillColor(255, 253, 234);
@@ -5438,10 +5437,9 @@ async function generateQuotationPdf(opts: {
       : 'ENERGY ADVISORY';
     doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(ORANGE);
     doc.text(advTitle2, aColX2 + 3, y + 5);
-    const advParas2 = (advisory2
+    const advParas2 = advisory2
       ? advisory2.paragraphs
-      : ['Ask us for an energy-saving assessment and solar proposal tailored to your property type.']
-    ).slice(0, 3);
+      : ['Ask us for an energy-saving assessment and solar proposal tailored to your property type.'];
     let ay = y + 9;
     for (const para of advParas2) {
       const wrapped = doc.splitTextToSize(para, aColW2 - 5);
@@ -5647,7 +5645,7 @@ async function generateQuotationPdf(opts: {
 
   // ── TRUST + COMMUNITY STRIP (compact 16mm) ───────────────────────────────────
   const trustH = 16;
-  const trustStatW = Math.round(printW * 0.74);
+  const trustStatW = Math.round(printW * 0.67);
   const commAreaX = margin + trustStatW;
   const commAreaW = printW - trustStatW;
 
@@ -5671,22 +5669,92 @@ async function generateQuotationPdf(opts: {
     doc.text(lbl, sx, y + 10, { align: 'center' });
   });
 
-  if (fbQrData) {
-    const FB_QR = 7;
-    const cx = commAreaX + commAreaW / 2;
-    const fbQrX = commAreaX + (commAreaW - FB_QR) / 2;
-    const fbQrY = y + 3;
+  // Two QR codes side by side: FB (Priority Support) | WhatsApp (Emergency Support)
+  {
+    const QR_SIZE = 6;
+    const halfW = commAreaW / 2;
+    // Left half — Facebook community
+    const fbCx = commAreaX + halfW / 2;
+    const fbQrX = commAreaX + (halfW - QR_SIZE) / 2;
+    const fbQrY = y + 3.5;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(3.2); doc.setTextColor(255, 255, 255);
+    doc.text('PRIORITY SUPPORT', fbCx, y + 2.2, { align: 'center' });
+    if (fbQrData) {
+      doc.setFillColor(255, 255, 255);
+      doc.rect(fbQrX - 0.8, fbQrY - 0.8, QR_SIZE + 1.6, QR_SIZE + 1.6, 'F');
+      doc.addImage(fbQrData, 'PNG', fbQrX, fbQrY, QR_SIZE, QR_SIZE);
+      doc.link(fbQrX - 1, fbQrY - 1, QR_SIZE + 2, QR_SIZE + 2, { url: 'https://www.facebook.com/share/g/18be5ayTCF/' });
+    }
     doc.setFont('helvetica', 'bold'); doc.setFontSize(3.5); doc.setTextColor(255, 255, 255);
-    doc.text('PRIORITY SUPPORT', cx, y + 2, { align: 'center' });
-    doc.setFillColor(255, 255, 255);
-    doc.rect(fbQrX - 1, fbQrY - 1, FB_QR + 2, FB_QR + 2, 'F');
-    doc.addImage(fbQrData, 'PNG', fbQrX, fbQrY, FB_QR, FB_QR);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(4); doc.setTextColor(255, 255, 255);
-    doc.text('Emergency Repair', cx, fbQrY + FB_QR + 2.5, { align: 'center' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(3.5); doc.setTextColor(180, 210, 255);
-    doc.text('+92 370 2578788', cx, fbQrY + FB_QR + 4.5, { align: 'center' });
-    doc.link(commAreaX + 1, fbQrY, commAreaW - 2, FB_QR + 6, { url: 'https://wa.me/923702578788' });
+    doc.text('Appliance Reliance', fbCx, fbQrY + QR_SIZE + 2, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(3); doc.setTextColor(180, 210, 255);
+    doc.text('Facebook Group', fbCx, fbQrY + QR_SIZE + 4, { align: 'center' });
+
+    // Divider
+    doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.2);
+    doc.line(commAreaX + halfW, y + 2, commAreaX + halfW, y + trustH - 2);
+    doc.setLineWidth(0.2);
+
+    // Right half — WhatsApp emergency
+    const waCx = commAreaX + halfW + halfW / 2;
+    const waQrX = commAreaX + halfW + (halfW - QR_SIZE) / 2;
+    const waQrY = y + 3.5;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(3.2); doc.setTextColor(255, 255, 255);
+    doc.text('EMERGENCY SUPPORT', waCx, y + 2.2, { align: 'center' });
+    if (waQrData) {
+      doc.setFillColor(255, 255, 255);
+      doc.rect(waQrX - 0.8, waQrY - 0.8, QR_SIZE + 1.6, QR_SIZE + 1.6, 'F');
+      doc.addImage(waQrData, 'PNG', waQrX, waQrY, QR_SIZE, QR_SIZE);
+      doc.link(waQrX - 1, waQrY - 1, QR_SIZE + 2, QR_SIZE + 2, { url: 'https://wa.me/923702578788' });
+    }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(3.5); doc.setTextColor(255, 255, 255);
+    doc.text('+92 370 2578788', waCx, waQrY + QR_SIZE + 2, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(3); doc.setTextColor(180, 210, 255);
+    doc.text('Emergency Support', waCx, waQrY + QR_SIZE + 4, { align: 'center' });
   }
+
+  y += trustH + 2;
+  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
+  doc.line(margin, y, W - margin, y);
+  doc.setLineWidth(0.2);
+  y += 3;
+
+  // ── TERMS & CONDITIONS ─────────────────────────────────────────────────────────
+  const tcItems = [
+    'Prices valid until stated validity date.',
+    'Stock subject to confirmation before payment.',
+    'Warranty by official brand / manufacturer.',
+    "Tajalli's facilitates; manufacturer decides.",
+    'Installation included only if listed in services.',
+    'Physical damage: report within 24 hours.',
+    'Unboxed goods non-refundable unless warranty.',
+    'Payment terms apply as agreed before dispatch.',
+    'Installments require CNIC verification.',
+    'Supply Only: liability at point of handover.',
+    'Payment proof to +92 370 2578788 (WhatsApp).',
+    'Post-install issues: report within 48 hours.',
+  ];
+  const tcCols = 3;
+  const tcPerCol = Math.ceil(tcItems.length / tcCols);
+  const colTcW = (printW - (tcCols - 1) * 3) / tcCols;
+  const tcRowH = 2.8;
+  const tcBgH = tcPerCol * tcRowH + 5;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(ORANGE);
+  doc.text('TERMS & CONDITIONS', margin, y);
+  const tcBodyY = y + 3.5;
+  doc.setFillColor(249, 249, 249);
+  doc.rect(margin, tcBodyY, printW, tcBgH, 'F');
+  for (let i = 0; i < tcItems.length; i++) {
+    const col = Math.floor(i / tcPerCol);
+    const row = i % tcPerCol;
+    const tx = margin + 3 + col * (colTcW + 3);
+    const tcy = tcBodyY + 3.5 + row * tcRowH;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(120, 120, 120);
+    doc.text(`${i + 1}.`, tx, tcy);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(80, 80, 80);
+    doc.text(tcItems[i], tx + 4, tcy, { maxWidth: colTcW - 5 });
+  }
+
   // ── FOOTER ────────────────────────────────────────────────────────────────────
   const footerY = 286;
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.3);
