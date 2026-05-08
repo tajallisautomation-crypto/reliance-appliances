@@ -261,7 +261,12 @@ export function buildDetailedAdvisory(
       );
       const paybackYrs = monthlyBillSaving > 0 ? (totalSetupCost / (monthlyBillSaving * 12)).toFixed(1) : null;
       paras.push(
-        `Est. monthly savings: ~${PKRfmt(monthlyBillSaving)} on your KE bill${paybackYrs ? ` · Payback ~${paybackYrs} yrs` : ''}. Cash & 2–12 month options.`
+        `Est. monthly savings: ~${PKRfmt(monthlyBillSaving)} on your KE bill${paybackYrs ? ` · Payback ~${paybackYrs} yrs` : ''}. Cash & 2–12 month installment options.`
+      );
+      const instAdvance = Math.round(totalSetupCost * 0.30);
+      const instMonthly = Math.round((totalSetupCost - instAdvance) / 12);
+      paras.push(
+        `Inst. plan: ${PKRfmt(instAdvance)} advance + ${PKRfmt(instMonthly)}/month × 12 months.`
       );
     } else {
       paras.push(

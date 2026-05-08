@@ -4752,7 +4752,7 @@ async function generateQuotationPdf(opts: {
 
   // ── ROW 1 LEFT: Client ────────────────────────────────────────────────────────
   secLabel('CLIENT', margin, leftY);
-  leftY += 3.5;
+  leftY += 2.0;
 
   const custFields: Array<[string, string]> = [
     ['NAME', opts.customerName || '—'],
@@ -4799,7 +4799,7 @@ async function generateQuotationPdf(opts: {
 
   // ── ROW 1 RIGHT: Invoice Meta ─────────────────────────────────────────────────
   secLabel('INVOICE DETAILS', rightX, rightY);
-  rightY += 3.5;
+  rightY += 2.0;
 
   const metaFields: Array<[string, string]> = [
     ['REF', opts.refNumber],
@@ -4832,7 +4832,7 @@ async function generateQuotationPdf(opts: {
 
   // ── ROW 2 LEFT: Items table ───────────────────────────────────────────────────
   secLabel('ITEMS', margin, leftY);
-  leftY += 3.5;
+  leftY += 2.0;
 
   // Merge similar categories: "Solar Systems" → "Solar", "AC Systems" → "AC" etc.
   const normCat = (c: string) => c.replace(/\s+systems?\s*$/i, '').replace(/\s+/g, ' ').trim() || c;
@@ -4888,7 +4888,7 @@ async function generateQuotationPdf(opts: {
   };
 
   // ── Collect warranty entries (deduped across entire invoice) ─────────────────
-  const warrantyEntries: Array<{ name: string; coverage: string }> = [];
+  const warrantyEntries: Array<{ name: string; model?: string; coverage: string }> = [];
   const _wtySet = new Set<string>();
   for (const _line of opts.lines) {
     if (_line.isPackage && _line.packageComponents?.length) {
@@ -4903,8 +4903,7 @@ async function generateQuotationPdf(opts: {
       const _wtyKey = `${_line.name}|${_line.model || ''}`;
       if (!_wtySet.has(_wtyKey)) {
         _wtySet.add(_wtyKey);
-        const _wtyName = _line.model ? `${_dn} — ${_line.model}` : _dn;
-        warrantyEntries.push({ name: _wtyName, coverage: formatWty(_line.warranty) });
+        warrantyEntries.push({ name: _dn, model: _line.model || undefined, coverage: formatWty(_line.warranty) });
       }
     }
   }
@@ -5067,31 +5066,38 @@ async function generateQuotationPdf(opts: {
   // WARRANTY — first in right column, no top separator
   if (warrantyEntries.length > 0) {
     const wtyRowH = 2.9;
+    const wtyModelH = 2.5;
+    const totalWtyBodyH = warrantyEntries.reduce((s, we) => s + wtyRowH + (we.model ? wtyModelH : 0), 0) + 1;
     secLabel('WARRANTY', rightX, rightY);
-    rightY += 3.5;
+    rightY += 2.0;
     doc.setFillColor(26, 26, 26);
     doc.rect(rightX, rightY, rightW, 3.5, 'F');
     doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(255, 255, 255);
     doc.text('WARRANTY COVERAGE', rightX + 3, rightY + 2.5);
     rightY += 3.5;
     doc.setFillColor(248, 250, 252);
-    doc.rect(rightX, rightY, rightW, warrantyEntries.length * wtyRowH + 1, 'F');
+    doc.rect(rightX, rightY, rightW, totalWtyBodyH, 'F');
     doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.15);
-    doc.rect(rightX, rightY, rightW, warrantyEntries.length * wtyRowH + 1, 'S');
+    doc.rect(rightX, rightY, rightW, totalWtyBodyH, 'S');
     doc.setLineWidth(0.2);
     let wy = rightY + wtyRowH;
     for (const we of warrantyEntries) {
       doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(25, 25, 25);
-      const wName = we.name.length > 34 ? we.name.slice(0, 32) + '..' : we.name;
-      doc.text(`· ${wName}`, rightX + 2, wy);
+      const wName = doc.splitTextToSize(`· ${we.name}`, rightW - 28)[0];
+      doc.text(wName, rightX + 2, wy);
       if (we.coverage) {
         doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(80, 80, 80);
-        const covTxt = doc.splitTextToSize(we.coverage, rightW - 42);
+        const covTxt = doc.splitTextToSize(we.coverage, rightW - 28);
         doc.text(covTxt[0] || we.coverage, rightX + rightW - 2, wy, { align: 'right' });
       }
       wy += wtyRowH;
+      if (we.model) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(100, 100, 100);
+        doc.text(`Model: ${we.model}`, rightX + 5, wy);
+        wy += wtyModelH;
+      }
     }
-    rightY += warrantyEntries.length * wtyRowH + 1 + 4;
+    rightY += totalWtyBodyH + 4;
   }
 
   // 12-MONTH OPTION — separator above, capped at RIGHT_CAP
@@ -5104,7 +5110,7 @@ async function generateQuotationPdf(opts: {
       doc.setLineWidth(0.2);
       rightY += 4;
       secLabel('12-MONTH OPTION', rightX, rightY);
-      rightY += 3.5;
+      rightY += 2.0;
       doc.setFillColor(255, 247, 237);
       doc.rect(rightX, rightY, rightW, instBoxH, 'F');
       doc.setDrawColor(ORANGE); doc.setLineWidth(0.4);
@@ -5136,7 +5142,7 @@ async function generateQuotationPdf(opts: {
     doc.setLineWidth(0.2);
     rightY += 4;
     secLabel('PRICING', rightX, rightY);
-    rightY += 3.5;
+    rightY += 2.0;
 
     const pricingRows: Array<[string, string]> = [
       ['Product subtotal', PKR(productSubtotal)],
@@ -5225,7 +5231,7 @@ async function generateQuotationPdf(opts: {
 
   if (activeServices.length > 0) {
     secLabel('SERVICES', margin, leftY);
-    leftY += 3.5;
+    leftY += 2.0;
     const activeSvcBody: any[] = activeServices.map(svc => {
       const override = opts.installationType === 'installation-included'
         && /install/i.test(svc.service_name) && svc.status === 'not_selected';
@@ -5233,12 +5239,10 @@ async function generateQuotationPdf(opts: {
       const statusLabel = effStatus === 'included' ? 'INCL' : 'BILLED';
       const statusColor: [number, number, number] = effStatus === 'included' ? [22, 163, 74] : [234, 88, 12];
       const amtLabel = effStatus === 'included' ? 'PKR 0' : PKR(svc.charged_amount);
-      const mktNote = effStatus === 'included' && svc.visible_value > 0
-        ? `↳ Market: ${PKR(svc.visible_value)}`
-        : '';
+      const mktLabel = svc.visible_value > 0 ? PKR(svc.visible_value) : '—';
       return [
-        { content: mktNote ? `${svc.service_name}\n${mktNote}` : svc.service_name,
-          styles: { fontStyle: 'bold' as const } },
+        { content: svc.service_name, styles: { fontStyle: 'bold' as const } },
+        { content: mktLabel, styles: { textColor: [120, 120, 120] as [number,number,number], halign: 'right' as const } },
         { content: statusLabel, styles: { textColor: statusColor, fontStyle: 'bold' as const, halign: 'center' as const } },
         { content: amtLabel, styles: { fontStyle: 'bold' as const,
           textColor: effStatus === 'included' ? [22, 163, 74] as [number,number,number] : [40,40,40] as [number,number,number],
@@ -5248,12 +5252,13 @@ async function generateQuotationPdf(opts: {
     autoTable(doc, {
       startY: leftY,
       margin: { left: margin, right: leftAutoMarginRight },
-      head: [['SERVICE', 'STATUS', 'AMOUNT']],
+      head: [['SERVICE', 'MARKET RATE', 'STATUS', 'AMOUNT']],
       body: activeSvcBody,
       columnStyles: {
         0: { cellWidth: 'auto' },
-        1: { cellWidth: 14, halign: 'center' as const },
-        2: { cellWidth: 24, halign: 'right' as const },
+        1: { cellWidth: 24, halign: 'right' as const },
+        2: { cellWidth: 14, halign: 'center' as const },
+        3: { cellWidth: 22, halign: 'right' as const },
       },
       headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6 },
       bodyStyles: { fontSize: 6, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
@@ -5266,7 +5271,7 @@ async function generateQuotationPdf(opts: {
 
   if (optionalServices.length > 0) {
     secLabel('AVAILABLE ADD-ONS', margin, leftY);
-    leftY += 3.5;
+    leftY += 2.0;
     const suggBoxH = optionalServices.length * 4.0 + 3;
     doc.setFillColor(250, 250, 250);
     doc.rect(margin, leftY, leftW, suggBoxH, 'F');
