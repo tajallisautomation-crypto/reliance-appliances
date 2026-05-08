@@ -5080,7 +5080,7 @@ async function generateQuotationPdf(opts: {
   }
 
   const pricingRowH = 4.8;
-  const pricingH = pricingRows.length * pricingRowH + 15;
+  const pricingH = pricingRows.length * pricingRowH + 23;
   doc.setFillColor(250, 250, 250);
   doc.rect(rightX, rightY, rightW, pricingH, 'F');
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
@@ -5097,12 +5097,25 @@ async function generateQuotationPdf(opts: {
   doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
   doc.line(rightX + 3, pry - 1, rightX + rightW - 3, pry - 1);
 
+  // Grand total band (18mm tall) with balance/paid sub-label
   doc.setFillColor(ORANGE);
-  doc.rect(rightX, pry - 1, rightW, 10, 'F');
+  doc.rect(rightX, pry - 1, rightW, 18, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
-  doc.text('GRAND TOTAL', rightX + 3, pry + 6.5);
-  doc.text(PKR(grandTotal), rightX + rightW - 3, pry + 6.5, { align: 'right' });
-  rightY += pricingH + 2;
+  doc.text('GRAND TOTAL', rightX + 3, pry + 5.5);
+  doc.text(PKR(grandTotal), rightX + rightW - 3, pry + 5.5, { align: 'right' });
+
+  // Balance due / amount paid sub-label
+  const _gtAdvAmt = opts.advanceAmtFixed && opts.advanceAmtFixed > 0
+    ? opts.advanceAmtFixed
+    : Math.round(grandTotal * opts.advancePct / 100);
+  const _isFullyPaid = opts.advancePaid && _gtAdvAmt >= grandTotal;
+  const _balStatusLabel = _isFullyPaid ? 'AMOUNT PAID' : 'BALANCE DUE';
+  const _balStatusAmt = _isFullyPaid ? grandTotal : (grandTotal - (opts.advancePaid ? _gtAdvAmt : 0));
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 220, 185);
+  doc.text(_balStatusLabel, rightX + 3, pry + 13);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(255, 255, 255);
+  doc.text(PKR(_balStatusAmt), rightX + rightW - 3, pry + 13, { align: 'right' });
+  rightY += pricingH + 5;
 
   // ── RIGHT COLUMN EXTRAS (warranty, power, advisory, installment) ─────────────
   // Capped at RIGHT_CAP so the sync point stays within the single-page budget.
@@ -5112,7 +5125,12 @@ async function generateQuotationPdf(opts: {
   if (warrantyEntries.length > 0) {
     const wtyRowH = 2.9;
     const wtyBoxH = 3.5 + warrantyEntries.length * wtyRowH + 1;
-    if (rightY + 3.5 + wtyBoxH + 2 <= RIGHT_CAP) {
+    if (rightY + 3.5 + wtyBoxH + 5 <= RIGHT_CAP) {
+      // Separator before warranty
+      doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.3);
+      doc.line(rightX, rightY + 1, rightX + rightW, rightY + 1);
+      doc.setLineWidth(0.2);
+      rightY += 4;
       secLabel('WARRANTY', rightX, rightY);
       rightY += 3.5;
       doc.setFillColor(26, 26, 26);
@@ -5137,7 +5155,7 @@ async function generateQuotationPdf(opts: {
         }
         wy += wtyRowH;
       }
-      rightY += warrantyEntries.length * wtyRowH + 1 + 2;
+      rightY += warrantyEntries.length * wtyRowH + 1 + 5;
     }
   }
 
@@ -5155,7 +5173,12 @@ async function generateQuotationPdf(opts: {
   const _iMonthly = opts.instTeaserMonthly ?? (_iMonths > 0 ? Math.round((_iTotal - _iAdv) / _iMonths) : 0);
   if (opts.saleType === 'cash' && _iTotal > 0 && _iMonthly > 0) {
     const instBoxH = 3 * 3.5 + 4;
-    if (rightY + 3.5 + instBoxH + 2 <= RIGHT_CAP) {
+    if (rightY + 3.5 + instBoxH + 5 <= RIGHT_CAP) {
+      // Separator before installment option
+      doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.3);
+      doc.line(rightX, rightY + 1, rightX + rightW, rightY + 1);
+      doc.setLineWidth(0.2);
+      rightY += 4;
       secLabel('12-MONTH OPTION', rightX, rightY);
       rightY += 3.5;
       doc.setFillColor(255, 247, 237);
@@ -5197,19 +5220,28 @@ async function generateQuotationPdf(opts: {
   leftY += 3.5;
 
   const svcBody: any[] = filteredServices.map(svc => {
+    // When installationType is 'installation-included', force install services to display as included
+    const overrideIncluded = opts.installationType === 'installation-included'
+      && /install/i.test(svc.service_name)
+      && svc.status === 'not_selected';
+    const effectiveStatus = overrideIncluded ? 'included' : svc.status;
+
     // ASCII-only labels — Unicode symbols corrupt in jsPDF Helvetica (Latin-1 only)
-    const statusLabel = svc.status === 'included' ? 'INCL'
-      : svc.status === 'charged' ? 'BILLED'
+    const statusLabel = effectiveStatus === 'included' ? 'INCL'
+      : effectiveStatus === 'charged' ? 'BILLED'
       : (svc.visible_value > 0 || svc.display_value) ? 'OPT' : 'N/A';
-    const statusColor: [number, number, number] = svc.status === 'included' ? [22, 163, 74]
-      : svc.status === 'charged' ? [234, 88, 12]
+    const statusColor: [number, number, number] = effectiveStatus === 'included' ? [22, 163, 74]
+      : effectiveStatus === 'charged' ? [234, 88, 12]
       : (svc.visible_value > 0 || svc.display_value) ? [100, 100, 100]
       : [180, 180, 180];
     const valueLabel = svc.display_value ? svc.display_value
       : svc.visible_value > 0 ? PKR(svc.visible_value) : '-';
-    const chargedLabel = svc.status === 'included' ? 'PKR 0'
-      : svc.status === 'charged' ? PKR(svc.charged_amount)
-      : (svc.visible_value > 0 || svc.display_value) ? 'Ask' : '-';
+    // Replace ambiguous 'Ask' with definitive price or 'Not incl.' label
+    const chargedLabel = effectiveStatus === 'included' ? 'PKR 0'
+      : effectiveStatus === 'charged' ? PKR(svc.charged_amount)
+      : svc.display_value ? svc.display_value
+      : svc.visible_value > 0 ? PKR(svc.visible_value)
+      : 'Not incl.';
     return [
       { content: svc.service_name, styles: { fontStyle: 'bold' as const } },
       { content: statusLabel, styles: { textColor: statusColor, fontStyle: 'bold' as const, halign: 'center' as const } },
@@ -5239,7 +5271,11 @@ async function generateQuotationPdf(opts: {
   } // end if services
 
   // ── SYNC COLUMNS → FULL-WIDTH ZONE ───────────────────────────────────────────
-  let y = Math.max(leftY, rightY) + 1;
+  let y = Math.max(leftY, rightY) + 6;
+  // Horizontal rule to cleanly separate two-column zone from full-width sections
+  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
+  doc.line(margin, y - 3, W - margin, y - 3);
+  doc.setLineWidth(0.2);
 
   // ── FULL-WIDTH ENERGY CONSUMPTION + SOLAR/UPS ADVISORY ───────────────────────
   // Always rendered. Category-based kWh estimates fill in when product specs lack
@@ -5249,9 +5285,9 @@ async function generateQuotationPdf(opts: {
       if (kwhPerMonth > 0) return { kwh: kwhPerMonth, isEst: false };
       const cat = category.toLowerCase();
       const nm  = name.toLowerCase();
-      if (/air.?cond|split\s+ac|window\s+ac/i.test(cat) || /\bac\b/.test(nm))           return { kwh: 120, isEst: true };
-      if (/refrigerator|fridge/i.test(cat) || /fridge|refrig/i.test(nm))                return { kwh: 35,  isEst: true };
-      if (/deep.?freez|chest.?freez|vertical.?freez/i.test(cat) || /freezer/i.test(nm)) return { kwh: 42,  isEst: true };
+      if (/air.?cond|split\s+ac|window\s+ac/i.test(cat) || /\bac\b/.test(nm))           return { kwh: 240, isEst: true };  // 8h/day @ ~1 kW avg
+      if (/refrigerator|fridge/i.test(cat) || /fridge|refrig/i.test(nm))                return { kwh: 100, isEst: true };  // 24h/day operation
+      if (/deep.?freez|chest.?freez|vertical.?freez/i.test(cat) || /freezer/i.test(nm)) return { kwh: 150, isEst: true };  // 24h/day operation
       if (/washing|washer/i.test(cat))                                                   return { kwh: 30,  isEst: true };
       if (/microwave/i.test(cat))                                                        return { kwh: 12,  isEst: true };
       if (/water.?heater|geyser/i.test(cat))                                             return { kwh: 45,  isEst: true };
@@ -5268,18 +5304,22 @@ async function generateQuotationPdf(opts: {
       .filter(l => l.kwh > 0 && !/solar.*inv|inverter.*sys/i.test(l.line.category || ''));
     const totalEffKwh = energyLines2.reduce((s, l) => s + l.kwh * l.line.qty, 0);
 
-    const advisoryLines2 = opts.lines.map(l => ({
-      name: l.displayPrefix ? `${l.displayPrefix}${l.name}` : l.name,
-      category: l.category || '',
-      kwhPerMonth: l.kwhPerMonth || 0,
-      qty: l.qty,
-      keySpec: l.keySpec,
-    }));
+    const advisoryLines2 = opts.lines.map(l => {
+      const fullName = l.displayPrefix ? `${l.displayPrefix}${l.name}` : l.name;
+      const energyEntry = energyLines2.find(e => e.line === l);
+      return {
+        name: fullName,
+        category: l.category || '',
+        kwhPerMonth: energyEntry ? energyEntry.kwh : (l.kwhPerMonth || 0),
+        qty: l.qty,
+        keySpec: l.keySpec,
+      };
+    });
     const advisory2 = buildDetailedAdvisory(opts.customerType, advisoryLines2);
 
     const pwrRowH2  = 3.0;
     const dispRows2 = Math.min(energyLines2.length, 6);
-    const stripH2   = Math.max(24, 7 + dispRows2 * pwrRowH2 + 8);
+    const stripH2   = Math.max(32, 7 + dispRows2 * pwrRowH2 + 14);
 
     const eColW2 = Math.round(printW * 0.48);
     const aColX2 = margin + eColW2 + 3;
@@ -5322,6 +5362,8 @@ async function generateQuotationPdf(opts: {
       const hasEst2 = energyLines2.some(l => l.isEst);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(120, 80, 0);
       doc.text(`${hasEst2 ? 'Est. ' : ''}electricity bill ~${PKR(Math.round(totalEffKwh * 50))}/month`, margin + 3, ey + 3.5);
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(4.8); doc.setTextColor(160, 110, 40);
+      doc.text('Basis: AC ~8h/day  |  Fridge/Freezer ~24h/day', margin + 3, ey + 7.0);
     }
 
     // Right: Solar / UPS advisory
@@ -5351,7 +5393,12 @@ async function generateQuotationPdf(opts: {
       if (ay >= y + stripH2 - 2) break;
     }
 
-    y += stripH2 + 3;
+    y += stripH2 + 2;
+    // Separator below energy strip
+    doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
+    doc.line(margin, y, W - margin, y);
+    doc.setLineWidth(0.2);
+    y += 5;
   }
 
   // ── INSTALLMENT SCHEDULE (full-width, when saleType=installment) ─────────────
@@ -5407,13 +5454,16 @@ async function generateQuotationPdf(opts: {
   }
 
   // ── Page-break guard — if bottom sections won't fit, start fresh page ─────────
-  const BOTTOM_H = 44 + 20 + 27; // payment+label (44) + trust strip (20) + T&C+label (27) = 91
+  const BOTTOM_H = 50 + 28 + 32; // payment+label (50) + trust strip (28) + T&C+label (32) = 110
   if (y + BOTTOM_H > 282) {
     doc.addPage();
     y = margin + 5;
   }
 
   // ── PAYMENT + BANK + QR (merged full-width block) ─────────────────────────────
+  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
+  doc.line(margin, y - 1, W - margin, y - 1);
+  doc.setLineWidth(0.2);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
   doc.text('PAYMENT & BANK TRANSFER', margin, y);
   y += 3.5;
@@ -5520,6 +5570,10 @@ async function generateQuotationPdf(opts: {
     doc.text('Raast / IBAN', qrColX + qrColW / 2, qrY + QR_S + 5, { align: 'center' });
   }
   y += payBankH + 2;
+  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
+  doc.line(margin, y, W - margin, y);
+  doc.setLineWidth(0.2);
+  y += 3;
 
   // ── TRUST + COMMUNITY STRIP ───────────────────────────────────────────────────
   const trustH = 22;
@@ -5569,6 +5623,10 @@ async function generateQuotationPdf(opts: {
     doc.link(commAreaX + 1, linkTextY - 3, commAreaW - 2, 4, { url: 'https://www.facebook.com/share/g/18be5ayTCF/' });
   }
   y += trustH + 2;
+  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
+  doc.line(margin, y, W - margin, y);
+  doc.setLineWidth(0.2);
+  y += 3;
 
   // ── TERMS & CONDITIONS (2-column micro-text) ──────────────────────────────────
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(ORANGE);
@@ -5717,6 +5775,9 @@ async function generateInstallmentAdvancePdf(opts: {
   y += custHAdv + 4;
 
   // ── 4. Products table ──────────────────────────────────────────────────────
+  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
+  doc.line(margin, y - 1, W - margin, y - 1);
+  doc.setLineWidth(0.2);
   const productSubtotal = opts.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
   const discountAmt = Math.round(productSubtotal * opts.discount / 100);
   const cashPrice = productSubtotal - discountAmt;
@@ -5772,6 +5833,10 @@ async function generateInstallmentAdvancePdf(opts: {
   y += 17;
 
   // ── 6. Installment schedule table ─────────────────────────────────────────
+  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
+  doc.line(margin, y - 1, W - margin, y - 1);
+  doc.setLineWidth(0.2);
+  y += 2;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(40, 40, 40);
   doc.text('INSTALLMENT SCHEDULE', margin, y + 1);
   y += 5;
@@ -5999,6 +6064,9 @@ async function generateInstallmentPaymentPdf(opts: {
   y += custHPay + 4;
 
   // ── 4. Payment highlight box ───────────────────────────────────────────────
+  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
+  doc.line(margin, y - 1, W - margin, y - 1);
+  doc.setLineWidth(0.2);
   const phH = 28;
   doc.setFillColor(255, 247, 237);
   doc.rect(margin, y, printW, phH, 'F');
@@ -6046,6 +6114,10 @@ async function generateInstallmentPaymentPdf(opts: {
   y = (doc as any).lastAutoTable.finalY + 6;
 
   // ── 6. Full installment schedule ───────────────────────────────────────────
+  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
+  doc.line(margin, y - 1, W - margin, y - 1);
+  doc.setLineWidth(0.2);
+  y += 2;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(40, 40, 40);
   doc.text('INSTALLMENT SCHEDULE', margin, y + 1);
   y += 5;
@@ -6318,6 +6390,9 @@ async function generateServiceReceiptPdf(opts: {
   }
 
   // ── Work Performed table ──────────────────────────────────────────────────
+  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
+  doc.line(margin, y - 1, W - margin, y - 1);
+  doc.setLineWidth(0.2);
   const workLines = opts.jobLines.filter(l => l.type === 'work');
   const partLines = opts.jobLines.filter(l => l.type === 'part');
 
@@ -6402,6 +6477,10 @@ async function generateServiceReceiptPdf(opts: {
   }
 
   // ── Totals block ──────────────────────────────────────────────────────────
+  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
+  doc.line(margin, y, W - margin, y);
+  doc.setLineWidth(0.2);
+  y += 3;
   const workTotal = opts.jobLines.filter(l => l.type === 'work').reduce((s, l) => s + l.qty * l.unitPrice, 0);
   const partsTotal = opts.jobLines.filter(l => l.type === 'part').reduce((s, l) => s + l.qty * l.unitPrice, 0);
   const customTotal = opts.customCharges.reduce((s, c) => s + c.amount, 0);
@@ -6470,6 +6549,10 @@ async function generateServiceReceiptPdf(opts: {
   }
 
   // ── Bank transfer ─────────────────────────────────────────────────────────
+  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
+  doc.line(margin, y, W - margin, y);
+  doc.setLineWidth(0.2);
+  y += 3;
   const bdH = 28;
   doc.setFillColor(240, 253, 244);
   doc.rect(margin, y, printW, bdH, 'F');

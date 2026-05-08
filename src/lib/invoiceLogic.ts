@@ -229,23 +229,44 @@ export function buildDetailedAdvisory(
 
   // house
   const paras: string[] = [];
-  if (!hasSolar && totalKwh >= 50) {
-    const systemKw = totalKwh >= 150 ? 5 : totalKwh >= 80 ? 3 : 2;
-    const monthlyGen = systemKw * 4 * 30;
-    const offsetUnits = Math.min(totalKwh, monthlyGen);
-    const billSaving = Math.round(offsetUnits * 50);
-    paras.push(
-      `Your selected appliances draw approximately ${totalKwh} units/month. ` +
-      `A ${systemKw}kW hybrid solar system generates ~${monthlyGen} units/month, ` +
-      `offsetting ~${offsetUnits} units and saving ~PKR ${billSaving.toLocaleString('en-PK')}/month on your KE bill. ` +
-      `Cash and 12–36 month installment packages available.`
-    );
-  } else if (!hasSolar) {
-    paras.push(
-      'A solar package can significantly reduce your monthly electricity bill. ' +
-      'Ask us for a free solar proposal — we design systems for 1–3 bedroom homes starting at 1.5kW. ' +
-      'Cash and installment options available.'
-    );
+  const PKRfmt = (n: number) => `PKR ${Math.round(n).toLocaleString('en-PK')}`;
+  if (!hasSolar) {
+    const dailyKwh = totalKwh / 30;
+    // Round up to nearest 0.5 kW, minimum 1 kW (5 peak sun hours for Karachi)
+    let systemKw = Math.max(1, Math.ceil((dailyKwh / 5) * 2) / 2);
+
+    // Tiered equipment cost per kW (user-defined pricing)
+    let equipCostPerKw: number;
+    if (systemKw <= 2) equipCostPerKw = 200_000;
+    else if (systemKw <= 3) equipCostPerKw = 180_000;
+    else equipCostPerKw = 160_000;
+
+    const equipCost = Math.round(systemKw * equipCostPerKw);
+    const structCost = Math.round(systemKw * 1000 * 30); // PKR 30/Watt
+    const totalSetupCost = equipCost + structCost;
+
+    const monthlyGen = Math.round(systemKw * 5 * 30);
+    const offsetUnits = totalKwh > 0 ? Math.min(totalKwh, monthlyGen) : monthlyGen;
+    const monthlyBillSaving = Math.round(offsetUnits * 50);
+
+    if (totalKwh >= 30) {
+      paras.push(
+        `Your appliances draw ~${totalKwh} kWh/month. A ${systemKw}kW hybrid solar system is recommended — ` +
+        `generating ~${monthlyGen} kWh/month to cover this load.`
+      );
+      paras.push(
+        `Setup cost: ${PKRfmt(equipCost)} equipment + ${PKRfmt(structCost)} structure = ${PKRfmt(totalSetupCost)} total.`
+      );
+      paras.push(
+        `Est. monthly savings: ~${PKRfmt(monthlyBillSaving)} on your KE bill. Cash & 12–36 month installment options.`
+      );
+    } else {
+      paras.push(
+        'A solar package can significantly reduce your electricity bill. ' +
+        `1kW system costs ~${PKRfmt(200_000 + 30_000)} (equipment + structure). ` +
+        'Ask us for a free proposal.'
+      );
+    }
   }
 
   for (const l of lines) {
