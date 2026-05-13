@@ -142,10 +142,10 @@ export default function Partner() {
         <div className="absolute inset-0 opacity-[0.03]"
           style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
         <div className="relative max-w-3xl mx-auto">
-          <p className="text-brand-400 text-xs font-bold uppercase tracking-[0.2em] mb-6">B2B Partnership</p>
+          <p className="text-brand-300 text-xs font-bold uppercase tracking-[0.2em] mb-6">B2B Partnership</p>
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-black text-white leading-[1.05] tracking-tight mb-6">
             You make it.<br />
-            <span className="text-brand-400">We put it in 14,400 hands.</span>
+            <span className="text-brand-300">We put it in 14,400 hands.</span>
           </h1>
           <p className="text-gray-400 text-xl mb-4 max-w-xl mx-auto">
             No upfront investment from you. Pay-as-it-sells. Zero credit risk.
@@ -170,7 +170,7 @@ export default function Partner() {
       {/* ── INFRASTRUCTURE STATS ─────────────────────────────────── */}
       <section className="border-b border-gray-100 py-16 bg-white">
         <div className="max-w-5xl mx-auto px-4">
-          <p className="text-center text-gray-400 text-xs font-bold uppercase tracking-widest mb-10">
+          <p className="text-center text-gray-500 text-xs font-bold uppercase tracking-widest mb-10">
             What you're buying into
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">

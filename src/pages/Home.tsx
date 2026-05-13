@@ -15,7 +15,7 @@ const HOME_CATEGORIES = [
   { id: 'washing-machines',   name: 'Washing Machines',  Icon: Shirt,            color: 'text-indigo-500', to: '/products?category=washing-machines'   },
   { id: 'freezers',           name: 'Freezers',          Icon: Snowflake,        color: 'text-sky-500',    to: '/products?category=freezers'           },
   { id: 'televisions',        name: 'Televisions',       Icon: Tv,               color: 'text-gray-700',   to: '/products?category=televisions'        },
-  { id: 'solar',              name: 'Solar & Energy',    Icon: Sun,              color: 'text-gold-500',   to: '/solar'                                },
+  { id: 'solar',              name: 'Solar & Energy',    Icon: Sun,              color: 'text-gold-700',   to: '/solar'                                },
   { id: 'kitchen-appliances', name: 'Kitchen',           Icon: UtensilsCrossed,  color: 'text-brand-500', to: '/products?category=kitchen-appliances' },
   { id: 'water-dispensers',   name: 'Water Dispensers',  Icon: Droplets,         color: 'text-teal-500',   to: '/products?category=water-dispensers'   },
   { id: 'small-appliances',   name: 'Small Appliances',  Icon: Plug,             color: 'text-purple-500', to: '/products?category=small-appliances'   },
@@ -98,13 +98,13 @@ export default function Home() {
           <div>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-5">
               <span className="text-brand-500 text-xs font-bold uppercase tracking-[0.2em]">Karachi</span>
-              <span className="text-brand-300 text-xs">·</span>
+              <span className="text-brand-400 text-xs">·</span>
               <span className="text-brand-500 text-xs font-bold uppercase tracking-[0.2em]">Since 2015</span>
-              <span className="text-brand-300 text-xs">·</span>
+              <span className="text-brand-400 text-xs">·</span>
               <span className="text-brand-500 text-xs font-bold uppercase tracking-[0.2em] whitespace-nowrap">11 Years of Trust</span>
             </div>
             <h1 className="leading-[1.06] tracking-tight mb-6">
-              <span className="block text-2xl md:text-3xl lg:text-4xl font-bold text-gray-400 mb-2 tracking-normal">
+              <span className="block text-2xl md:text-3xl lg:text-4xl font-bold text-gray-500 mb-2 tracking-normal">
                 Home Appliances &amp; Solar Solutions
               </span>
               <span className="block text-5xl md:text-6xl lg:text-[4.5rem] font-black text-brand-500">
@@ -130,7 +130,7 @@ export default function Home() {
                 {[
                   { Icon: CalendarDays, value: '11 Years',  label: 'Established 2015', color: 'text-brand-500' },
                   { Icon: Users,        value: '14,400+',   label: 'Customer Loyalty', color: 'text-blue-500'  },
-                  { Icon: Star,         value: '75%',       label: 'Repeat Customers', color: 'text-gold-500'  },
+                  { Icon: Star,         value: '75%',       label: 'Repeat Customers', color: 'text-brand-500' },
                   { Icon: Package,      value: '24,000+',   label: 'Orders Fulfilled', color: 'text-green-500' },
                 ].map(({ Icon, value, label, color }) => (
                   <div key={label}
@@ -486,7 +486,7 @@ export default function Home() {
       <section className="max-w-7xl mx-auto px-4 py-14">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <p className="text-gold-600 text-xs font-bold uppercase tracking-widest mb-1">Featured</p>
+            <p className="text-brand-500 text-xs font-bold uppercase tracking-widest mb-1">Featured</p>
             <h2 className="text-2xl md:text-3xl font-black text-gray-900">Top Picks for You</h2>
           </div>
           <Link to="/products?featured=true"

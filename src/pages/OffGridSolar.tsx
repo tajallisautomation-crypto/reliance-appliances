@@ -65,7 +65,7 @@ function StatPill({ label, value }: { label: string; value: string }) {
 function SpecRow({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub?: string }) {
   return (
     <div className="flex items-center gap-4 py-4 border-b border-white/8 last:border-0">
-      <div className="w-9 h-9 rounded-xl bg-brand-500/15 flex items-center justify-center text-brand-400 flex-shrink-0">
+      <div className="w-9 h-9 rounded-xl bg-brand-500/15 flex items-center justify-center text-brand-300 flex-shrink-0">
         {icon}
       </div>
       <div className="flex-1 min-w-0">
@@ -148,7 +148,7 @@ function OffGridCalculator() {
             City
           </label>
           <div className="bg-white/8 border border-white/12 rounded-2xl px-4 py-3.5 text-gray-300 text-sm flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-brand-400 flex-shrink-0" />
+            <MapPin className="w-4 h-4 text-brand-300 flex-shrink-0" />
             Karachi (4.5 peak sun hours)
           </div>
         </div>
@@ -165,7 +165,7 @@ function OffGridCalculator() {
       {/* Results */}
       {result && (
         <div ref={resultRef} className="mt-4 bg-white/5 border border-brand-500/20 rounded-3xl p-6 backdrop-blur-sm space-y-1 animate-fadeIn">
-          <div className="text-xs font-medium text-brand-400 mb-4 tracking-wider uppercase">
+          <div className="text-xs font-medium text-brand-300 mb-4 tracking-wider uppercase">
             Your Proposed Off-Grid System
           </div>
 
@@ -366,7 +366,7 @@ export default function OffGridSolar() {
         <div className="absolute top-20 left-1/4 w-64 h-64 bg-yellow-500/5 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative max-w-5xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 bg-brand-500/10 border border-brand-500/20 text-brand-400 text-xs font-medium px-4 py-2 rounded-full mb-8 tracking-wider uppercase">
+          <div className="inline-flex items-center gap-2 bg-brand-500/10 border border-brand-500/20 text-brand-300 text-xs font-medium px-4 py-2 rounded-full mb-8 tracking-wider uppercase">
             <Sun className="w-3.5 h-3.5" />
             Off-Grid Solar — Karachi
           </div>
@@ -430,7 +430,7 @@ export default function OffGridSolar() {
       <section id="calculator" className="py-20 px-4">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 text-brand-400 text-xs font-medium tracking-wider uppercase mb-4">
+            <div className="inline-flex items-center gap-2 text-brand-300 text-xs font-medium tracking-wider uppercase mb-4">
               <Zap className="w-3.5 h-3.5" /> Off-Grid Independence Calculator
             </div>
             <h2 className="text-3xl md:text-4xl font-black mb-3">Size Your System Instantly</h2>
@@ -471,7 +471,7 @@ export default function OffGridSolar() {
         <div className="max-w-5xl mx-auto">
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <div>
-              <div className="text-brand-400 text-xs font-medium tracking-wider uppercase mb-4">Complete Package</div>
+              <div className="text-brand-300 text-xs font-medium tracking-wider uppercase mb-4">Complete Package</div>
               <h2 className="text-3xl md:text-4xl font-black mb-4">
                 Everything Included.
                 <br />
@@ -491,7 +491,7 @@ export default function OffGridSolar() {
                   '1-Year Service Warranty',
                 ].map(item => (
                   <div key={item} className="flex items-center gap-2.5 text-sm text-gray-300">
-                    <CheckCircle className="w-4 h-4 text-brand-400 flex-shrink-0" />
+                    <CheckCircle className="w-4 h-4 text-brand-300 flex-shrink-0" />
                     {item}
                   </div>
                 ))}
@@ -505,7 +505,7 @@ export default function OffGridSolar() {
                 <div className="bg-white/4 border border-white/8 rounded-2xl p-4">
                   <div className="flex items-center justify-between mb-1">
                     <div className="font-bold text-white text-sm">Tubular Lead-Acid</div>
-                    <div className="text-brand-400 text-xs font-medium">Budget-Friendly</div>
+                    <div className="text-brand-300 text-xs font-medium">Budget-Friendly</div>
                   </div>
                   <div className="text-gray-500 text-xs leading-relaxed">
                     Lower upfront cost. 3–5 year life. Requires distilled water top-up every 3 months. Best for tight budgets.
@@ -515,7 +515,7 @@ export default function OffGridSolar() {
                 <div className="bg-brand-500/8 border border-brand-500/20 rounded-2xl p-4">
                   <div className="flex items-center justify-between mb-1">
                     <div className="font-bold text-white text-sm">Lithium (LiFePO₄)</div>
-                    <div className="text-brand-400 text-xs font-medium">Recommended</div>
+                    <div className="text-brand-300 text-xs font-medium">Recommended</div>
                   </div>
                   <div className="text-gray-500 text-xs leading-relaxed">
                     3× longer life (10+ years). Zero maintenance. Lighter. Safe chemistry. Best ROI over time.
@@ -524,7 +524,7 @@ export default function OffGridSolar() {
                 </div>
               </div>
               <div className="flex items-center gap-2 text-xs text-gray-600 pt-2">
-                <Shield className="w-3.5 h-3.5 text-brand-400" />
+                <Shield className="w-3.5 h-3.5 text-brand-300" />
                 Both options include installation & warranty
               </div>
             </div>
@@ -536,7 +536,7 @@ export default function OffGridSolar() {
       <section id="consult" className="py-20 px-4 bg-white/[0.02] border-y border-white/5">
         <div className="max-w-xl mx-auto">
           <div className="text-center mb-10">
-            <div className="text-brand-400 text-xs font-medium tracking-wider uppercase mb-4">Free Consultation</div>
+            <div className="text-brand-300 text-xs font-medium tracking-wider uppercase mb-4">Free Consultation</div>
             <h2 className="text-3xl md:text-4xl font-black mb-3">Talk to a Solar Expert</h2>
             <p className="text-gray-500 text-sm leading-relaxed">
               Leave your details and our Karachi-based solar engineer will call you within 2 hours — no pushy sales, just honest advice.

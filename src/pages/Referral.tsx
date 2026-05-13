@@ -60,7 +60,7 @@ export default function ReferralPage() {
           </div>
           <h1 className="text-3xl md:text-5xl font-black mb-4">Refer & Earn</h1>
           <p className="text-gray-400 text-lg">
-            Earn <strong className="text-brand-400">2% of every sale</strong> you bring to Tajalli's. No cap, no expiry.
+            Earn <strong className="text-brand-300">2% of every sale</strong> you bring to Tajalli's. No cap, no expiry.
           </p>
         </div>
       </div>

@@ -94,7 +94,7 @@ export default function InstallmentsPage() {
       {/* Hero */}
       <div className="bg-gray-900 text-white py-16 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-brand-400 text-xs font-bold uppercase tracking-widest mb-3">Flexible Financing</p>
+          <p className="text-brand-300 text-xs font-bold uppercase tracking-widest mb-3">Flexible Financing</p>
           <h1 className="text-3xl md:text-5xl font-black mb-4">Buy Now, Pay Easy</h1>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
             Up to 12-payment plans with no bank account required.

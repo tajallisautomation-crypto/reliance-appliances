@@ -113,7 +113,7 @@ export default function About() {
           <div className="max-w-5xl mx-auto">
             <div className="flex items-end justify-between mb-7">
               <div>
-                <p className="text-brand-400 text-xs font-bold uppercase tracking-widest mb-2">Proof of Work</p>
+                <p className="text-brand-300 text-xs font-bold uppercase tracking-widest mb-2">Proof of Work</p>
                 <h2 className="text-2xl font-black text-white">Real Jobs. Real Homes. Karachi.</h2>
                 <p className="text-gray-400 text-sm mt-1">Every photo is a real installation or service call.</p>
               </div>
@@ -191,8 +191,8 @@ export default function About() {
             {
               icon: Clock,
               title: 'Support Response',
-              color: 'text-gold-600',
-              bg: 'bg-gold-300/20',
+              color: 'text-brand-600',
+              bg: 'bg-brand-50',
               points: [
                 'Normal requests: within 48 hours',
                 'Urgent requests: same day (subject to availability)',
@@ -272,7 +272,7 @@ export default function About() {
         <div className="max-w-5xl mx-auto">
           <div className="grid md:grid-cols-2 gap-10 items-center">
             <div>
-              <p className="text-brand-400 text-xs font-bold uppercase tracking-widest mb-3">Corporate & B2B</p>
+              <p className="text-brand-300 text-xs font-bold uppercase tracking-widest mb-3">Corporate & B2B</p>
               <h2 className="text-3xl font-black text-white mb-4">We outfit offices, hospitals, and housing projects.</h2>
               <p className="text-gray-400 leading-relaxed mb-6">
                 Tajalli's has supplied bulk appliance packages to corporate offices, commercial kitchens, residential towers, and hospitality projects across Karachi.

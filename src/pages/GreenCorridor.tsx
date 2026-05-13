@@ -592,21 +592,21 @@ export default function GreenCorridor() {
 
                     {/* Technical components */}
                     <div className="bg-gray-50 rounded-xl p-3 mb-4 space-y-1.5">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">System Components</p>
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">System Components</p>
                       <div className="flex items-start gap-2">
-                        <span className="text-amber-500 text-xs mt-px shrink-0">☀️</span>
+                        <span className="text-xs mt-px shrink-0">☀️</span>
                         <span className="text-xs text-gray-700">{pkg.panelCount} × {pkg.panelWatts}W Crown Bi-Facial Solar Panels</span>
                       </div>
                       <div className="flex items-start gap-2">
-                        <span className="text-blue-500 text-xs mt-px shrink-0">⚡</span>
-                        <span className="text-xs text-gray-700">{pkg.inverterModel} <span className="text-gray-400">({pkg.inverterWarranty} warranty)</span></span>
+                        <span className="text-xs mt-px shrink-0">⚡</span>
+                        <span className="text-xs text-gray-700">{pkg.inverterModel} <span className="text-gray-500">({pkg.inverterWarranty} warranty)</span></span>
                       </div>
                       {pkg.batteryModel && (
                         <div className="flex items-start gap-2">
-                          <span className="text-eco-500 text-xs mt-px shrink-0">🔋</span>
+                          <span className="text-xs mt-px shrink-0">🔋</span>
                           <span className="text-xs text-gray-700">
                             {pkg.batteryModel}
-                            {pkg.batteryWarranty && <span className="text-gray-400"> ({pkg.batteryWarranty} warranty)</span>}
+                            {pkg.batteryWarranty && <span className="text-gray-500"> ({pkg.batteryWarranty} warranty)</span>}
                           </span>
                         </div>
                       )}

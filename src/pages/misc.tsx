@@ -80,7 +80,7 @@ export function Services() {
       {/* Hero */}
       <div className="bg-gray-900 text-white py-16 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-brand-400 text-xs font-bold uppercase tracking-widest mb-3">Complete 360° Care</p>
+          <p className="text-brand-300 text-xs font-bold uppercase tracking-widest mb-3">Complete 360° Care</p>
           <h1 className="text-3xl md:text-5xl font-black mb-4">Professional After-Sale Services</h1>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
             Our relationship doesn't end at the sale. Certified technicians, genuine parts,

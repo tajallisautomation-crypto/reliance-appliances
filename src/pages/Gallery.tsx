@@ -163,7 +163,7 @@ function EmptyState() {
         <Image className="w-9 h-9 text-brand-400" />
       </div>
       <h3 className="font-bold text-gray-800 mb-2">No photos yet</h3>
-      <p className="text-sm text-gray-400 max-w-xs leading-relaxed">
+      <p className="text-sm text-gray-500 max-w-xs leading-relaxed">
         Drop photos into the <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">media/</code> folder,
         then run <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">node sync-media.mjs</code> to publish them here.
       </p>
@@ -203,7 +203,7 @@ export default function Gallery() {
       {/* Hero */}
       <div className="bg-gray-900 text-white py-14 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-brand-400 text-xs font-bold uppercase tracking-widest mb-3">Real Work</p>
+          <p className="text-brand-300 text-xs font-bold uppercase tracking-widest mb-3">Real Work</p>
           <h1 className="text-3xl md:text-5xl font-black mb-4">Our Work Gallery</h1>
           <p className="text-gray-400 text-lg max-w-xl mx-auto">
             Every photo is a real job. Every customer is a real home. No stock images.

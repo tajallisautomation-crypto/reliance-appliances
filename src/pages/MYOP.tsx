@@ -966,20 +966,20 @@ export default function MYOPPage() {
       {/* Hero */}
       <div className="bg-gray-900 text-white py-14 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 bg-brand-500/20 text-brand-400 px-4 py-1.5 rounded-full text-sm font-semibold mb-5">
+          <div className="inline-flex items-center gap-2 bg-brand-500/20 text-brand-300 px-4 py-1.5 rounded-full text-sm font-semibold mb-5">
             <Sparkles className="w-4 h-4" /> Make Your Own Package
           </div>
           <h1 className="text-3xl md:text-5xl font-black mb-4 leading-tight">
             Build Your Perfect<br />Home Package
           </h1>
-          <p className="text-gray-400 text-lg max-w-2xl mx-auto mb-6">
+          <p className="text-gray-300 text-lg max-w-2xl mx-auto mb-6">
             Pick any appliances or solar products you need — mix and match across categories.
-            Add <strong className="text-brand-400">3 or more items</strong> and get <strong className="text-brand-400">5% off</strong> your entire order.
+            Add <strong className="text-white">3 or more items</strong> and get <strong className="text-gold-400">5% off</strong> your entire order.
           </p>
 
           {/* Discount badge */}
           <div className="inline-flex items-center gap-3 bg-white/10 border border-white/20 rounded-2xl px-6 py-3">
-            <Tag className="w-5 h-5 text-brand-400" />
+            <Tag className="w-5 h-5 text-gold-400" />
             <div className="text-left">
               <p className="text-white font-bold text-sm">5% Bundle Discount</p>
               <p className="text-gray-400 text-xs">Automatically applied when you pick 3+ products</p>

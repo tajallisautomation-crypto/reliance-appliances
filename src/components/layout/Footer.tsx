@@ -26,16 +26,23 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 grid grid-cols-2 md:grid-cols-4 gap-8">
         {/* Brand */}
         <div className="col-span-2 md:col-span-1">
-          <div className="mb-5">
+          <div className="flex items-center gap-3 mb-4">
             <img
-              src="/tajallis-logo-white.svg"
-              alt="Tajalli's Home & Commercial Solutions"
-              className="h-24 w-auto"
+              src="/tajallis-logo-icon.svg"
+              alt=""
+              aria-hidden="true"
+              className="h-10 w-10 shrink-0 brightness-0 invert"
               loading="lazy"
             />
+            <div className="leading-none">
+              <p className="font-black text-xl text-white tracking-tight leading-none">Tajalli&#8217;s</p>
+              <p className="text-[11px] font-semibold text-brand-200 mt-1 tracking-[0.08em] uppercase leading-none">
+                Home &amp; Commercial Solutions
+              </p>
+            </div>
           </div>
-          <p className="text-sm text-brand-300 leading-relaxed mb-4">
-            Karachi's most trusted appliance partner since 2015. Serving 14,400+ clients — homes, offices & businesses — with genuine products and real after-sales support.
+          <p className="text-sm text-brand-200 leading-relaxed mb-4">
+            Karachi's most trusted appliance partner since 2015. Serving 14,400+ clients — homes, offices &amp; businesses — with genuine products and real after-sales support.
           </p>
           <div className="flex gap-2">
             <a href="https://www.facebook.com/tajallishomecollection/" target="_blank" rel="noreferrer"
