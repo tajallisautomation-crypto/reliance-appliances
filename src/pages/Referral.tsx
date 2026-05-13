@@ -55,12 +55,12 @@ export default function ReferralPage() {
       {/* Hero */}
       <div className="bg-gray-900 text-white py-16 px-4">
         <div className="max-w-3xl mx-auto text-center">
-          <div className="w-16 h-16 bg-orange-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
+          <div className="w-16 h-16 bg-brand-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
             <Gift className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl md:text-5xl font-black mb-4">Refer & Earn</h1>
           <p className="text-gray-400 text-lg">
-            Earn <strong className="text-orange-400">2% of every sale</strong> you bring to Tajalli's. No cap, no expiry.
+            Earn <strong className="text-brand-400">2% of every sale</strong> you bring to Tajalli's. No cap, no expiry.
           </p>
         </div>
       </div>
@@ -73,7 +73,7 @@ export default function ReferralPage() {
           <div className="grid sm:grid-cols-3 gap-6">
             {[
               { icon: Users,     title: 'Get Your Link',  bg: 'bg-blue-100',   fg: 'text-blue-600',   desc: 'Generate your unique link below using your name and phone number.' },
-              { icon: Share2,    title: 'Share Naturally', bg: 'bg-orange-100', fg: 'text-orange-600', desc: 'Send it to family or friends looking for appliances — just like a personal recommendation.' },
+              { icon: Share2,    title: 'Share Naturally', bg: 'bg-brand-100', fg: 'text-brand-600', desc: 'Send it to family or friends looking for appliances — just like a personal recommendation.' },
               { icon: TrendingUp, title: 'Earn 2%',       bg: 'bg-green-100',  fg: 'text-green-600',  desc: 'When they make a purchase, you receive 2% of the total sale amount — paid directly to you.' },
             ].map(item => (
               <div key={item.title} className="text-center p-6 bg-gray-50 rounded-2xl">
@@ -101,7 +101,7 @@ export default function ReferralPage() {
                 placeholder="e.g. Ali Hassan"
                 value={form.name}
                 onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-400"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-400"
               />
             </div>
             <div>
@@ -111,7 +111,7 @@ export default function ReferralPage() {
                 placeholder="03XX XXXXXXX"
                 value={form.phone}
                 onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-400"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-400"
               />
             </div>
           </div>
@@ -154,7 +154,7 @@ export default function ReferralPage() {
 
               <p className="text-xs text-gray-400 text-center">
                 Commission is tracked manually. WhatsApp us at{' '}
-                <a href={waSales()} target="_blank" rel="noreferrer" className="text-orange-500 hover:underline">+92 370 2578788</a> to confirm and collect your earnings.
+                <a href={waSales()} target="_blank" rel="noreferrer" className="text-brand-500 hover:underline">+92 370 2578788</a> to confirm and collect your earnings.
               </p>
             </div>
           )}
@@ -189,7 +189,7 @@ export default function ReferralPage() {
             💬 Ask on WhatsApp
           </a>
           <div className="mt-4">
-            <Link to="/products" className="text-orange-500 hover:underline text-sm">
+            <Link to="/products" className="text-brand-500 hover:underline text-sm">
               Browse products to refer →
             </Link>
           </div>

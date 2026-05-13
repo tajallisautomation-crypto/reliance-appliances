@@ -81,7 +81,7 @@ function ConfirmDialog({
             Cancel
           </button>
           <button onClick={onConfirm}
-            className={`px-4 py-2 text-sm font-bold rounded-lg text-white ${danger ? 'bg-red-500 hover:bg-red-600' : 'bg-orange-500 hover:bg-orange-600'}`}>
+            className={`px-4 py-2 text-sm font-bold rounded-lg text-white ${danger ? 'bg-red-500 hover:bg-red-600' : 'bg-brand-500 hover:bg-brand-600'}`}>
             {confirmLabel}
           </button>
         </div>
@@ -159,7 +159,7 @@ function ImageDropZone({
       <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
       <div
         className={`relative border-2 border-dashed rounded-xl transition-colors cursor-pointer
-          ${dragging ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-orange-300 bg-gray-50'}`}
+          ${dragging ? 'border-brand-400 bg-brand-50' : 'border-gray-200 hover:border-brand-300 bg-gray-50'}`}
         onDragOver={e => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
@@ -174,18 +174,18 @@ function ImageDropZone({
             <div className="min-w-0">
               <p className="text-xs font-medium text-gray-700 truncate">Image set</p>
               {pathPreview && <p className="text-[10px] text-gray-400 mt-0.5 font-mono break-all">{pathPreview}</p>}
-              <p className="text-[10px] text-orange-500 mt-1">Click or drop to replace</p>
+              <p className="text-[10px] text-brand-500 mt-1">Click or drop to replace</p>
             </div>
             {uploading && (
               <div className="absolute inset-0 bg-white/70 rounded-xl flex items-center justify-center">
-                <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
+                <Loader2 className="w-5 h-5 animate-spin text-brand-500" />
               </div>
             )}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-5 gap-1">
             {uploading ? (
-              <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+              <Loader2 className="w-6 h-6 animate-spin text-brand-500" />
             ) : (
               <Upload className="w-6 h-6 text-gray-300" />
             )}
@@ -204,13 +204,13 @@ function ImageDropZone({
             onChange={e => setUrlInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleFetchUrl(); } }}
             placeholder="Paste image URL and press Fetch…"
-            className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-400"
+            className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400"
           />
           <button
             type="button"
             onClick={handleFetchUrl}
             disabled={!urlInput.trim() || fetchingUrl || uploading}
-            className="px-2.5 py-1 bg-orange-500 text-white text-xs rounded-lg hover:bg-orange-600 disabled:opacity-40 flex items-center gap-1"
+            className="px-2.5 py-1 bg-brand-500 text-white text-xs rounded-lg hover:bg-brand-600 disabled:opacity-40 flex items-center gap-1"
           >
             {fetchingUrl ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
             Fetch
@@ -288,7 +288,7 @@ function ProductImageManager({
           Product Images <span className="text-gray-400">({images.length})</span>
         </label>
         <button type="button" onClick={() => setShowUrlBox(v => !v)}
-          className="flex items-center gap-1 text-xs text-orange-500 hover:text-orange-700 font-semibold">
+          className="flex items-center gap-1 text-xs text-brand-500 hover:text-brand-700 font-semibold">
           <Plus className="w-3.5 h-3.5" /> Add by URL
         </button>
       </div>
@@ -300,11 +300,11 @@ function ProductImageManager({
             value={urlsText} onChange={e => setUrlsText(e.target.value)}
             placeholder={"https://example.com/img1.jpg\nhttps://example.com/img2.jpg"}
             rows={3} autoFocus
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
           />
           <div className="flex gap-2">
             <button type="button" onClick={addUrls} disabled={urlCount === 0}
-              className="flex-1 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white text-xs font-bold py-1.5 rounded-lg">
+              className="flex-1 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white text-xs font-bold py-1.5 rounded-lg">
               Add {urlCount > 0 ? urlCount : ''} URL{urlCount !== 1 ? 's' : ''}
             </button>
             <button type="button" onClick={() => { setUrlsText(''); setShowUrlBox(false); }}
@@ -322,14 +322,14 @@ function ProductImageManager({
           {images.map((img, idx) => (
             <div key={img.url + idx}
               className={`flex items-center gap-2 rounded-xl border p-2 transition-colors
-                ${img.is_primary ? 'border-orange-300 bg-orange-50' : 'border-gray-100 bg-white hover:border-gray-200'}`}>
+                ${img.is_primary ? 'border-brand-300 bg-brand-50' : 'border-gray-100 bg-white hover:border-gray-200'}`}>
               <span className="text-[10px] text-gray-400 font-mono w-4 text-center shrink-0">{idx + 1}</span>
               <img src={img.url} alt="" className="w-10 h-10 object-cover rounded-lg bg-gray-100 shrink-0"
                 onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] text-gray-500 truncate font-mono">{img.url}</p>
                 {img.is_primary && (
-                  <span className="inline-flex items-center gap-0.5 text-[9px] text-orange-600 font-bold">
+                  <span className="inline-flex items-center gap-0.5 text-[9px] text-brand-600 font-bold">
                     <Star className="w-2.5 h-2.5" /> Primary
                   </span>
                 )}
@@ -337,7 +337,7 @@ function ProductImageManager({
               <div className="flex items-center gap-0.5 shrink-0">
                 {!img.is_primary && (
                   <button type="button" onClick={() => setPrimary(idx)}
-                    className="text-[9px] font-bold text-orange-500 hover:text-orange-700 px-1.5 py-0.5 bg-orange-50 hover:bg-orange-100 rounded"
+                    className="text-[9px] font-bold text-brand-500 hover:text-brand-700 px-1.5 py-0.5 bg-brand-50 hover:bg-brand-100 rounded"
                     title="Set as primary">
                     Primary
                   </button>
@@ -472,14 +472,14 @@ function SpecsEditor({
               onChange={e => updateRow(row.uid, 'key', e.target.value)}
               onBlur={flushOnBlur}
               placeholder="Spec name"
-              className="w-36 shrink-0 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400 font-medium"
+              className="w-36 shrink-0 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-400 font-medium"
             />
             <input
               value={row.val}
               onChange={e => updateRow(row.uid, 'val', e.target.value)}
               onBlur={flushOnBlur}
               placeholder="Value"
-              className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-400"
             />
             <button
               type="button"
@@ -499,21 +499,21 @@ function SpecsEditor({
           value={newKey}
           onChange={e => setNewKey(e.target.value)}
           placeholder="Spec name"
-          className="w-36 shrink-0 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400"
+          className="w-36 shrink-0 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-400"
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addRow(); } }}
         />
         <input
           value={newVal}
           onChange={e => setNewVal(e.target.value)}
           placeholder="Value"
-          className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400"
+          className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-400"
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addRow(); } }}
         />
         <button
           type="button"
           onClick={addRow}
           disabled={!newKey.trim() || !newVal.trim()}
-          className="p-1 text-orange-500 hover:text-orange-700 disabled:opacity-30 shrink-0"
+          className="p-1 text-brand-500 hover:text-brand-700 disabled:opacity-30 shrink-0"
           title="Add spec"
         >
           <Plus className="w-4 h-4" />
@@ -619,7 +619,7 @@ function ProductModal({
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Category *</label>
             <select value={form.category} onChange={e => set('category', e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400">
               <option value="">Select category…</option>
               {Object.values(CATEGORY_MAP).map(c => <option key={c} value={c}>{c}</option>)}
             </select>
@@ -630,17 +630,17 @@ function ProductModal({
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Stock Status</label>
             <select value={form.stock_status} onChange={e => set('stock_status', e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400">
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400">
               {STOCK_OPTIONS.map(o => <option key={o}>{o}</option>)}
             </select>
           </div>
 
           {/* Installment preview */}
           {plans && (
-            <div className="col-span-2 bg-orange-50 rounded-xl p-3 grid grid-cols-4 gap-2 text-xs">
+            <div className="col-span-2 bg-brand-50 rounded-xl p-3 grid grid-cols-4 gap-2 text-xs">
               {Object.entries(plans).map(([k, p]) => (
                 <div key={k} className="text-center">
-                  <div className="font-bold text-orange-700">{k}</div>
+                  <div className="font-bold text-brand-700">{k}</div>
                   <div className="text-gray-500">Adv {fmtPKR(p.advance)}</div>
                   <div className="text-gray-500">×{p.monthlyPayments} {fmtPKR(p.monthly)}</div>
                 </div>
@@ -703,7 +703,7 @@ function ProductModal({
 
           <div className="col-span-2 flex items-center gap-2">
             <input type="checkbox" id="featured" checked={!!form.featured} onChange={e => set('featured', e.target.checked)}
-              className="w-4 h-4 accent-orange-500" />
+              className="w-4 h-4 accent-brand-500" />
             <label htmlFor="featured" className="text-sm font-medium text-gray-700">Featured product (shown on homepage)</label>
           </div>
         </div>
@@ -713,7 +713,7 @@ function ProductModal({
         <div className="flex justify-end gap-3 p-5 border-t">
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
           <button onClick={requestSave} disabled={saving}
-            className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg text-sm font-bold disabled:opacity-60">
+            className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-bold disabled:opacity-60">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
             {saving ? 'Saving…' : 'Save Product'}
           </button>
@@ -736,7 +736,7 @@ function Field({ label, value, onChange, type = 'text', placeholder = '', multil
   label: string; value: any; onChange: (v: string) => void;
   type?: string; placeholder?: string; multiline?: boolean;
 }) {
-  const cls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400';
+  const cls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400';
   return (
     <div>
       <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
@@ -832,7 +832,7 @@ function QuickImageUpload({
             {/* ── Thumbnail slot ── */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
-                <span className="w-5 h-5 rounded-full bg-orange-500 text-white flex items-center justify-center text-[10px] font-black">1</span>
+                <span className="w-5 h-5 rounded-full bg-brand-500 text-white flex items-center justify-center text-[10px] font-black">1</span>
                 Display Image (thumbnail)
               </label>
               {thumbUrl && thumbUrl.startsWith('http') && (
@@ -844,9 +844,9 @@ function QuickImageUpload({
                   value={thumbUrl}
                   onChange={e => setThumbUrl(e.target.value)}
                   placeholder="https://example.com/image.jpg"
-                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
                 />
-                <label className="shrink-0 cursor-pointer flex items-center gap-1 border border-gray-200 hover:border-orange-300 text-gray-500 px-2.5 rounded-lg text-xs font-semibold">
+                <label className="shrink-0 cursor-pointer flex items-center gap-1 border border-gray-200 hover:border-brand-300 text-gray-500 px-2.5 rounded-lg text-xs font-semibold">
                   <Camera className="w-3.5 h-3.5" />
                   File
                   <input type="file" accept="image/*" className="hidden"
@@ -868,9 +868,9 @@ function QuickImageUpload({
                       value={url}
                       onChange={e => setGalleryUrl(idx, e.target.value)}
                       placeholder={`https://example.com/image-${idx + 2}.jpg`}
-                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
                     />
-                    <label className="shrink-0 cursor-pointer flex items-center gap-1 border border-gray-200 hover:border-orange-300 text-gray-500 px-2.5 rounded-lg text-xs font-semibold">
+                    <label className="shrink-0 cursor-pointer flex items-center gap-1 border border-gray-200 hover:border-brand-300 text-gray-500 px-2.5 rounded-lg text-xs font-semibold">
                       <Camera className="w-3.5 h-3.5" />
                       File
                       <input type="file" accept="image/*" className="hidden"
@@ -884,7 +884,7 @@ function QuickImageUpload({
                 </div>
               ))}
               <button onClick={addGallerySlot}
-                className="w-full border border-dashed border-gray-200 hover:border-orange-300 text-gray-400 hover:text-orange-500 py-2 rounded-lg text-xs font-semibold transition-colors">
+                className="w-full border border-dashed border-gray-200 hover:border-brand-300 text-gray-400 hover:text-brand-500 py-2 rounded-lg text-xs font-semibold transition-colors">
                 + Add another image
               </button>
             </div>
@@ -892,7 +892,7 @@ function QuickImageUpload({
             {err && <p className="text-xs text-red-500 font-medium">{err}</p>}
 
             <button onClick={handleSave} disabled={!canSave}
-              className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-bold">
+              className="w-full flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-bold">
               {uploading ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : 'Save Images'}
             </button>
           </div>
@@ -957,7 +957,7 @@ function FixQueue({ missing, onDone, onRefresh }: {
           </div>
           <h3 className="font-black text-gray-900 text-lg">Queue complete!</h3>
           <p className="text-gray-500 text-sm mt-1">{done} image{done !== 1 ? 's' : ''} uploaded.</p>
-          <button onClick={onDone} className="mt-5 w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg font-bold text-sm">Done</button>
+          <button onClick={onDone} className="mt-5 w-full bg-brand-500 hover:bg-brand-600 text-white py-2 rounded-lg font-bold text-sm">Done</button>
         </div>
       </div>
     );
@@ -981,7 +981,7 @@ function FixQueue({ missing, onDone, onRefresh }: {
 
         {/* Progress bar */}
         <div className="mx-5 mb-4 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-          <div className="h-full bg-orange-400 rounded-full transition-all" style={{ width: `${pct}%` }} />
+          <div className="h-full bg-brand-400 rounded-full transition-all" style={{ width: `${pct}%` }} />
         </div>
 
         {/* Mode tabs + upload zone */}
@@ -990,11 +990,11 @@ function FixQueue({ missing, onDone, onRefresh }: {
 
           <div className="flex rounded-lg border border-gray-200 p-0.5 text-xs font-semibold">
             <button onClick={() => setMode('url')}
-              className={`flex-1 py-1.5 rounded-md transition-colors ${mode === 'url' ? 'bg-orange-500 text-white' : 'text-gray-500 hover:text-gray-700'}`}>
+              className={`flex-1 py-1.5 rounded-md transition-colors ${mode === 'url' ? 'bg-brand-500 text-white' : 'text-gray-500 hover:text-gray-700'}`}>
               Paste URL
             </button>
             <button onClick={() => setMode('file')}
-              className={`flex-1 py-1.5 rounded-md transition-colors ${mode === 'file' ? 'bg-orange-500 text-white' : 'text-gray-500 hover:text-gray-700'}`}>
+              className={`flex-1 py-1.5 rounded-md transition-colors ${mode === 'file' ? 'bg-brand-500 text-white' : 'text-gray-500 hover:text-gray-700'}`}>
               Upload File
             </button>
           </div>
@@ -1005,18 +1005,18 @@ function FixQueue({ missing, onDone, onRefresh }: {
                 type="text" value={urlInput} onChange={e => setUrlInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleUrl()}
                 placeholder="https://example.com/image.jpg"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
                 autoFocus
               />
               <button onClick={handleUrl} disabled={!urlInput.trim() || uploading}
-                className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white py-2 rounded-lg text-sm font-bold">
+                className="w-full flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white py-2 rounded-lg text-sm font-bold">
                 {uploading ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : 'Save Image'}
               </button>
             </div>
           ) : (
             <div
               className={`border-2 border-dashed rounded-xl cursor-pointer transition-colors flex flex-col items-center justify-center py-8 gap-2
-                ${dragging ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-orange-300 bg-gray-50'}`}
+                ${dragging ? 'border-brand-400 bg-brand-50' : 'border-gray-200 hover:border-brand-300 bg-gray-50'}`}
               onDragOver={e => { e.preventDefault(); setDragging(true); }}
               onDragLeave={() => setDragging(false)}
               onDrop={e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) uploadFile(f); }}
@@ -1025,7 +1025,7 @@ function FixQueue({ missing, onDone, onRefresh }: {
               <input ref={inputRef} type="file" accept="image/*" className="hidden"
                 onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f); e.target.value = ''; }} />
               {uploading
-                ? <><Loader2 className="w-7 h-7 animate-spin text-orange-400" /><span className="text-sm text-gray-400">Uploading…</span></>
+                ? <><Loader2 className="w-7 h-7 animate-spin text-brand-400" /><span className="text-sm text-gray-400">Uploading…</span></>
                 : <><Camera className="w-7 h-7 text-gray-300" /><span className="text-sm text-gray-500">Drop image or click to browse</span></>}
             </div>
           )}
@@ -1220,12 +1220,12 @@ function ImagesTab({ products, onRefresh }: { products: Product[]; onRefresh: ()
       {/* Controls */}
       <div className="flex flex-wrap gap-3 items-center">
         <select value={brandFilter} onChange={e => setBrandFilter(e.target.value)}
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white">
           <option value="">All brands</option>
           {brands.map(b => <option key={b}>{b}</option>)}
         </select>
         <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-          <input type="checkbox" checked={missingOnly} onChange={e => setMissingOnly(e.target.checked)} className="accent-orange-500" />
+          <input type="checkbox" checked={missingOnly} onChange={e => setMissingOnly(e.target.checked)} className="accent-brand-500" />
           Missing only
         </label>
         <div className="flex-1" />
@@ -1244,7 +1244,7 @@ function ImagesTab({ products, onRefresh }: { products: Product[]; onRefresh: ()
         </label>
         {totalMissing > 0 && (
           <button onClick={() => setFixQueueOpen(true)}
-            className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-bold">
+            className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-bold">
             <Camera className="w-4 h-4" />
             Fix {totalMissing} Missing →
           </button>
@@ -1322,7 +1322,7 @@ function ImagesTab({ products, onRefresh }: { products: Product[]; onRefresh: ()
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
                         <button onClick={() => setQuickImg(p)}
-                          className="flex items-center gap-1 text-xs bg-orange-50 hover:bg-orange-100 text-orange-600 font-medium px-2 py-1.5 rounded-lg transition-colors">
+                          className="flex items-center gap-1 text-xs bg-brand-50 hover:bg-brand-100 text-brand-600 font-medium px-2 py-1.5 rounded-lg transition-colors">
                           <Camera className="w-3.5 h-3.5" />
                           Upload
                         </button>
@@ -1362,7 +1362,7 @@ function ImagesTab({ products, onRefresh }: { products: Product[]; onRefresh: ()
             <div className="space-y-3">
               <p>This will scan the storage bucket and update thumbnail/gallery URLs for every product.</p>
               <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-                <input type="checkbox" checked={clearUnmatched} onChange={e => setClearUnmatched(e.target.checked)} className="accent-orange-500" />
+                <input type="checkbox" checked={clearUnmatched} onChange={e => setClearUnmatched(e.target.checked)} className="accent-brand-500" />
                 <span>Also clear stock/wrong images for products with no Storage match</span>
               </label>
             </div>
@@ -1567,7 +1567,7 @@ function ImportTab({ onImported, existingProducts }: { onImported: () => void; e
         </div>
       </div>
 
-      <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 hover:border-orange-400 rounded-2xl p-10 cursor-pointer transition-colors">
+      <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 hover:border-brand-400 rounded-2xl p-10 cursor-pointer transition-colors">
         <FileUp className="w-10 h-10 text-gray-400 mb-3" />
         <span className="font-medium text-gray-700">Click to choose CSV file</span>
         <span className="text-sm text-gray-400 mt-1">or drag and drop</span>
@@ -1649,12 +1649,12 @@ function ImportTab({ onImported, existingProducts }: { onImported: () => void; e
             <div>
               <p className="text-sm font-medium text-gray-700">{rows.length} rows detected — preview:</p>
               <label className="flex items-center gap-2 mt-1 cursor-pointer select-none">
-                <input type="checkbox" checked={rematchImgs} onChange={e => setRematchImgs(e.target.checked)} className="accent-orange-500" />
+                <input type="checkbox" checked={rematchImgs} onChange={e => setRematchImgs(e.target.checked)} className="accent-brand-500" />
                 <span className="text-xs text-gray-500">Re-match images for existing products</span>
               </label>
             </div>
             <button onClick={handleImport} disabled={!!progress || hasBlockingDupes}
-              className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed">
+              className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed">
               {progress
                 ? <><Loader2 className="w-4 h-4 animate-spin" /> {progress}</>
                 : hasBlockingDupes
@@ -1819,7 +1819,7 @@ function InlineAuditFix({ product, missingFields, onDone }: {
             />
           ) : (
             <button onClick={() => setQuickImg(true)}
-              className="flex items-center gap-2 w-full justify-center border-2 border-dashed border-blue-300 hover:border-orange-400 rounded-lg py-3 text-sm text-blue-600 hover:text-orange-600 font-medium transition-colors">
+              className="flex items-center gap-2 w-full justify-center border-2 border-dashed border-blue-300 hover:border-brand-400 rounded-lg py-3 text-sm text-blue-600 hover:text-brand-600 font-medium transition-colors">
               <Camera className="w-4 h-4" /> Upload Image
             </button>
           )}
@@ -2037,7 +2037,7 @@ function BulkEditPanel({
               {BULK_FIELDS.map(f => (
                 <button key={f.id} type="button" onClick={() => switchField(f.id)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors
-                    ${field === f.id ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                    ${field === f.id ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                   {f.label}
                 </button>
               ))}
@@ -2051,7 +2051,7 @@ function BulkEditPanel({
                 {(['add', 'replace_primary'] as ImageOp[]).map(op => (
                   <button key={op} type="button" onClick={() => setImageOp(op)}
                     className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors
-                      ${imageOp === op ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                      ${imageOp === op ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                     {op === 'add' ? 'Add to Gallery' : 'Replace Primary'}
                   </button>
                 ))}
@@ -2060,7 +2060,7 @@ function BulkEditPanel({
                 <label className="text-xs font-medium text-gray-600 mb-1 block">Image URL</label>
                 <input type="text" value={imageUrl} onChange={e => setImageUrl(e.target.value)}
                   placeholder="https://example.com/product.jpg"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                 {imageUrl.startsWith('http') && (
                   <img src={imageUrl} alt="preview"
                     className="mt-2 w-16 h-16 object-cover rounded-lg border bg-gray-50"
@@ -2082,7 +2082,7 @@ function BulkEditPanel({
                 {(['replace', 'append'] as BulkAction[]).map(a => (
                   <button key={a} type="button" onClick={() => setAction(a)}
                     className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors
-                      ${action === a ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                      ${action === a ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                     {a === 'replace' ? 'Replace' : 'Append'}
                   </button>
                 ))}
@@ -2091,7 +2091,7 @@ function BulkEditPanel({
                 placeholder={action === 'append'
                   ? 'Text to append to existing descriptions…'
                   : 'New description for all selected products…'}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
           )}
 
@@ -2103,7 +2103,7 @@ function BulkEditPanel({
                   <button key={a} type="button" onClick={() => setAction(a)}
                     className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors
                       ${action === a
-                        ? a === 'replace' ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'
+                        ? a === 'replace' ? 'bg-red-500 text-white' : 'bg-brand-500 text-white'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                     {a === 'merge' ? 'Merge (keep existing)' : '⚠ Replace all specs'}
                   </button>
@@ -2123,8 +2123,8 @@ function BulkEditPanel({
                       onClick={() => { setSpecKey(preset.key); setSpecVal(preset.val); setAction('merge'); }}
                       className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors
                         ${specKey === preset.key && specVal === preset.val
-                          ? 'bg-orange-500 text-white border-orange-500'
-                          : 'bg-white border-gray-200 text-gray-600 hover:border-orange-300 hover:text-orange-700'}`}>
+                          ? 'bg-brand-500 text-white border-brand-500'
+                          : 'bg-white border-gray-200 text-gray-600 hover:border-brand-300 hover:text-brand-700'}`}>
                       {preset.label}
                     </button>
                   ))}
@@ -2135,13 +2135,13 @@ function BulkEditPanel({
                   <label className="text-xs font-medium text-gray-600 mb-1 block">Spec Key</label>
                   <input type="text" value={specKey} onChange={e => setSpecKey(e.target.value)}
                     placeholder="motor_power"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-600 mb-1 block">Value</label>
                   <input type="text" value={specVal} onChange={e => setSpecVal(e.target.value)}
                     placeholder="1200W"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                 </div>
               </div>
               {action === 'replace' && (
@@ -2159,14 +2159,14 @@ function BulkEditPanel({
                 {(['replace', 'append'] as BulkAction[]).map(a => (
                   <button key={a} type="button" onClick={() => setAction(a)}
                     className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors
-                      ${action === a ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                      ${action === a ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                     {a === 'replace' ? 'Replace' : 'Append'}
                   </button>
                 ))}
               </div>
               <input type="text" value={value} onChange={e => setValue(e.target.value)}
                 placeholder="inverter, energy saving, wifi"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
           )}
 
@@ -2175,7 +2175,7 @@ function BulkEditPanel({
             <div>
               <label className="text-xs font-medium text-gray-600 mb-1 block">New Category</label>
               <select value={value} onChange={e => setValue(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white">
                 <option value="">Select category…</option>
                 {Object.values(CATEGORY_MAP).map(c => <option key={c} value={c}>{c}</option>)}
               </select>
@@ -2192,7 +2192,7 @@ function BulkEditPanel({
                 type={field === 'price' ? 'number' : 'text'}
                 value={value} onChange={e => setValue(e.target.value)}
                 placeholder={field === 'price' ? '85000' : ''}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
               />
             </div>
           )}
@@ -2232,7 +2232,7 @@ function BulkEditPanel({
           </button>
           {!result && (
             <button onClick={() => setConfirmOpen(true)} disabled={!isValid()}
-              className="flex-1 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2">
+              className="flex-1 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2">
               {saving
                 ? <><Loader2 className="w-4 h-4 animate-spin" />Applying…</>
                 : `Apply to ${n} Products`}
@@ -2240,7 +2240,7 @@ function BulkEditPanel({
           )}
           {result && !result.startsWith('Error') && (
             <button onClick={() => { onDone(); onClose(); }}
-              className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-xl text-sm font-bold">
+              className="flex-1 bg-brand-500 hover:bg-brand-600 text-white py-2.5 rounded-xl text-sm font-bold">
               Done &amp; Refresh
             </button>
           )}
@@ -2447,7 +2447,7 @@ function AuditLogTab() {
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
                         {entry.fields.map(f => (
-                          <span key={f} className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-semibold">
+                          <span key={f} className="text-[10px] bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-semibold">
                             {f}
                           </span>
                         ))}
@@ -2592,15 +2592,15 @@ function QCQuickFix({
               <label className="text-xs font-semibold text-gray-700 block">Add / Replace Image URL(s)</label>
               <textarea value={urlInput} onChange={e => setUrlInput(e.target.value)} rows={2}
                 placeholder={"https://…/image1.jpg\nhttps://…/image2.jpg"}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none" />
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none" />
               <p className="text-[10px] text-gray-400 -mt-1">Enter one URL per line — first becomes thumbnail, others go to gallery.</p>
               <div className="flex gap-2 flex-wrap">
                 <button onClick={saveImage} disabled={saving || !urlInput.trim()}
-                  className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white text-xs font-bold px-4 py-2 rounded-lg">
+                  className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white text-xs font-bold px-4 py-2 rounded-lg">
                   {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} Save Image(s)
                 </button>
                 <button onClick={searchBucket} disabled={bucketLoading}
-                  className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:border-orange-300 text-xs font-semibold px-3 py-2 rounded-lg">
+                  className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:border-brand-300 text-xs font-semibold px-3 py-2 rounded-lg">
                   {bucketLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
                   Search Bucket
                 </button>
@@ -2614,7 +2614,7 @@ function QCQuickFix({
                         const lines = prev.split('\n').map(l => l.trim()).filter(Boolean);
                         return lines.includes(url) ? lines.filter(l => l !== url).join('\n') : [...lines, url].join('\n');
                       })}
-                        className={`rounded-lg overflow-hidden border-2 transition-all ${urlInput.includes(url) ? 'border-orange-500' : 'border-gray-100 hover:border-orange-300'}`}>
+                        className={`rounded-lg overflow-hidden border-2 transition-all ${urlInput.includes(url) ? 'border-brand-500' : 'border-gray-100 hover:border-brand-300'}`}>
                         <img src={url} alt="" className="w-full aspect-square object-cover"
                           onError={e => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none'; }} />
                       </button>
@@ -2645,9 +2645,9 @@ function QCQuickFix({
               <p className="text-[10px] text-gray-400">Format: {product.brand} [Size] [Feature] [Sub-category] [Category]</p>
               <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
                 placeholder={`${product.brand} 1.5 Ton Inverter Air Conditioner`}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
               <button onClick={saveName} disabled={saving || !newName.trim()}
-                className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white text-xs font-bold px-4 py-2 rounded-lg">
+                className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white text-xs font-bold px-4 py-2 rounded-lg">
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} Save Name
               </button>
             </div>
@@ -2666,12 +2666,12 @@ function QCQuickFix({
               ))}
               <div className="grid grid-cols-2 gap-2">
                 <input type="text" value={specKey} onChange={e => setSpecKey(e.target.value)} placeholder="Spec key"
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                 <input type="text" value={specVal} onChange={e => setSpecVal(e.target.value)} placeholder="Value"
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
               </div>
               <button onClick={saveSpec} disabled={saving || !specKey.trim() || !specVal.trim()}
-                className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white text-xs font-bold px-4 py-2 rounded-lg">
+                className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white text-xs font-bold px-4 py-2 rounded-lg">
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} Add Spec
               </button>
             </div>
@@ -2681,7 +2681,7 @@ function QCQuickFix({
 
           <div className="flex gap-2 justify-end border-t border-gray-100 pt-3">
             <a href={`/products/${product.slug}`} target="_blank" rel="noreferrer"
-              className="text-xs text-gray-500 hover:text-orange-600 font-medium px-3 py-1.5 border border-gray-200 rounded-lg">
+              className="text-xs text-gray-500 hover:text-brand-600 font-medium px-3 py-1.5 border border-gray-200 rounded-lg">
               Preview →
             </a>
             <button onClick={onClose} className="text-xs text-gray-500 hover:text-gray-800 px-3 py-1.5 border border-gray-200 rounded-lg">
@@ -2757,13 +2757,13 @@ function QCQueueTab({ products, onRefresh }: { products: Product[]; onRefresh: (
         {QC_FILTER_OPTIONS.map(opt => (
           <button key={opt.code} onClick={() => { setFilterCode(opt.code as QCFilterCode); setSelectedQC(new Set()); }}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors
-              ${filterCode === opt.code ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+              ${filterCode === opt.code ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
             {opt.label}
           </button>
         ))}
         <div className="flex-1" />
         <button onClick={handleRescan} disabled={scanning}
-          className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:border-orange-300 text-xs font-semibold px-3 py-1.5 rounded-lg">
+          className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:border-brand-300 text-xs font-semibold px-3 py-1.5 rounded-lg">
           {scanning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
           Re-scan
         </button>
@@ -2772,10 +2772,10 @@ function QCQueueTab({ products, onRefresh }: { products: Product[]; onRefresh: (
 
       {/* Bulk action bar */}
       {selectedQC.size > 0 && (
-        <div className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-xl px-4 py-3">
-          <span className="text-sm font-bold text-orange-700">{selectedQC.size} selected</span>
+        <div className="flex items-center gap-3 bg-brand-50 border border-brand-200 rounded-xl px-4 py-3">
+          <span className="text-sm font-bold text-brand-700">{selectedQC.size} selected</span>
           <select value={bulkAction} onChange={e => setBulkAction(e.target.value)}
-            className="border border-orange-200 bg-white rounded-lg px-3 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-orange-400">
+            className="border border-brand-200 bg-white rounded-lg px-3 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand-400">
             <option value="">Choose bulk action…</option>
             <option value="flag_mismatch">Flag all as image mismatch</option>
             <option value="clear_mismatch">Clear image mismatch flags</option>
@@ -2790,7 +2790,7 @@ function QCQueueTab({ products, onRefresh }: { products: Product[]; onRefresh: (
               setSelectedQC(new Set()); setBulkAction(''); onRefresh();
             }}
             disabled={!bulkAction}
-            className="text-xs font-bold bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white px-4 py-1.5 rounded-lg">
+            className="text-xs font-bold bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white px-4 py-1.5 rounded-lg">
             Apply
           </button>
           <button onClick={() => setSelectedQC(new Set())} className="text-xs text-gray-500 hover:text-gray-700 ml-auto">
@@ -2817,7 +2817,7 @@ function QCQueueTab({ products, onRefresh }: { products: Product[]; onRefresh: (
                 <tr>
                   <th className="px-4 py-3 w-8">
                     <button onClick={toggleSelectAll}
-                      className="w-4 h-4 rounded border border-gray-300 flex items-center justify-center text-orange-500 hover:border-orange-400">
+                      className="w-4 h-4 rounded border border-gray-300 flex items-center justify-center text-brand-500 hover:border-brand-400">
                       {allSelectedOnPage ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5 text-gray-300" />}
                     </button>
                   </th>
@@ -2830,10 +2830,10 @@ function QCQueueTab({ products, onRefresh }: { products: Product[]; onRefresh: (
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {filtered.map(({ product: p, score, issues, lastChecked }) => (
-                  <tr key={p.id} className={`hover:bg-gray-50 transition-colors ${selectedQC.has(p.id) ? 'bg-orange-50/50' : ''}`}>
+                  <tr key={p.id} className={`hover:bg-gray-50 transition-colors ${selectedQC.has(p.id) ? 'bg-brand-50/50' : ''}`}>
                     <td className="px-4 py-3">
                       <button onClick={() => toggleQCSelect(p.id)}
-                        className="w-4 h-4 rounded border border-gray-300 flex items-center justify-center text-orange-500 hover:border-orange-400">
+                        className="w-4 h-4 rounded border border-gray-300 flex items-center justify-center text-brand-500 hover:border-brand-400">
                         {selectedQC.has(p.id) ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5 text-gray-300" />}
                       </button>
                     </td>
@@ -2880,11 +2880,11 @@ function QCQueueTab({ products, onRefresh }: { products: Product[]; onRefresh: (
                       <div className="flex gap-1">
                         <button
                           onClick={() => setFixingResult({ product: p, result: { productId: p.id, score, issues, lastChecked } })}
-                          className="text-xs font-bold bg-orange-500 hover:bg-orange-600 text-white px-2.5 py-1.5 rounded-lg transition-colors">
+                          className="text-xs font-bold bg-brand-500 hover:bg-brand-600 text-white px-2.5 py-1.5 rounded-lg transition-colors">
                           Fix
                         </button>
                         <a href={`/products/${p.slug}`} target="_blank" rel="noreferrer"
-                          className="text-xs font-medium text-gray-500 hover:text-orange-600 bg-gray-100 hover:bg-orange-50 px-2.5 py-1.5 rounded-lg transition-colors">
+                          className="text-xs font-medium text-gray-500 hover:text-brand-600 bg-gray-100 hover:bg-brand-50 px-2.5 py-1.5 rounded-lg transition-colors">
                           View
                         </a>
                       </div>
@@ -2963,7 +2963,7 @@ function SpecSchemaTab() {
         {allCats.map(cat => (
           <button key={cat} onClick={() => load(cat)}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors
-              ${selCat === cat ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+              ${selCat === cat ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
             {cat}
           </button>
         ))}
@@ -2971,9 +2971,9 @@ function SpecSchemaTab() {
         <div className="flex items-center gap-1">
           <input value={customCat} onChange={e => setCustomCat(e.target.value)}
             placeholder="New category…"
-            className="border border-gray-200 rounded-lg px-2 py-1 text-xs w-36 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            className="border border-gray-200 rounded-lg px-2 py-1 text-xs w-36 focus:outline-none focus:ring-2 focus:ring-brand-400" />
           <button onClick={() => { if (customCat.trim()) { load(customCat.trim()); setCustomCat(''); } }}
-            className="text-xs bg-gray-100 hover:bg-orange-100 text-gray-600 hover:text-orange-700 px-2 py-1 rounded-lg">
+            className="text-xs bg-gray-100 hover:bg-brand-100 text-gray-600 hover:text-brand-700 px-2 py-1 rounded-lg">
             + Add
           </button>
         </div>
@@ -3031,22 +3031,22 @@ function SpecSchemaTab() {
               <div>
                 <label className="text-xs font-semibold text-gray-600 block mb-1">Field Key *</label>
                 <input value={newKey} onChange={e => setNewKey(e.target.value)} placeholder="e.g. Noise Level"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand-400" />
               </div>
               <div>
                 <label className="text-xs font-semibold text-gray-600 block mb-1">Display Label *</label>
                 <input value={newLabel} onChange={e => setNewLabel(e.target.value)} placeholder="e.g. Noise Level"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand-400" />
               </div>
               <div>
                 <label className="text-xs font-semibold text-gray-600 block mb-1">Unit (optional)</label>
                 <input value={newUnit} onChange={e => setNewUnit(e.target.value)} placeholder="e.g. dB, W, L"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand-400" />
               </div>
               <div>
                 <label className="text-xs font-semibold text-gray-600 block mb-1">Highlight</label>
                 <select value={newHL} onChange={e => setNewHL(e.target.value as ''|'min'|'max')}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white">
                   <option value="">None</option>
                   <option value="max">Higher is better</option>
                   <option value="min">Lower is better</option>
@@ -3055,7 +3055,7 @@ function SpecSchemaTab() {
             </div>
             <div className="flex items-center gap-3">
               <button onClick={addField} disabled={!newKey.trim() || !newLabel.trim()}
-                className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white text-xs font-bold px-4 py-2 rounded-lg">
+                className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white text-xs font-bold px-4 py-2 rounded-lg">
                 <Plus className="w-3.5 h-3.5" /> Add Field
               </button>
               {saved && <span className="text-xs text-green-600 font-semibold">Saved!</span>}
@@ -3071,7 +3071,7 @@ function SpecSchemaTab() {
 
 const FIELD_COLORS: Record<string, string> = {
   Image:   'bg-purple-100 text-purple-700',
-  Name:    'bg-orange-100 text-orange-700',
+  Name:    'bg-brand-100 text-brand-700',
   Desc:    'bg-blue-100 text-blue-700',
   Warranty:'bg-teal-100 text-teal-700',
   Tags:    'bg-yellow-100 text-yellow-700',
@@ -3236,7 +3236,7 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
       <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-5">
         <div>
           <h3 className="font-bold text-gray-900 flex items-center gap-2">
-            <Wand2 className="w-4 h-4 text-orange-500" />
+            <Wand2 className="w-4 h-4 text-brand-500" />
             Bulk Operations
           </h3>
           <p className="text-sm text-gray-500 mt-0.5">Run enrichment, category fix, and image matching on a group of products.</p>
@@ -3254,7 +3254,7 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
               disabled={s.id === 'selected' && selectedIds.size === 0}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
                 ${scope === s.id
-                  ? 'bg-orange-500 text-white'
+                  ? 'bg-brand-500 text-white'
                   : s.id === 'selected' && selectedIds.size === 0
                     ? 'bg-gray-50 text-gray-300 cursor-not-allowed'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
@@ -3316,10 +3316,10 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
           </div>
 
             {/* Rebalance Categories */}
-          <div className="border border-orange-100 rounded-xl p-4 space-y-3">
+          <div className="border border-brand-100 rounded-xl p-4 space-y-3">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 bg-orange-50 rounded-lg flex items-center justify-center">
-                <Filter className="w-3.5 h-3.5 text-orange-500" />
+              <div className="w-7 h-7 bg-brand-50 rounded-lg flex items-center justify-center">
+                <Filter className="w-3.5 h-3.5 text-brand-500" />
               </div>
               <span className="font-semibold text-gray-800 text-sm">Rebalance Categories</span>
             </div>
@@ -3330,7 +3330,7 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
             <button
               onClick={() => setConfirmBulk({ title: 'Rebalance Categories?', message: `Apply subcategory rules (tonnage, size, type) to ${getScopeLabel()}. This will move products between categories automatically.`, action: handleRebalance })}
               disabled={isBusy() || !!rebalProgress || scopeEmpty}
-              className="w-full flex items-center justify-center gap-1.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white py-2 rounded-lg text-xs font-bold">
+              className="w-full flex items-center justify-center gap-1.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white py-2 rounded-lg text-xs font-bold">
               {rebalProgress
                 ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /><span className="truncate max-w-[140px]">{rebalProgress}</span></>
                 : <><Filter className="w-3.5 h-3.5" />Rebalance Categories</>}
@@ -3457,7 +3457,7 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
           <button
             onClick={() => setConfirmBulk({ title: 'Run All 3 Operations?', message: `Enrich names → Fix categories → Match images for ${getScopeLabel()}.\n\nThis is the recommended flow after a CSV import.`, action: handleRunAll })}
             disabled={isBusy() || scopeEmpty}
-            className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl text-sm font-bold">
+            className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl text-sm font-bold">
             <Wand2 className="w-4 h-4" />
             Run All 3 Operations
           </button>
@@ -3473,7 +3473,7 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
           <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
             <span className="text-sm font-semibold text-gray-700">Category Sizes (target: {CAT_MIN}–{CAT_MAX} products)</span>
             <button onClick={loadCatCounts} disabled={catCountsLoading}
-              className="flex items-center gap-1 text-xs text-gray-500 hover:text-orange-500">
+              className="flex items-center gap-1 text-xs text-gray-500 hover:text-brand-500">
               {catCountsLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
               Refresh
             </button>
@@ -3605,7 +3605,7 @@ function ToolsTab({ onRefresh, products, selectedIds }: {
         )}
 
         {auditLoading ? (
-          <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-orange-400" /></div>
+          <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-brand-400" /></div>
         ) : audit?.length === 0 ? (
           <div className="flex items-center justify-center gap-2 py-10 text-green-600">
             <Check className="w-5 h-5" /><span className="font-medium">All products are complete!</span>
@@ -3756,7 +3756,7 @@ function CatalogExportPanel({ products }: { products: Product[] }) {
       {/* Actions */}
       <div className="flex gap-2 flex-wrap">
         <button onClick={runValidation} disabled={validating || products.length === 0}
-          className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:border-orange-300 text-xs font-semibold px-3 py-2 rounded-lg">
+          className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:border-brand-300 text-xs font-semibold px-3 py-2 rounded-lg">
           {validating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ListChecks className="w-3.5 h-3.5" />}
           Validate Feed
         </button>
@@ -3839,7 +3839,7 @@ function CatalogExportPanel({ products }: { products: Product[] }) {
             {(['summary', 'sets', 'issues'] as const).map(v => (
               <button key={v} onClick={() => setView(v)}
                 className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors
-                  ${view === v ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  ${view === v ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                 {v === 'summary' ? 'Summary' : v === 'sets' ? `WA Categories (${sets.length})` : `Issues (${validation.errors + validation.warnings})`}
               </button>
             ))}
@@ -3882,7 +3882,7 @@ function CatalogExportPanel({ products }: { products: Product[] }) {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {sets.map(s => (
-                    <tr key={s.label} className="bg-white hover:bg-orange-50">
+                    <tr key={s.label} className="bg-white hover:bg-brand-50">
                       <td className="px-4 py-2 font-medium text-gray-800">{s.label}</td>
                       <td className="px-4 py-2 text-right text-gray-600">{s.count}</td>
                       <td className="px-4 py-2 text-right text-gray-500">
@@ -4030,24 +4030,24 @@ function ReviewsTab() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search by product, customer, comment…"
-            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
         </div>
         <div className="flex gap-1">
           {[0, 5, 4, 3, 2, 1].map(n => (
             <button key={n} onClick={() => setRatingFilter(ratingFilter === n ? 0 : n)}
               className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors
-                ${ratingFilter === n ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                ${ratingFilter === n ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
               {n === 0 ? 'All' : `${n}★`}
             </button>
           ))}
         </div>
-        <button onClick={load} className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:border-orange-300 px-3 py-2 rounded-lg text-xs font-semibold">
+        <button onClick={load} className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:border-brand-300 px-3 py-2 rounded-lg text-xs font-semibold">
           <RefreshCw className="w-3.5 h-3.5" /> Refresh
         </button>
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-orange-400" /></div>
+        <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-brand-400" /></div>
       ) : reviews.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
           <Star className="w-10 h-10 mx-auto mb-3 text-gray-200" />
@@ -4168,7 +4168,7 @@ const LEAD_STATUSES = ['new', 'contacted', 'qualified', 'closed', 'rejected'] as
 
 const LEAD_STATUS_COLORS: Record<string, string> = {
   new:       'bg-blue-100 text-blue-700',
-  contacted: 'bg-orange-100 text-orange-700',
+  contacted: 'bg-brand-100 text-brand-700',
   qualified: 'bg-green-100 text-green-700',
   closed:    'bg-purple-100 text-purple-700',
   rejected:  'bg-red-100 text-red-600',
@@ -4640,8 +4640,10 @@ async function generateQuotationPdf(opts: {
   instMonthlyAmt?: number;
   instFirstDate?: string;
 }): Promise<Blob> {
-  const ORANGE = '#EA580C';
-  const DARK   = '#1A1A1A';
+  const NAVY  = '#123F73';
+  const DNAV  = '#0B2545';
+  const GOLD  = '#F6C400';
+  const DARK  = '#1A1A1A';
   const W = 210; const margin = 9;
   const printW = W - margin * 2;
 
@@ -4697,12 +4699,12 @@ async function generateQuotationPdf(opts: {
   const HEADER_H = 36;
   const badgeLabel = opts.docType === 'invoice' ? 'INVOICE' : 'QUOTATION';
 
-  // Main orange band
-  doc.setFillColor(ORANGE);
+  // Main navy band
+  doc.setFillColor(NAVY);
   doc.rect(0, 0, W, HEADER_H, 'F');
 
-  // Right meta zone — dark mahogany band for strong visual separation
-  doc.setFillColor(180, 55, 5);
+  // Right meta zone — dark navy band for strong visual separation
+  doc.setFillColor(11, 37, 69);
   doc.rect(W - 62, 0, 62, HEADER_H, 'F');
 
   // Logo — left
@@ -4721,15 +4723,15 @@ async function generateQuotationPdf(opts: {
   doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
   doc.line(margin + 38, 23.5, margin + 38 + 74, 23.5);
   // Tagline below rule
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(255, 222, 188);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
   doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', margin + 38, 28.5);
 
   // Right meta zone: doc-type label (tiny, muted) → REF (large, dominant) → date (small)
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(255, 185, 145);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(246, 196, 0);
   doc.text(badgeLabel, W - margin, 8, { align: 'right' });
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
   doc.text(opts.refNumber, W - margin, 19, { align: 'right' });
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(255, 210, 175);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
   doc.text(dateStr, W - margin, 28, { align: 'right' });
 
   // Vertical separator
@@ -4738,7 +4740,7 @@ async function generateQuotationPdf(opts: {
   doc.setLineWidth(0.2);
 
   // Contact strip — full width at very bottom of header
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(255, 210, 175);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(196, 213, 236);
   const contactParts = ['L-152 & 153, Sector 11C-1, North Karachi', '+92 370 2578788', 'support@tajallis.com.pk'];
   if (opts.showNtn) contactParts.push('NTN: 42101-3836602-3');
   doc.text(contactParts.join('  ·  '), margin, HEADER_H - 2);
@@ -4748,7 +4750,7 @@ async function generateQuotationPdf(opts: {
   let rightY = HEADER_H + 2;
 
   const secLabel = (text: string, x: number, y: number) => {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(NAVY);
     doc.text(text, x, y);
   };
 
@@ -4779,19 +4781,19 @@ async function generateQuotationPdf(opts: {
   });
   const custBlockH = custRows.reduce((s, r) => s + r.rowH, 0) + 9;
 
-  doc.setFillColor(255, 247, 237);
+  doc.setFillColor(235, 242, 250);
   doc.rect(margin, leftY, leftW, custBlockH, 'F');
-  doc.setDrawColor(234, 88, 12); doc.setLineWidth(0.5);
+  doc.setDrawColor(18, 63, 115); doc.setLineWidth(0.5);
   doc.line(margin, leftY, margin, leftY + custBlockH);
   doc.setLineWidth(0.2);
-  doc.setFillColor(ORANGE);
+  doc.setFillColor(NAVY);
   doc.rect(margin, leftY, leftW, 4, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
   doc.text('CLIENT', margin + 3, leftY + 3);
 
   let cy = leftY + 4 + custRowH;
   for (const { lbl, vl, rowH, isName } of custRows) {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(180, 100, 50);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(63, 116, 184);
     doc.text(lbl, margin + 3, cy);
     doc.setFont('helvetica', isName ? 'bold' : 'normal');
     doc.setFontSize(isName ? 8 : 7); doc.setTextColor(isName ? 20 : 30, 20, 20);
@@ -5045,7 +5047,7 @@ async function generateQuotationPdf(opts: {
     startY: leftY,
     margin: { left: margin, right: leftAutoMarginRight },
     head: [
-      [{ content: 'ITEMS', colSpan: 4, styles: { fillColor: ORANGE, textColor: [255,255,255] as [number,number,number], fontSize: 7, fontStyle: 'bold' as const, cellPadding: { top: 2, bottom: 2, left: 3 } } }],
+      [{ content: 'ITEMS', colSpan: 4, styles: { fillColor: NAVY, textColor: [255,255,255] as [number,number,number], fontSize: 7, fontStyle: 'bold' as const, cellPadding: { top: 2, bottom: 2, left: 3 } } }],
       ['PRODUCT / SPECS', 'QTY', 'UNIT', 'TOTAL'],
     ],
     body: itemsBody,
@@ -5055,7 +5057,7 @@ async function generateQuotationPdf(opts: {
       2: { cellWidth: 22, halign: 'right' },
       3: { cellWidth: 22, halign: 'right', fontStyle: 'bold' },
     },
-    headStyles: { fillColor: ORANGE, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6 },
+    headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6 },
     bodyStyles: { fontSize: 6, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
     alternateRowStyles: { fillColor: [250, 250, 250] },
     styles: { overflow: 'linebreak', cellPadding: cellPad },
@@ -5111,23 +5113,23 @@ async function generateQuotationPdf(opts: {
       doc.line(rightX, rightY + 1, rightX + rightW, rightY + 1);
       doc.setLineWidth(0.2);
       rightY += 4;
-      doc.setFillColor(255, 247, 237);
+      doc.setFillColor(235, 242, 250);
       doc.rect(rightX, rightY, rightW, instBoxH, 'F');
-      doc.setFillColor(ORANGE);
+      doc.setFillColor(NAVY);
       doc.rect(rightX, rightY, rightW, 4, 'F');
-      doc.setDrawColor(ORANGE); doc.setLineWidth(0.4);
+      doc.setDrawColor(NAVY); doc.setLineWidth(0.4);
       doc.line(rightX, rightY, rightX, rightY + instBoxH);
       doc.setLineWidth(0.2);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
       doc.text('12-MONTH OPTION', rightX + 3, rightY + 3);
       // Line 1: Total
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(180, 80, 20);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(63, 116, 184);
       doc.text('Total', rightX + 3, rightY + 8);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(30, 30, 30);
       doc.text(PKR(_p12.total), rightX + rightW - 3, rightY + 8, { align: 'right' });
       // Line 2: Advance + Monthly combined
       const advPct = Math.round(_p12.advancePct * 100);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(100, 60, 20);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(80, 100, 130);
       doc.text(`${advPct}% adv ${PKR(_p12.advance)}  ·  ${PKR(_p12.monthly)}/mo × ${_p12.monthlyPayments}`, rightX + 3, rightY + 11.5, { maxWidth: rightW - 5 });
       rightY += instBoxH + 2;
     }
@@ -5175,7 +5177,7 @@ async function generateQuotationPdf(opts: {
     doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
     doc.line(rightX + 3, pry - 1, rightX + rightW - 3, pry - 1);
 
-    doc.setFillColor(ORANGE);
+    doc.setFillColor(NAVY);
     doc.rect(rightX, pry - 1, rightW, 18, 'F');
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
     doc.text('GRAND TOTAL', rightX + 3, pry + 5.5);
@@ -5187,19 +5189,19 @@ async function generateQuotationPdf(opts: {
     const _isFullyPaid = opts.advancePaid && _gtAdvAmt >= grandTotal;
     const _balStatusLabel = _isFullyPaid ? 'AMOUNT PAID' : 'BALANCE DUE';
     const _balStatusAmt = _isFullyPaid ? grandTotal : (grandTotal - (opts.advancePaid ? _gtAdvAmt : 0));
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 220, 185);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(246, 196, 0);
     doc.text(_balStatusLabel, rightX + 3, pry + 13);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(255, 255, 255);
     doc.text(PKR(_balStatusAmt), rightX + rightW - 3, pry + 13, { align: 'right' });
 
     if (discountAmt > 0 && opts.discountReason) {
       const calloutY = pry + 19;
-      doc.setFillColor(255, 247, 237);
+      doc.setFillColor(235, 242, 250);
       doc.rect(rightX, calloutY, rightW, 7, 'F');
-      doc.setDrawColor(234, 88, 12); doc.setLineWidth(0.3);
+      doc.setDrawColor(18, 63, 115); doc.setLineWidth(0.3);
       doc.line(rightX, calloutY, rightX, calloutY + 7);
       doc.setLineWidth(0.2);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(180, 80, 20);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(18, 63, 115);
       doc.text('✶ ' + opts.discountReason, rightX + 3, calloutY + 4.5, { maxWidth: rightW - 6 });
     }
 
@@ -5234,7 +5236,7 @@ async function generateQuotationPdf(opts: {
         && /install/i.test(svc.service_name) && svc.status === 'not_selected';
       const effStatus = override ? 'included' : svc.status;
       const statusLabel = effStatus === 'included' ? 'INCL' : 'BILLED';
-      const statusColor: [number, number, number] = effStatus === 'included' ? [22, 163, 74] : [234, 88, 12];
+      const statusColor: [number, number, number] = effStatus === 'included' ? [22, 163, 74] : [18, 63, 115];
       const amtLabel = effStatus === 'included' ? 'PKR 0' : PKR(svc.charged_amount);
       const mktLabel = svc.visible_value > 0 ? PKR(svc.visible_value) : '—';
       return [
@@ -5284,7 +5286,7 @@ async function generateQuotationPdf(opts: {
       const priceStr = svc.display_value ?? (svc.visible_value > 0 ? PKR(svc.visible_value) : 'Contact us');
       doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(80, 80, 80);
       doc.text(`· ${svc.service_name}`, margin + 3, sy);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(234, 88, 12);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(18, 63, 115);
       doc.text(priceStr, margin + leftW - 3, sy, { align: 'right' });
       sy += 4.0;
     }
@@ -5365,7 +5367,7 @@ async function generateQuotationPdf(opts: {
     doc.setDrawColor(202, 138, 4); doc.setLineWidth(0.4);
     doc.line(margin, y, margin, y + stripH2);
     doc.setLineWidth(0.2);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(ORANGE);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(101, 61, 0);
     doc.text('ENERGY CONSUMPTION', margin + 3, y + 5);
 
     if (energyLines2.length === 0) {
@@ -5435,7 +5437,7 @@ async function generateQuotationPdf(opts: {
     const advTitle2 = advisory2
       ? (advisory2.color === 'green' ? 'SOLAR RECOMMENDATION' : advisory2.color === 'blue' ? 'UPS / BACKUP ADVISORY' : 'ENERGY ADVISORY')
       : 'ENERGY ADVISORY';
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(ORANGE);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(NAVY);
     doc.text(advTitle2, aColX2 + 3, y + 5);
     const advParas2 = advisory2
       ? advisory2.paragraphs
@@ -5479,10 +5481,10 @@ async function generateQuotationPdf(opts: {
     const colStyles = { 0: { cellWidth: 7 }, 2: { cellWidth: 26, halign: 'right' as const }, 3: { cellWidth: 24 } };
 
     const advRow: any[] = [
-      { content: '0', styles: { fillColor: [234,88,12] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' as const } },
-      { content: 'Advance', styles: { fillColor: [234,88,12] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' as const } },
-      { content: PKR(opts.instAdvanceAmt ?? 0), styles: { fillColor: [234,88,12] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' as const, halign: 'right' as const } },
-      { content: 'On confirm', styles: { fillColor: [234,88,12] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' as const } },
+      { content: '0', styles: { fillColor: [18,63,115] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' as const } },
+      { content: 'Advance', styles: { fillColor: [18,63,115] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' as const } },
+      { content: PKR(opts.instAdvanceAmt ?? 0), styles: { fillColor: [18,63,115] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' as const, halign: 'right' as const } },
+      { content: 'On confirm', styles: { fillColor: [18,63,115] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' as const } },
     ];
     const instRows2: any[][] = [];
     for (let i = 1; i <= instMonths; i++) {
@@ -5519,7 +5521,7 @@ async function generateQuotationPdf(opts: {
     // @ts-ignore
     y = Math.max(leftSchedFinalY, (doc as any).lastAutoTable.finalY) + 2;
 
-    doc.setFont('helvetica', 'italic'); doc.setFontSize(5.5); doc.setTextColor(120, 80, 0);
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(5.5); doc.setTextColor(80, 100, 130);
     doc.text('Late payment: 1% per day past due. Post-dated cheques required.', margin, y);
     y += 4;
   }
@@ -5528,7 +5530,7 @@ async function generateQuotationPdf(opts: {
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
   doc.line(margin, y - 1, W - margin, y - 1);
   doc.setLineWidth(0.2);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(NAVY);
   doc.text('PAYMENT & BANK TRANSFER', margin, y);
   y += 3.5;
 
@@ -5572,7 +5574,7 @@ async function generateQuotationPdf(opts: {
     // Total line
     doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.2);
     doc.line(margin + 3, ppy - 0.5, margin + payColW - 3, ppy - 0.5);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(234, 88, 12);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(18, 63, 115);
     doc.text('Total', margin + 3, ppy + 3.5);
     doc.text(PKR(grandTotal), margin + payColW - 3, ppy + 3.5, { align: 'right' });
     ppy += 8;
@@ -5739,7 +5741,7 @@ async function generateQuotationPdf(opts: {
   const colTcW = (printW - (tcCols - 1) * 3) / tcCols;
   const tcRowH = 2.8;
   const tcBgH = tcPerCol * tcRowH + 5;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(ORANGE);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(NAVY);
   doc.text('TERMS & CONDITIONS', margin, y);
   const tcBodyY = y + 3.5;
   doc.setFillColor(249, 249, 249);
@@ -5799,8 +5801,10 @@ async function generateInstallmentAdvancePdf(opts: {
   showNtn?: boolean;
   isApartmentClient?: boolean;
 }): Promise<Blob> {
-  const ORANGE = '#EA580C';
-  const DARK   = '#1A1A1A';
+  const NAVY  = '#123F73';
+  const DNAV  = '#0B2545';
+  const GOLD  = '#F6C400';
+  const DARK  = '#1A1A1A';
   const W = 210; const margin = 18;
   const printW = W - margin * 2;
 
@@ -5816,7 +5820,7 @@ async function generateInstallmentAdvancePdf(opts: {
   try { qrData = await loadQrBase64(); } catch { /* skip */ }
 
   // ── 1. Header band ────────────────────────────────────────────────────────
-  doc.setFillColor(ORANGE);
+  doc.setFillColor(NAVY);
   doc.rect(0, 0, W, 40, 'F');
   if (logoData) {
     doc.addImage(logoData, 'PNG', margin, 5, 0, 30);
@@ -5896,7 +5900,7 @@ async function generateInstallmentAdvancePdf(opts: {
     head: [['Item / Description', 'Key Spec', 'Warranty', 'Qty', 'Unit Price', 'Total']],
     body: tableBody,
     columnStyles: { 0: { cellWidth: 65 }, 1: { cellWidth: 28 }, 2: { cellWidth: 22 }, 3: { cellWidth: 10, halign: 'right' }, 4: { cellWidth: 26, halign: 'right' }, 5: { cellWidth: 23, halign: 'right', fontStyle: 'bold' } },
-    headStyles: { fillColor: ORANGE, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
+    headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5 },
     bodyStyles: { fontSize: 7.5, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.2 },
     alternateRowStyles: { fillColor: [250, 250, 250] },
     styles: { overflow: 'linebreak', cellPadding: 2.5 },
@@ -5915,7 +5919,7 @@ async function generateInstallmentAdvancePdf(opts: {
   doc.text('Installment Total', sumX, y);
   doc.text(PKR(opts.instTotalPrice), W - margin, y, { align: 'right' });
   y += 7;
-  doc.setFillColor(ORANGE);
+  doc.setFillColor(NAVY);
   doc.rect(sumX - 4, y - 1, W - margin - sumX + 4 + margin, 11, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
   doc.text('Advance Due Now', sumX, y + 7);
@@ -6086,8 +6090,10 @@ async function generateInstallmentPaymentPdf(opts: {
   customCharges?: Array<{ name: string; amount: number }>;
   showNtn?: boolean;
 }): Promise<Blob> {
-  const ORANGE = '#EA580C';
-  const DARK   = '#1A1A1A';
+  const NAVY  = '#123F73';
+  const DNAV  = '#0B2545';
+  const GOLD  = '#F6C400';
+  const DARK  = '#1A1A1A';
   const W = 210; const margin = 18;
   const printW = W - margin * 2;
 
@@ -6111,7 +6117,7 @@ async function generateInstallmentPaymentPdf(opts: {
   try { fbQrData = await generateQrDataUrl('https://www.facebook.com/share/g/18be5ayTCF/'); } catch { /* skip */ }
 
   // ── 1. Header band ────────────────────────────────────────────────────────
-  doc.setFillColor(ORANGE);
+  doc.setFillColor(NAVY);
   doc.rect(0, 0, W, 40, 'F');
   if (logoData) {
     doc.addImage(logoData, 'PNG', margin, 5, 0, 30);
@@ -6366,8 +6372,10 @@ async function generateServiceReceiptPdf(opts: {
   preparedBy: string;
   showNtn?: boolean;
 }): Promise<Blob> {
-  const ORANGE = '#EA580C';
-  const DARK   = '#1A1A1A';
+  const NAVY  = '#123F73';
+  const DNAV  = '#0B2545';
+  const GOLD  = '#F6C400';
+  const DARK  = '#1A1A1A';
   const W = 210; const margin = 10;
   const printW = W - margin * 2;
 
@@ -6383,7 +6391,7 @@ async function generateServiceReceiptPdf(opts: {
 
   // ── Header ───────────────────────────────────────────────────────────────
   const HEADER_H = 38;
-  doc.setFillColor(ORANGE);
+  doc.setFillColor(NAVY);
   doc.rect(0, 0, W, HEADER_H, 'F');
   doc.setFillColor(180, 55, 5);
   doc.rect(W - 62, 0, 62, HEADER_H, 'F');
@@ -6419,7 +6427,7 @@ async function generateServiceReceiptPdf(opts: {
   const rightX = margin + leftW + colGap;
 
   // Left: customer
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(NAVY);
   doc.text('CLIENT', margin, y);
   y += 3.5;
   const custFields: Array<[string, string]> = [
@@ -6437,7 +6445,7 @@ async function generateServiceReceiptPdf(opts: {
   doc.setLineWidth(0.2);
   let cy = y + custRowH;
   for (const [lbl, val] of custFields) {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(180, 100, 50);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(63, 116, 184);
     doc.text(lbl, margin + 3, cy);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(30, 30, 30);
     doc.text(val, margin + 22, cy);
@@ -6445,7 +6453,7 @@ async function generateServiceReceiptPdf(opts: {
   }
 
   // Right: receipt meta
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(NAVY);
   doc.text('RECEIPT DETAILS', rightX, y - 3.5);
   const metaRows: Array<[string, string]> = [
     ['REF',         opts.refNumber],
@@ -6469,7 +6477,7 @@ async function generateServiceReceiptPdf(opts: {
   // ── Device / Equipment block ──────────────────────────────────────────────
   const hasDevice = !!(opts.deviceBrand || opts.deviceModel || opts.faultDesc);
   if (hasDevice) {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(NAVY);
     doc.text('DEVICE / EQUIPMENT', margin, y);
     y += 3.5;
     const devFields: Array<[string, string]> = [];
@@ -6484,7 +6492,7 @@ async function generateServiceReceiptPdf(opts: {
     doc.setLineWidth(0.2);
     let dy = y + devRowH;
     for (const [lbl, val] of devFields) {
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(180, 100, 50);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(63, 116, 184);
       doc.text(lbl, margin + 3, dy);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(30, 30, 30);
       doc.text(val, margin + 36, dy);
@@ -6501,7 +6509,7 @@ async function generateServiceReceiptPdf(opts: {
   const partLines = opts.jobLines.filter(l => l.type === 'part');
 
   if (workLines.length > 0) {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(NAVY);
     doc.text('WORK PERFORMED', margin, y);
     y += 3.5;
     autoTable(doc, {
@@ -6530,7 +6538,7 @@ async function generateServiceReceiptPdf(opts: {
 
   // ── Parts / Spare Parts table ─────────────────────────────────────────────
   if (partLines.length > 0) {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(NAVY);
     doc.text('PARTS / SPARE PARTS', margin, y);
     y += 3.5;
     autoTable(doc, {
@@ -6559,7 +6567,7 @@ async function generateServiceReceiptPdf(opts: {
 
   // ── Custom charges table ──────────────────────────────────────────────────
   if (opts.customCharges.length > 0) {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(NAVY);
     doc.text('ADDITIONAL CHARGES', margin, y);
     y += 3.5;
     const ccBody = opts.customCharges.map(c => [
@@ -6623,7 +6631,7 @@ async function generateServiceReceiptPdf(opts: {
     doc.text(val, W - margin - 3, pry, { align: 'right' });
     pry += pricingRowH;
   }
-  doc.setFillColor(ORANGE);
+  doc.setFillColor(NAVY);
   doc.rect(totalsRightX, pry - 1, W - margin - totalsRightX, 11, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
   doc.text('TOTAL DUE', totalsRightX + 3, pry + 7);
@@ -6632,7 +6640,7 @@ async function generateServiceReceiptPdf(opts: {
 
   // ── Notes ─────────────────────────────────────────────────────────────────
   if (opts.notes?.trim()) {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(ORANGE);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(NAVY);
     doc.text('NOTES', margin, y);
     y += 3;
     doc.setFillColor(255, 247, 237);
@@ -6748,14 +6756,14 @@ const TAG_COLORS: Record<string, string> = {
   'New':          'bg-teal-100 text-teal-800 border border-teal-300',
   'Lapsed':       'bg-red-100 text-red-700 border border-red-300',
   'Installment':  'bg-purple-100 text-purple-800 border border-purple-300',
-  'Service':      'bg-orange-100 text-orange-800 border border-orange-300',
+  'Service':      'bg-brand-100 text-brand-700 border border-brand-300',
 };
 
 const CRM_DOC_TYPE_BADGE: Record<string, { label: string; color: string }> = {
   quotation:                    { label: 'Quotation',     color: 'bg-gray-100 text-gray-600' },
   invoice:                      { label: 'Invoice',       color: 'bg-blue-100 text-blue-700' },
   'installment-invoice':        { label: 'Installment',   color: 'bg-purple-100 text-purple-700' },
-  service_receipt:              { label: 'Service',       color: 'bg-orange-100 text-orange-700' },
+  service_receipt:              { label: 'Service',       color: 'bg-brand-100 text-brand-700' },
   installment_payment_receipt:  { label: 'Inst. Receipt', color: 'bg-indigo-100 text-indigo-700' },
 };
 
@@ -6942,7 +6950,7 @@ function CustomerCrmTab() {
                 placeholder="Search name or phone…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-300"
               />
               {search && (
                 <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -6960,7 +6968,7 @@ function CustomerCrmTab() {
                 onClick={() => setSegment(s.id)}
                 className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors ${
                   segment === s.id
-                    ? 'bg-orange-500 text-white'
+                    ? 'bg-brand-500 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -6981,8 +6989,8 @@ function CustomerCrmTab() {
                   <button
                     key={p.key}
                     onClick={() => selectCustomer(p)}
-                    className={`w-full text-left px-3 py-2.5 hover:bg-orange-50 transition-colors ${
-                      isSelected ? 'bg-orange-50 border-l-2 border-orange-500' : ''
+                    className={`w-full text-left px-3 py-2.5 hover:bg-brand-50 transition-colors ${
+                      isSelected ? 'bg-brand-50 border-l-2 border-brand-500' : ''
                     }`}
                   >
                     <div className="flex items-start justify-between gap-1">
@@ -7024,7 +7032,7 @@ function CustomerCrmTab() {
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
               <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-sm">
+                <div className="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 font-bold text-sm">
                   {selected.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
@@ -7237,7 +7245,7 @@ function CustomerCrmTab() {
                         value={noteText}
                         onChange={e => setNoteText(e.target.value)}
                         placeholder="Add a staff note…"
-                        className="w-full resize-none border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+                        className="w-full resize-none border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
                       />
                       <div className="flex gap-2 items-center">
                         <input
@@ -7245,12 +7253,12 @@ function CustomerCrmTab() {
                           value={noteBy}
                           onChange={e => setNoteBy(e.target.value)}
                           placeholder="Your name (optional)"
-                          className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+                          className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
                         />
                         <button
                           onClick={addNote}
                           disabled={addingNote || !noteText.trim()}
-                          className="px-3 py-1.5 bg-orange-500 text-white text-sm rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 shrink-0"
+                          className="px-3 py-1.5 bg-brand-500 text-white text-sm rounded-lg hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 shrink-0"
                         >
                           {addingNote ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                           Add
@@ -7561,14 +7569,14 @@ function InstallmentLedgerTab() {
           <input
             value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search customer / ref…"
-            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
           <button onClick={load} className="px-3 py-2 text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl transition-colors">↻ Refresh</button>
         </div>
       </div>
 
       {filtered.length > 0 && (
-        <div className="bg-orange-50 rounded-xl px-4 py-2.5 text-sm font-semibold text-orange-800">
+        <div className="bg-brand-50 rounded-xl px-4 py-2.5 text-sm font-semibold text-brand-700">
           Total outstanding across {filtered.length} installment sale{filtered.length !== 1 ? 's' : ''}: {PKR(totalOutstanding)}
         </div>
       )}
@@ -7622,7 +7630,7 @@ function InstallmentLedgerTab() {
                       <span>{Math.round((collected / row.inst_total_price) * 100)}%</span>
                     </div>
                     <div className="w-full bg-gray-100 rounded-full h-2">
-                      <div className="bg-orange-500 h-2 rounded-full transition-all" style={{ width: `${Math.min(100, Math.round((collected / row.inst_total_price) * 100))}%` }} />
+                      <div className="bg-brand-500 h-2 rounded-full transition-all" style={{ width: `${Math.min(100, Math.round((collected / row.inst_total_price) * 100))}%` }} />
                     </div>
                   </div>
                 )}
@@ -8020,22 +8028,22 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
             placeholder="From"
-            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
           <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
             placeholder="To"
-            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Name / phone / ref…"
-            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
           <select value={docTypeFilter} onChange={e => setDocTypeFilter(e.target.value)}
-            className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400">
             <option value="">All types</option>
             <option value="quotation">Quotation</option>
             <option value="invoice">Invoice</option>
             <option value="installment-invoice">Installment</option>
           </select>
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-            className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400">
             <option value="">All statuses</option>
             <option value="pending">Pending</option>
             <option value="partial">Partial</option>
@@ -8044,7 +8052,7 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
           </select>
         </div>
         <button onClick={fetchInvoices}
-          className="mt-3 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-xl transition-colors">
+          className="mt-3 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold rounded-xl transition-colors">
           Refresh
         </button>
       </div>
@@ -8090,7 +8098,7 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
               {filtered.map(row => (
                 <>
                   <tr key={row.id}
-                    className="border-b border-gray-50 hover:bg-orange-50/30 transition-colors cursor-pointer"
+                    className="border-b border-gray-50 hover:bg-brand-50/30 transition-colors cursor-pointer"
                     onClick={() => setExpanded(expanded === row.id ? null : row.id)}>
                     <td className="px-4 py-3 font-mono text-xs text-gray-700">{row.ref_number}</td>
                     <td className="px-4 py-3 text-xs text-gray-500">
@@ -8118,7 +8126,7 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
                           onClick={e => e.stopPropagation()}
                           onChange={e => updateStatus(row.id, e.target.value)}
                           disabled={updatingId === row.id}
-                          className="border border-gray-200 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-orange-400">
+                          className="border border-gray-200 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-brand-400">
                           <option value="pending">Pending</option>
                           <option value="partial">Partial</option>
                           <option value="paid">Paid</option>
@@ -8128,7 +8136,7 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
                           onClick={e => { e.stopPropagation(); reprintInvoice(row); }}
                           disabled={reprinting === row.id}
                           title="Download PDF copy"
-                          className="p-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-600 transition-colors disabled:opacity-40 flex-shrink-0">
+                          className="p-1.5 rounded-lg bg-brand-50 hover:bg-brand-100 text-brand-600 transition-colors disabled:opacity-40 flex-shrink-0">
                           {reprinting === row.id ? (
                             <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -8169,7 +8177,7 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
                     </td>
                   </tr>
                   {expanded === row.id && (
-                    <tr key={`${row.id}-exp`} className="bg-orange-50/40">
+                    <tr key={`${row.id}-exp`} className="bg-brand-50/40">
                       <td colSpan={7} className="px-6 py-4">
                         <div className="grid md:grid-cols-2 gap-4">
                           <div>
@@ -8186,7 +8194,7 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
                           <div className="space-y-1 text-xs">
                             <p className="font-bold text-gray-500 mb-2">DETAILS</p>
                             {row.discount_pct > 0 && (
-                              <p className="text-orange-600">{row.discount_type ?? 'Discount'}: {row.discount_pct}% — saving {PKR((row.subtotal ?? 0) * row.discount_pct / 100)}</p>
+                              <p className="text-brand-600">{row.discount_type ?? 'Discount'}: {row.discount_pct}% — saving {PKR((row.subtotal ?? 0) * row.discount_pct / 100)}</p>
                             )}
                             {row.customer_email && <p className="text-gray-600">Email: {row.customer_email}</p>}
                           </div>
@@ -9261,7 +9269,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Customer</p>
           <input value={customerName} onChange={e => setCustomerName(e.target.value)}
             placeholder="Customer name"
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
           {/* Phone input with validation indicator */}
           <div className="relative">
             <input
@@ -9269,7 +9277,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               onChange={e => setCustomerPhone(formatPhone(e.target.value))}
               placeholder="Phone (03XX-XXXXXXX)"
               inputMode="numeric"
-              className={`w-full border rounded-xl px-4 py-2.5 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 ${
+              className={`w-full border rounded-xl px-4 py-2.5 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 ${
                 phoneInvalid ? 'border-red-300' : phoneValid ? 'border-green-400' : 'border-gray-200'
               }`}
             />
@@ -9283,10 +9291,10 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           <input value={customerEmail} onChange={e => setCustomerEmail(e.target.value)}
             placeholder="Email (optional)"
             type="email"
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
           <input value={customerAddress} onChange={e => setCustomerAddress(e.target.value)}
             placeholder="Delivery address (optional)"
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
           {docType === 'service_receipt' && (
             <>
               <div className="border-t border-gray-100 pt-3 space-y-3">
@@ -9294,21 +9302,21 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                 <div className="grid grid-cols-2 gap-3">
                   <input value={srDeviceBrand} onChange={e => setSrDeviceBrand(e.target.value)}
                     placeholder="Brand (e.g. Haier)"
-                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                   <input value={srDeviceModel} onChange={e => setSrDeviceModel(e.target.value)}
                     placeholder="Model / Type"
-                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                 </div>
                 <textarea value={srFaultDesc} onChange={e => setSrFaultDesc(e.target.value)}
                   placeholder="Fault reported by customer"
                   rows={2}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none" />
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none" />
                 <div className="flex items-center gap-3">
                   <label className="text-xs font-semibold text-gray-600 shrink-0">Warranty on work</label>
                   <input type="number" min={0} value={srWarrantyDays || ''}
                     onChange={e => setSrWarrantyDays(Math.max(0, Number(e.target.value) || 0))}
                     placeholder="days (0 = none)"
-                    className="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    className="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                   <span className="text-xs text-gray-400">days</span>
                 </div>
               </div>
@@ -9321,7 +9329,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               <select
                 value={customerType}
                 onChange={e => setCustomerType(e.target.value as 'house' | 'apartment' | 'commercial')}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
               >
                 <option value="house">House</option>
                 <option value="apartment">Apartment / Flat</option>
@@ -9333,7 +9341,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               <select
                 value={serviceLevel}
                 onChange={e => setServiceLevel(e.target.value as 'supply_only' | 'supply_install' | 'full_service')}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
               >
                 <option value="supply_only">Supply Only</option>
                 <option value="supply_install">Supply + Install</option>
@@ -9344,7 +9352,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           {docType === 'installment-invoice' && (
             <input value={customerCnic} onChange={e => setCustomerCnic(e.target.value)}
               placeholder="CNIC (required for installment)"
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
           )}
           {/* Sale type */}
           <div>
@@ -9364,12 +9372,12 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               <label className="block text-xs font-semibold text-gray-500 mb-1">Prepared By</label>
               <input value={preparedBy} onChange={e => setPreparedBy(e.target.value)}
                 placeholder="Staff name"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">Stock Status</label>
               <select value={stockStatus} onChange={e => setStockStatus(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400">
                 <option value="In stock · confirm before payment">In stock · confirm before payment</option>
                 <option value="In stock · ready to ship">In stock · ready to ship</option>
                 <option value="Limited stock · confirm urgently">Limited stock · confirm urgently</option>
@@ -9384,13 +9392,13 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               <label className="block text-xs font-semibold text-gray-500 mb-1">Area</label>
               <input value={customerArea} onChange={e => setCustomerArea(e.target.value)}
                 placeholder="e.g. Malir · Karachi"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">Existing Customer?</label>
               <select value={isExistingCustomer === null ? '' : String(isExistingCustomer)}
                 onChange={e => setIsExistingCustomer(e.target.value === '' ? null : e.target.value === 'true')}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400">
                 <option value="">Unknown</option>
                 <option value="true">Yes · Returning</option>
                 <option value="false">No · New customer</option>
@@ -9402,7 +9410,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">Delivery ETA</label>
               <select value={deliveryEta} onChange={e => setDeliveryEta(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400">
                 <option value="24–48h after payment">24–48h after payment</option>
                 <option value="Same day (if ordered before 2pm)">Same day (if ordered before 2pm)</option>
                 <option value="3–5 business days">3–5 business days</option>
@@ -9414,7 +9422,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">Validity</label>
               <select value={validityHours} onChange={e => setValidityHours(Number(e.target.value) as 24 | 48 | 72 | 168)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400">
                 <option value={24}>24 hours</option>
                 <option value={48}>48 hours</option>
                 <option value={72}>72 hours</option>
@@ -9426,7 +9434,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           {/* Advance paid toggle */}
           <label className="flex items-center gap-2 cursor-pointer w-fit">
             <input type="checkbox" checked={advancePaid} onChange={e => setAdvancePaid(e.target.checked)}
-              className="w-4 h-4 accent-orange-500 rounded" />
+              className="w-4 h-4 accent-brand-500 rounded" />
             <span className="text-xs text-gray-500">Advance already paid (removes WA payment proof note)</span>
           </label>
           </>)}
@@ -9435,7 +9443,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               <label className="block text-xs font-semibold text-gray-500 mb-1">Prepared By</label>
               <input value={preparedBy} onChange={e => setPreparedBy(e.target.value)}
                 placeholder="Staff name"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
           )}
           {/* Discount mode toggle + input */}
@@ -9445,7 +9453,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               <div className="flex rounded-lg overflow-hidden border border-gray-200 text-xs">
                 {(['percentage', 'fixed'] as const).map(mode => (
                   <button key={mode} onClick={() => setDiscountMode(mode)}
-                    className={`px-3 py-1.5 font-semibold transition-colors ${discountMode === mode ? 'bg-orange-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                    className={`px-3 py-1.5 font-semibold transition-colors ${discountMode === mode ? 'bg-brand-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
                     {mode === 'percentage' ? '%' : 'PKR'}
                   </button>
                 ))}
@@ -9463,7 +9471,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                     setDiscount(n); setDiscountRaw(String(n));
                   }}
                   placeholder="0"
-                  className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
                 />
               ) : (
                 <input
@@ -9478,11 +9486,11 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                     setDiscountFixed(n); setDiscountFixedRaw(String(n));
                   }}
                   placeholder="0"
-                  className="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  className="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
                 />
               )}
               <select value={discountType} onChange={e => setDiscountType(e.target.value)}
-                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white">
                 {["Promotional", "MYOP", "Exchange Credit", "Seasonal Sale", "Founder's Special", "Clearance", "Volume", "Custom"].map(t => (
                   <option key={t} value={t}>{t}</option>
                 ))}
@@ -9493,7 +9501,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                 value={discountReason}
                 onChange={e => setDiscountReason(e.target.value)}
                 placeholder="Discount reason (required)"
-                className={`w-full border rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 ${
+                className={`w-full border rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 ${
                   !discountReason.trim() ? 'border-red-300' : 'border-gray-200'
                 }`}
               />
@@ -9505,14 +9513,14 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Installation</p>
               <div className="flex gap-2">
                 <span className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                  installationType === 'supply-only' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600'
+                  installationType === 'supply-only' ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600'
                 }`}>
                   {installationType === 'supply-only' ? 'Supply Only' : 'With Installation'}
                 </span>
                 <span className="text-xs text-gray-400 self-center">(set via Service Level above)</span>
               </div>
               {installationType === 'installation-included' && (
-                <div className="bg-orange-50 rounded-xl p-3 space-y-2">
+                <div className="bg-brand-50 rounded-xl p-3 space-y-2">
                   {[
                     { label: 'Elevated Structure', on: elevatedStructureOn, setOn: setElevatedStructureOn, amt: elevatedStructureAmt, setAmt: setElevatedStructureAmt },
                     { label: 'Wiring & Equipment', on: true as boolean, setOn: (_: boolean) => {}, amt: wiringAmt, setAmt: setWiringAmt },
@@ -9520,11 +9528,11 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                   ].map(({ label, on, setOn, amt, setAmt }) => (
                     <div key={label} className="flex items-center gap-2">
                       <input type="checkbox" checked={on} onChange={e => setOn(e.target.checked)}
-                        className="accent-orange-500 w-4 h-4 shrink-0" />
+                        className="accent-brand-500 w-4 h-4 shrink-0" />
                       <span className="text-xs text-gray-700 flex-1">{label}</span>
                       <span className="text-xs text-gray-400">PKR</span>
                       <input type="number" value={amt} onChange={e => setAmt(Number(e.target.value))}
-                        className="w-28 border border-orange-200 rounded-lg px-2 py-1 text-xs text-right focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                        className="w-28 border border-brand-200 rounded-lg px-2 py-1 text-xs text-right focus:outline-none focus:ring-1 focus:ring-brand-400" />
                     </div>
                   ))}
                 </div>
@@ -9541,7 +9549,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                 <div className="flex rounded-lg overflow-hidden border border-gray-200 text-xs">
                   {(['pct', 'fixed'] as const).map(m => (
                     <button key={m} onClick={() => setAdvanceMode(m)}
-                      className={`px-2.5 py-1.5 font-semibold transition-colors ${advanceMode === m ? 'bg-orange-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                      className={`px-2.5 py-1.5 font-semibold transition-colors ${advanceMode === m ? 'bg-brand-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
                       {m === 'pct' ? '%' : 'PKR'}
                     </button>
                   ))}
@@ -9550,7 +9558,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                   <>
                     <input type="number" min={0} max={100} value={advancePct}
                       onChange={e => setAdvancePct(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
-                      className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                      className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                     {effectiveTotal > 0 && <span className="text-xs text-gray-400">= PKR {Math.round(effectiveTotal * advancePct / 100).toLocaleString('en-PK')} · Balance: {100 - advancePct}%</span>}
                   </>
                 ) : (
@@ -9562,7 +9570,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                         if (effectiveTotal > 0) setAdvancePct(Math.round(v / effectiveTotal * 100));
                       }}
                       placeholder="0"
-                      className="w-32 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                      className="w-32 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                     {effectiveTotal > 0 && advanceFixedAmt > 0 && (
                       <span className="text-xs text-gray-400">
                         ≈ {Math.round(advanceFixedAmt / effectiveTotal * 100)}% · Balance: PKR {(effectiveTotal - advanceFixedAmt).toLocaleString('en-PK')}
@@ -9578,7 +9586,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                   <input type="text" value={balanceNote}
                     onChange={e => setBalanceNote(e.target.value)}
                     placeholder="delivery / installation"
-                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                 </div>
               )}
               {/* Deferred payment schedule (cash, ≤30 days) */}
@@ -9610,15 +9618,15 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                             <span className="text-[10px] text-gray-400 w-4 shrink-0">{i + 1}</span>
                             <input type="date" value={row.date} min={today} max={maxStr}
                               onChange={e => setCashPaySchedule(prev => prev.map((r, j) => j === i ? { ...r, date: e.target.value } : r))}
-                              className="border border-gray-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                              className="border border-gray-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-400" />
                             <input type="number" min={0} value={row.amount || ''}
                               onChange={e => setCashPaySchedule(prev => prev.map((r, j) => j === i ? { ...r, amount: Number(e.target.value) || 0 } : r))}
                               placeholder="Amount"
-                              className="w-28 border border-gray-200 rounded-xl px-2 py-1.5 text-xs text-right focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                              className="w-28 border border-gray-200 rounded-xl px-2 py-1.5 text-xs text-right focus:outline-none focus:ring-2 focus:ring-brand-400" />
                             <input value={row.note}
                               onChange={e => setCashPaySchedule(prev => prev.map((r, j) => j === i ? { ...r, note: e.target.value } : r))}
                               placeholder="Label (e.g. Advance, On delivery)"
-                              className="flex-1 border border-gray-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                              className="flex-1 border border-gray-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-400" />
                             <button onClick={() => setCashPaySchedule(prev => prev.filter((_, j) => j !== i))}
                               className="text-gray-300 hover:text-red-500 transition-colors">
                               <X className="w-3.5 h-3.5" />
@@ -9639,7 +9647,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                 </div>
               <label className="flex items-center gap-2 cursor-pointer w-fit">
                 <input type="checkbox" checked={showNtn} onChange={e => setShowNtn(e.target.checked)}
-                  className="w-4 h-4 accent-orange-500 rounded" />
+                  className="w-4 h-4 accent-brand-500 rounded" />
                 <span className="text-xs text-gray-500">Include NTN in footer</span>
               </label>
             </div>
@@ -9663,7 +9671,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                           setInstMonths(plan.months);
                           setInstMonthlyAmt(plan.monthly);
                         }}
-                          className="px-3 py-1.5 text-xs font-semibold bg-orange-50 hover:bg-orange-500 hover:text-white text-orange-700 border border-orange-200 rounded-lg transition-colors">
+                          className="px-3 py-1.5 text-xs font-semibold bg-brand-50 hover:bg-brand-500 hover:text-white text-brand-700 border border-brand-200 rounded-lg transition-colors">
                           {key} · PKR {plan.monthly.toLocaleString('en-PK')}/mo
                         </button>
                       ))}
@@ -9684,7 +9692,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                       <input type="number" min={0} value={value as number}
                         onChange={e => setter(Math.max(0, Number(e.target.value) || 0))}
                         placeholder="0"
-                        className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                        className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                       <span className="text-xs text-gray-400 shrink-0">{unit}</span>
                     </div>
                   </div>
@@ -9694,13 +9702,13 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                 <label className="text-[10px] font-bold text-gray-500 block mb-1">First Installment Date</label>
                 <input type="date" value={instFirstDate}
                   onChange={e => setInstFirstDate(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
               </div>
               {/* Plan summary + mismatch warning */}
               {(instTotalPrice > 0 || instAdvanceAmt > 0 || instMonthlyAmt > 0) && (
                 <div className={`rounded-xl px-3 py-2 text-xs font-medium ${
                   instAdvanceAmt + instMonths * instMonthlyAmt === instTotalPrice
-                    ? 'bg-orange-50 text-orange-800'
+                    ? 'bg-brand-50 text-brand-700'
                     : 'bg-red-50 text-red-700'
                 }`}>
                   PKR {instAdvanceAmt.toLocaleString('en-PK')} advance + {instMonths} × PKR {instMonthlyAmt.toLocaleString('en-PK')} = PKR {(instAdvanceAmt + instMonths * instMonthlyAmt).toLocaleString('en-PK')}
@@ -9716,7 +9724,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                   <label className="text-[10px] font-bold text-gray-500 block mb-1">Installment # (of {instMonths})</label>
                   <input type="number" min={1} max={instMonths} value={instPaymentNumber}
                     onChange={e => setInstPaymentNumber(Math.max(1, Math.min(instMonths, Number(e.target.value) || 1)))}
-                    className="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    className="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                 </div>
               </div>
               {/* Guarantor */}
@@ -9724,14 +9732,14 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Guarantor <span className="font-normal text-gray-400 normal-case">(optional)</span></p>
                 <input value={guarantorName} onChange={e => setGuarantorName(e.target.value)}
                   placeholder="Guarantor name"
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                 <div className="grid grid-cols-2 gap-2">
                   <input value={guarantorPhone} onChange={e => setGuarantorPhone(e.target.value)}
                     placeholder="Guarantor phone"
-                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                   <input value={guarantorCnic} onChange={e => setGuarantorCnic(e.target.value)}
                     placeholder="Guarantor CNIC"
-                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                 </div>
               </div>
             </div>
@@ -9749,7 +9757,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                   + Work Item
                 </button>
                 <button onClick={() => setSrJobLines(prev => [...prev, {id: crypto.randomUUID(), type: 'part', description: '', qty: 1, unitPrice: 0}])}
-                  className="px-3 py-1.5 text-xs font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-lg">
+                  className="px-3 py-1.5 text-xs font-semibold bg-brand-500 hover:bg-brand-600 text-white rounded-lg">
                   + Part
                 </button>
               </div>
@@ -9758,10 +9766,10 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               <p className="text-xs text-gray-400 text-center py-4">Add work performed and parts used above.</p>
             )}
             {srJobLines.map((jl, i) => (
-              <div key={jl.id} className={`flex items-start gap-2 p-3 rounded-xl border ${jl.type === 'part' ? 'border-orange-100 bg-orange-50/30' : 'border-gray-100 bg-gray-50/30'}`}>
+              <div key={jl.id} className={`flex items-start gap-2 p-3 rounded-xl border ${jl.type === 'part' ? 'border-brand-100 bg-brand-50/30' : 'border-gray-100 bg-gray-50/30'}`}>
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${jl.type === 'part' ? 'bg-orange-100 text-orange-700' : 'bg-gray-200 text-gray-600'}`}>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${jl.type === 'part' ? 'bg-brand-100 text-brand-700' : 'bg-gray-200 text-gray-600'}`}>
                       {jl.type === 'work' ? 'WORK' : 'PART'}
                     </span>
                     <button onClick={() => setSrJobLines(prev => prev.map((l,j) => j===i ? {...l, type: l.type==='work'?'part':'work'} : l))}
@@ -9772,14 +9780,14 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                   <input value={jl.description}
                     onChange={e => setSrJobLines(prev => prev.map((l,j) => j===i ? {...l, description: e.target.value} : l))}
                     placeholder={jl.type === 'work' ? 'e.g. Compressor repair, Gas recharge' : 'e.g. Capacitor 35µF, Fan motor belt'}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                    className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-400" />
                   <div className="flex gap-2">
                     <input type="number" min={1} value={jl.qty}
                       onChange={e => setSrJobLines(prev => prev.map((l,j) => j===i ? {...l, qty: Math.max(1, Number(e.target.value))} : l))}
-                      className="w-16 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-orange-400" placeholder="Qty" />
+                      className="w-16 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-brand-400" placeholder="Qty" />
                     <input type="number" min={0} value={jl.unitPrice || ''}
                       onChange={e => setSrJobLines(prev => prev.map((l,j) => j===i ? {...l, unitPrice: Number(e.target.value)||0} : l))}
-                      className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400" placeholder="PKR amount" />
+                      className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-400" placeholder="PKR amount" />
                     <span className="text-xs font-bold text-gray-700 self-center whitespace-nowrap">= {(jl.qty * jl.unitPrice).toLocaleString('en-PK')}</span>
                   </div>
                 </div>
@@ -9805,7 +9813,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
             <div className="flex gap-2">
               {lines.length > 0 && (
                 <button onClick={() => setPkgPanelOpen(o => !o)}
-                  className="px-3 py-1.5 text-xs font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors">
+                  className="px-3 py-1.5 text-xs font-semibold bg-brand-500 hover:bg-brand-600 text-white rounded-lg transition-colors">
                   {pkgPanelOpen ? 'Cancel' : 'Save as Package'}
                 </button>
               )}
@@ -9818,23 +9826,23 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
 
           {/* Save form */}
           {pkgPanelOpen && (
-            <div className="bg-orange-50 rounded-xl p-4 space-y-2 border border-orange-100">
-              <p className="text-xs font-bold text-orange-700 mb-1">Save current {lines.length} items as a package</p>
+            <div className="bg-brand-50 rounded-xl p-4 space-y-2 border border-brand-100">
+              <p className="text-xs font-bold text-brand-700 mb-1">Save current {lines.length} items as a package</p>
               <input value={pkgName} onChange={e => setPkgName(e.target.value)}
                 placeholder="Package name  e.g. Home Starter Bundle"
-                className="w-full border border-orange-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+                className="w-full border border-brand-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white" />
               <input value={pkgDesc} onChange={e => setPkgDesc(e.target.value)}
                 placeholder="Description (optional)"
-                className="w-full border border-orange-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+                className="w-full border border-brand-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white" />
               <select value={pkgTag} onChange={e => setPkgTag(e.target.value)}
-                className="w-full border border-orange-200 rounded-lg px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-orange-400">
+                className="w-full border border-brand-200 rounded-lg px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-brand-400">
                 <option value="">Category tag (optional)</option>
                 {['home-starter','kitchen','solar','office','commercial','bedroom'].map(t => (
                   <option key={t} value={t}>{t}</option>
                 ))}
               </select>
               <button onClick={saveAsPackage} disabled={!pkgName.trim() || savingPkg}
-                className="w-full py-2 text-xs font-bold bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white rounded-lg transition-colors">
+                className="w-full py-2 text-xs font-bold bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white rounded-lg transition-colors">
                 {savingPkg ? 'Saving…' : 'Save Package'}
               </button>
             </div>
@@ -9851,7 +9859,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                 const total = (tmpl.lines as QuoteLine[]).reduce((s, l) => s + l.qty * l.unitPrice, 0);
                 const discountedTotal = Math.round(total * (1 - (tmpl.discount ?? 0) / 100));
                 return (
-                  <div key={tmpl.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-orange-200 hover:bg-orange-50/30 transition-all group">
+                  <div key={tmpl.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-brand-200 hover:bg-brand-50/30 transition-all group">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="text-xs font-bold text-gray-800 truncate">{tmpl.name}</p>
@@ -9862,12 +9870,12 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                       {tmpl.description && <p className="text-[10px] text-gray-400 truncate mt-0.5">{tmpl.description}</p>}
                       <p className="text-[10px] text-gray-500 mt-0.5">
                         {(tmpl.lines as QuoteLine[]).length} items · PKR {discountedTotal.toLocaleString('en-PK')}
-                        {tmpl.discount > 0 && <span className="text-orange-500 ml-1">({tmpl.discount}% off)</span>}
+                        {tmpl.discount > 0 && <span className="text-brand-500 ml-1">({tmpl.discount}% off)</span>}
                       </p>
                     </div>
                     <div className="flex gap-1.5 shrink-0">
                       <button onClick={() => loadTemplate(tmpl)}
-                        className="px-3 py-1.5 text-xs font-semibold bg-gray-900 hover:bg-orange-500 text-white rounded-lg transition-colors">
+                        className="px-3 py-1.5 text-xs font-semibold bg-gray-900 hover:bg-brand-500 text-white rounded-lg transition-colors">
                         Load
                       </button>
                       <button onClick={() => deleteTemplate(tmpl.id)}
@@ -9968,27 +9976,27 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Add Products</p>
             <button
               onClick={() => { setShowCustomProductForm(v => !v); setProductSearch(''); }}
-              className="px-3 py-1.5 text-xs font-semibold bg-gray-800 hover:bg-orange-500 text-white rounded-lg transition-colors">
+              className="px-3 py-1.5 text-xs font-semibold bg-gray-800 hover:bg-brand-500 text-white rounded-lg transition-colors">
               + Custom Item
             </button>
           </div>
 
           {/* ── Custom product form ── */}
           {showCustomProductForm && (
-            <div className="border border-orange-200 rounded-xl p-4 space-y-2.5 bg-orange-50">
-              <p className="text-xs font-semibold text-orange-700">New custom product — will be saved to DB (status: Needs Review)</p>
+            <div className="border border-brand-200 rounded-xl p-4 space-y-2.5 bg-brand-50">
+              <p className="text-xs font-semibold text-brand-700">New custom product — will be saved to DB (status: Needs Review)</p>
               <div className="grid grid-cols-2 gap-2">
                 <input value={customProductName} onChange={e => setCustomProductName(e.target.value)}
                   placeholder="Product name *"
-                  className="col-span-2 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+                  className="col-span-2 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white" />
                 <input value={customProductBrand} onChange={e => setCustomProductBrand(e.target.value)}
                   placeholder="Brand (e.g. Haier)"
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white" />
                 <input value={customProductModel} onChange={e => setCustomProductModel(e.target.value)}
                   placeholder="Model number"
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white" />
                 <select value={customProductCategory} onChange={e => setCustomProductCategory(e.target.value)}
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white">
                   {['Air Conditioners','Refrigerators','Deep Freezers','Washing Machines','Televisions',
                     'Microwaves','Water Heaters','Fans','UPS / Inverters','Solar Inverters','Solar Panels',
                     'Solar Batteries','Solar Systems','Kitchen Appliances','Small Appliances','General'].map(c => (
@@ -9997,19 +10005,19 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                 </select>
                 <input type="number" min={0} value={customProductPrice} onChange={e => setCustomProductPrice(e.target.value)}
                   placeholder="Price (PKR) *"
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white" />
                 <input value={customProductWarranty} onChange={e => setCustomProductWarranty(e.target.value)}
                   placeholder="Warranty (e.g. 1 year)"
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white" />
                 <input value={customProductKeySpec} onChange={e => setCustomProductKeySpec(e.target.value)}
                   placeholder="Key spec (e.g. 1.5 Ton · Inverter)"
-                  className="col-span-2 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+                  className="col-span-2 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white" />
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={addCustomProduct}
                   disabled={!customProductName.trim() || !customProductPrice || savingCustomProduct}
-                  className="flex-1 py-2 text-sm font-semibold bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white rounded-lg transition-colors">
+                  className="flex-1 py-2 text-sm font-semibold bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white rounded-lg transition-colors">
                   {savingCustomProduct ? 'Saving…' : 'Add to Quote & Save to DB'}
                 </button>
                 <button onClick={() => setShowCustomProductForm(false)}
@@ -10025,17 +10033,17 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
             <>
               <input value={productSearch} onChange={e => setProductSearch(e.target.value)}
                 placeholder="Search by name, model, or brand…"
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
               {productSearch.trim() && (
                 <div className="border border-gray-100 rounded-xl overflow-hidden max-h-44 overflow-y-auto">
                   {filteredProducts.map(p => (
                     <button key={p.id} onClick={() => addLine(p)}
-                      className="w-full flex items-center justify-between px-3 py-2 hover:bg-orange-50 text-left border-b border-gray-50 last:border-0">
+                      className="w-full flex items-center justify-between px-3 py-2 hover:bg-brand-50 text-left border-b border-gray-50 last:border-0">
                       <div>
                         <p className="text-xs font-semibold text-gray-800">{p.simplified_name || p.model}</p>
                         <p className="text-[10px] text-gray-400">{p.brand} · {p.model}</p>
                       </div>
-                      <p className="text-xs font-bold text-orange-600 shrink-0 ml-3">
+                      <p className="text-xs font-bold text-brand-600 shrink-0 ml-3">
                         PKR {p.price.cash_floor.toLocaleString('en-PK')}
                       </p>
                     </button>
@@ -10045,7 +10053,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                       <p className="text-xs text-gray-400">No catalog match for "{productSearch}"</p>
                       <button
                         onClick={() => { setCustomProductName(productSearch); setProductSearch(''); setShowCustomProductForm(true); }}
-                        className="text-xs font-semibold text-orange-600 hover:text-orange-800 underline">
+                        className="text-xs font-semibold text-brand-600 hover:text-brand-700 underline">
                         Add "{productSearch}" as a custom product →
                       </button>
                     </div>
@@ -10083,14 +10091,14 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                         value={line.warranty}
                         onChange={e => updateLineText(line.id, 'warranty', e.target.value)}
                         placeholder="Warranty"
-                        className="flex-1 border border-gray-100 rounded-lg px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-orange-300 bg-gray-50"
+                        className="flex-1 border border-gray-100 rounded-lg px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-brand-300 bg-gray-50"
                       />
                       <input
                         type="text"
                         value={line.keySpec}
                         onChange={e => updateLineText(line.id, 'keySpec', e.target.value)}
                         placeholder="Key spec"
-                        className="flex-1 border border-gray-100 rounded-lg px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-orange-300 bg-gray-50"
+                        className="flex-1 border border-gray-100 rounded-lg px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-brand-300 bg-gray-50"
                       />
                     </div>
                     {/* Display prefix for add-on items */}
@@ -10100,7 +10108,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                         value={line.displayPrefix}
                         onChange={e => updateLineText(line.id, 'displayPrefix', e.target.value)}
                         placeholder='Prefix (e.g. "Additional Battery — ")'
-                        className="flex-1 border border-gray-100 rounded-lg px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-orange-300 bg-gray-50"
+                        className="flex-1 border border-gray-100 rounded-lg px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-brand-300 bg-gray-50"
                       />
                     </div>
                     {/* Package toggle + component editor */}
@@ -10109,8 +10117,8 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                         onClick={() => togglePackage(line.id)}
                         className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border transition-colors ${
                           line.isPackage
-                            ? 'bg-orange-500 text-white border-orange-500'
-                            : 'bg-white text-gray-500 border-gray-200 hover:border-orange-300'
+                            ? 'bg-brand-500 text-white border-brand-500'
+                            : 'bg-white text-gray-500 border-gray-200 hover:border-brand-300'
                         }`}
                       >
                         {line.isPackage ? 'Package Mode ON' : 'Expand as Package'}
@@ -10123,8 +10131,8 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                       )}
                     </div>
                     {line.isPackage && (
-                      <div className="mt-2 border border-orange-200 rounded-xl p-2.5 bg-orange-50/60 space-y-1.5">
-                        <p className="text-[10px] font-bold text-orange-700 uppercase tracking-wide mb-1">
+                      <div className="mt-2 border border-brand-200 rounded-xl p-2.5 bg-brand-50/60 space-y-1.5">
+                        <p className="text-[10px] font-bold text-brand-700 uppercase tracking-wide mb-1">
                           Package Components ({line.packageComponents.length})
                         </p>
                         {line.packageComponents.map((comp, idx) => (
@@ -10134,12 +10142,12 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                                 value={comp.name}
                                 onChange={e => updateComponent(line.id, idx, { name: e.target.value })}
                                 placeholder="Component name"
-                                className="flex-1 border border-gray-200 rounded px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-orange-300"
+                                className="flex-1 border border-gray-200 rounded px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-brand-300"
                               />
                               <input
                                 type="number" min={1} value={comp.qty}
                                 onChange={e => updateComponent(line.id, idx, { qty: Math.max(1, Number(e.target.value)) })}
-                                className="w-10 border border-gray-200 rounded px-1 py-0.5 text-center text-[10px] focus:outline-none focus:ring-1 focus:ring-orange-300"
+                                className="w-10 border border-gray-200 rounded px-1 py-0.5 text-center text-[10px] focus:outline-none focus:ring-1 focus:ring-brand-300"
                               />
                               <select value={comp.status}
                                 onChange={e => updateComponent(line.id, idx, { status: e.target.value as 'included' | 'addon' })}
@@ -10167,27 +10175,27 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                                 value={comp.keySpec}
                                 onChange={e => updateComponent(line.id, idx, { keySpec: e.target.value })}
                                 placeholder="Specs (e.g. 620W · Mono Bi-Facial)"
-                                className="flex-1 border border-gray-200 rounded px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-orange-300"
+                                className="flex-1 border border-gray-200 rounded px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-brand-300"
                               />
                               <input
                                 value={comp.warranty}
                                 onChange={e => updateComponent(line.id, idx, { warranty: e.target.value })}
                                 placeholder="Warranty"
-                                className="w-32 border border-gray-200 rounded px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-orange-300"
+                                className="w-32 border border-gray-200 rounded px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-brand-300"
                               />
                               {comp.status === 'addon' && (
                                 <input
                                   type="number" min={0} value={comp.addonPrice}
                                   onChange={e => updateComponent(line.id, idx, { addonPrice: Math.max(0, Number(e.target.value)) })}
                                   placeholder="Add-on price"
-                                  className="w-24 border border-orange-200 rounded px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-orange-300 text-orange-700"
+                                  className="w-24 border border-brand-200 rounded px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-brand-300 text-brand-700"
                                 />
                               )}
                             </div>
                           </div>
                         ))}
                         <button onClick={() => addComponent(line.id)}
-                          className="w-full text-[10px] py-1 border border-dashed border-orange-300 rounded-lg text-orange-600 hover:bg-orange-100 transition-colors">
+                          className="w-full text-[10px] py-1 border border-dashed border-brand-300 rounded-lg text-brand-600 hover:bg-brand-100 transition-colors">
                           + Add Component
                         </button>
                         <div className="mt-1">
@@ -10196,7 +10204,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                             value={line.packageNote}
                             onChange={e => updateLineText(line.id, 'packageNote', e.target.value)}
                             placeholder='Package note shown in PDF (e.g. "Includes Crown inverter; additional battery for extended backup.")'
-                            className="w-full border border-gray-100 rounded-lg px-2 py-1 text-[10px] text-gray-500 focus:outline-none focus:ring-1 focus:ring-orange-300 bg-white"
+                            className="w-full border border-gray-100 rounded-lg px-2 py-1 text-[10px] text-gray-500 focus:outline-none focus:ring-1 focus:ring-brand-300 bg-white"
                           />
                         </div>
                       </div>
@@ -10208,7 +10216,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                           value={line.packageNote}
                           onChange={e => updateLineText(line.id, 'packageNote', e.target.value)}
                           placeholder='Note (optional)'
-                          className="w-full border border-gray-100 rounded-lg px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-orange-300 bg-gray-50"
+                          className="w-full border border-gray-100 rounded-lg px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-brand-300 bg-gray-50"
                         />
                       </div>
                     )}
@@ -10233,11 +10241,11 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                   </td>
                   <td className="px-4 py-2.5">
                     <input type="number" min={1} value={line.qty} onChange={e => updateLine(line.id, 'qty', Math.max(1, Number(e.target.value)))}
-                      className="w-16 border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                      className="w-16 border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
                   </td>
                   <td className="px-4 py-2.5">
                     <input type="number" min={0} value={line.unitPrice} onChange={e => updateLine(line.id, 'unitPrice', Math.max(0, Number(e.target.value)))}
-                      className="w-32 border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                      className="w-32 border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
                     {(() => {
                       const fv = validateFloor(line.unitPrice, line.minPrice);
                       if (fv.valid) return null;
@@ -10282,38 +10290,38 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Services</p>
           <button
             onClick={() => setShowCustomServiceForm(v => !v)}
-            className="px-3 py-1.5 text-xs font-semibold bg-gray-800 hover:bg-orange-500 text-white rounded-lg transition-colors">
+            className="px-3 py-1.5 text-xs font-semibold bg-gray-800 hover:bg-brand-500 text-white rounded-lg transition-colors">
             + Custom Service
           </button>
         </div>
 
         {/* ── Custom service form ── */}
         {showCustomServiceForm && (
-          <div className="border border-orange-200 rounded-xl p-4 space-y-2.5 bg-orange-50">
-            <p className="text-xs font-semibold text-orange-700">Add a service not in the standard list</p>
+          <div className="border border-brand-200 rounded-xl p-4 space-y-2.5 bg-brand-50">
+            <p className="text-xs font-semibold text-brand-700">Add a service not in the standard list</p>
             <input value={customServiceName} onChange={e => setCustomServiceName(e.target.value)}
               placeholder="Service name *"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white" />
             <input value={customServiceDesc} onChange={e => setCustomServiceDesc(e.target.value)}
               placeholder="Description (optional)"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white" />
             <div className="flex gap-2 items-center">
               <select value={customServiceStatus} onChange={e => setCustomServiceStatus(e.target.value as 'included' | 'charged')}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white">
                 <option value="charged">Charged</option>
                 <option value="included">Included (no extra charge)</option>
               </select>
               {customServiceStatus === 'charged' && (
                 <input type="number" min={0} value={customServiceAmount} onChange={e => setCustomServiceAmount(e.target.value)}
                   placeholder="PKR amount"
-                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white" />
               )}
             </div>
             <div className="flex gap-2">
               <button
                 onClick={addCustomService}
                 disabled={!customServiceName.trim()}
-                className="flex-1 py-2 text-sm font-semibold bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white rounded-lg transition-colors">
+                className="flex-1 py-2 text-sm font-semibold bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white rounded-lg transition-colors">
                 Add Service
               </button>
               <button onClick={() => setShowCustomServiceForm(false)}
@@ -10337,7 +10345,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                   onClick={() => updateService(i, { status: opt })}
                   className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
                     svc.status === opt
-                      ? opt === 'charged' ? 'bg-orange-500 text-white'
+                      ? opt === 'charged' ? 'bg-brand-500 text-white'
                         : opt === 'included' ? 'bg-green-500 text-white'
                         : 'bg-gray-200 text-gray-600'
                       : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
@@ -10354,7 +10362,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                   type="number"
                   value={svc.visible_value}
                   onChange={e => updateService(i, { visible_value: Number(e.target.value) })}
-                  className="w-24 border border-gray-200 rounded-lg px-2 py-1 text-xs text-right focus:outline-none focus:ring-1 focus:ring-orange-400"
+                  className="w-24 border border-gray-200 rounded-lg px-2 py-1 text-xs text-right focus:outline-none focus:ring-1 focus:ring-brand-400"
                 />
               </div>
             )}
@@ -10368,7 +10376,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                     charged_amount: Number(e.target.value),
                     visible_value: Number(e.target.value),
                   })}
-                  className="w-24 border border-orange-200 rounded-lg px-2 py-1 text-xs text-right focus:outline-none focus:ring-1 focus:ring-orange-400"
+                  className="w-24 border border-brand-200 rounded-lg px-2 py-1 text-xs text-right focus:outline-none focus:ring-1 focus:ring-brand-400"
                 />
               </div>
             )}
@@ -10395,7 +10403,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Additional Charges</p>
           <button
             onClick={() => setCustomCharges(prev => [...prev, { id: crypto.randomUUID(), name: '', amount: 0 }])}
-            className="px-3 py-1.5 text-xs font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors">
+            className="px-3 py-1.5 text-xs font-semibold bg-brand-500 hover:bg-brand-600 text-white rounded-lg transition-colors">
             + Add Charge
           </button>
         </div>
@@ -10408,14 +10416,14 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               value={cc.name}
               onChange={e => setCustomCharges(prev => prev.map((c, j) => j === i ? { ...c, name: e.target.value } : c))}
               placeholder="Charge description"
-              className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
             />
             <input
               type="number" min={0}
               value={cc.amount || ''}
               onChange={e => setCustomCharges(prev => prev.map((c, j) => j === i ? { ...c, amount: Number(e.target.value) || 0 } : c))}
               placeholder="PKR"
-              className="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm text-right focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand-400"
             />
             <button onClick={() => setCustomCharges(prev => prev.filter((_, j) => j !== i))}
               className="text-gray-300 hover:text-red-500 transition-colors p-1">
@@ -10439,7 +10447,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           onChange={e => setInvoiceNotes(e.target.value)}
           placeholder="Internal notes (not printed on document)"
           rows={2}
-          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
+          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
         />
       </div>
 
@@ -10551,7 +10559,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                 ? 'bg-green-600 hover:bg-green-700 text-white'
                 : instAdvPdfState === 'error'
                 ? 'bg-red-600 hover:bg-red-700 text-white'
-                : 'bg-orange-600 hover:bg-orange-700 text-white'
+                : 'bg-brand-600 hover:bg-brand-700 text-white'
             } ${
               (hasUnapprovedFloorViolation || (discount > 0 && !discountReason.trim()))
                 ? 'opacity-50 cursor-not-allowed'
@@ -10632,7 +10640,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               <button
                 onClick={generateAdvanceInvoice}
                 disabled={!lines.length || instAdvPdfState === 'generating'}
-                className="flex items-center gap-1.5 bg-orange-600 text-white font-bold px-3 py-2 rounded-xl text-xs disabled:opacity-40 transition-colors">
+                className="flex items-center gap-1.5 bg-brand-600 text-white font-bold px-3 py-2 rounded-xl text-xs disabled:opacity-40 transition-colors">
                 {instAdvPdfState === 'generating'
                   ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating…</>
                   : <>📄 Advance</>}
@@ -10673,7 +10681,7 @@ function generateSolarPdf(lead: SolarLead, opts: {
   doc.setTextColor(160, 160, 160);
   doc.text('tajallis.com.pk  |  +92 335 426 6238  |  Karachi', margin, 28);
 
-  doc.setTextColor(251, 146, 60); // orange-400
+  doc.setTextColor(18, 63, 115); // brand navy
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
   doc.text('Solar Independence Proposal', margin, 40);
@@ -10906,7 +10914,7 @@ function SolarQuoteModal({ lead, onClose }: { lead: SolarLead; onClose: () => vo
             {(['tubular', 'lithium'] as const).map(t => (
               <button key={t} onClick={() => setBattType(t)}
                 className={`py-2.5 px-4 rounded-2xl border text-sm font-medium transition-all ${
-                  battType === t ? 'bg-orange-500 border-orange-500 text-white' : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                  battType === t ? 'bg-brand-500 border-brand-500 text-white' : 'border-gray-200 text-gray-600 hover:border-gray-300'
                 }`}>
                 {t === 'tubular' ? '🔋 Tubular Lead-Acid' : '⚡ Lithium LiFePO₄'}
               </button>
@@ -10926,7 +10934,7 @@ function SolarQuoteModal({ lead, onClose }: { lead: SolarLead; onClose: () => vo
               <label className="text-xs text-gray-500 block mb-1">{f.label}</label>
               <input
                 type="number" value={f.val} onChange={e => f.set(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-400"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
               />
             </div>
           ))}
@@ -10947,7 +10955,7 @@ function SolarQuoteModal({ lead, onClose }: { lead: SolarLead; onClose: () => vo
           </a>
         ) : (
           <button onClick={handleGenerate} disabled={saving}
-            className="w-full bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-white font-bold py-3.5 rounded-2xl transition-all text-sm flex items-center justify-center gap-2">
+            className="w-full bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-white font-bold py-3.5 rounded-2xl transition-all text-sm flex items-center justify-center gap-2">
             {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating PDF…</> : '📄 Generate & Send via WhatsApp'}
           </button>
         )}
@@ -11020,7 +11028,7 @@ function SolarLeadsTab() {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setShowNew(v => !v)}
-            className="text-sm bg-orange-500 hover:bg-orange-400 text-white px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-1">
+            className="text-sm bg-brand-500 hover:bg-brand-400 text-white px-4 py-2 rounded-xl font-medium transition-all flex items-center gap-1">
             <Plus className="w-4 h-4" /> New Quote
           </button>
           <button onClick={load} className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
@@ -11045,13 +11053,13 @@ function SolarLeadsTab() {
                 <label className="text-xs text-gray-500 block mb-1">{f.label}</label>
                 <input type={f.type} value={(nf as any)[f.key]} placeholder={f.ph}
                   onChange={e => setN(f.key, e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400" />
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-brand-400" />
               </div>
             ))}
             <div>
               <label className="text-xs text-gray-500 block mb-1">Night Backup Required</label>
               <select value={nf.backup} onChange={e => setN('backup', e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400">
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-brand-400">
                 <option value="4">4 Hours</option>
                 <option value="8">8 Hours</option>
                 <option value="12">12 Hours</option>
@@ -11060,7 +11068,7 @@ function SolarLeadsTab() {
           </div>
           {nfErr && <p className="text-red-500 text-xs">{nfErr}</p>}
           <button onClick={handleNewLead}
-            className="bg-orange-500 hover:bg-orange-400 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-all">
+            className="bg-brand-500 hover:bg-brand-400 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-all">
             Generate Proposal PDF
           </button>
         </div>
@@ -11121,7 +11129,7 @@ function SolarLeadsTab() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <button onClick={() => setQuoting(lead)}
-                        className="text-xs bg-orange-500 hover:bg-orange-400 text-white px-3 py-1.5 rounded-xl font-medium transition-all">
+                        className="text-xs bg-brand-500 hover:bg-brand-400 text-white px-3 py-1.5 rounded-xl font-medium transition-all">
                         Generate Quote
                       </button>
                       {lead.proposal_url && (
@@ -11207,7 +11215,7 @@ function PartnerLeadsTab() {
         {LEAD_STATUSES.map(s => (
           <button key={s} onClick={() => setStatusFilter(statusFilter === s ? 'all' : s)}
             className={`rounded-xl border p-4 text-left transition-colors ${
-              statusFilter === s ? 'border-orange-400 bg-orange-50' : 'bg-white border-gray-100 hover:border-gray-200'
+              statusFilter === s ? 'border-brand-400 bg-brand-50' : 'bg-white border-gray-100 hover:border-gray-200'
             }`}>
             <div className="text-2xl font-black text-gray-900">{counts[s]}</div>
             <div className="mt-1">
@@ -11223,12 +11231,12 @@ function PartnerLeadsTab() {
           {statusFilter !== 'all' && ` · ${statusFilter}`}
         </span>
         {statusFilter !== 'all' && (
-          <button onClick={() => setStatusFilter('all')} className="text-xs text-orange-500 hover:text-orange-700 font-medium">
+          <button onClick={() => setStatusFilter('all')} className="text-xs text-brand-500 hover:text-brand-700 font-medium">
             Show all
           </button>
         )}
         <div className="flex-1" />
-        <button onClick={load} className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:border-orange-300 px-3 py-2 rounded-lg text-xs font-semibold">
+        <button onClick={load} className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:border-brand-300 px-3 py-2 rounded-lg text-xs font-semibold">
           <RefreshCw className="w-3.5 h-3.5" /> Refresh
         </button>
       </div>
@@ -11243,7 +11251,7 @@ function PartnerLeadsTab() {
       )}
 
       {loading ? (
-        <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-orange-400" /></div>
+        <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-brand-400" /></div>
       ) : !loadError && leads.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
           <Building2 className="w-10 h-10 mx-auto mb-3 text-gray-200" />
@@ -11268,7 +11276,7 @@ function PartnerLeadsTab() {
                 {filtered.map(lead => (
                   <>
                     <tr key={lead.id}
-                      className={`border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors ${expanded === lead.id ? 'bg-orange-50/30' : ''}`}
+                      className={`border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors ${expanded === lead.id ? 'bg-brand-50/30' : ''}`}
                       onClick={() => setExpanded(expanded === lead.id ? null : lead.id)}>
                       <td className="px-4 py-3">
                         <div className="font-semibold text-gray-900 text-sm">{lead.company_name}</div>
@@ -11287,13 +11295,13 @@ function PartnerLeadsTab() {
                             value={lead.status}
                             onChange={e => updateStatus(lead.id, e.target.value)}
                             disabled={updatingId === lead.id}
-                            className={`text-xs font-semibold rounded-lg px-2 py-1 border focus:outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer capitalize
+                            className={`text-xs font-semibold rounded-lg px-2 py-1 border focus:outline-none focus:ring-2 focus:ring-brand-400 cursor-pointer capitalize
                               ${LEAD_STATUS_COLORS[lead.status]} border-transparent disabled:opacity-60`}>
                             {LEAD_STATUSES.map(s => (
                               <option key={s} value={s} className="bg-white text-gray-800 font-normal capitalize">{s}</option>
                             ))}
                           </select>
-                          {updatingId === lead.id && <Loader2 className="w-3 h-3 animate-spin text-orange-400" />}
+                          {updatingId === lead.id && <Loader2 className="w-3 h-3 animate-spin text-brand-400" />}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
@@ -11311,7 +11319,7 @@ function PartnerLeadsTab() {
                     </tr>
 
                     {expanded === lead.id && (
-                      <tr key={`${lead.id}-detail`} className="bg-orange-50/20 border-b border-orange-100">
+                      <tr key={`${lead.id}-detail`} className="bg-brand-50/20 border-b border-brand-100">
                         <td colSpan={6} className="px-6 py-4">
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                             {lead.email && (
@@ -11340,11 +11348,11 @@ function PartnerLeadsTab() {
                                     value={noteValue}
                                     onChange={e => setNoteValue(e.target.value)}
                                     rows={2}
-                                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none bg-white"
+                                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none bg-white"
                                   />
                                   <div className="flex flex-col gap-1">
                                     <button onClick={() => saveNote(lead.id)} disabled={savingNote}
-                                      className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-xs font-bold rounded-lg">
+                                      className="px-3 py-1.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white text-xs font-bold rounded-lg">
                                       {savingNote ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save'}
                                     </button>
                                     <button onClick={() => setNoteEditing(null)}
@@ -11360,7 +11368,7 @@ function PartnerLeadsTab() {
                                   </p>
                                   <button
                                     onClick={() => { setNoteEditing(lead.id); setNoteValue(lead.notes ?? ''); }}
-                                    className="text-xs text-orange-500 hover:text-orange-700 font-semibold shrink-0 mt-2">
+                                    className="text-xs text-brand-500 hover:text-brand-700 font-semibold shrink-0 mt-2">
                                     Edit
                                   </button>
                                 </div>
@@ -11404,7 +11412,7 @@ const ORDER_STATUSES = ['pending', 'confirmed', 'processing', 'delivered', 'canc
 const ORDER_STATUS_COLORS: Record<string, string> = {
   pending:    'bg-yellow-100 text-yellow-700',
   confirmed:  'bg-blue-100 text-blue-700',
-  processing: 'bg-orange-100 text-orange-700',
+  processing: 'bg-brand-100 text-brand-700',
   delivered:  'bg-green-100 text-green-700',
   cancelled:  'bg-red-100 text-red-600',
 };
@@ -11483,13 +11491,13 @@ function OrdersTab() {
         {(['all', ...ORDER_STATUSES] as string[]).map(s => (
           <button key={s} onClick={() => setStatusFilter(s)}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors ${
-              statusFilter === s ? 'bg-orange-500 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'
+              statusFilter === s ? 'bg-brand-500 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'
             }`}>
             {s === 'all' ? `All (${orders.length})` : `${s} (${counts[s] || 0})`}
           </button>
         ))}
         <div className="flex-1" />
-        <button onClick={load} className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:border-orange-300 px-3 py-2 rounded-lg text-xs font-semibold">
+        <button onClick={load} className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:border-brand-300 px-3 py-2 rounded-lg text-xs font-semibold">
           <RefreshCw className="w-3.5 h-3.5" /> Refresh
         </button>
       </div>
@@ -11498,7 +11506,7 @@ function OrdersTab() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search by name, phone, order ID…"
-          className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+          className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
       </div>
 
       {loadError && (
@@ -11511,7 +11519,7 @@ function OrdersTab() {
       )}
 
       {loading ? (
-        <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-orange-400" /></div>
+        <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-brand-400" /></div>
       ) : !loadError && orders.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
           <ShoppingBag className="w-10 h-10 mx-auto mb-3 text-gray-200" />
@@ -11540,7 +11548,7 @@ function OrdersTab() {
                   return (
                     <>
                       <tr key={order.id}
-                        className={`border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors ${expanded === order.id ? 'bg-orange-50/30' : ''}`}
+                        className={`border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors ${expanded === order.id ? 'bg-brand-50/30' : ''}`}
                         onClick={() => setExpanded(expanded === order.id ? null : order.id)}>
                         <td className="px-4 py-3 font-mono text-xs text-gray-500">{order.id.slice(0, 8)}…</td>
                         <td className="px-4 py-3">
@@ -11560,11 +11568,11 @@ function OrdersTab() {
                               value={order.status || 'pending'}
                               onChange={e => updateStatus(order.id, e.target.value)}
                               disabled={updatingId === order.id}
-                              className={`text-xs font-semibold rounded-lg px-2 py-1 border-0 focus:outline-none focus:ring-2 focus:ring-orange-400 capitalize cursor-pointer disabled:opacity-60
+                              className={`text-xs font-semibold rounded-lg px-2 py-1 border-0 focus:outline-none focus:ring-2 focus:ring-brand-400 capitalize cursor-pointer disabled:opacity-60
                                 ${ORDER_STATUS_COLORS[order.status] || 'bg-gray-100 text-gray-600'}`}>
                               {ORDER_STATUSES.map(s => <option key={s} value={s} className="bg-white text-gray-800 font-normal capitalize">{s}</option>)}
                             </select>
-                            {updatingId === order.id && <Loader2 className="w-3 h-3 animate-spin text-orange-400" />}
+                            {updatingId === order.id && <Loader2 className="w-3 h-3 animate-spin text-brand-400" />}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
@@ -11587,7 +11595,7 @@ function OrdersTab() {
                       </tr>
 
                       {expanded === order.id && (
-                        <tr key={`${order.id}-d`} className="bg-orange-50/20 border-b border-orange-100">
+                        <tr key={`${order.id}-d`} className="bg-brand-50/20 border-b border-brand-100">
                           <td colSpan={8} className="px-6 py-4">
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                               <div>
@@ -11708,7 +11716,7 @@ function EnquiriesTab() {
           { label: 'Total',   value: items.length,           color: 'text-gray-900' },
           { label: 'Today',   value: todayCount,             color: 'text-blue-600' },
           { label: 'Contact', value: counts['contact'] || 0, color: 'text-purple-600' },
-          { label: 'Enquiry', value: counts['enquiry'] || 0, color: 'text-orange-600' },
+          { label: 'Enquiry', value: counts['enquiry'] || 0, color: 'text-brand-600' },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-xl border border-gray-100 p-4">
             <div className={`text-2xl font-black ${s.color}`}>{s.value}</div>
@@ -11721,13 +11729,13 @@ function EnquiriesTab() {
         {(['all', ...types] as string[]).map(t => (
           <button key={t} onClick={() => setTypeFilter(t)}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors ${
-              typeFilter === t ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              typeFilter === t ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}>
             {t === 'all' ? `All (${items.length})` : `${t} (${counts[t] || 0})`}
           </button>
         ))}
         <div className="flex-1" />
-        <button onClick={load} className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:border-orange-300 px-3 py-2 rounded-lg text-xs font-semibold">
+        <button onClick={load} className="flex items-center gap-1.5 border border-gray-200 text-gray-600 hover:border-brand-300 px-3 py-2 rounded-lg text-xs font-semibold">
           <RefreshCw className="w-3.5 h-3.5" /> Refresh
         </button>
       </div>
@@ -11742,7 +11750,7 @@ function EnquiriesTab() {
       )}
 
       {loading ? (
-        <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-orange-400" /></div>
+        <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-brand-400" /></div>
       ) : !loadError && items.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
           <Mail className="w-10 h-10 mx-auto mb-3 text-gray-200" />
@@ -11774,7 +11782,7 @@ function EnquiriesTab() {
                     </td>
                     <td className="px-4 py-3">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${
-                        item.event === 'contact' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'
+                        item.event === 'contact' ? 'bg-purple-100 text-purple-700' : 'bg-brand-100 text-brand-700'
                       }`}>{item.event}</span>
                     </td>
                     <td className="px-4 py-3 max-w-xs">
@@ -11846,7 +11854,7 @@ function EnquiriesTab() {
 interface SiteSettingRow { key: string; value: string; label: string | null; }
 
 const BANNER_THEMES = [
-  { value: 'orange', label: 'Orange',  swatch: 'bg-orange-500' },
+  { value: 'orange', label: 'Navy',    swatch: 'bg-brand-500' },
   { value: 'dark',   label: 'Dark',    swatch: 'bg-gray-900'   },
   { value: 'blue',   label: 'Blue',    swatch: 'bg-blue-600'   },
   { value: 'green',  label: 'Green',   swatch: 'bg-emerald-600'},
@@ -11925,19 +11933,19 @@ function SettingsTab() {
             value={local[k] ?? ''}
             onChange={e => setField(k, e.target.value)}
             min={min} max={max} step={step}
-            className="w-full sm:w-36 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            className="w-full sm:w-36 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
           {hint && <span className="text-xs text-gray-400 hidden sm:inline">{hint}</span>}
         </div>
         <button onClick={() => saveSetting(k)} disabled={saving === k}
-          className="flex items-center gap-1 text-xs font-bold bg-orange-100 hover:bg-orange-200 disabled:opacity-50 text-orange-700 px-3 py-2 rounded-lg whitespace-nowrap shrink-0">
+          className="flex items-center gap-1 text-xs font-bold bg-brand-100 hover:bg-brand-200 disabled:opacity-50 text-brand-700 px-3 py-2 rounded-lg whitespace-nowrap shrink-0">
           {saving === k ? <Loader2 className="w-3 h-3 animate-spin" /> : saved.has(k) ? <><Check className="w-3 h-3" /> Saved</> : 'Save'}
         </button>
       </div>
     );
   }
 
-  if (loading) return <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-orange-400" /></div>;
+  if (loading) return <div className="flex justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-brand-400" /></div>;
 
   return (
     <div className="max-w-3xl mx-auto py-6 space-y-6">
@@ -11953,7 +11961,7 @@ function SettingsTab() {
       {/* Announcement Banner */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
         <div className="flex items-center gap-2 mb-1">
-          <Bell className="w-4 h-4 text-orange-500" />
+          <Bell className="w-4 h-4 text-brand-500" />
           <h3 className="font-bold text-gray-900">Announcement Banner</h3>
           <span className="text-xs text-gray-400 ml-auto">Shown sitewide above the navbar — dismissable by visitors</span>
         </div>
@@ -11963,19 +11971,19 @@ function SettingsTab() {
             value={local['announcement_text'] ?? ''}
             onChange={e => setField('announcement_text', e.target.value)}
             placeholder="e.g. Eid Sale — extra 5% off on all ACs this week only!"
-            className="flex-1 min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+            className="flex-1 min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
           />
           <label className="flex items-center gap-2 cursor-pointer select-none shrink-0">
             <input type="checkbox"
               checked={local['announcement_enabled'] === 'true'}
               onChange={e => setField('announcement_enabled', String(e.target.checked))}
-              className="w-4 h-4 accent-orange-500" />
+              className="w-4 h-4 accent-brand-500" />
             <span className="text-sm font-medium text-gray-700 whitespace-nowrap">Show banner</span>
           </label>
           <button
             onClick={() => saveAll(['announcement_text', 'announcement_enabled'])}
             disabled={saving === 'announcement_text' || saving === 'announcement_enabled'}
-            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap">
+            className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap">
             {(saving === 'announcement_text' || saving === 'announcement_enabled')
               ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
               : (saved.has('announcement_text') || saved.has('announcement_enabled'))
@@ -11989,13 +11997,13 @@ function SettingsTab() {
       <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Layers className="w-4 h-4 text-orange-500" />
+            <Layers className="w-4 h-4 text-brand-500" />
             <h3 className="font-bold text-gray-900">Offer Banner Slider</h3>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-gray-400">Shown on homepage · up to 5 banners · auto-rotates</span>
             <button onClick={saveBanners} disabled={bannerSaving}
-              className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap">
+              className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white text-xs font-bold px-4 py-2 rounded-xl whitespace-nowrap">
               {bannerSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : bannerSaved ? '✓ Saved!' : 'Save All Banners'}
             </button>
           </div>
@@ -12003,7 +12011,7 @@ function SettingsTab() {
 
         <div className="space-y-4">
           {banners.map((banner, i) => (
-            <div key={banner.id} className={`rounded-2xl border-2 p-4 space-y-3 transition-colors ${banner.active ? 'border-orange-200 bg-orange-50/30' : 'border-gray-100 bg-gray-50/50'}`}>
+            <div key={banner.id} className={`rounded-2xl border-2 p-4 space-y-3 transition-colors ${banner.active ? 'border-brand-200 bg-brand-50/30' : 'border-gray-100 bg-gray-50/50'}`}>
               {/* Header row */}
               <div className="flex items-center gap-3">
                 <span className="w-6 h-6 rounded-full bg-gray-200 text-gray-600 text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
@@ -12011,7 +12019,7 @@ function SettingsTab() {
                 <label className="flex items-center gap-1.5 cursor-pointer select-none">
                   <input type="checkbox" checked={banner.active}
                     onChange={e => updateBanner(banner.id, 'active', e.target.checked)}
-                    className="w-3.5 h-3.5 accent-orange-500" />
+                    className="w-3.5 h-3.5 accent-brand-500" />
                   <span className="text-xs font-medium text-gray-600">Active</span>
                 </label>
                 {/* Theme swatches */}
@@ -12029,31 +12037,31 @@ function SettingsTab() {
                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Headline *</label>
                   <input value={banner.title} onChange={e => updateBanner(banner.id, 'title', e.target.value)}
                     placeholder="e.g. Eid Sale — 10% Off All ACs"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Badge / Label</label>
                   <input value={banner.badge} onChange={e => updateBanner(banner.id, 'badge', e.target.value)}
                     placeholder="e.g. Limited Time · This Week Only"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                 </div>
                 <div className="col-span-2">
                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Subtitle</label>
                   <input value={banner.subtitle} onChange={e => updateBanner(banner.id, 'subtitle', e.target.value)}
                     placeholder="e.g. All inverter ACs from top brands — deal ends Sunday"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Button Text</label>
                   <input value={banner.cta} onChange={e => updateBanner(banner.id, 'cta', e.target.value)}
                     placeholder="e.g. Shop ACs"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Button Link</label>
                   <input value={banner.ctaLink} onChange={e => updateBanner(banner.id, 'ctaLink', e.target.value)}
                     placeholder="e.g. /products?category=air-conditioners"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                 </div>
               </div>
             </div>
@@ -12064,7 +12072,7 @@ function SettingsTab() {
       {/* Consultation Threshold */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
         <div className="flex items-center gap-2">
-          <Phone className="w-4 h-4 text-orange-500" />
+          <Phone className="w-4 h-4 text-brand-500" />
           <h3 className="font-bold text-gray-900">Consultation Threshold</h3>
         </div>
         <p className="text-sm text-gray-500">Products at or above this price show "Book Free Consultation" instead of Add to Cart. Changes take effect immediately on the product page.</p>
@@ -12073,9 +12081,9 @@ function SettingsTab() {
           <input type="number" min={0} step={10000}
             value={local['consultation_threshold'] ?? SETTING_DEFAULTS.consultationThreshold}
             onChange={e => setField('consultation_threshold', e.target.value)}
-            className="w-40 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            className="w-40 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
           <button onClick={() => saveSetting('consultation_threshold')} disabled={saving === 'consultation_threshold'}
-            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-xs font-bold px-4 py-2 rounded-xl">
+            className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white text-xs font-bold px-4 py-2 rounded-xl">
             {saving === 'consultation_threshold' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : saved.has('consultation_threshold') ? '✓ Saved!' : 'Save'}
           </button>
           <span className="text-xs text-gray-400">Default: PKR {SETTING_DEFAULTS.consultationThreshold.toLocaleString()}</span>
@@ -12086,7 +12094,7 @@ function SettingsTab() {
       <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2">
-            <CalendarDays className="w-4 h-4 text-orange-500" />
+            <CalendarDays className="w-4 h-4 text-brand-500" />
             <h3 className="font-bold text-gray-900">Installment Plan Rates</h3>
           </div>
           <div className="flex items-center gap-2">
@@ -12101,7 +12109,7 @@ function SettingsTab() {
               }
               saveAll(['plan_2m_markup','plan_2m_advance','plan_3m_markup','plan_3m_advance','plan_6m_markup','plan_6m_advance','plan_12m_markup','plan_12m_advance']);
             }}
-              className="text-xs font-bold bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg">
+              className="text-xs font-bold bg-brand-500 hover:bg-brand-600 text-white px-3 py-1.5 rounded-lg">
               Save All Plans
             </button>
           </div>
@@ -12131,7 +12139,7 @@ function SettingsTab() {
                         <input type="number" step="0.01" min="1" max="3"
                           value={local[mk] ?? ''}
                           onChange={e => setField(mk, e.target.value)}
-                          className={`w-24 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 ${!isNaN(markup) && (markup < 1 || markup > 3) ? 'border-red-300 bg-red-50' : 'border-gray-200'}`} />
+                          className={`w-24 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 ${!isNaN(markup) && (markup < 1 || markup > 3) ? 'border-red-300 bg-red-50' : 'border-gray-200'}`} />
                         <span className={`text-xs ${!isNaN(markup) && (markup < 1 || markup > 3) ? 'text-red-500' : 'text-gray-400'}`}>
                           {isNaN(markup) ? '?' : markup < 1 || markup > 3 ? 'Must be 1.0–3.0' : `${((markup - 1) * 100).toFixed(0)}% surcharge`}
                         </span>
@@ -12142,7 +12150,7 @@ function SettingsTab() {
                         <input type="number" step="0.01" min="0.2" max="0.7"
                           value={local[av] ?? ''}
                           onChange={e => setField(av, e.target.value)}
-                          className={`w-24 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 ${!isNaN(adv) && (adv < 0.2 || adv > 0.7) ? 'border-red-300 bg-red-50' : 'border-gray-200'}`} />
+                          className={`w-24 border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 ${!isNaN(adv) && (adv < 0.2 || adv > 0.7) ? 'border-red-300 bg-red-50' : 'border-gray-200'}`} />
                         <span className={`text-xs ${!isNaN(adv) && (adv < 0.2 || adv > 0.7) ? 'text-red-500' : 'text-gray-400'}`}>
                           {isNaN(adv) ? '?' : adv < 0.2 || adv > 0.7 ? 'Must be 0.20–0.70' : `${(adv * 100).toFixed(0)}% advance`}
                         </span>
@@ -12288,7 +12296,7 @@ function CompatibilityReviewTab({ products, onRefresh }: { products: Product[]; 
                           <button
                             disabled={saving === p.id}
                             onClick={() => saveField(p.id, 'inverter_power_kw', detectedKw)}
-                            className="text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded font-bold hover:bg-orange-600 disabled:opacity-40"
+                            className="text-[10px] bg-brand-500 text-white px-2 py-0.5 rounded font-bold hover:bg-brand-600 disabled:opacity-40"
                           >
                             {saving === p.id ? '…' : isSaved ? '✓' : `Set ${detectedKw}kW`}
                           </button>
@@ -12358,7 +12366,7 @@ function CompatibilityReviewTab({ products, onRefresh }: { products: Product[]; 
                           <button
                             disabled={saving === p.id}
                             onClick={() => saveField(p.id, 'battery_voltage', detectedV)}
-                            className="text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded font-bold hover:bg-orange-600 disabled:opacity-40"
+                            className="text-[10px] bg-brand-500 text-white px-2 py-0.5 rounded font-bold hover:bg-brand-600 disabled:opacity-40"
                           >
                             {saving === p.id ? '…' : isSaved ? '✓' : `Set ${detectedV}V`}
                           </button>
@@ -12553,7 +12561,7 @@ export default function AdminPortal() {
   // ── Login screen ─────────────────────────────────────────────────────────────
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-orange-500" /></div>;
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-brand-500" /></div>;
   }
 
   // ── Password recovery screen (user clicked the reset email link) ─────────────
@@ -12562,8 +12570,8 @@ export default function AdminPortal() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-sm border w-full max-w-sm p-8">
           <div className="text-center mb-6">
-            <div className="w-12 h-12 bg-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-              <Package className="w-6 h-6 text-orange-600" />
+            <div className="w-12 h-12 bg-brand-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <Package className="w-6 h-6 text-brand-600" />
             </div>
             <h1 className="text-xl font-black text-gray-900">Set New Password</h1>
             <p className="text-sm text-gray-500 mt-1">Enter and confirm your new password</p>
@@ -12572,17 +12580,17 @@ export default function AdminPortal() {
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">New Password</label>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} required autoFocus minLength={8}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Confirm New Password</label>
               <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} required minLength={8}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
             {authErr && <p className="text-red-500 text-xs">{authErr}</p>}
             {authOk  && <p className="text-green-600 text-xs">{authOk}</p>}
             <button type="submit" disabled={submitting}
-              className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg font-bold text-sm disabled:opacity-60 flex items-center justify-center gap-2">
+              className="w-full bg-brand-500 hover:bg-brand-600 text-white py-2 rounded-lg font-bold text-sm disabled:opacity-60 flex items-center justify-center gap-2">
               {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Updating…</> : 'Set New Password'}
             </button>
           </form>
@@ -12596,8 +12604,8 @@ export default function AdminPortal() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-sm border w-full max-w-sm p-8">
           <div className="text-center mb-6">
-            <div className="w-12 h-12 bg-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-              <Package className="w-6 h-6 text-orange-600" />
+            <div className="w-12 h-12 bg-brand-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <Package className="w-6 h-6 text-brand-600" />
             </div>
             <h1 className="text-xl font-black text-gray-900">Tajalli's Admin</h1>
             <p className="text-sm text-gray-500 mt-1">
@@ -12609,7 +12617,7 @@ export default function AdminPortal() {
             <div className="flex rounded-xl border border-gray-200 p-1 mb-5">
               {(['signin', 'signup'] as const).map(m => (
                 <button key={m} type="button" onClick={() => { setAuthMode(m); setAuthErr(''); setAuthOk(''); }}
-                  className={`flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors ${authMode === m ? 'bg-orange-500 text-white' : 'text-gray-500 hover:text-gray-700'}`}>
+                  className={`flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors ${authMode === m ? 'bg-brand-500 text-white' : 'text-gray-500 hover:text-gray-700'}`}>
                   {m === 'signin' ? 'Sign In' : 'Sign Up'}
                 </button>
               ))}
@@ -12620,39 +12628,39 @@ export default function AdminPortal() {
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Email</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
             {authMode !== 'forgot' && (
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Password</label>
                 <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
               </div>
             )}
             {authMode === 'signup' && (
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Confirm Password</label>
                 <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} required
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
               </div>
             )}
             {authErr && <p className="text-red-500 text-xs">{authErr}</p>}
             {authOk  && <p className="text-green-600 text-xs">{authOk}</p>}
             <button type="submit" disabled={submitting}
-              className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg font-bold text-sm disabled:opacity-60 flex items-center justify-center gap-2">
+              className="w-full bg-brand-500 hover:bg-brand-600 text-white py-2 rounded-lg font-bold text-sm disabled:opacity-60 flex items-center justify-center gap-2">
               {submitting
                 ? <><Loader2 className="w-4 h-4 animate-spin" /> {authMode === 'signin' ? 'Signing in…' : authMode === 'forgot' ? 'Sending…' : 'Creating account…'}</>
                 : (authMode === 'signin' ? 'Sign In' : authMode === 'forgot' ? 'Send Reset Email' : 'Create Account')}
             </button>
             {authMode === 'signin' && (
               <button type="button" onClick={() => { setAuthMode('forgot'); setAuthErr(''); setAuthOk(''); }}
-                className="w-full text-center text-xs text-gray-400 hover:text-orange-500 mt-1">
+                className="w-full text-center text-xs text-gray-400 hover:text-brand-500 mt-1">
                 Forgot password?
               </button>
             )}
             {authMode === 'forgot' && (
               <button type="button" onClick={() => { setAuthMode('signin'); setAuthErr(''); setAuthOk(''); }}
-                className="w-full text-center text-xs text-gray-400 hover:text-orange-500 mt-1">
+                className="w-full text-center text-xs text-gray-400 hover:text-brand-500 mt-1">
                 ← Back to Sign In
               </button>
             )}
@@ -12673,11 +12681,11 @@ export default function AdminPortal() {
       {/* Header */}
       <div className="border-b border-gray-100 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-            <Package className="w-4 h-4 text-orange-600" />
+          <div className="w-8 h-8 bg-brand-100 rounded-lg flex items-center justify-center">
+            <Package className="w-4 h-4 text-brand-600" />
           </div>
           <span className="font-black text-gray-900">Tajalli's Admin</span>
-          <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">{products.length} products</span>
+          <span className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium">{products.length} products</span>
         </div>
         <button onClick={() => signOut()} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800">
           <LogOut className="w-4 h-4" /> Sign out
@@ -12713,7 +12721,7 @@ export default function AdminPortal() {
               <div key={t.id} className={`flex items-center ${prevGroup !== t.group && i > 0 ? 'ml-2 pl-2 border-l border-gray-200' : ''}`}>
                 <button onClick={() => changeTab(t.id)}
                   className={`px-3 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                    tab === t.id ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                    tab === t.id ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}>
                   {t.label}
                 </button>
@@ -12769,7 +12777,7 @@ export default function AdminPortal() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Search by name, model, brand · try: missing images, under 50000, haier fridge…"
-                  className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                 {search && (
                   <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500">
                     <X className="w-3.5 h-3.5" />
@@ -12778,7 +12786,7 @@ export default function AdminPortal() {
               </div>
               <div className="relative">
                 <select value={catFilter} onChange={e => setCatFilter(e.target.value)}
-                  className="appearance-none border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+                  className="appearance-none border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white">
                   <option value="">All categories</option>
                   {Object.values(CATEGORY_MAP).map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
@@ -12787,18 +12795,18 @@ export default function AdminPortal() {
               <button onClick={() => setFiltersOpen(v => !v)}
                 className={`relative flex items-center gap-2 border px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors
                   ${filtersOpen || activeFilterCount > 0
-                    ? 'border-orange-400 bg-orange-50 text-orange-700'
-                    : 'border-gray-200 text-gray-600 hover:border-orange-300 hover:text-orange-600'}`}>
+                    ? 'border-brand-400 bg-brand-50 text-brand-700'
+                    : 'border-gray-200 text-gray-600 hover:border-brand-300 hover:text-brand-600'}`}>
                 <Filter className="w-4 h-4" />
                 Filters
                 {activeFilterCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-orange-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center">
+                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-brand-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center">
                     {activeFilterCount}
                   </span>
                 )}
               </button>
               <button onClick={() => setModal('add')}
-                className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap">
+                className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap">
                 <Plus className="w-4 h-4" /> Add Product
               </button>
             </div>
@@ -12810,7 +12818,7 @@ export default function AdminPortal() {
                 <div>
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Brand</label>
                   <select value={brandFilter} onChange={e => setBrandFilter(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white">
                     <option value="">All brands</option>
                     {allBrands.map(b => <option key={b}>{b}</option>)}
                   </select>
@@ -12820,24 +12828,24 @@ export default function AdminPortal() {
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Min Price</label>
                   <input type="number" value={priceMin} onChange={e => setPriceMin(e.target.value)}
                     placeholder="0"
-                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Max Price</label>
                   <input type="number" value={priceMax} onChange={e => setPriceMax(e.target.value)}
                     placeholder="∞"
-                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                 </div>
                 {/* Toggles */}
                 <div className="flex flex-col gap-2 justify-center">
                   <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
                     <input type="checkbox" checked={missingImgFilter} onChange={e => setMissingImgFilter(e.target.checked)}
-                      className="w-4 h-4 accent-orange-500" />
+                      className="w-4 h-4 accent-brand-500" />
                     Missing images
                   </label>
                   <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
                     <input type="checkbox" checked={installFilter} onChange={e => setInstallFilter(e.target.checked)}
-                      className="w-4 h-4 accent-orange-500" />
+                      className="w-4 h-4 accent-brand-500" />
                     Installment eligible
                   </label>
                 </div>
@@ -12863,16 +12871,16 @@ export default function AdminPortal() {
 
             {/* Selection action bar */}
             {selectedIds.size > 0 && (
-              <div className="flex flex-wrap items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 mb-3">
+              <div className="flex flex-wrap items-center gap-2 bg-brand-50 border border-brand-200 rounded-xl px-4 py-3 mb-3">
                 {bulkRunning
-                  ? <Loader2 className="w-4 h-4 text-orange-500 animate-spin shrink-0" />
-                  : <ListChecks className="w-4 h-4 text-orange-600 shrink-0" />}
-                <span className="text-sm font-semibold text-orange-800 mr-1">
+                  ? <Loader2 className="w-4 h-4 text-brand-500 animate-spin shrink-0" />
+                  : <ListChecks className="w-4 h-4 text-brand-600 shrink-0" />}
+                <span className="text-sm font-semibold text-brand-700 mr-1">
                   {bulkRunning ? 'Working…' : `${selectedIds.size} selected`}
                 </span>
                 <button disabled={bulkRunning}
                   onClick={() => setBulkEditOpen(true)}
-                  className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg">
+                  className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg">
                   <Edit2 className="w-3.5 h-3.5" /> Bulk Edit
                 </button>
                 <button disabled={bulkRunning}
@@ -12911,7 +12919,7 @@ export default function AdminPortal() {
                   <Trash2 className="w-3.5 h-3.5" /> Delete Selected
                 </button>
                 <div className="flex-1" />
-                <button disabled={bulkRunning} onClick={() => setSelectedIds(new Set())} className="p-1 text-orange-400 hover:text-orange-700 disabled:opacity-40">
+                <button disabled={bulkRunning} onClick={() => setSelectedIds(new Set())} className="p-1 text-brand-400 hover:text-brand-700 disabled:opacity-40">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -12919,7 +12927,7 @@ export default function AdminPortal() {
 
             {/* Table */}
             {fetching ? (
-              <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-orange-400" /></div>
+              <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-brand-400" /></div>
             ) : filtered.length === 0 ? (
               <div className="text-center py-20 text-gray-400">
                 <Package className="w-12 h-12 mx-auto mb-3 opacity-30" />
@@ -12932,7 +12940,7 @@ export default function AdminPortal() {
                   <>
                     <p className="font-medium">No results for "{search}"</p>
                     <p className="text-sm mt-1">Try a different search term or clear the filter</p>
-                    <button onClick={() => setSearch('')} className="mt-3 text-sm text-orange-500 hover:text-orange-700 font-medium">
+                    <button onClick={() => setSearch('')} className="mt-3 text-sm text-brand-500 hover:text-brand-700 font-medium">
                       Clear search
                     </button>
                   </>
@@ -12945,9 +12953,9 @@ export default function AdminPortal() {
                     <thead className="bg-gray-50 border-b border-gray-100">
                       <tr>
                         <th className="px-4 py-3 w-10">
-                          <button onClick={toggleSelectAll} className="text-gray-400 hover:text-orange-500 transition-colors" title="Select all">
+                          <button onClick={toggleSelectAll} className="text-gray-400 hover:text-brand-500 transition-colors" title="Select all">
                             {selectedIds.size === filtered.length && filtered.length > 0
-                              ? <CheckSquare className="w-4 h-4 text-orange-500" />
+                              ? <CheckSquare className="w-4 h-4 text-brand-500" />
                               : <Square className="w-4 h-4" />}
                           </button>
                         </th>
@@ -12970,10 +12978,10 @@ export default function AdminPortal() {
                         const noName  = !p.simplified_name?.trim();
                         const noSpecs = !p.specs || Object.keys(p.specs).length === 0;
                         return (
-                          <tr key={p.id} className={`transition-colors ${isSelected ? 'bg-orange-50/60' : noImage ? 'bg-amber-50/40 hover:bg-amber-50' : 'hover:bg-gray-50'}`}>
+                          <tr key={p.id} className={`transition-colors ${isSelected ? 'bg-brand-50/60' : noImage ? 'bg-amber-50/40 hover:bg-amber-50' : 'hover:bg-gray-50'}`}>
                             <td className="px-4 py-3">
-                              <button onClick={() => toggleSelect(p.id)} className="text-gray-300 hover:text-orange-500 transition-colors">
-                                {isSelected ? <CheckSquare className="w-4 h-4 text-orange-500" /> : <Square className="w-4 h-4" />}
+                              <button onClick={() => toggleSelect(p.id)} className="text-gray-300 hover:text-brand-500 transition-colors">
+                                {isSelected ? <CheckSquare className="w-4 h-4 text-brand-500" /> : <Square className="w-4 h-4" />}
                               </button>
                             </td>
                             <td className="px-4 py-3">
@@ -13024,7 +13032,7 @@ export default function AdminPortal() {
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex gap-1">
-                                <button onClick={() => setQuickImg(p)} className="p-1.5 hover:bg-orange-50 text-orange-500 rounded-lg" title="Upload image">
+                                <button onClick={() => setQuickImg(p)} className="p-1.5 hover:bg-brand-50 text-brand-500 rounded-lg" title="Upload image">
                                   <Camera className="w-4 h-4" />
                                 </button>
                                 <button onClick={() => handleEnrichOne(p.id)} disabled={isEnriching} className="p-1.5 hover:bg-blue-50 text-blue-500 rounded-lg disabled:opacity-50" title="Enrich this product">

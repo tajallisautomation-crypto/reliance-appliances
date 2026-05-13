@@ -80,7 +80,7 @@ export function Services() {
       {/* Hero */}
       <div className="bg-gray-900 text-white py-16 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-orange-400 text-xs font-bold uppercase tracking-widest mb-3">Complete 360° Care</p>
+          <p className="text-brand-400 text-xs font-bold uppercase tracking-widest mb-3">Complete 360° Care</p>
           <h1 className="text-3xl md:text-5xl font-black mb-4">Professional After-Sale Services</h1>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
             Our relationship doesn't end at the sale. Certified technicians, genuine parts,
@@ -100,12 +100,12 @@ export function Services() {
       </div>
 
       {/* Trust stats bar */}
-      <div className="bg-orange-500 text-white py-5 px-4">
+      <div className="bg-brand-500 text-white py-5 px-4">
         <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
           {TRUST_STATS.map(s => (
             <div key={s.label}>
               <div className="text-xl font-black">{s.value}</div>
-              <div className="text-orange-100 text-xs mt-0.5">{s.label}</div>
+              <div className="text-brand-100 text-xs mt-0.5">{s.label}</div>
             </div>
           ))}
         </div>
@@ -121,7 +121,7 @@ export function Services() {
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {SERVICE_ITEMS.map(s => (
-              <div key={s.title} className="bg-white rounded-2xl p-6 border border-gray-100 hover:border-orange-200 hover:shadow-soft transition-all">
+              <div key={s.title} className="bg-white rounded-2xl p-6 border border-gray-100 hover:border-brand-200 hover:shadow-soft transition-all">
                 <div className="text-3xl mb-4">{s.icon}</div>
                 <h3 className="font-bold text-gray-900 mb-2">{s.title}</h3>
                 <p className="text-sm text-gray-500 mb-4 leading-relaxed">{s.desc}</p>
@@ -143,11 +143,11 @@ export function Services() {
           </div>
 
           {/* Repair diagnosis / visit-charge policy */}
-          <div className="mb-4 bg-orange-50 border border-orange-200 rounded-2xl px-5 py-4 flex gap-3">
-            <Wrench className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
-            <div className="text-sm text-orange-900 leading-relaxed space-y-1">
+          <div className="mb-4 bg-brand-50 border border-brand-200 rounded-2xl px-5 py-4 flex gap-3">
+            <Wrench className="w-5 h-5 text-brand-600 shrink-0 mt-0.5" />
+            <div className="text-sm text-brand-900 leading-relaxed space-y-1">
               <p><strong>Repair Policy — Diagnosis First:</strong> All repair services (AC, refrigerator, freezer, dispenser, washing machine, solar inverter, UPS, microwave, LED TV) require an on-site technician visit for diagnosis. The repair quote is only provided <em>after</em> the technician assesses the unit.</p>
-              <ul className="list-disc pl-4 space-y-0.5 text-orange-800">
+              <ul className="list-disc pl-4 space-y-0.5 text-brand-800">
                 <li><strong>Standard (Within 48 hours):</strong> PKR 2,000 — collected at start of visit.</li>
                 <li><strong>Same-Day Priority:</strong> PKR 3,000 — collected in advance. Request by 12pm.</li>
                 <li>If you <strong>decline</strong> the repair after diagnosis, the visit charge is retained. No refund on visit fees.</li>
@@ -221,7 +221,7 @@ export function Services() {
                 <p className="text-gray-500 text-sm mt-0.5">Real jobs, real technicians, real Karachi homes</p>
               </div>
               <Link to="/gallery"
-                className="flex items-center gap-1 text-orange-500 hover:text-orange-600 font-semibold text-sm transition-colors">
+                className="flex items-center gap-1 text-brand-500 hover:text-brand-600 font-semibold text-sm transition-colors">
                 See all <ChevronRight className="w-4 h-4" />
               </Link>
             </div>
@@ -266,7 +266,7 @@ export function Services() {
             {[
               { icon: ThumbsUp, title: '90-Day Workmanship Guarantee', desc: 'If the same fault recurs within 90 days of repair, we fix it free of charge.', bg: 'bg-green-50 border-green-100', fg: 'text-green-600' },
               { icon: Shield, title: 'Genuine Parts Only', desc: 'We source parts directly from brand-authorised suppliers — no grey-market components.', bg: 'bg-blue-50 border-blue-100', fg: 'text-blue-600' },
-              { icon: Headphones, title: 'Post-Service Support', desc: 'Our technician\'s direct line stays available for 7 days after any service visit.', bg: 'bg-orange-50 border-orange-100', fg: 'text-orange-600' },
+              { icon: Headphones, title: 'Post-Service Support', desc: 'Our technician\'s direct line stays available for 7 days after any service visit.', bg: 'bg-brand-50 border-brand-100', fg: 'text-brand-600' },
             ].map(g => (
               <div key={g.title} className={`${g.bg} border rounded-2xl p-5`}>
                 <g.icon className={`w-6 h-6 ${g.fg} mb-3`} />
@@ -305,7 +305,7 @@ export function Services() {
               </ul>
             </div>
             <div className="bg-gray-50 border border-gray-100 rounded-2xl p-6">
-              <Zap className="w-6 h-6 text-orange-500 mb-3" />
+              <Zap className="w-6 h-6 text-brand-500 mb-3" />
               <h3 className="font-bold text-gray-900 mb-2">How it works</h3>
               <ol className="space-y-3 text-sm text-gray-600">
                 {[
@@ -316,7 +316,7 @@ export function Services() {
                   'If parts need replacing, we source them and bill you at cost — no markup.',
                 ].map((step, i) => (
                   <li key={i} className="flex items-start gap-3">
-                    <span className="w-5 h-5 bg-orange-100 text-orange-600 rounded-full text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                    <span className="w-5 h-5 bg-brand-100 text-brand-600 rounded-full text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
                     {step}
                   </li>
                 ))}
@@ -335,10 +335,10 @@ export function Services() {
         </section>
 
         {/* AMC callout */}
-        <section className="border-2 border-orange-200 bg-orange-50 rounded-3xl p-8">
+        <section className="border-2 border-brand-200 bg-brand-50 rounded-3xl p-8">
           <div className="flex flex-col md:flex-row gap-6 items-start">
             <div className="flex-1">
-              <p className="text-orange-600 text-xs font-bold uppercase tracking-widest mb-2">Recommended for Homes & Offices</p>
+              <p className="text-brand-600 text-xs font-bold uppercase tracking-widest mb-2">Recommended for Homes & Offices</p>
               <h2 className="text-xl font-black text-gray-900 mb-3">Annual Maintenance Contract (AMC)</h2>
               <p className="text-gray-600 text-sm leading-relaxed mb-4">
                 One AMC covers all appliances in your home or office. Scheduled visits, priority breakdown response, and
@@ -347,7 +347,7 @@ export function Services() {
               <ul className="space-y-2">
                 {['2 scheduled service visits per appliance per year', 'Priority same-day breakdown response', '20% discount on all parts', 'Dedicated technician who knows your setup'].map(item => (
                   <li key={item} className="flex items-start gap-2 text-sm text-gray-700">
-                    <CheckCircle className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
+                    <CheckCircle className="w-4 h-4 text-brand-500 flex-shrink-0 mt-0.5" />
                     {item}
                   </li>
                 ))}
@@ -355,7 +355,7 @@ export function Services() {
             </div>
             <div className="md:w-56">
               <a href={waSales('Hi, I\'d like to know about the Annual Maintenance Contract')} target="_blank" rel="noreferrer"
-                className="block w-full text-center py-3.5 rounded-xl font-bold text-white bg-orange-500 hover:bg-orange-600 transition-colors">
+                className="block w-full text-center py-3.5 rounded-xl font-bold text-white bg-brand-500 hover:bg-brand-600 transition-colors">
                 Get AMC Quote
               </a>
               <p className="text-xs text-gray-500 text-center mt-2">Standard: within 48 hrs · Urgent same-day: request by 12pm</p>
@@ -410,7 +410,7 @@ const CORP_BENEFITS = [
     icon: ClipboardList,
     title: 'Dedicated Account Manager',
     desc: 'A single point of contact manages your entire procurement — from quotation to delivery to after-sale. No call centres, no hold music.',
-    bg: 'bg-orange-50 border-orange-100', fg: 'text-orange-600',
+    bg: 'bg-brand-50 border-brand-100', fg: 'text-brand-600',
   },
   {
     icon: Award,

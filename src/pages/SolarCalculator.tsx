@@ -511,11 +511,11 @@ export default function SolarCalculator() {
           {/* Mode toggle */}
           <div className="inline-flex bg-white/20 rounded-2xl p-1 mb-3">
             <button onClick={() => { setMode('solar'); setQuote(null); setStep(1); }}
-              className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${mode === 'solar' ? 'bg-white text-orange-600 shadow' : 'text-white/80 hover:text-white'}`}>
+              className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${mode === 'solar' ? 'bg-white text-brand-600 shadow' : 'text-white/80 hover:text-white'}`}>
               ☀️ Solar Calculator
             </button>
             <button onClick={() => { setMode('ups'); setQuote(null); setStep(1); }}
-              className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${mode === 'ups' ? 'bg-white text-orange-600 shadow' : 'text-white/80 hover:text-white'}`}>
+              className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${mode === 'ups' ? 'bg-white text-brand-600 shadow' : 'text-white/80 hover:text-white'}`}>
               🔌 UPS Calculator
             </button>
           </div>
@@ -556,13 +556,13 @@ export default function SolarCalculator() {
             <div key={s.n} className="flex items-center gap-1.5">
               <button onClick={() => quote && setStep(s.n as 1|2|3|4)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all
-                  ${step === s.n ? 'bg-orange-500 text-white shadow-lg scale-105'
+                  ${step === s.n ? 'bg-brand-500 text-white shadow-lg scale-105'
                   : step > s.n  ? 'bg-green-500 text-white'
                   : 'bg-white text-gray-400 border'}`}>
                 {step > s.n ? <CheckCircle className="w-3.5 h-3.5"/> : <span>{s.n}</span>}
                 <span className="hidden sm:block">{s.label}</span>
               </button>
-              {i < arr.length - 1 && <div className={`w-6 h-0.5 ${step > s.n+1 ? 'bg-green-400' : step > s.n ? 'bg-orange-300' : 'bg-gray-200'}`}/>}
+              {i < arr.length - 1 && <div className={`w-6 h-0.5 ${step > s.n+1 ? 'bg-green-400' : step > s.n ? 'bg-brand-300' : 'bg-gray-200'}`}/>}
             </div>
           ))}
         </div>
@@ -572,18 +572,18 @@ export default function SolarCalculator() {
           <div className={inputMode === 'direct' ? 'max-w-xl mx-auto space-y-4' : 'grid lg:grid-cols-5 gap-6'}>
             <div className={inputMode === 'direct' ? '' : 'lg:col-span-3 space-y-3'}>
               {/* Input mode selector */}
-              <div className="bg-white rounded-2xl border border-orange-100 p-4 shadow-sm">
+              <div className="bg-white rounded-2xl border border-brand-100 p-4 shadow-sm">
                 <div className="flex items-center gap-2 mb-3">
                   <button onClick={() => { setInputMode('load'); setBillMode(false); }}
-                    className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${inputMode === 'load' && !billMode ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                    className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${inputMode === 'load' && !billMode ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
                     Add Appliances
                   </button>
                   <button onClick={() => { setInputMode('load'); setBillMode(true); }}
-                    className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${inputMode === 'load' && billMode ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                    className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${inputMode === 'load' && billMode ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
                     Electricity Bill
                   </button>
                   <button onClick={() => { setInputMode('direct'); setBillMode(false); }}
-                    className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${inputMode === 'direct' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                    className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${inputMode === 'direct' ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
                     I know my size
                   </button>
                 </div>
@@ -596,7 +596,7 @@ export default function SolarCalculator() {
                       <input type="number" min={0.5} max={30} step={0.5} value={directKW}
                         onChange={e => setDirectKW(e.target.value)}
                         placeholder="e.g. 5"
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-lg font-bold text-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-400"/>
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-lg font-bold text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-400"/>
                       <p className="text-xs text-gray-400 mt-1">Enter the kW size of the system you want.</p>
                     </div>
 
@@ -611,7 +611,7 @@ export default function SolarCalculator() {
                         ] as const).map(s => (
                           <button key={s.val} onClick={() => setSysType(s.val)}
                             className={`p-3 rounded-xl border-2 text-center transition-all
-                              ${sysType === s.val ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-orange-300'}`}>
+                              ${sysType === s.val ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-brand-300'}`}>
                             <div className="text-lg mb-0.5">{s.icon}</div>
                             <div className="font-semibold text-xs">{s.label}</div>
                             <div className="text-[10px] text-gray-500">{s.desc}</div>
@@ -644,11 +644,11 @@ export default function SolarCalculator() {
                       <label className="text-xs font-medium text-gray-600 block mb-1">Monthly Bill Amount (PKR)</label>
                       <input type="number" value={billAmount} onChange={e => setBillAmount(e.target.value)}
                         placeholder="e.g. 15000"
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"/>
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"/>
                     </div>
                     {billKWh > 0 && (
-                      <div className="bg-orange-50 rounded-xl px-4 py-3 text-sm">
-                        <span className="font-bold text-orange-700">{billKWh} kWh/month</span>
+                      <div className="bg-brand-50 rounded-xl px-4 py-3 text-sm">
+                        <span className="font-bold text-brand-700">{billKWh} kWh/month</span>
                         <span className="text-gray-500"> — estimated monthly consumption</span>
                       </div>
                     )}
@@ -669,14 +669,14 @@ export default function SolarCalculator() {
                 const apps = APPLIANCES.filter(a => a.category === cat)
                 const addedCount = items.filter(i => i.category === cat).reduce((n, i) => n + i.qty, 0)
                 return (
-                  <div key={cat} className={`bg-white rounded-2xl shadow-sm border overflow-hidden ${addedCount > 0 ? 'border-orange-200' : 'border-orange-100'}`}>
+                  <div key={cat} className={`bg-white rounded-2xl shadow-sm border overflow-hidden ${addedCount > 0 ? 'border-brand-200' : 'border-brand-100'}`}>
                     <button onClick={() => setOpenCat(openCat === cat ? null : cat)}
-                      className="w-full flex items-center justify-between p-4 hover:bg-orange-50 transition-colors">
+                      className="w-full flex items-center justify-between p-4 hover:bg-brand-50 transition-colors">
                       <div className="flex items-center gap-2.5">
                         <span className="text-base leading-none">{CATEGORY_EMOJI[cat]}</span>
                         <span className="font-semibold text-gray-700 text-sm">{cat}</span>
                         {addedCount > 0 && (
-                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-500 text-white text-[10px] font-bold">
+                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-brand-500 text-white text-[10px] font-bold">
                             {addedCount}
                           </span>
                         )}
@@ -691,18 +691,18 @@ export default function SolarCalculator() {
                             <button key={app.id} onClick={() => addItem(app)}
                               className={`flex items-center justify-between p-3 rounded-xl border transition-all text-left group ${
                                 alreadyAdded > 0
-                                  ? 'border-orange-300 bg-orange-50'
-                                  : 'border-gray-100 hover:border-orange-300 hover:bg-orange-50'
+                                  ? 'border-brand-300 bg-brand-50'
+                                  : 'border-gray-100 hover:border-brand-300 hover:bg-brand-50'
                               }`}>
                               <div>
-                                <div className="text-sm font-medium text-gray-700 group-hover:text-orange-700">{app.name}</div>
+                                <div className="text-sm font-medium text-gray-700 group-hover:text-brand-700">{app.name}</div>
                                 <div className="text-xs text-gray-400">{app.watts}W</div>
                               </div>
                               <div className="flex items-center gap-1.5 shrink-0">
                                 {alreadyAdded > 0 && (
-                                  <span className="text-xs font-bold text-orange-600">×{alreadyAdded}</span>
+                                  <span className="text-xs font-bold text-brand-600">×{alreadyAdded}</span>
                                 )}
-                                <Plus className="w-4 h-4 text-gray-300 group-hover:text-orange-500"/>
+                                <Plus className="w-4 h-4 text-gray-300 group-hover:text-brand-500"/>
                               </div>
                             </button>
                           )
@@ -714,17 +714,17 @@ export default function SolarCalculator() {
               })}
 
               {/* Custom appliance */}
-              <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-4">
+              <div className="bg-white rounded-2xl shadow-sm border border-brand-100 p-4">
                 <h3 className="font-semibold text-gray-700 text-sm mb-3">Add Custom Appliance</h3>
                 <div className="grid grid-cols-2 gap-2">
-                  <input className="col-span-2 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-400"
+                  <input className="col-span-2 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
                     placeholder="Appliance name" value={custom.name} onChange={e => setCustom(p => ({...p,name:e.target.value}))}/>
-                  <input className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-400"
+                  <input className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
                     placeholder="Watts" type="number" value={custom.watts} onChange={e => setCustom(p => ({...p,watts:e.target.value}))}/>
-                  <input className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-400"
+                  <input className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-brand-400"
                     placeholder="Qty" type="number" value={custom.qty} onChange={e => setCustom(p => ({...p,qty:e.target.value}))}/>
                   <button onClick={addCustom}
-                    className="col-span-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl py-2 text-sm font-medium">
+                    className="col-span-2 bg-brand-500 hover:bg-brand-600 text-white rounded-xl py-2 text-sm font-medium">
                     Add Appliance
                   </button>
                 </div>
@@ -737,7 +737,7 @@ export default function SolarCalculator() {
             {inputMode === 'load' && <div className="lg:col-span-2">
               <div className="sticky top-4">
                 <h2 className="text-base font-bold text-gray-800 mb-3">Your Load</h2>
-                <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-4 space-y-3 max-h-96 overflow-y-auto">
+                <div className="bg-white rounded-2xl shadow-sm border border-brand-100 p-4 space-y-3 max-h-96 overflow-y-auto">
                   {!items.length && (
                     <div className="text-center py-8 text-gray-400">
                       <Zap className="w-10 h-10 mx-auto mb-2 opacity-30"/>
@@ -760,16 +760,16 @@ export default function SolarCalculator() {
                           <label className="text-gray-500 block mb-1">Qty</label>
                           <input type="number" min={0} value={item.qty}
                             onChange={e => updQty(item.id, parseInt(e.target.value) || 0)}
-                            className="w-full border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:border-orange-400"/>
+                            className="w-full border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:border-brand-400"/>
                         </div>
                         <div>
                           <label className="text-gray-500 block mb-1">Hours/day</label>
                           <input type="number" min={0} max={24} step={0.5} value={item.hours}
                             onChange={e => updHours(item.id, parseFloat(e.target.value) || 0)}
-                            className="w-full border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:border-orange-400"/>
+                            className="w-full border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:border-brand-400"/>
                         </div>
                       </div>
-                      <div className="text-xs text-orange-600 mt-1 font-medium">
+                      <div className="text-xs text-brand-600 mt-1 font-medium">
                         {item.watts * item.qty}W × {item.hours}hrs = {(item.watts * item.qty * item.hours / 1000).toFixed(2)} kWh/day
                       </div>
                       {UPGRADE_SUGGESTIONS[item.id] && (
@@ -800,7 +800,7 @@ export default function SolarCalculator() {
                       </div>
                     )}
                     <button onClick={() => setStep(2)}
-                      className="w-full mt-3 bg-white text-orange-600 font-semibold rounded-xl py-2 hover:bg-orange-50 transition-colors text-sm">
+                      className="w-full mt-3 bg-white text-brand-600 font-semibold rounded-xl py-2 hover:bg-brand-50 transition-colors text-sm">
                       {mode === 'ups' ? 'Next: Backup Hours' : 'Next: Preferences'}
                     </button>
                   </div>
@@ -815,14 +815,14 @@ export default function SolarCalculator() {
           <div className="max-w-2xl mx-auto space-y-5">
             <h2 className="text-2xl font-bold text-gray-800 text-center">UPS Preferences</h2>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-brand-100 p-6">
               <h3 className="font-semibold text-gray-700 mb-1 text-sm">Desired Backup Duration</h3>
               <p className="text-xs text-gray-500 mb-4">How many hours do you want to run during load shedding?</p>
               <div className="flex items-center gap-4">
                 <input type="range" min={1} max={12} step={0.5} value={backupHrs}
                   onChange={e => setBackupHrs(parseFloat(e.target.value))}
-                  className="flex-1 accent-orange-500"/>
-                <div className="bg-orange-100 text-orange-700 font-bold px-4 py-2 rounded-xl min-w-[60px] text-center text-sm">
+                  className="flex-1 accent-brand-500"/>
+                <div className="bg-brand-100 text-brand-700 font-bold px-4 py-2 rounded-xl min-w-[60px] text-center text-sm">
                   {backupHrs}h
                 </div>
               </div>
@@ -836,7 +836,7 @@ export default function SolarCalculator() {
                   { v: `${+(totalW * backupHrs / 1000 * 1.2).toFixed(1)} kWh`, l: 'Battery Needed' },
                 ].map((x,i) => (
                   <div key={i} className="bg-white rounded-xl p-3">
-                    <div className="text-xl font-bold text-orange-600">{x.v}</div>
+                    <div className="text-xl font-bold text-brand-600">{x.v}</div>
                     <div className="text-[10px] text-gray-500">{x.l}</div>
                   </div>
                 ))}
@@ -862,7 +862,7 @@ export default function SolarCalculator() {
             <h2 className="text-2xl font-bold text-gray-800 text-center">System Preferences</h2>
 
             {/* System type */}
-            <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-brand-100 p-6">
               <h3 className="font-semibold text-gray-700 mb-4 text-sm">System Type</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {([
@@ -873,7 +873,7 @@ export default function SolarCalculator() {
                 ] as const).map(s => (
                   <button key={s.val} onClick={() => setSysType(s.val)}
                     className={`p-3 rounded-xl border-2 text-center transition-all
-                      ${sysType === s.val ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-orange-300'}`}>
+                      ${sysType === s.val ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-brand-300'}`}>
                     <div className="text-xl mb-1">{s.icon}</div>
                     <div className="font-semibold text-xs">{s.label}</div>
                     <div className="text-[10px] text-gray-500 mt-0.5">{s.desc}</div>
@@ -884,14 +884,14 @@ export default function SolarCalculator() {
 
             {/* Peak sun hours */}
             {sysType !== 'ups-only' && (
-              <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-brand-100 p-6">
                 <h3 className="font-semibold text-gray-700 mb-1 text-sm">Peak Sun Hours</h3>
                 <p className="text-xs text-gray-500 mb-4">Karachi: 7hrs · Punjab: 6hrs · Northern: 5hrs</p>
                 <div className="flex items-center gap-4">
                   <input type="range" min={4} max={9} step={0.5} value={peakHrs}
                     onChange={e => setPeakHrs(parseFloat(e.target.value))}
-                    className="flex-1 accent-orange-500"/>
-                  <div className="bg-orange-100 text-orange-700 font-bold px-4 py-2 rounded-xl min-w-[56px] text-center text-sm">
+                    className="flex-1 accent-brand-500"/>
+                  <div className="bg-brand-100 text-brand-700 font-bold px-4 py-2 rounded-xl min-w-[56px] text-center text-sm">
                     {peakHrs}h
                   </div>
                 </div>
@@ -900,10 +900,10 @@ export default function SolarCalculator() {
 
             {/* Elevated frame */}
             {sysType !== 'ups-only' && (
-              <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-5">
+              <div className="bg-white rounded-2xl shadow-sm border border-brand-100 p-5">
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input type="checkbox" checked={elevFrame} onChange={e => setElevFrame(e.target.checked)}
-                    className="mt-0.5 accent-orange-500"/>
+                    className="mt-0.5 accent-brand-500"/>
                   <div>
                     <div className="text-sm font-semibold text-gray-700">Elevated / Tilted Frame</div>
                     <div className="text-xs text-gray-500 mt-0.5">
@@ -963,7 +963,7 @@ export default function SolarCalculator() {
                   { v: effectiveDailyU > 0 ? `${+(effectiveDailyU*1.25/peakHrs).toFixed(1)} kW` : '—', l: 'Est. System Size' },
                 ].map((x,i) => (
                   <div key={i} className="bg-white rounded-xl p-3">
-                    <div className="text-xl font-bold text-orange-600">{x.v}</div>
+                    <div className="text-xl font-bold text-brand-600">{x.v}</div>
                     <div className="text-[10px] text-gray-500">{x.l}</div>
                   </div>
                 ))}
@@ -1075,11 +1075,11 @@ export default function SolarCalculator() {
                 {/* Two off-grid options */}
                 <div className="grid sm:grid-cols-2 gap-3">
                   {/* Partially off-grid */}
-                  <div className={`rounded-xl border-2 p-4 ${quote.type === 'hybrid' ? 'border-orange-400 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
+                  <div className={`rounded-xl border-2 p-4 ${quote.type === 'hybrid' ? 'border-brand-400 bg-brand-50' : 'border-gray-200 bg-gray-50'}`}>
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <span className="text-sm font-bold text-gray-800">Partially Off-Grid</span>
                       {quote.type === 'hybrid' && (
-                        <span className="text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded-full font-semibold">Your System</span>
+                        <span className="text-[10px] bg-brand-500 text-white px-2 py-0.5 rounded-full font-semibold">Your System</span>
                       )}
                     </div>
                     <div className="text-xs text-gray-600 mb-3 leading-relaxed">
@@ -1093,18 +1093,18 @@ export default function SolarCalculator() {
                       {quote.batBank && quote.type === 'hybrid' && (
                         <div className="flex justify-between">
                           <span className="text-gray-500">Crown battery bank</span>
-                          <span className="font-bold text-orange-600">{fmtPKR(quote.costs.battery)}</span>
+                          <span className="font-bold text-brand-600">{fmtPKR(quote.costs.battery)}</span>
                         </div>
                       )}
                     </div>
                   </div>
 
                   {/* Completely off-grid */}
-                  <div className={`rounded-xl border-2 p-4 ${quote.type === 'off-grid' ? 'border-orange-400 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
+                  <div className={`rounded-xl border-2 p-4 ${quote.type === 'off-grid' ? 'border-brand-400 bg-brand-50' : 'border-gray-200 bg-gray-50'}`}>
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <span className="text-sm font-bold text-gray-800">Completely Off-Grid</span>
                       {quote.type === 'off-grid' && (
-                        <span className="text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded-full font-semibold">Your System</span>
+                        <span className="text-[10px] bg-brand-500 text-white px-2 py-0.5 rounded-full font-semibold">Your System</span>
                       )}
                     </div>
                     <div className="text-xs text-gray-600 mb-3 leading-relaxed">
@@ -1118,7 +1118,7 @@ export default function SolarCalculator() {
                       {quote.batBank && quote.type === 'off-grid' && (
                         <div className="flex justify-between">
                           <span className="text-gray-500">Crown battery bank</span>
-                          <span className="font-bold text-orange-600">{fmtPKR(quote.costs.battery)}</span>
+                          <span className="font-bold text-brand-600">{fmtPKR(quote.costs.battery)}</span>
                         </div>
                       )}
                     </div>
@@ -1135,7 +1135,7 @@ export default function SolarCalculator() {
 
             {/* Recommended products */}
             {(quote.panelProduct || quote.invProduct || quote.batBank) && (
-              <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-5">
+              <div className="bg-white rounded-2xl shadow-sm border border-brand-100 p-5">
                 <h3 className="font-bold text-gray-800 mb-3 text-sm flex items-center gap-2">
                   <Star className="w-4 h-4 text-amber-500 fill-current"/> Recommended Products
                 </h3>
@@ -1151,7 +1151,7 @@ export default function SolarCalculator() {
                       </div>
                       <div className="text-right shrink-0">
                         <div className="text-xs text-gray-400">×{quote.panels}</div>
-                        <div className="text-sm font-bold text-orange-600">{fmtPKR(quote.costs.panels)}</div>
+                        <div className="text-sm font-bold text-brand-600">{fmtPKR(quote.costs.panels)}</div>
                       </div>
                     </div>
                   )}
@@ -1165,7 +1165,7 @@ export default function SolarCalculator() {
                         <div className="text-sm font-semibold text-gray-800 truncate">{quote.invProduct.simplified_name}</div>
                       </div>
                       <div className="text-right shrink-0">
-                        <div className="text-sm font-bold text-orange-600">{fmtPKR(quote.costs.inverter)}</div>
+                        <div className="text-sm font-bold text-brand-600">{fmtPKR(quote.costs.inverter)}</div>
                       </div>
                     </div>
                   )}
@@ -1178,12 +1178,12 @@ export default function SolarCalculator() {
                         <div className="text-xs font-bold text-gray-500">{quote.batBank.product.brand} — Battery{quote.batBank.qty > 1 ? ` Bank (${quote.batBank.qty} units)` : ''}</div>
                         <div className="text-sm font-semibold text-gray-800 truncate">{quote.batBank.product.simplified_name}</div>
                         {quote.batBank.qty > 1 && (
-                          <div className="text-xs text-orange-600 mt-0.5">{quote.batBank.qty}× units = {quote.batBank.totalKWh.toFixed(1)} kWh total</div>
+                          <div className="text-xs text-brand-600 mt-0.5">{quote.batBank.qty}× units = {quote.batBank.totalKWh.toFixed(1)} kWh total</div>
                         )}
                       </div>
                       <div className="text-right shrink-0">
                         <div className="text-xs text-gray-400">×{quote.batBank.qty}</div>
-                        <div className="text-sm font-bold text-orange-600">{fmtPKR(quote.costs.battery)}</div>
+                        <div className="text-sm font-bold text-brand-600">{fmtPKR(quote.costs.battery)}</div>
                       </div>
                     </div>
                   )}
@@ -1195,7 +1195,7 @@ export default function SolarCalculator() {
             )}
 
             {/* Cost breakdown */}
-            <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-5">
+            <div className="bg-white rounded-2xl shadow-sm border border-brand-100 p-5">
               <h3 className="font-bold text-gray-800 mb-4 text-sm">Cost Breakdown</h3>
               <div className="space-y-2">
                 {[
@@ -1211,9 +1211,9 @@ export default function SolarCalculator() {
                     <span className="font-semibold text-sm">{fmtPKR(row.val)}</span>
                   </div>
                 ))}
-                <div className="flex justify-between items-center py-3 bg-orange-50 rounded-xl px-3 mt-2">
+                <div className="flex justify-between items-center py-3 bg-brand-50 rounded-xl px-3 mt-2">
                   <span className="font-bold text-gray-800">Total Investment</span>
-                  <span className="font-bold text-2xl text-orange-600">{fmtPKR(quote.costs.total)}</span>
+                  <span className="font-bold text-2xl text-brand-600">{fmtPKR(quote.costs.total)}</span>
                 </div>
               </div>
             </div>
@@ -1256,7 +1256,7 @@ export default function SolarCalculator() {
 
             {/* UPS Battery Size Options */}
             {quote.type === 'ups-only' && quote.totalW > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-5">
+              <div className="bg-white rounded-2xl shadow-sm border border-brand-100 p-5">
                 <h3 className="font-bold text-gray-800 mb-1 text-sm">🔋 Battery Size Options</h3>
                 <p className="text-xs text-gray-500 mb-4">
                   Compare backup tiers — priced from Crown battery inventory. Battery cost only, excludes inverter &amp; installation.
@@ -1272,12 +1272,12 @@ export default function SolarCalculator() {
                     const cost    = bank ? bank.totalCost : Math.round(kWh * BATTERY_PER_KWH / 100) * 100
                     const actualHrs = (kWh * 0.85 / (quote.totalW / 1000)).toFixed(1)
                     return (
-                      <div key={i} className={`flex items-center gap-4 p-4 rounded-xl border-2 ${i === 1 ? 'border-orange-400 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
+                      <div key={i} className={`flex items-center gap-4 p-4 rounded-xl border-2 ${i === 1 ? 'border-brand-400 bg-brand-50' : 'border-gray-200 bg-gray-50'}`}>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-bold text-sm text-gray-800">{opt.tier}</span>
                             {opt.tag && (
-                              <span className="text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded-full font-semibold">{opt.tag}</span>
+                              <span className="text-[10px] bg-brand-500 text-white px-2 py-0.5 rounded-full font-semibold">{opt.tag}</span>
                             )}
                           </div>
                           <div className="text-xs text-gray-500 mt-0.5">{kWh.toFixed(1)} kWh · ~{actualHrs}h backup at full load</div>
@@ -1286,7 +1286,7 @@ export default function SolarCalculator() {
                           )}
                         </div>
                         <div className="text-right shrink-0">
-                          <div className="font-bold text-orange-600 text-sm">{fmtPKR(cost)}</div>
+                          <div className="font-bold text-brand-600 text-sm">{fmtPKR(cost)}</div>
                           <div className="text-[10px] text-gray-400">{bank ? 'from inventory' : 'est. price'}</div>
                         </div>
                       </div>
@@ -1334,7 +1334,7 @@ export default function SolarCalculator() {
                       <div className="font-bold text-blue-700 text-sm capitalize mb-3">{key.replace('m',' Month')}</div>
                       <div className="space-y-1.5 text-xs">
                         <div className="flex justify-between"><span className="text-gray-500">Total</span><span className="font-semibold">{fmtPKR(plan.total)}</span></div>
-                        <div className="flex justify-between"><span className="text-gray-500">Advance ({Math.round(plan.advancePct*100)}%)</span><span className="font-semibold text-orange-600">{fmtPKR(plan.advance)}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-500">Advance ({Math.round(plan.advancePct*100)}%)</span><span className="font-semibold text-brand-600">{fmtPKR(plan.advance)}</span></div>
                         <div className="flex justify-between border-t pt-1.5"><span className="text-gray-500">{plan.monthlyPayments}× Monthly</span><span className="font-bold text-sm text-blue-700">{fmtPKR(plan.monthly)}</span></div>
                       </div>
                     </div>
@@ -1345,18 +1345,18 @@ export default function SolarCalculator() {
 
             {/* Lead capture */}
             {!submitted ? (
-              <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-5">
+              <div className="bg-white rounded-2xl shadow-sm border border-brand-100 p-5">
                 <h3 className="font-bold text-gray-800 mb-1 text-sm">Get This Quote Delivered</h3>
                 <p className="text-gray-500 text-xs mb-4">Our solar expert will contact you within 2 hours.</p>
                 <div className="grid md:grid-cols-3 gap-3">
-                  <input className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400"
+                  <input className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-brand-400"
                     placeholder="Your name *" value={contact.name} onChange={e => setContact(p => ({...p,name:e.target.value}))}/>
                   <div>
-                    <input className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none transition-colors ${contact.phone && !phoneValid ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-orange-400'}`}
+                    <input className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none transition-colors ${contact.phone && !phoneValid ? 'border-red-300 focus:border-red-400' : 'border-gray-200 focus:border-brand-400'}`}
                       placeholder="Mobile number * (03XX-XXXXXXX)" value={contact.phone} onChange={e => setContact(p => ({...p,phone:e.target.value}))}/>
                     {contact.phone && !phoneValid && <p className="text-xs text-red-500 mt-1">Enter a valid Pakistani mobile number</p>}
                   </div>
-                  <input className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400"
+                  <input className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-brand-400"
                     placeholder="Email (optional)" value={contact.email} onChange={e => setContact(p => ({...p,email:e.target.value}))}/>
                 </div>
                 {submitErr && (
@@ -1372,7 +1372,7 @@ export default function SolarCalculator() {
                   </button>
                   {mode === 'solar' && (
                     <button onClick={() => { setStep(4) }}
-                      className="border-2 border-orange-300 text-orange-600 rounded-xl py-3 font-semibold hover:bg-orange-50 transition-all flex items-center justify-center gap-2 text-sm">
+                      className="border-2 border-brand-300 text-brand-600 rounded-xl py-3 font-semibold hover:bg-brand-50 transition-all flex items-center justify-center gap-2 text-sm">
                       See Upgrade Savings <ArrowRight className="w-4 h-4"/>
                     </button>
                   )}
@@ -1447,7 +1447,7 @@ export default function SolarCalculator() {
                         ))}
                       </div>
                       <a href={`/products/category/${item.category === 'ac' ? 'air-conditioners' : item.category}`}
-                        className="mt-3 w-full flex items-center justify-center gap-2 border border-orange-300 text-orange-600 rounded-xl py-2 text-sm font-medium hover:bg-orange-50 transition-colors">
+                        className="mt-3 w-full flex items-center justify-center gap-2 border border-brand-300 text-brand-600 rounded-xl py-2 text-sm font-medium hover:bg-brand-50 transition-colors">
                         View Energy-Efficient Options <ArrowRight className="w-4 h-4"/>
                       </a>
                     </div>

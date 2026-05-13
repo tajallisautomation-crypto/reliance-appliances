@@ -940,19 +940,19 @@ export default function ProductDetail() {
                     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 160 }}>
                       <defs>
                         <linearGradient id="ph-grad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#f97316" stopOpacity="0.18" />
-                          <stop offset="100%" stopColor="#f97316" stopOpacity="0" />
+                          <stop offset="0%" stopColor="#123F73" stopOpacity="0.18" />
+                          <stop offset="100%" stopColor="#123F73" stopOpacity="0" />
                         </linearGradient>
                       </defs>
                       {/* Filled area */}
                       <path d={areaPath} fill="url(#ph-grad)" />
                       {/* Line */}
-                      <polyline points={polyline} fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+                      <polyline points={polyline} fill="none" stroke="#123F73" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
                       {/* Dots */}
                       {pts.map((pt, i) => (
                         <circle key={i} cx={pt.x} cy={pt.y} r={i === pts.length - 1 ? 5 : 3.5}
-                          fill={i === pts.length - 1 ? '#f97316' : '#fff'}
-                          stroke="#f97316" strokeWidth="2" />
+                          fill={i === pts.length - 1 ? '#123F73' : '#fff'}
+                          stroke="#123F73" strokeWidth="2" />
                       ))}
                       {/* X-axis date labels — show first and last only */}
                       <text x={pts[0].x} y={H - 6} textAnchor="middle" fontSize="10" fill="#9ca3af">

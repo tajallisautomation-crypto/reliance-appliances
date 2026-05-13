@@ -11,8 +11,8 @@ function CollapsibleSection({ title, children }: { title: string; children: Reac
         className="md:cursor-default w-full flex items-center justify-between mb-3"
         aria-expanded={open}
       >
-        <h3 className="font-bold text-sm uppercase tracking-wider text-gray-300">{title}</h3>
-        <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform md:hidden ${open ? 'rotate-180' : ''}`} />
+        <h3 className="font-bold text-sm uppercase tracking-wider text-brand-200">{title}</h3>
+        <ChevronDown className={`h-4 w-4 text-brand-300 transition-transform md:hidden ${open ? 'rotate-180' : ''}`} />
       </button>
       <div className={`md:block ${open ? 'block' : 'hidden'}`}>{children}</div>
     </div>
@@ -22,7 +22,7 @@ function CollapsibleSection({ title, children }: { title: string; children: Reac
 export default function Footer() {
   const year = new Date().getFullYear();
   return (
-    <footer className="bg-gray-900 text-white">
+    <footer className="bg-brand-700 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 grid grid-cols-2 md:grid-cols-4 gap-8">
         {/* Brand */}
         <div className="col-span-2 md:col-span-1">
@@ -34,7 +34,7 @@ export default function Footer() {
               loading="lazy"
             />
           </div>
-          <p className="text-sm text-gray-400 leading-relaxed mb-4">
+          <p className="text-sm text-brand-300 leading-relaxed mb-4">
             Karachi's most trusted appliance partner since 2015. Serving 14,400+ clients — homes, offices & businesses — with genuine products and real after-sales support.
           </p>
           <div className="flex gap-2">
@@ -58,7 +58,7 @@ export default function Footer() {
               { label: 'Kitchen Appliances', to: '/products?category=kitchen-appliances' },
             ].map(({ label, to }) => (
               <li key={label}>
-                <Link to={to} className="text-sm text-gray-400 hover:text-white transition-colors">{label}</Link>
+                <Link to={to} className="text-sm text-brand-300 hover:text-white transition-colors">{label}</Link>
               </li>
             ))}
           </ul>
@@ -81,7 +81,7 @@ export default function Footer() {
             ].map(([l, h]) => (
               <li key={l}>
                 <Link to={h}
-                  className={`text-sm transition-colors flex items-center gap-1.5 ${h === '/green-corridor' ? 'text-eco-400 hover:text-eco-300' : 'text-gray-400 hover:text-white'}`}>
+                  className={`text-sm transition-colors flex items-center gap-1.5 ${h === '/green-corridor' ? 'text-eco-400 hover:text-eco-300' : 'text-brand-300 hover:text-white'}`}>
                   {h === '/green-corridor' && <Leaf className="w-3 h-3" />}{l}
                 </Link>
               </li>
@@ -91,7 +91,7 @@ export default function Footer() {
 
         {/* Contact — always visible */}
         <div>
-          <h3 className="font-bold text-sm uppercase tracking-wider text-gray-300 mb-3">Contact</h3>
+          <h3 className="font-bold text-sm uppercase tracking-wider text-brand-200 mb-3">Contact</h3>
           <ul className="space-y-3">
             {[
               { icon: Phone, val: '+92 370 2578788', href: 'tel:+923702578788' },
@@ -101,7 +101,7 @@ export default function Footer() {
               { icon: MapPin, val: 'Karachi, Pakistan', href: 'https://maps.google.com/?q=Karachi,Pakistan' },
             ].map(({ icon: Icon, val, href }) => (
               <li key={val}>
-                <a href={href} className="flex items-start gap-2 text-sm text-gray-400 hover:text-white transition-colors">
+                <a href={href} className="flex items-start gap-2 text-sm text-brand-300 hover:text-white transition-colors">
                   <Icon className="h-4 w-4 mt-0.5 flex-shrink-0" /> {val}
                 </a>
               </li>
@@ -110,12 +110,12 @@ export default function Footer() {
         </div>
       </div>
 
-      <div className="border-t border-gray-800">
+      <div className="border-t border-brand-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="text-xs text-gray-500">© {year} Tajalli&#8217;s Home &amp; Commercial Solutions. All rights reserved.</p>
+          <p className="text-xs text-brand-300">© {year} Tajalli&#8217;s Home &amp; Commercial Solutions. All rights reserved.</p>
           <div className="flex gap-4">
             {[['Privacy','/policy/privacy'],['Terms','/policy/terms'],['Warranty','/policy/warranty'],['Refund','/policy/refund']].map(([l,h]) => (
-              <Link key={h} to={h} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">{l}</Link>
+              <Link key={h} to={h} className="text-xs text-brand-300 hover:text-brand-200 transition-colors">{l}</Link>
             ))}
           </div>
         </div>

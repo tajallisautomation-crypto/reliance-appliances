@@ -137,7 +137,7 @@ export default function PolicyPage() {
       <div className="bg-gray-50 border-b">
         <div className="max-w-3xl mx-auto px-4 py-10">
           <div className="flex gap-2 text-sm text-gray-400 mb-3">
-            <Link to="/" className="hover:text-orange-500">Home</Link>
+            <Link to="/" className="hover:text-brand-500">Home</Link>
             <span>/</span>
             <span className="text-gray-600">{policy.title}</span>
           </div>
@@ -152,7 +152,7 @@ export default function PolicyPage() {
           {(Object.keys(POLICIES) as PolicyType[]).map(k => (
             <Link key={k} to={`/policy/${k}`}
               className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                k === type ? 'bg-orange-500 text-white' : 'text-gray-500 hover:text-gray-800'
+                k === type ? 'bg-brand-500 text-white' : 'text-gray-500 hover:text-gray-800'
               }`}>
               {POLICIES[k].title}
             </Link>
@@ -174,7 +174,7 @@ export default function PolicyPage() {
           ))}
         </div>
 
-        <div className="mt-12 p-6 bg-orange-50 rounded-2xl border border-orange-100">
+        <div className="mt-12 p-6 bg-brand-50 rounded-2xl border border-brand-100">
           <h3 className="font-bold text-gray-900 mb-2">Questions about this policy?</h3>
           <p className="text-sm text-gray-600 mb-4">We're always happy to clarify. Reach out to us directly.</p>
           <div className="flex flex-wrap gap-3">

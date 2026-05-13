@@ -115,7 +115,7 @@ function MediaCard({ item, onClick }: { item: MediaItem; onClick: () => void }) 
   return (
     <button
       onClick={onClick}
-      className="group relative aspect-square bg-gray-100 rounded-2xl overflow-hidden border border-gray-100 hover:border-orange-300 hover:shadow-lg transition-all text-left w-full"
+      className="group relative aspect-square bg-gray-100 rounded-2xl overflow-hidden border border-gray-100 hover:border-brand-300 hover:shadow-lg transition-all text-left w-full"
     >
       {!loaded && (
         <div className="absolute inset-0 bg-gray-100 animate-pulse" />
@@ -125,7 +125,7 @@ function MediaCard({ item, onClick }: { item: MediaItem; onClick: () => void }) 
         <>
           {/* Videos: show a dark placeholder with play icon */}
           <div className="w-full h-full bg-gray-900 flex items-center justify-center">
-            <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center group-hover:bg-orange-500/80 transition-colors">
+            <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center group-hover:bg-brand-500/80 transition-colors">
               <Play className="w-6 h-6 text-white fill-white ml-1" />
             </div>
           </div>
@@ -159,8 +159,8 @@ function MediaCard({ item, onClick }: { item: MediaItem; onClick: () => void }) 
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
-      <div className="w-20 h-20 bg-orange-50 rounded-3xl flex items-center justify-center mb-5">
-        <Image className="w-9 h-9 text-orange-400" />
+      <div className="w-20 h-20 bg-brand-50 rounded-3xl flex items-center justify-center mb-5">
+        <Image className="w-9 h-9 text-brand-400" />
       </div>
       <h3 className="font-bold text-gray-800 mb-2">No photos yet</h3>
       <p className="text-sm text-gray-400 max-w-xs leading-relaxed">
@@ -203,7 +203,7 @@ export default function Gallery() {
       {/* Hero */}
       <div className="bg-gray-900 text-white py-14 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-orange-400 text-xs font-bold uppercase tracking-widest mb-3">Real Work</p>
+          <p className="text-brand-400 text-xs font-bold uppercase tracking-widest mb-3">Real Work</p>
           <h1 className="text-3xl md:text-5xl font-black mb-4">Our Work Gallery</h1>
           <p className="text-gray-400 text-lg max-w-xl mx-auto">
             Every photo is a real job. Every customer is a real home. No stock images.
@@ -220,7 +220,7 @@ export default function Gallery() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
                 activeTab === tab.key
-                  ? 'bg-orange-500 text-white shadow-sm'
+                  ? 'bg-brand-500 text-white shadow-sm'
                   : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
@@ -274,7 +274,7 @@ export default function Gallery() {
               <MessageCircle className="w-5 h-5" /> Book on WhatsApp
             </a>
             <Link to="/products"
-              className="flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-8 py-4 rounded-2xl transition-colors">
+              className="flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-8 py-4 rounded-2xl transition-colors">
               Browse Products
             </Link>
           </div>

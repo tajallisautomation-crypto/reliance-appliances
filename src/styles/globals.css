@@ -50,7 +50,7 @@
   }
   /* Better tap highlight for buttons and links */
   button, a, [role="button"] {
-    -webkit-tap-highlight-color: rgba(249, 115, 22, 0.08);
+    -webkit-tap-highlight-color: rgba(18, 63, 115, 0.08);
     cursor: pointer;
   }
   /* Minimum touch target size */
@@ -130,4 +130,4 @@
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
 ::-webkit-scrollbar-thumb { background: #d1d1d1; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #f97316; }
+::-webkit-scrollbar-thumb:hover { background: #123F73; }

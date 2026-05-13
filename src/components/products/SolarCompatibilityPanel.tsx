@@ -379,7 +379,7 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
           </div>
 
           <div className="bg-white rounded-xl p-3.5 border border-amber-100">
-            <div className="flex items-center gap-1.5 text-orange-600 mb-1">
+            <div className="flex items-center gap-1.5 text-brand-600 mb-1">
               <Sun className="w-3.5 h-3.5" />
               <span className="text-[10px] font-bold uppercase tracking-wider">System Size</span>
             </div>
@@ -543,7 +543,7 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
           <p className="text-sm font-semibold">Need a full household quote?</p>
           <Link
             to="/solar-calculator"
-            className="shrink-0 inline-flex items-center gap-1.5 bg-white text-orange-600 text-xs font-bold px-4 py-2 rounded-lg hover:bg-orange-50 transition-colors"
+            className="shrink-0 inline-flex items-center gap-1.5 bg-white text-brand-600 text-xs font-bold px-4 py-2 rounded-lg hover:bg-brand-50 transition-colors"
           >
             Solar Calculator <ArrowRight className="w-3.5 h-3.5" />
           </Link>

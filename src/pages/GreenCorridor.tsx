@@ -305,7 +305,7 @@ export default function GreenCorridor() {
             </a>
             <button
               onClick={() => openBooking({ packageName: 'Green Corridor — Free Consultation', notes: 'Hero CTA — general consultation request' })}
-              className="inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-8 py-4 rounded-2xl transition-all">
+              className="inline-flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-8 py-4 rounded-2xl transition-all">
               <CalendarCheck className="w-5 h-5" /> Book Free Consultation
             </button>
           </div>
@@ -512,7 +512,7 @@ export default function GreenCorridor() {
                 estimatedPrice: systemCost,
                 notes: `Calculator result: ${numACs} ACs, LiFePO4 battery included, monthly bill: PKR ${monthlyBill}`,
               })}
-              className="inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-8 py-4 rounded-2xl transition-all">
+              className="inline-flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-8 py-4 rounded-2xl transition-all">
               <CalendarCheck className="w-5 h-5" /> Book Free Site Assessment
             </button>
             <a href={waConsult} target="_blank" rel="noreferrer"
@@ -652,7 +652,7 @@ export default function GreenCorridor() {
                         estimatedPrice: pkg.price,
                         notes: `${pkg.panelCount}×${pkg.panelWatts}W panels, ${pkg.inverterModel}${pkg.batteryModel ? `, ${pkg.batteryModel}` : ''}, ${pkg.acCount} AC`,
                       })}
-                      className="w-full py-3.5 rounded-2xl font-bold text-sm transition-all mb-2 flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white">
+                      className="w-full py-3.5 rounded-2xl font-bold text-sm transition-all mb-2 flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white">
                       <CalendarCheck className="w-4 h-4" /> Book This Package
                     </button>
                     <a href={waSales(`Hi, I'm interested in the Green Corridor ${pkg.name} package (${pkg.solarKw}kW, ${pkg.acCount} AC).`)}
@@ -735,8 +735,8 @@ export default function GreenCorridor() {
               label: 'T3 Inverter ACs',
               sub: 'Rated for 52°C ambient — Karachi summer-proof',
               href: '/products/air-conditioners?actemp=t3',
-              bg: 'bg-orange-50 border-orange-100',
-              accent: 'text-orange-700',
+              bg: 'bg-brand-50 border-brand-100',
+              accent: 'text-brand-700',
             },
             {
               icon: '🧊',
@@ -800,7 +800,7 @@ export default function GreenCorridor() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={() => openBooking({ packageName: 'Green Corridor — Free Site Assessment', notes: 'Footer CTA' })}
-              className="inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-8 py-4 rounded-2xl transition-all">
+              className="inline-flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-8 py-4 rounded-2xl transition-all">
               <CalendarCheck className="w-5 h-5" /> Book Free Site Assessment
             </button>
             <Link to="/solar-calculator"

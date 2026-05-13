@@ -886,7 +886,7 @@ export default function Products() {
 
         {/* ── Deep subcategory strip — shown when a specific category is active and has subcategories ── */}
         {catDeepSubs.length > 0 && category && (
-          <div className="border-t bg-orange-50/40 px-3 sm:px-4 py-2 overflow-x-auto no-scrollbar" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}>
+          <div className="border-t bg-brand-50/40 px-3 sm:px-4 py-2 overflow-x-auto no-scrollbar" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}>
             <div className="flex gap-1.5 w-max items-center">
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider shrink-0 mr-1 hidden sm:inline">Type:</span>
               <button

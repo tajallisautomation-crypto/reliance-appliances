@@ -109,7 +109,7 @@ export const PACKAGES: SolarPackage[] = [
   },
   {
     id: 'solar-5kw', name: '5kW Solar System', kw: '5kW',
-    type: 'solar', badge: 'Most Popular', badgeColor: 'bg-orange-500', popular: true,
+    type: 'solar', badge: 'Most Popular', badgeColor: 'bg-brand-500', popular: true,
     includes: [
       'Crown Bi-Facial 620W Solar Plates ×8',
       'All wiring & electrical equipment',
@@ -218,16 +218,16 @@ function ComponentSelector({
               onClick={() => onChange(opt.label)}
               className={`w-full text-left px-3 py-2 rounded-xl border text-sm transition-colors ${
                 active
-                  ? 'border-orange-400 bg-orange-50 text-orange-900 font-semibold'
+                  ? 'border-brand-400 bg-brand-50 text-brand-900 font-semibold'
                   : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
               }`}
             >
               <span className={`inline-block w-3 h-3 rounded-full border-2 mr-2 align-middle shrink-0 ${
-                active ? 'border-orange-500 bg-orange-500' : 'border-gray-300'
+                active ? 'border-brand-500 bg-brand-500' : 'border-gray-300'
               }`} />
               <span className="flex-1">{opt.label}</span>
               {pricesLoaded && price > 0 && (
-                <span className={`ml-1 text-xs ${active ? 'text-orange-700' : 'text-gray-400'}`}>
+                <span className={`ml-1 text-xs ${active ? 'text-brand-700' : 'text-gray-400'}`}>
                   PKR {formatPrice(price)}
                 </span>
               )}
@@ -286,10 +286,10 @@ function PackageCard({
 
   return (
     <div className={`relative bg-white rounded-3xl border-2 flex flex-col overflow-hidden shadow-sm ${
-      pkg.popular ? 'border-orange-400 shadow-orange-100 shadow-lg' : 'border-gray-100'
+      pkg.popular ? 'border-brand-400 shadow-brand-100 shadow-lg' : 'border-gray-100'
     }`}>
       {pkg.popular && (
-        <div className="bg-orange-500 text-white text-xs font-bold text-center py-1.5 tracking-wide">
+        <div className="bg-brand-500 text-white text-xs font-bold text-center py-1.5 tracking-wide">
           ⭐ MOST POPULAR CHOICE
         </div>
       )}
@@ -324,7 +324,7 @@ function PackageCard({
               </p>
             </div>
             <input type="checkbox" checked={withFrame} onChange={e => setWithFrame(e.target.checked)}
-              className="w-4 h-4 accent-orange-500 cursor-pointer" />
+              className="w-4 h-4 accent-brand-500 cursor-pointer" />
           </label>
         )}
 
@@ -382,7 +382,7 @@ function PackageCard({
             )}
             <p className="text-xs text-gray-400 mt-1">All-inclusive · labor · transport · equipment</p>
             {!isDefault && pricesReady && (
-              <p className="text-xs text-orange-600 mt-1 font-medium">
+              <p className="text-xs text-brand-600 mt-1 font-medium">
                 Custom config — price subject to confirmation
               </p>
             )}
@@ -391,7 +391,7 @@ function PackageCard({
           <div className="space-y-2">
             <button
               onClick={handleBook}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-white text-sm bg-orange-500 hover:bg-orange-600 transition-colors">
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-white text-sm bg-brand-500 hover:bg-brand-600 transition-colors">
               <CalendarCheck className="w-4 h-4" /> Book This Package
             </button>
             <a href={wa(WA_SALES, buildWAMsg(pkg, withFrame, invOpt, batOpt, displayPrice))}
@@ -450,7 +450,7 @@ export default function SolarPage() {
           <h1 className="text-4xl md:text-6xl font-black mb-4">Power Your Life with Solar</h1>
           <p className="text-xl text-amber-100 max-w-2xl mx-auto mb-8">Complete solar systems. Cut your electricity bill by up to 80%.</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
-            <a href="#packages" className="inline-flex items-center gap-2 bg-white text-orange-600 font-bold px-8 py-4 rounded-2xl hover:bg-orange-50 shadow-lg">
+            <a href="#packages" className="inline-flex items-center gap-2 bg-white text-brand-600 font-bold px-8 py-4 rounded-2xl hover:bg-brand-50 shadow-lg">
               ☀️ View Packages
             </a>
             <Link to="/solar-calculator" className="inline-flex items-center gap-2 bg-black/30 border border-white/40 text-white font-bold px-8 py-4 rounded-2xl hover:bg-black/50 shadow-lg">
@@ -478,7 +478,7 @@ export default function SolarPage() {
       <div id="packages" className="bg-gray-50 py-16 px-4">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-4">
-            <div className="inline-flex items-center gap-2 bg-orange-100 text-orange-700 text-sm font-semibold px-4 py-1.5 rounded-full mb-4">
+            <div className="inline-flex items-center gap-2 bg-brand-100 text-brand-700 text-sm font-semibold px-4 py-1.5 rounded-full mb-4">
               ☀️ Ready-to-Install Packages
             </div>
             <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-3">Solar & UPS Packages</h2>
@@ -516,17 +516,17 @@ export default function SolarPage() {
             <h2 className="text-xl font-black text-gray-900 mb-1">Grid-Tie / Hybrid</h2>
             <p className="text-gray-600 text-sm">Calculate your system size, add appliances, get a quote with net-metering savings.</p>
           </div>
-          <Link to="/solar-calculator" className="self-start bg-orange-500 hover:bg-orange-600 text-white font-bold px-6 py-3 rounded-2xl inline-flex items-center gap-2 text-sm">
+          <Link to="/solar-calculator" className="self-start bg-brand-500 hover:bg-brand-600 text-white font-bold px-6 py-3 rounded-2xl inline-flex items-center gap-2 text-sm">
             <Calculator className="w-4 h-4" /> Try Calculator
           </Link>
         </div>
         <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-3xl p-6 flex flex-col justify-between gap-4">
           <div>
-            <div className="text-xs font-medium text-orange-400 uppercase tracking-wider mb-1">New</div>
+            <div className="text-xs font-medium text-brand-400 uppercase tracking-wider mb-1">New</div>
             <h2 className="text-xl font-black mb-1">Off-Grid Independence</h2>
             <p className="text-gray-400 text-sm">Battery-backed power. No KESC bill. No load shedding. Enter your bill — we size your system.</p>
           </div>
-          <Link to="/solar/off-grid" className="self-start bg-orange-500 hover:bg-orange-400 text-white font-bold px-6 py-3 rounded-2xl inline-flex items-center gap-2 text-sm">
+          <Link to="/solar/off-grid" className="self-start bg-brand-500 hover:bg-brand-400 text-white font-bold px-6 py-3 rounded-2xl inline-flex items-center gap-2 text-sm">
             🔋 Go Off-Grid
           </Link>
         </div>

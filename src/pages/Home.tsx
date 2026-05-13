@@ -16,7 +16,7 @@ const HOME_CATEGORIES = [
   { id: 'freezers',           name: 'Freezers',          Icon: Snowflake,        color: 'text-sky-500',    to: '/products?category=freezers'           },
   { id: 'televisions',        name: 'Televisions',       Icon: Tv,               color: 'text-gray-700',   to: '/products?category=televisions'        },
   { id: 'solar',              name: 'Solar & Energy',    Icon: Sun,              color: 'text-amber-500',  to: '/solar'                                },
-  { id: 'kitchen-appliances', name: 'Kitchen',           Icon: UtensilsCrossed,  color: 'text-orange-500', to: '/products?category=kitchen-appliances' },
+  { id: 'kitchen-appliances', name: 'Kitchen',           Icon: UtensilsCrossed,  color: 'text-brand-500', to: '/products?category=kitchen-appliances' },
   { id: 'water-dispensers',   name: 'Water Dispensers',  Icon: Droplets,         color: 'text-teal-500',   to: '/products?category=water-dispensers'   },
   { id: 'small-appliances',   name: 'Small Appliances',  Icon: Plug,             color: 'text-purple-500', to: '/products?category=small-appliances'   },
 ]

@@ -438,18 +438,18 @@ export function buildPrintHTML(cat: CatalogCategory, grouped: Map<string, Produc
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
   body { font-family:Arial,Helvetica,sans-serif; font-size:11px; color:#1a1a1a; max-width:1050px; margin:0 auto; padding:20px; }
-  .header { display:flex; align-items:flex-start; justify-content:space-between; border-bottom:3px solid #f97316; padding-bottom:12px; margin-bottom:18px; }
+  .header { display:flex; align-items:flex-start; justify-content:space-between; border-bottom:3px solid #123F73; padding-bottom:12px; margin-bottom:18px; }
   .brand-name { font-size:20px; font-weight:900; color:#111; line-height:1; }
   .cat-badge { background:#1e3a5f; color:white; padding:6px 14px; border-radius:20px; font-size:13px; font-weight:700; }
   .meta { font-size:10px; color:#999; margin-top:4px; text-align:right; }
   .group { margin-bottom:18px; page-break-inside:avoid; }
-  .group-title { font-size:11px; font-weight:700; background:#f3f4f6; border-left:3px solid #f97316; padding:5px 10px; margin-bottom:4px; }
+  .group-title { font-size:11px; font-weight:700; background:#f3f4f6; border-left:3px solid #123F73; padding:5px 10px; margin-bottom:4px; }
   table { width:100%; border-collapse:collapse; }
   thead { background:#1e3a5f; color:white; }
   th { padding:4px 7px; text-align:left; font-size:10px; font-weight:600; }
   td { padding:4px 7px; border-bottom:1px solid #e5e7eb; vertical-align:top; }
   tr:nth-child(even) td { background:#f9fafb; }
-  .footer { margin-top:16px; padding-top:10px; border-top:2px solid #f97316; display:flex; justify-content:space-between; font-size:10px; color:#555; }
+  .footer { margin-top:16px; padding-top:10px; border-top:2px solid #123F73; display:flex; justify-content:space-between; font-size:10px; color:#555; }
   @media print { body { padding:8px; } }
 </style>
 </head>

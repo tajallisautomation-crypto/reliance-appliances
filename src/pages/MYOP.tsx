@@ -482,8 +482,8 @@ function ProductTile({
   return (
     <div className={`relative bg-white rounded-2xl border-2 transition-all overflow-hidden group flex flex-col ${
       incompatible ? 'border-red-200 opacity-60' :
-      selected     ? 'border-orange-400 shadow-lg shadow-orange-50'
-                   : 'border-gray-100 hover:border-orange-200 hover:shadow-md'
+      selected     ? 'border-brand-400 shadow-lg shadow-brand-50'
+                   : 'border-gray-100 hover:border-brand-200 hover:shadow-md'
     }`}>
       {/* Compatibility overlays */}
       {incompatible && (
@@ -498,7 +498,7 @@ function ProductTile({
       )}
       {selected && (
         <div className="absolute top-2 right-2 z-10">
-          <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center shadow">
+          <div className="w-6 h-6 bg-brand-500 rounded-full flex items-center justify-center shadow">
             <CheckCircle className="w-4 h-4 text-white" />
           </div>
         </div>
@@ -522,7 +522,7 @@ function ProductTile({
       {/* Info */}
       <div className="p-3 flex flex-col flex-1">
         {/* Brand + model */}
-        <p className="text-[10px] font-bold text-orange-500 uppercase tracking-wider mb-0.5">{product.brand}</p>
+        <p className="text-[10px] font-bold text-brand-500 uppercase tracking-wider mb-0.5">{product.brand}</p>
         <p className="text-sm font-bold text-gray-900 leading-tight line-clamp-2 mb-0.5">
           {product.simplified_name || product.model}
         </p>
@@ -556,7 +556,7 @@ function ProductTile({
           <button onClick={incompatible ? undefined : onAdd} disabled={incompatible}
             title={incompatible ? compatibilityResult?.message : undefined}
             className={`w-full py-2 rounded-xl text-xs font-bold transition-colors ${
-              incompatible ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-900 hover:bg-orange-500 text-white'
+              incompatible ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-900 hover:bg-brand-500 text-white'
             }`}>
             {incompatible ? '✗ Incompatible' : '+ Add to Package'}
           </button>
@@ -639,7 +639,7 @@ function PackageSummary({
           <ShoppingBag className="w-5 h-5 text-white" />
           <span className="font-black text-white">Your Package</span>
           {totalItems > 0 && (
-            <span className="bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{totalItems}</span>
+            <span className="bg-brand-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{totalItems}</span>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -692,19 +692,19 @@ function PackageSummary({
           <div className="space-y-3">
             <input type="text" placeholder="Full Name *"
               value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400 transition-colors" />
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-brand-400 transition-colors" />
             <div>
               <input type="tel" placeholder="Mobile Number * (03XX-XXXXXXX)"
                 value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none transition-colors ${form.phone && !phoneValid ? 'border-red-300' : 'border-gray-200 focus:border-orange-400'}`} />
+                className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none transition-colors ${form.phone && !phoneValid ? 'border-red-300' : 'border-gray-200 focus:border-brand-400'}`} />
               {form.phone && !phoneValid && <p className="text-xs text-red-500 mt-1">Enter a valid Pakistani mobile number</p>}
             </div>
             <input type="text" placeholder="City / Area *"
               value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400 transition-colors" />
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-brand-400 transition-colors" />
             <textarea placeholder="Notes (optional)" rows={2}
               value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-orange-400 transition-colors resize-none" />
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-brand-400 transition-colors resize-none" />
           </div>
           {submitErr && (
             <div className="mt-3 flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
@@ -714,7 +714,7 @@ function PackageSummary({
           )}
           <div className="mt-4 space-y-2">
             <button onClick={handleOnlineOrder} disabled={!canSubmit}
-              className="w-full py-3 rounded-xl font-black text-white text-sm bg-orange-500 hover:bg-orange-600 disabled:opacity-40 transition-colors">
+              className="w-full py-3 rounded-xl font-black text-white text-sm bg-brand-500 hover:bg-brand-600 disabled:opacity-40 transition-colors">
               {loading ? 'Submitting…' : 'Confirm Order'}
             </button>
             <a href={waSales(waMsg)} target="_blank" rel="noreferrer"
@@ -743,7 +743,7 @@ function PackageSummary({
                     className="w-12 h-12 rounded-xl object-contain bg-gray-50 border border-gray-100 shrink-0"
                     onError={e => { (e.currentTarget as HTMLImageElement).src = '/placeholder-product.svg' }} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-orange-500 font-semibold">{item.product.brand}</p>
+                    <p className="text-xs text-brand-500 font-semibold">{item.product.brand}</p>
                     <p className="text-xs font-bold text-gray-900 leading-tight truncate">
                       {item.product.simplified_name || item.product.model}
                     </p>
@@ -813,7 +813,7 @@ function PackageSummary({
 
               {/* Primary: website order */}
               <button onClick={() => setView('form')}
-                className="w-full mt-3 py-3.5 rounded-2xl font-black text-white bg-orange-500 hover:bg-orange-600 transition-colors flex items-center justify-center gap-2">
+                className="w-full mt-3 py-3.5 rounded-2xl font-black text-white bg-brand-500 hover:bg-brand-600 transition-colors flex items-center justify-center gap-2">
                 <ClipboardCheck className="w-4 h-4" /> Place Order Online
               </button>
               {/* Secondary: WhatsApp */}
@@ -966,7 +966,7 @@ export default function MYOPPage() {
       {/* Hero */}
       <div className="bg-gray-900 text-white py-14 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 bg-orange-500/20 text-orange-400 px-4 py-1.5 rounded-full text-sm font-semibold mb-5">
+          <div className="inline-flex items-center gap-2 bg-brand-500/20 text-brand-400 px-4 py-1.5 rounded-full text-sm font-semibold mb-5">
             <Sparkles className="w-4 h-4" /> Make Your Own Package
           </div>
           <h1 className="text-3xl md:text-5xl font-black mb-4 leading-tight">
@@ -974,12 +974,12 @@ export default function MYOPPage() {
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto mb-6">
             Pick any appliances or solar products you need — mix and match across categories.
-            Add <strong className="text-orange-400">3 or more items</strong> and get <strong className="text-orange-400">5% off</strong> your entire order.
+            Add <strong className="text-brand-400">3 or more items</strong> and get <strong className="text-brand-400">5% off</strong> your entire order.
           </p>
 
           {/* Discount badge */}
           <div className="inline-flex items-center gap-3 bg-white/10 border border-white/20 rounded-2xl px-6 py-3">
-            <Tag className="w-5 h-5 text-orange-400" />
+            <Tag className="w-5 h-5 text-brand-400" />
             <div className="text-left">
               <p className="text-white font-bold text-sm">5% Bundle Discount</p>
               <p className="text-gray-400 text-xs">Automatically applied when you pick 3+ products</p>
@@ -997,7 +997,7 @@ export default function MYOPPage() {
             { step: '03', text: 'Place your order online or via WhatsApp — we confirm and deliver' },
           ].map(s => (
             <div key={s.step} className="flex flex-col items-center gap-1">
-              <span className="text-xs font-black text-orange-500">{s.step}</span>
+              <span className="text-xs font-black text-brand-500">{s.step}</span>
               <p className="text-xs text-gray-600 leading-snug">{s.text}</p>
             </div>
           ))}
@@ -1040,8 +1040,8 @@ export default function MYOPPage() {
                   return (
                     <div key={pack.id} className={`bg-white border-2 rounded-2xl p-4 flex flex-col gap-2 transition-all shrink-0 w-56 ${
                       isActive
-                        ? 'border-orange-400 shadow-lg shadow-orange-50'
-                        : 'border-gray-200 hover:border-orange-200 hover:shadow-md'
+                        ? 'border-brand-400 shadow-lg shadow-brand-50'
+                        : 'border-gray-200 hover:border-brand-200 hover:shadow-md'
                     }`}>
                       {/* Header */}
                       <div className="flex items-start gap-2">
@@ -1060,7 +1060,7 @@ export default function MYOPPage() {
                               filled
                                 ? 'bg-green-100 text-green-700'
                                 : slot.required
-                                  ? 'bg-orange-50 text-orange-600 border border-orange-200'
+                                  ? 'bg-brand-50 text-brand-600 border border-brand-200'
                                   : 'bg-gray-50 text-gray-400'
                             }`}>
                               {filled ? '✓ ' : ''}{slot.label}
@@ -1077,7 +1077,7 @@ export default function MYOPPage() {
                       {isActive && filledCount > 0 && (
                         <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-orange-400 rounded-full transition-all"
+                            className="h-full bg-brand-400 rounded-full transition-all"
                             style={{ width: `${(filledCount / pack.slots.length) * 100}%` }}
                           />
                         </div>
@@ -1088,8 +1088,8 @@ export default function MYOPPage() {
                         disabled={isLoading}
                         className={`mt-auto py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 ${
                           isLoaded  ? 'bg-green-500 text-white' :
-                          isActive  ? 'bg-orange-500 hover:bg-orange-600 text-white' :
-                                      'bg-gray-900 hover:bg-orange-500 text-white'
+                          isActive  ? 'bg-brand-500 hover:bg-brand-600 text-white' :
+                                      'bg-gray-900 hover:bg-brand-500 text-white'
                         }`}
                       >
                         {isLoading ? (
@@ -1104,18 +1104,18 @@ export default function MYOPPage() {
 
             {/* Guided preset progress strip */}
             {activePreset && currentPreset && (
-              <div className="mb-4 bg-orange-50 border border-orange-200 rounded-2xl px-4 py-3">
+              <div className="mb-4 bg-brand-50 border border-brand-200 rounded-2xl px-4 py-3">
                 <div className="flex items-center justify-between mb-2.5">
                   <div className="flex items-center gap-2">
                     <span className="text-base leading-none">{currentPreset.icon}</span>
-                    <p className="text-xs font-black text-orange-900">{currentPreset.name}</p>
-                    <span className="text-[10px] text-orange-500 font-medium">
+                    <p className="text-xs font-black text-brand-700">{currentPreset.name}</p>
+                    <span className="text-[10px] text-brand-500 font-medium">
                       {currentPreset.slots.filter(s => selected.some(i => getProductTabId(i.product) === s.tabId)).length}
                       /{currentPreset.slots.length} filled
                     </span>
                   </div>
                   <button onClick={() => setActivePreset(null)}
-                    className="text-xs text-orange-400 hover:text-orange-700 font-medium transition-colors">
+                    className="text-xs text-brand-400 hover:text-brand-700 font-medium transition-colors">
                     Clear ×
                   </button>
                 </div>
@@ -1128,7 +1128,7 @@ export default function MYOPPage() {
                           filled
                             ? 'bg-green-100 border-green-200 text-green-700'
                             : slot.required
-                              ? 'bg-white border-orange-300 text-orange-700 hover:bg-orange-100'
+                              ? 'bg-white border-brand-300 text-brand-700 hover:bg-brand-100'
                               : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
                         }`}>
                         {filled ? '✓ ' : ''}{slot.label}
@@ -1163,7 +1163,7 @@ export default function MYOPPage() {
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search by name, model, or brand…"
-                className="w-full pl-11 pr-10 py-3.5 rounded-2xl border-2 border-gray-200 bg-white text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 focus:border-orange-400 shadow-sm transition-colors"
+                className="w-full pl-11 pr-10 py-3.5 rounded-2xl border-2 border-gray-200 bg-white text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 focus:border-brand-400 shadow-sm transition-colors"
               />
               <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
@@ -1241,7 +1241,7 @@ export default function MYOPPage() {
                 {searchQuery ? (
                   <>
                     <p className="text-gray-500 font-medium">No products match "{searchQuery}"</p>
-                    <button onClick={() => setSearchQuery('')} className="text-orange-500 text-sm hover:underline mt-2 inline-block">
+                    <button onClick={() => setSearchQuery('')} className="text-brand-500 text-sm hover:underline mt-2 inline-block">
                       Clear search
                     </button>
                     <span className="text-gray-300 mx-2 text-sm">·</span>
@@ -1252,7 +1252,7 @@ export default function MYOPPage() {
                 ) : (
                   <>
                     <p className="text-gray-500 font-medium">No products found in this category</p>
-                    <Link to="/products" className="text-orange-500 text-sm hover:underline mt-2 inline-block">
+                    <Link to="/products" className="text-brand-500 text-sm hover:underline mt-2 inline-block">
                       Browse all products →
                     </Link>
                   </>
@@ -1339,7 +1339,7 @@ export default function MYOPPage() {
           </div>
           <button
             onClick={() => document.getElementById('myop-summary')?.scrollIntoView({ behavior: 'smooth' })}
-            className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-3 rounded-xl flex items-center gap-2 text-sm whitespace-nowrap transition-colors"
+            className="bg-brand-500 hover:bg-brand-600 text-white font-bold px-5 py-3 rounded-xl flex items-center gap-2 text-sm whitespace-nowrap transition-colors"
           >
             <ShoppingBag className="w-4 h-4" /> View Summary
           </button>

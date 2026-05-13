@@ -60,7 +60,7 @@ export default class ErrorBoundary extends Component<Props, State> {
         <div className="flex gap-3">
           <button
             onClick={this.handleRetry}
-            className="flex items-center gap-2 bg-orange-500 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-orange-600"
+            className="flex items-center gap-2 bg-brand-500 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-brand-600"
           >
             <RefreshCw className="w-4 h-4" /> {this.state.isChunkError ? 'Reload Page' : 'Try Again'}
           </button>

@@ -101,10 +101,10 @@ export default function Navbar() {
 
   return (
     <>
-      <header className={`sticky top-0 z-30 bg-white/95 backdrop-blur-xl transition-shadow duration-200 ${scrolled ? 'shadow-apple-lg' : ''}`}>
+      <header className={`sticky top-0 z-30 bg-brand-500/[.97] backdrop-blur-xl transition-shadow duration-200 ${scrolled ? 'shadow-apple-lg' : ''}`}>
 
         {/* ── Row 1: Logo + Search + Icons ──────────────────────────── */}
-        <div className="border-b border-gray-100/80">
+        <div className="border-b border-brand-400/30">
           <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
             <div className="flex items-center gap-2 sm:gap-4 h-14 sm:h-16">
 
@@ -114,13 +114,13 @@ export default function Navbar() {
                   src="/tajallis-logo-icon.svg"
                   alt=""
                   aria-hidden="true"
-                  className="h-7 w-7 sm:h-9 sm:w-9 transition-transform duration-200 group-hover:scale-105"
+                  className="h-7 w-7 sm:h-9 sm:w-9 transition-transform duration-200 group-hover:scale-105 brightness-0 invert"
                 />
                 <span className="leading-none select-none">
-                  <span className="block font-black text-[18px] text-brand-500 tracking-tight leading-none">
+                  <span className="block font-black text-[18px] text-white tracking-tight leading-none">
                     Tajalli&#8217;s
                   </span>
-                  <span className="hidden sm:block text-[9.5px] font-semibold text-gray-400 mt-0.5 tracking-[0.08em] uppercase">
+                  <span className="hidden sm:block text-[9.5px] font-semibold text-brand-200 mt-0.5 tracking-[0.08em] uppercase">
                     Home &amp; Commercial Solutions
                   </span>
                 </span>
@@ -130,7 +130,7 @@ export default function Navbar() {
               <div className="hidden sm:block flex-1 min-w-0">
                 <SearchBar
                   placeholder="Search products, models, brands…"
-                  inputClass="bg-gray-50 h-10"
+                  inputClass="bg-white h-10"
                 />
               </div>
 
@@ -141,26 +141,26 @@ export default function Navbar() {
                 <button
                   onClick={() => { setSearchOpen(s => !s); setMobileOpen(false); }}
                   aria-label="Search"
-                  className="sm:hidden w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
+                  className="sm:hidden w-9 h-9 flex items-center justify-center rounded-full hover:bg-brand-600 text-white/80 transition-colors"
                 >
                   {searchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
                 </button>
 
                 <a href={waSales()} target="_blank" rel="noreferrer" aria-label="WhatsApp"
-                  className="hidden sm:flex w-9 h-9 items-center justify-center rounded-full text-green-500 hover:bg-green-50 transition-colors">
+                  className="hidden sm:flex w-9 h-9 items-center justify-center rounded-full text-eco-400 hover:bg-brand-600 transition-colors">
                   <Phone className="h-4 w-4" />
                 </a>
 
                 <Link to="/portal" aria-label="My Account"
-                  className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-brand-50 text-gray-500 hover:text-brand-600 transition-colors">
+                  className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-brand-600 text-white/80 hover:text-white transition-colors">
                   <User className="h-4 w-4" />
                 </Link>
 
                 <button onClick={() => setCartOpen(true)} aria-label={`Cart (${totalItems} items)`}
-                  className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-brand-50 text-gray-500 hover:text-brand-600 transition-colors">
+                  className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-brand-600 text-white/80 hover:text-white transition-colors">
                   <ShoppingCart className="h-4 w-4" />
                   {totalItems > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-brand-500 text-white text-[10px] font-bold flex items-center justify-center">
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-gold-500 text-brand-700 text-[10px] font-bold flex items-center justify-center">
                       {totalItems}
                     </span>
                   )}
@@ -170,7 +170,7 @@ export default function Navbar() {
                 <button
                   onClick={() => { setMobileOpen(m => !m); setSearchOpen(false); }}
                   aria-label="Menu"
-                  className="lg:hidden w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
+                  className="lg:hidden w-9 h-9 flex items-center justify-center rounded-full hover:bg-brand-600 text-white/80 transition-colors"
                 >
                   {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
                 </button>
@@ -180,7 +180,7 @@ export default function Navbar() {
         </div>
 
         {/* ── Row 2: Nav links — lg+ only ───────────────────────────── */}
-        <div className="hidden lg:block border-b border-gray-100/60">
+        <div className="hidden lg:block border-b border-brand-400/20">
           <div className="max-w-7xl mx-auto px-6 lg:px-8">
             <nav className="flex items-center h-10 gap-0.5">
               {NAV_LINKS.map(({ label, href, eco }) =>
@@ -191,7 +191,7 @@ export default function Navbar() {
                   >
                     <Link to={href}
                       className={`inline-btn px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
-                        isActive(href) ? 'bg-brand-50 text-brand-600 font-semibold' : 'text-gray-600 hover:text-brand-600 hover:bg-brand-50'
+                        isActive(href) ? 'bg-brand-600 text-white font-semibold' : 'text-white/80 hover:text-white hover:bg-brand-600'
                       }`}>
                       {label}
                       <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-150 ${productsOpen ? 'rotate-180' : ''}`} />
@@ -221,10 +221,10 @@ export default function Navbar() {
                   <Link key={href} to={href}
                     className={`inline-btn px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${
                       isActive(href)
-                        ? 'bg-brand-50 text-brand-600 font-semibold'
+                        ? 'bg-brand-600 text-white font-semibold'
                         : eco
-                          ? 'text-eco-700 hover:bg-eco-50 hover:text-eco-700'
-                          : 'text-gray-600 hover:text-brand-600 hover:bg-brand-50'
+                          ? 'text-eco-300 hover:bg-brand-600 hover:text-eco-200'
+                          : 'text-white/80 hover:text-white hover:bg-brand-600'
                     }`}>
                     {eco && <Leaf className="w-3.5 h-3.5" />}
                     {label}
@@ -240,8 +240,8 @@ export default function Navbar() {
               <button
                 className={`inline-btn px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
                   RESOURCES_LINKS.some(r => isActive(r.href))
-                    ? 'bg-brand-50 text-brand-600 font-semibold'
-                    : 'text-gray-600 hover:text-brand-600 hover:bg-brand-50'
+                    ? 'bg-brand-600 text-white font-semibold'
+                    : 'text-white/80 hover:text-white hover:bg-brand-600'
                 }`}>
                 Resources
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-150 ${resourcesOpen ? 'rotate-180' : ''}`} />
@@ -273,20 +273,20 @@ export default function Navbar() {
 
         {/* ── Mobile: search panel ──────────────────────────────────── */}
         {searchOpen && !mobileOpen && (
-          <div className="sm:hidden border-b border-gray-100 bg-white px-4 py-3">
-            <SearchBar placeholder="Search products, models, brands…" autoFocus />
+          <div className="sm:hidden border-b border-brand-400/30 bg-brand-700 px-4 py-3">
+            <SearchBar placeholder="Search products, models, brands…" autoFocus inputClass="bg-white" />
           </div>
         )}
 
         {/* ── Mobile: nav menu ─────────────────────────────────────── */}
         {mobileOpen && (
-          <div className="lg:hidden border-t border-gray-100 bg-white px-3 py-3 max-h-[80vh] overflow-y-auto no-scrollbar">
+          <div className="lg:hidden border-t border-brand-400/30 bg-brand-700 px-3 py-3 max-h-[80vh] overflow-y-auto no-scrollbar">
             <div className="space-y-1">
               {MOBILE_GROUPS.map(group => (
                 <div key={group.label}>
                   <button
                     onClick={() => setOpenGroup(g => g === group.label ? '' : group.label)}
-                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-[13px] font-bold text-gray-400 uppercase tracking-widest hover:bg-gray-50 transition-colors"
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-[13px] font-bold text-brand-300/80 uppercase tracking-widest hover:bg-brand-600 transition-colors"
                   >
                     {group.label}
                     <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${openGroup === group.label ? 'rotate-180' : ''}`} />
@@ -297,12 +297,12 @@ export default function Navbar() {
                         <Link key={href} to={href} onClick={() => setMobileOpen(false)}
                           className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[15px] font-medium transition-colors min-h-[48px] ${
                             isActive(href)
-                              ? 'bg-brand-50 text-brand-600 font-semibold'
+                              ? 'bg-brand-600 text-white font-semibold'
                               : href === '/green-corridor'
-                                ? 'text-eco-700 hover:bg-eco-50 active:bg-eco-100'
-                                : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'
+                                ? 'text-eco-300 hover:bg-brand-600 active:bg-brand-500'
+                                : 'text-white/85 hover:bg-brand-600 active:bg-brand-500'
                           }`}>
-                          {href === '/green-corridor' && <Leaf className="w-4 h-4 text-eco-500 flex-shrink-0" />}
+                          {href === '/green-corridor' && <Leaf className="w-4 h-4 text-eco-400 flex-shrink-0" />}
                           {label}
                         </Link>
                       ))}
@@ -311,10 +311,10 @@ export default function Navbar() {
                 </div>
               ))}
             </div>
-            <div className="pt-3 mt-2 border-t border-gray-100 space-y-1">
+            <div className="pt-3 mt-2 border-t border-brand-400/30 space-y-1">
               <a href="tel:+923702578788"
-                className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-[15px] text-gray-600 font-medium hover:bg-gray-50 active:bg-gray-100 min-h-[52px]">
-                <Phone className="h-4 w-4 text-green-500 flex-shrink-0" /> +92 370 2578788
+                className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-[15px] text-white/80 font-medium hover:bg-brand-600 active:bg-brand-500 min-h-[52px]">
+                <Phone className="h-4 w-4 text-eco-400 flex-shrink-0" /> +92 370 2578788
               </a>
             </div>
           </div>

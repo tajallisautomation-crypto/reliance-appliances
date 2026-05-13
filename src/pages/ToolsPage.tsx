@@ -31,15 +31,15 @@ function BillSavingsCalc() {
   return (
     <div className="space-y-4">
       <div className="grid md:grid-cols-2 gap-4">
-        <div><label className="text-sm font-medium text-gray-700 block mb-1">Monthly Units (kWh)</label><input type="number" value={units} onChange={e=>setUnits(e.target.value)} placeholder="e.g. 400" className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-orange-400"/></div>
-        <div><label className="text-sm font-medium text-gray-700 block mb-1">Actual Bill Amount (optional)</label><input type="number" value={bill} onChange={e=>setBill(e.target.value)} placeholder="PKR — leave blank to estimate" className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-orange-400"/></div>
+        <div><label className="text-sm font-medium text-gray-700 block mb-1">Monthly Units (kWh)</label><input type="number" value={units} onChange={e=>setUnits(e.target.value)} placeholder="e.g. 400" className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-brand-400"/></div>
+        <div><label className="text-sm font-medium text-gray-700 block mb-1">Actual Bill Amount (optional)</label><input type="number" value={bill} onChange={e=>setBill(e.target.value)} placeholder="PKR — leave blank to estimate" className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-brand-400"/></div>
       </div>
       <div>
         <div className="flex justify-between items-center mb-1">
           <label className="text-sm font-medium text-gray-700">Solar Offset</label>
-          <span className="text-sm font-bold text-orange-600">{offset}%</span>
+          <span className="text-sm font-bold text-brand-600">{offset}%</span>
         </div>
-        <input type="range" min={25} max={100} step={5} value={offset} onChange={e=>setOffset(+e.target.value)} className="w-full accent-orange-500"/>
+        <input type="range" min={25} max={100} step={5} value={offset} onChange={e=>setOffset(+e.target.value)} className="w-full accent-brand-500"/>
         <div className="flex justify-between text-xs text-gray-400 mt-1"><span>25% partial</span><span>50% half</span><span>75%</span><span>100% full</span></div>
       </div>
       <button onClick={calculate} className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl py-3 font-semibold">Calculate My Savings</button>
@@ -50,7 +50,7 @@ function BillSavingsCalc() {
               { label: result.billEntered ? 'Current Bill' : 'Est. Current Bill', val: fmtPKR(result.currentBill), cls: 'bg-red-50 text-red-700' },
               { label: 'Monthly Saving', val: fmtPKR(result.savedAmount), cls: 'bg-green-50 text-green-700' },
               { label: 'New Bill', val: fmtPKR(result.remainingBill), cls: 'bg-blue-50 text-blue-700' },
-              { label: 'Annual Saving', val: fmtPKR(result.annualSaving), cls: 'bg-orange-50 text-orange-700' },
+              { label: 'Annual Saving', val: fmtPKR(result.annualSaving), cls: 'bg-brand-50 text-brand-700' },
             ].map((s, i) => (
               <div key={i} className={`${s.cls} rounded-xl p-4 text-center`}>
                 <div className="font-bold text-lg">{s.val}</div>
@@ -124,7 +124,7 @@ function NetMeteringChecker() {
 }
 
 function ProductComparison() {
-  return (<div className="text-center py-8"><Scale className="w-12 h-12 text-gray-300 mx-auto mb-3"/><p className="text-gray-500 mb-4">Compare products side by side from our catalogue.</p><Link to="/products" className="inline-flex items-center gap-2 bg-orange-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-orange-600">Browse Products <ArrowRight className="w-4 h-4"/></Link></div>)
+  return (<div className="text-center py-8"><Scale className="w-12 h-12 text-gray-300 mx-auto mb-3"/><p className="text-gray-500 mb-4">Compare products side by side from our catalogue.</p><Link to="/products" className="inline-flex items-center gap-2 bg-brand-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-brand-600">Browse Products <ArrowRight className="w-4 h-4"/></Link></div>)
 }
 
 const TOOLS = [
@@ -143,7 +143,7 @@ export default function ToolsPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b">
         <div className="max-w-5xl mx-auto px-4 py-12 text-center">
-          <div className="inline-flex items-center gap-2 bg-orange-100 text-orange-700 px-4 py-1.5 rounded-full text-sm font-medium mb-4">
+          <div className="inline-flex items-center gap-2 bg-brand-100 text-brand-700 px-4 py-1.5 rounded-full text-sm font-medium mb-4">
             <Calculator className="w-4 h-4"/> Free Tools
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">Smart Buying Tools</h1>
@@ -154,7 +154,7 @@ export default function ToolsPage() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {TOOLS.map(t => (
             <button key={t.id} onClick={() => setActiveTool(t.id)}
-              className={`p-4 rounded-2xl border-2 text-left transition-all ${activeTool === t.id ? 'border-orange-400 bg-orange-50 shadow-md scale-[1.02]' : 'border-gray-200 bg-white hover:border-orange-300'}`}>
+              className={`p-4 rounded-2xl border-2 text-left transition-all ${activeTool === t.id ? 'border-brand-400 bg-brand-50 shadow-md scale-[1.02]' : 'border-gray-200 bg-white hover:border-brand-300'}`}>
               <div className="text-3xl mb-2">{t.icon}</div>
               <div className="font-semibold text-gray-800 text-sm">{t.title}</div>
               <div className="text-xs text-gray-500 mt-1">{t.desc}</div>
@@ -172,7 +172,7 @@ export default function ToolsPage() {
             <h3 className="font-bold text-lg">Ready to go solar?</h3>
             <p className="text-amber-100 text-sm">Use our full Solar Load Calculator for a customised quote.</p>
           </div>
-          <Link to="/solar-calculator" className="whitespace-nowrap bg-white text-orange-600 px-6 py-3 rounded-xl font-semibold flex items-center gap-2 hover:bg-orange-50">
+          <Link to="/solar-calculator" className="whitespace-nowrap bg-white text-brand-600 px-6 py-3 rounded-xl font-semibold flex items-center gap-2 hover:bg-brand-50">
             Solar Calculator <ChevronRight className="w-4 h-4"/>
           </Link>
         </div>

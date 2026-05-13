@@ -40,7 +40,7 @@ const CATEGORY_SALES = [
   { name:'Refrigerators',    value:22, color:'#10b981' },
   { name:'Solar Solutions',  value:18, color:'#f5c842' },
   { name:'Televisions',      value:12, color:'#8b5cf6' },
-  { name:'Washing Machines', value:7,  color:'#f97316' },
+  { name:'Washing Machines', value:7,  color:'#3FA34D' },
   { name:'Other',            value:3,  color:'#94a3b8' },
 ];
 
@@ -359,11 +359,11 @@ export default function Dashboard() {
               <h3 className="font-bold text-gray-900 mb-4">Traffic Sources</h3>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 {[
-                  { src:'Direct',      pct:34, color:'#0070f3' },
+                  { src:'Direct',      pct:34, color:'#123F73' },
                   { src:'WhatsApp',    pct:28, color:'#25d366' },
                   { src:'Google',      pct:22, color:'#f5c842' },
                   { src:'Social',      pct:10, color:'#8b5cf6' },
-                  { src:'Referral',    pct:6,  color:'#f97316' },
+                  { src:'Referral',    pct:6,  color:'#F6C400' },
                 ].map(s => (
                   <div key={s.src} className="text-center p-4 bg-surface-secondary rounded-apple-xl">
                     <div className="text-2xl font-black mb-1" style={{ color: s.color }}>{s.pct}%</div>

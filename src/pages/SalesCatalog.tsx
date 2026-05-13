@@ -108,7 +108,7 @@ function FlyerGroupCard({ cat, group, products }: { cat: CatalogCategory; group:
           {group} <span className="text-gray-400 font-normal">({products.length})</span>
         </span>
         <button onClick={download} disabled={busy}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60 transition-colors">
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-brand-500 hover:bg-brand-600 text-white disabled:opacity-60 transition-colors">
           {busy ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
           {busy ? 'Saving…' : 'Download Image'}
         </button>
@@ -123,7 +123,7 @@ function FlyerGroupCard({ cat, group, products }: { cat: CatalogCategory; group:
           style={{ background: 'linear-gradient(135deg,#1e3a5f 0%,#2d5a8e 100%)' }}>
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-black text-sm shrink-0"
-              style={{ background: 'linear-gradient(135deg,#f97316,#f5c842)' }}>R</div>
+              style={{ background: 'linear-gradient(135deg,#123F73,#F6C400)' }}>R</div>
             <div>
               <div className="text-white font-black text-sm leading-tight">Tajalli's</div>
             </div>
@@ -163,7 +163,7 @@ function FlyerGroupCard({ cat, group, products }: { cat: CatalogCategory; group:
                       ))}
                     </div>
                   )}
-                  <div className="text-[11px] font-black text-orange-600 mt-1">PKR {formatPrice(price)}</div>
+                  <div className="text-[11px] font-black text-brand-600 mt-1">PKR {formatPrice(price)}</div>
                   {plan3m && (
                     <div className="text-[8px] text-gray-400">3m: {formatPrice(plan3m.monthly)}/mo</div>
                   )}
@@ -186,9 +186,9 @@ function FlyerGroupCard({ cat, group, products }: { cat: CatalogCategory; group:
 
         {/* Footer */}
         <div className="px-5 py-2.5 flex items-center justify-between"
-          style={{ background: '#f8f9fa', borderTop: '2px solid #f97316' }}>
+          style={{ background: '#f8f9fa', borderTop: '2px solid #123F73' }}>
           <div className="text-[10px] text-gray-600">
-            <span className="font-bold text-orange-600">📞 0370-2578788</span>
+            <span className="font-bold text-brand-600">📞 0370-2578788</span>
             <span className="mx-2 text-gray-300">·</span>0335-4266238
           </div>
           <div className="text-[10px] text-gray-500 text-right leading-tight">
@@ -209,7 +209,7 @@ function TableRow({ p, catId }: { p: Product; catId: string }) {
   const specs  = getKeySpecs(p, catId)
 
   return (
-    <tr className="border-b border-gray-100 hover:bg-orange-50/30 transition-colors">
+    <tr className="border-b border-gray-100 hover:bg-brand-50/30 transition-colors">
       <td className="py-2 px-3 text-xs font-bold text-gray-500 font-mono whitespace-nowrap">{p.model}</td>
       <td className="py-2 px-3">
         <div className="text-sm font-semibold text-gray-800 leading-tight">{p.simplified_name}</div>
@@ -374,7 +374,7 @@ export default function SalesCatalog() {
           {CATALOG_CATEGORIES.map(cat => (
             <button key={cat.id} onClick={() => setActiveCatId(cat.id)}
               className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors ${
-                cat.id === activeCatId ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-800'}`}>
+                cat.id === activeCatId ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-800'}`}>
               {cat.emoji} {cat.label}
               {cache[cat.id] !== undefined && (
                 <span className="text-xs font-normal text-gray-400">({cache[cat.id].length})</span>
@@ -403,7 +403,7 @@ export default function SalesCatalog() {
               <span className="text-3xl">⚠️</span>
               <p className="text-sm font-semibold text-red-600">{loadError}</p>
               <button onClick={() => loadCat(activeCat, true)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors">
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium bg-brand-500 text-white hover:bg-brand-600 transition-colors">
                 <RefreshCw className="w-3.5 h-3.5" /> Try Again
               </button>
             </div>

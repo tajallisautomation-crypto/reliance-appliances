@@ -390,14 +390,14 @@ export default function Partner() {
 
       {/* Referral nudge */}
       <section className="max-w-4xl mx-auto px-4 pb-16">
-        <div className="bg-orange-50 border border-orange-100 rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-5">
+        <div className="bg-brand-50 border border-brand-100 rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-5">
           <div className="text-3xl">🎁</div>
           <div className="flex-1 text-center sm:text-left">
             <p className="font-bold text-gray-900">Not a business? You can still earn.</p>
             <p className="text-sm text-gray-500 mt-0.5">Individuals can refer friends and family and earn 2% on every completed sale — no sign-up required.</p>
           </div>
           <Link to="/referral"
-            className="shrink-0 bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors whitespace-nowrap">
+            className="shrink-0 bg-brand-500 hover:bg-brand-600 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors whitespace-nowrap">
             See Referral Programme →
           </Link>
         </div>

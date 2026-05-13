@@ -15,7 +15,7 @@ const STATS = [
 const VALUES = [
   { icon: ShieldCheck, title: 'Authenticity',    desc: 'Every product we sell is 100% genuine with official brand warranty. No grey-market or parallel imports.', bg: 'bg-blue-100',   fg: 'text-blue-600' },
   { icon: CreditCard,  title: 'Flexibility',     desc: 'We offer 2–12 month installment plans so everyone can afford quality appliances, no bank account needed.', bg: 'bg-green-100',  fg: 'text-green-600' },
-  { icon: Truck,       title: 'Reliability',     desc: 'We deliver to your door and provide professional installation — so your appliance is set up right from day one.', bg: 'bg-orange-100', fg: 'text-orange-600' },
+  { icon: Truck,       title: 'Reliability',     desc: 'We deliver to your door and provide professional installation — so your appliance is set up right from day one.', bg: 'bg-brand-100', fg: 'text-brand-600' },
   { icon: Headphones,  title: 'After-Sale Care', desc: "Our relationship doesn't end at the sale. We follow up, handle warranty claims, and provide ongoing support.", bg: 'bg-purple-100', fg: 'text-purple-600' },
 ]
 
@@ -55,7 +55,7 @@ export default function About() {
         <div className="max-w-5xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
           {STATS.map(s => (
             <div key={s.label} className="bg-white rounded-2xl p-6 shadow-sm">
-              <div className="text-3xl font-black text-orange-500 mb-1">{s.value}</div>
+              <div className="text-3xl font-black text-brand-500 mb-1">{s.value}</div>
               <div className="text-sm text-gray-500">{s.label}</div>
             </div>
           ))}
@@ -66,7 +66,7 @@ export default function About() {
       <section className="max-w-4xl mx-auto px-4 py-16">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div>
-            <div className="text-orange-500 text-sm font-semibold mb-2">Our Story</div>
+            <div className="text-brand-500 text-sm font-semibold mb-2">Our Story</div>
             <h2 className="text-3xl font-black text-gray-900 mb-4">Built on Trust, Grown by Service</h2>
             <div className="space-y-4 text-gray-600 leading-relaxed">
               <p>
@@ -91,9 +91,9 @@ export default function About() {
               <div className="text-4xl font-black mb-1">2015</div>
               <div className="text-blue-200 text-sm">Year Founded</div>
             </div>
-            <div className="bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl p-6 text-white">
+            <div className="bg-gradient-to-br from-brand-500 to-brand-700 rounded-2xl p-6 text-white">
               <div className="text-4xl font-black mb-1">100%</div>
-              <div className="text-orange-100 text-sm">Genuine Products</div>
+              <div className="text-brand-100 text-sm">Genuine Products</div>
             </div>
             <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 text-white">
               <div className="text-4xl font-black mb-1">6+</div>
@@ -113,12 +113,12 @@ export default function About() {
           <div className="max-w-5xl mx-auto">
             <div className="flex items-end justify-between mb-7">
               <div>
-                <p className="text-orange-400 text-xs font-bold uppercase tracking-widest mb-2">Proof of Work</p>
+                <p className="text-brand-400 text-xs font-bold uppercase tracking-widest mb-2">Proof of Work</p>
                 <h2 className="text-2xl font-black text-white">Real Jobs. Real Homes. Karachi.</h2>
                 <p className="text-gray-400 text-sm mt-1">Every photo is a real installation or service call.</p>
               </div>
               <Link to="/gallery"
-                className="hidden sm:flex items-center gap-1.5 text-orange-400 hover:text-orange-300 font-semibold text-sm transition-colors flex-shrink-0 ml-6">
+                className="hidden sm:flex items-center gap-1.5 text-brand-400 hover:text-brand-300 font-semibold text-sm transition-colors flex-shrink-0 ml-6">
                 <Image className="w-4 h-4" /> Full Gallery <ChevronRight className="w-4 h-4" />
               </Link>
             </div>
@@ -138,7 +138,7 @@ export default function About() {
             </div>
 
             <div className="mt-5 text-center sm:hidden">
-              <Link to="/gallery" className="text-orange-400 font-semibold text-sm">
+              <Link to="/gallery" className="text-brand-400 font-semibold text-sm">
                 View Full Gallery →
               </Link>
             </div>
@@ -150,7 +150,7 @@ export default function About() {
       <section className="bg-gray-50 py-16 px-4">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-10">
-            <div className="text-orange-500 text-sm font-semibold mb-2">What We Stand For</div>
+            <div className="text-brand-500 text-sm font-semibold mb-2">What We Stand For</div>
             <h2 className="text-3xl font-black text-gray-900">Our Core Values</h2>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -170,7 +170,7 @@ export default function About() {
       {/* How We Work — service level transparency */}
       <section className="max-w-5xl mx-auto px-4 py-16">
         <div className="text-center mb-10">
-          <p className="text-orange-500 text-xs font-bold uppercase tracking-widest mb-2">How We Work</p>
+          <p className="text-brand-500 text-xs font-bold uppercase tracking-widest mb-2">How We Work</p>
           <h2 className="text-3xl font-black text-gray-900">No surprises. No fine print.</h2>
           <p className="text-gray-500 mt-2 max-w-xl mx-auto">This is exactly what you get when you buy from us.</p>
         </div>
@@ -337,7 +337,7 @@ export default function About() {
             { name: 'Westpoint', color: '#2563eb', desc: 'Quality kitchen & home appliances', slug: 'westpoint' },
           ].map(b => (
             <Link key={b.slug} to={`/products?brand=${b.slug}`}
-              className="flex flex-col items-center gap-3 bg-white border border-gray-100 hover:border-orange-300 hover:shadow-md rounded-2xl p-6 transition-all text-center">
+              className="flex flex-col items-center gap-3 bg-white border border-gray-100 hover:border-brand-300 hover:shadow-md rounded-2xl p-6 transition-all text-center">
               <div className="w-14 h-14 rounded-xl flex items-center justify-center text-white font-black text-2xl"
                 style={{ backgroundColor: b.color }}>{b.name[0]}</div>
               <div>
@@ -355,7 +355,7 @@ export default function About() {
           <h2 className="text-3xl font-black mb-4">Ready to shop with us?</h2>
           <p className="text-gray-400 mb-8">Browse our full range or reach out — we're happy to help you find the right appliance.</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/products" className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-8 py-4 rounded-2xl">
+            <Link to="/products" className="bg-brand-500 hover:bg-brand-600 text-white font-bold px-8 py-4 rounded-2xl">
               Browse Products
             </Link>
             <a href={waSales()} target="_blank" rel="noreferrer"

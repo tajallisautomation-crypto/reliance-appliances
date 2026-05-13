@@ -207,7 +207,7 @@ export default function InstallmentCalculator({
                 onChange={e => setDpPct(Number(e.target.value))}
                 className="w-full h-2 rounded-full appearance-none cursor-pointer accent-brand-500 bg-gray-200"
                 style={{
-                  background: `linear-gradient(to right, #f97316 0%, #f97316 ${((dpPct - 30) / 60) * 100}%, #e5e7eb ${((dpPct - 30) / 60) * 100}%, #e5e7eb 100%)`
+                  background: `linear-gradient(to right, #123F73 0%, #123F73 ${((dpPct - 30) / 60) * 100}%, #e5e7eb ${((dpPct - 30) / 60) * 100}%, #e5e7eb 100%)`
                 }}
               />
             </div>

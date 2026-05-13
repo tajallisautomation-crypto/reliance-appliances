@@ -69,7 +69,7 @@ type Tab = 'summary' | 'revenue' | 'sales' | 'seasonality' | 'customers' | 'lead
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const ADMIN_PASS = (import.meta as any).env?.VITE_ADMIN_PASS || 'reliance2025';
-const C = ['#0070f3','#10b981','#f97316','#8b5cf6','#f5c842','#ef4444','#14b8a6','#f43f5e','#64748b','#06b6d4'];
+const C = ['#123F73','#2E7D32','#F6C400','#8b5cf6','#3FA34D','#ef4444','#14b8a6','#0B2545','#64748b','#06b6d4'];
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const EXPENSE_CATS = ['rent','utilities','staff_salaries','marketing','logistics','maintenance','purchase_costs','other'];
 
@@ -467,7 +467,7 @@ export default function ReportsPortal() {
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm border border-gray-100">
         <div className="text-center mb-8">
           <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg,#0070f3,#003585)' }}>
+            style={{ background: 'linear-gradient(135deg,#123F73,#0B2545)' }}>
             <TrendingUp className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-xl font-black text-gray-900">Reports Portal</h1>
@@ -569,7 +569,7 @@ export default function ReportsPortal() {
         <KpiCard label="This Month" value={`PKR ${formatPrice(metrics.thisMonthRev / 1000)}K`}
           sub="month to date" icon={TrendingUp} color="text-emerald-600" />
         <KpiCard label="Avg Order Value" value={`PKR ${formatPrice(metrics.avgOrderValue / 1000)}K`}
-          icon={ShoppingBag} color="text-orange-500" />
+          icon={ShoppingBag} color="text-brand-500" />
         <KpiCard label="Inst. Outstanding" value={`PKR ${formatPrice(metrics.instOutstanding / 1000)}K`}
           sub={`${metrics.instOverdue} overdue slots`} up={metrics.instOverdue === 0}
           change={metrics.instOverdue > 0 ? `${metrics.instOverdue} overdue` : 'All clear'}
@@ -593,9 +593,9 @@ export default function ReportsPortal() {
                   <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${Math.round(v / 1000)}K`} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
-                  <Area type="monotone" dataKey="revenue" name="Revenue" fill="#dbeafe" stroke="#0070f3" strokeWidth={2} />
+                  <Area type="monotone" dataKey="revenue" name="Revenue" fill="#EBF2FA" stroke="#123F73" strokeWidth={2} />
                   {metrics.monthlyRevenue.some(m => m.target) &&
-                    <Line type="monotone" dataKey="target" name="Target" stroke="#f97316" strokeWidth={2} strokeDasharray="5 3" dot={false} />}
+                    <Line type="monotone" dataKey="target" name="Target" stroke="#F6C400" strokeWidth={2} strokeDasharray="5 3" dot={false} />}
                 </ComposedChart>
               </ResponsiveContainer>
             )}
@@ -668,9 +668,9 @@ export default function ReportsPortal() {
                 <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${Math.round(v / 1000)}K`} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="revenue" name="Revenue" fill="#0070f3" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="revenue" name="Revenue" fill="#123F73" radius={[4, 4, 0, 0]} />
                 {metrics.monthlyRevenue.some(m => m.target) &&
-                  <Line type="monotone" dataKey="target" name="Target" stroke="#f97316" strokeWidth={2} strokeDasharray="5 3" dot={false} />}
+                  <Line type="monotone" dataKey="target" name="Target" stroke="#F6C400" strokeWidth={2} strokeDasharray="5 3" dot={false} />}
               </ComposedChart>
             </ResponsiveContainer>
           )}
@@ -754,9 +754,9 @@ export default function ReportsPortal() {
                 <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${Math.round(v / 1000)}K`} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="revenue" name="Revenue" fill="#0070f3" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="revenue" name="Revenue" fill="#123F73" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="expenses" name="Expenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                <Line type="monotone" dataKey="profit" name="Net Profit" stroke="#10b981" strokeWidth={2.5} dot={false} />
+                <Line type="monotone" dataKey="profit" name="Net Profit" stroke="#2E7D32" strokeWidth={2.5} dot={false} />
               </ComposedChart>
             </ResponsiveContainer>
           )}
@@ -805,7 +805,7 @@ export default function ReportsPortal() {
                 <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={v => `${Math.round(v / 1000)}K`} />
                 <YAxis type="category" dataKey="name" tick={{ fontSize: 9 }} width={130} />
                 <Tooltip formatter={(v: any) => pk(v)} />
-                <Bar dataKey="revenue" name="Revenue" fill="#0070f3" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="revenue" name="Revenue" fill="#123F73" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -845,7 +845,7 @@ export default function ReportsPortal() {
                 <XAxis dataKey="month" tick={{ fontSize: 10 }} />
                 <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
                 <Tooltip />
-                <Bar dataKey="orders" name="Orders" fill="#10b981" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="orders" name="Orders" fill="#2E7D32" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -906,11 +906,11 @@ export default function ReportsPortal() {
                 <YAxis yAxisId="idx" orientation="right" tick={{ fontSize: 10 }} domain={[0, 200]} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
-                <Bar yAxisId="rev" dataKey="revenue" name="Revenue" fill="#dbeafe" radius={[4, 4, 0, 0]}>
+                <Bar yAxisId="rev" dataKey="revenue" name="Revenue" fill="#EBF2FA" radius={[4, 4, 0, 0]}>
                   {metrics.seasonalData.map((_, i) => <Cell key={i} fill={C[0]} fillOpacity={0.6} />)}
                 </Bar>
-                <Line yAxisId="idx" type="monotone" dataKey="index" name="Seasonal Index" stroke="#f97316" strokeWidth={2.5} dot={{ r: 4 }} />
-                <ReferenceLine yAxisId="idx" y={100} stroke="#10b981" strokeDasharray="4 3" label={{ value: 'Avg=100', position: 'right', fontSize: 10 }} />
+                <Line yAxisId="idx" type="monotone" dataKey="index" name="Seasonal Index" stroke="#F6C400" strokeWidth={2.5} dot={{ r: 4 }} />
+                <ReferenceLine yAxisId="idx" y={100} stroke="#2E7D32" strokeDasharray="4 3" label={{ value: 'Avg=100', position: 'right', fontSize: 10 }} />
               </ComposedChart>
             </ResponsiveContainer>
           )}
@@ -963,7 +963,7 @@ export default function ReportsPortal() {
         <KpiCard label="Repeat Customers" value={String(metrics.repeatCustomers)}
           sub={metrics.uniqueCustomers > 0 ? `${((metrics.repeatCustomers / metrics.uniqueCustomers) * 100).toFixed(0)}% retention` : ''}
           icon={CheckCircle} color="text-emerald-600" />
-        <KpiCard label="Avg Orders/Customer" value={(metrics.uniqueCustomers ? (metrics.totalOrders / metrics.uniqueCustomers) : 0).toFixed(1)} icon={ShoppingBag} color="text-orange-500" />
+        <KpiCard label="Avg Orders/Customer" value={(metrics.uniqueCustomers ? (metrics.totalOrders / metrics.uniqueCustomers) : 0).toFixed(1)} icon={ShoppingBag} color="text-brand-500" />
         <KpiCard label="Revenue/Customer" value={`PKR ${formatPrice(metrics.uniqueCustomers ? metrics.totalRevenue / metrics.uniqueCustomers / 1000 : 0)}K`} icon={DollarSign} color="text-purple-600" />
       </div>
 
@@ -1046,7 +1046,7 @@ export default function ReportsPortal() {
           <KpiCard label="Closed / Won" value={String(solarLeads.filter(l => l.status === 'closed').length)}
             sub={solarLeads.length ? `${((solarLeads.filter(l => l.status === 'closed').length / solarLeads.length) * 100).toFixed(0)}% rate` : ''}
             icon={CheckCircle} color="text-emerald-600" />
-          <KpiCard label="Avg System Size" value={`${avgSystemKw} kW`} icon={Sun} color="text-orange-500" />
+          <KpiCard label="Avg System Size" value={`${avgSystemKw} kW`} icon={Sun} color="text-brand-500" />
           <KpiCard label="Total Est. Savings" value={`PKR ${formatPrice(totalEstSavings / 1000)}K`} sub="across all leads / yr" icon={DollarSign} color="text-blue-600" />
         </div>
 
@@ -1447,7 +1447,7 @@ export default function ReportsPortal() {
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg,#0070f3,#003585)' }}>
+              style={{ background: 'linear-gradient(135deg,#123F73,#0B2545)' }}>
               <TrendingUp className="h-5 w-5 text-white" />
             </div>
             <div>

@@ -65,7 +65,7 @@ function StatPill({ label, value }: { label: string; value: string }) {
 function SpecRow({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub?: string }) {
   return (
     <div className="flex items-center gap-4 py-4 border-b border-white/8 last:border-0">
-      <div className="w-9 h-9 rounded-xl bg-orange-500/15 flex items-center justify-center text-orange-400 flex-shrink-0">
+      <div className="w-9 h-9 rounded-xl bg-brand-500/15 flex items-center justify-center text-brand-400 flex-shrink-0">
         {icon}
       </div>
       <div className="flex-1 min-w-0">
@@ -112,7 +112,7 @@ function OffGridCalculator() {
               value={bill}
               onChange={e => setBill(e.target.value)}
               placeholder="e.g. 35,000"
-              className="w-full bg-white/8 border border-white/12 rounded-2xl pl-9 pr-4 py-3.5 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-orange-500/50 focus:bg-white/10 transition-all"
+              className="w-full bg-white/8 border border-white/12 rounded-2xl pl-9 pr-4 py-3.5 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-brand-500/50 focus:bg-white/10 transition-all"
             />
           </div>
         </div>
@@ -132,7 +132,7 @@ function OffGridCalculator() {
                 onClick={() => setBackup(opt.val)}
                 className={`py-3 px-2 rounded-2xl border text-center transition-all ${
                   backup === opt.val
-                    ? 'bg-orange-500 border-orange-500 text-white'
+                    ? 'bg-brand-500 border-brand-500 text-white'
                     : 'bg-white/5 border-white/12 text-gray-400 hover:border-white/20 hover:text-white'
                 }`}
               >
@@ -148,7 +148,7 @@ function OffGridCalculator() {
             City
           </label>
           <div className="bg-white/8 border border-white/12 rounded-2xl px-4 py-3.5 text-gray-300 text-sm flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-orange-400 flex-shrink-0" />
+            <MapPin className="w-4 h-4 text-brand-400 flex-shrink-0" />
             Karachi (4.5 peak sun hours)
           </div>
         </div>
@@ -156,7 +156,7 @@ function OffGridCalculator() {
         <button
           onClick={calculate}
           disabled={!bill || parseInt(bill) < 1000}
-          className="w-full bg-orange-500 hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl transition-all active:scale-[0.98] text-sm tracking-wide"
+          className="w-full bg-brand-500 hover:bg-brand-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl transition-all active:scale-[0.98] text-sm tracking-wide"
         >
           Calculate My System
         </button>
@@ -164,8 +164,8 @@ function OffGridCalculator() {
 
       {/* Results */}
       {result && (
-        <div ref={resultRef} className="mt-4 bg-white/5 border border-orange-500/20 rounded-3xl p-6 backdrop-blur-sm space-y-1 animate-fadeIn">
-          <div className="text-xs font-medium text-orange-400 mb-4 tracking-wider uppercase">
+        <div ref={resultRef} className="mt-4 bg-white/5 border border-brand-500/20 rounded-3xl p-6 backdrop-blur-sm space-y-1 animate-fadeIn">
+          <div className="text-xs font-medium text-brand-400 mb-4 tracking-wider uppercase">
             Your Proposed Off-Grid System
           </div>
 
@@ -282,7 +282,7 @@ function LeadForm() {
             <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input value={form.name} onChange={e => set('name', e.target.value)} required
               placeholder="Muhammad Ali"
-              className="w-full bg-white/8 border border-white/12 rounded-2xl pl-10 pr-4 py-3 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-orange-500/50 transition-all" />
+              className="w-full bg-white/8 border border-white/12 rounded-2xl pl-10 pr-4 py-3 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-brand-500/50 transition-all" />
           </div>
         </div>
         <div>
@@ -291,7 +291,7 @@ function LeadForm() {
             <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input value={form.phone} onChange={e => set('phone', e.target.value)} required
               placeholder="03xx-xxxxxxx"
-              className="w-full bg-white/8 border border-white/12 rounded-2xl pl-10 pr-4 py-3 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-orange-500/50 transition-all" />
+              className="w-full bg-white/8 border border-white/12 rounded-2xl pl-10 pr-4 py-3 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-brand-500/50 transition-all" />
           </div>
         </div>
       </div>
@@ -300,12 +300,12 @@ function LeadForm() {
           <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider">Monthly Bill (PKR)</label>
           <input type="number" value={form.bill} onChange={e => set('bill', e.target.value)} required
             placeholder="e.g. 35000"
-            className="w-full bg-white/8 border border-white/12 rounded-2xl px-4 py-3 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-orange-500/50 transition-all" />
+            className="w-full bg-white/8 border border-white/12 rounded-2xl px-4 py-3 text-white placeholder-gray-600 text-sm focus:outline-none focus:border-brand-500/50 transition-all" />
         </div>
         <div>
           <label className="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider">Night Backup Needed</label>
           <select value={form.backup} onChange={e => set('backup', e.target.value)}
-            className="w-full bg-white/8 border border-white/12 rounded-2xl px-4 py-3 text-white text-sm focus:outline-none focus:border-orange-500/50 transition-all">
+            className="w-full bg-white/8 border border-white/12 rounded-2xl px-4 py-3 text-white text-sm focus:outline-none focus:border-brand-500/50 transition-all">
             <option value="4" className="bg-gray-900">4 Hours (Lights &amp; Fans)</option>
             <option value="8" className="bg-gray-900">8 Hours (Full Night)</option>
             <option value="12" className="bg-gray-900">12 Hours (Heavy Usage)</option>
@@ -362,11 +362,11 @@ export default function OffGridSolar() {
       {/* ── Hero ── */}
       <section className="relative overflow-hidden pt-20 pb-24 px-4">
         {/* Ambient glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-orange-500/8 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-brand-500/8 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute top-20 left-1/4 w-64 h-64 bg-yellow-500/5 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative max-w-5xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-medium px-4 py-2 rounded-full mb-8 tracking-wider uppercase">
+          <div className="inline-flex items-center gap-2 bg-brand-500/10 border border-brand-500/20 text-brand-400 text-xs font-medium px-4 py-2 rounded-full mb-8 tracking-wider uppercase">
             <Sun className="w-3.5 h-3.5" />
             Off-Grid Solar — Karachi
           </div>
@@ -374,7 +374,7 @@ export default function OffGridSolar() {
           <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-6 leading-[1.05]">
             <span className="text-white">End Your</span>
             <br />
-            <span className="bg-gradient-to-r from-orange-400 via-amber-300 to-yellow-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-brand-400 via-amber-300 to-yellow-400 bg-clip-text text-transparent">
               Electricity Bill.
             </span>
             <br />
@@ -387,7 +387,7 @@ export default function OffGridSolar() {
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-3 mb-14">
-            <a href="#calculator" className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-400 text-white font-bold px-8 py-4 rounded-2xl transition-all active:scale-[0.98] text-sm">
+            <a href="#calculator" className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-400 text-white font-bold px-8 py-4 rounded-2xl transition-all active:scale-[0.98] text-sm">
               <Zap className="w-4 h-4" />
               Calculate My System
             </a>
@@ -430,7 +430,7 @@ export default function OffGridSolar() {
       <section id="calculator" className="py-20 px-4">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 text-orange-400 text-xs font-medium tracking-wider uppercase mb-4">
+            <div className="inline-flex items-center gap-2 text-brand-400 text-xs font-medium tracking-wider uppercase mb-4">
               <Zap className="w-3.5 h-3.5" /> Off-Grid Independence Calculator
             </div>
             <h2 className="text-3xl md:text-4xl font-black mb-3">Size Your System Instantly</h2>
@@ -453,10 +453,10 @@ export default function OffGridSolar() {
             {HOW_IT_WORKS.map((s, i) => (
               <div key={s.step} className="relative">
                 {i < HOW_IT_WORKS.length - 1 && (
-                  <div className="hidden lg:block absolute top-5 left-full w-full h-px bg-gradient-to-r from-orange-500/30 to-transparent z-0" />
+                  <div className="hidden lg:block absolute top-5 left-full w-full h-px bg-gradient-to-r from-brand-500/30 to-transparent z-0" />
                 )}
                 <div className="relative">
-                  <div className="text-orange-500/30 font-black text-5xl mb-4 select-none">{s.step}</div>
+                  <div className="text-brand-500/30 font-black text-5xl mb-4 select-none">{s.step}</div>
                   <div className="font-bold text-white mb-2">{s.title}</div>
                   <div className="text-sm text-gray-500 leading-relaxed">{s.desc}</div>
                 </div>
@@ -471,7 +471,7 @@ export default function OffGridSolar() {
         <div className="max-w-5xl mx-auto">
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <div>
-              <div className="text-orange-400 text-xs font-medium tracking-wider uppercase mb-4">Complete Package</div>
+              <div className="text-brand-400 text-xs font-medium tracking-wider uppercase mb-4">Complete Package</div>
               <h2 className="text-3xl md:text-4xl font-black mb-4">
                 Everything Included.
                 <br />
@@ -491,7 +491,7 @@ export default function OffGridSolar() {
                   '1-Year Service Warranty',
                 ].map(item => (
                   <div key={item} className="flex items-center gap-2.5 text-sm text-gray-300">
-                    <CheckCircle className="w-4 h-4 text-orange-400 flex-shrink-0" />
+                    <CheckCircle className="w-4 h-4 text-brand-400 flex-shrink-0" />
                     {item}
                   </div>
                 ))}
@@ -505,17 +505,17 @@ export default function OffGridSolar() {
                 <div className="bg-white/4 border border-white/8 rounded-2xl p-4">
                   <div className="flex items-center justify-between mb-1">
                     <div className="font-bold text-white text-sm">Tubular Lead-Acid</div>
-                    <div className="text-orange-400 text-xs font-medium">Budget-Friendly</div>
+                    <div className="text-brand-400 text-xs font-medium">Budget-Friendly</div>
                   </div>
                   <div className="text-gray-500 text-xs leading-relaxed">
                     Lower upfront cost. 3–5 year life. Requires distilled water top-up every 3 months. Best for tight budgets.
                   </div>
                   <div className="mt-2 text-xs text-gray-600">Starting ~PKR 180/Ah</div>
                 </div>
-                <div className="bg-orange-500/8 border border-orange-500/20 rounded-2xl p-4">
+                <div className="bg-brand-500/8 border border-brand-500/20 rounded-2xl p-4">
                   <div className="flex items-center justify-between mb-1">
                     <div className="font-bold text-white text-sm">Lithium (LiFePO₄)</div>
-                    <div className="text-orange-400 text-xs font-medium">Recommended</div>
+                    <div className="text-brand-400 text-xs font-medium">Recommended</div>
                   </div>
                   <div className="text-gray-500 text-xs leading-relaxed">
                     3× longer life (10+ years). Zero maintenance. Lighter. Safe chemistry. Best ROI over time.
@@ -524,7 +524,7 @@ export default function OffGridSolar() {
                 </div>
               </div>
               <div className="flex items-center gap-2 text-xs text-gray-600 pt-2">
-                <Shield className="w-3.5 h-3.5 text-orange-400" />
+                <Shield className="w-3.5 h-3.5 text-brand-400" />
                 Both options include installation & warranty
               </div>
             </div>
@@ -536,7 +536,7 @@ export default function OffGridSolar() {
       <section id="consult" className="py-20 px-4 bg-white/[0.02] border-y border-white/5">
         <div className="max-w-xl mx-auto">
           <div className="text-center mb-10">
-            <div className="text-orange-400 text-xs font-medium tracking-wider uppercase mb-4">Free Consultation</div>
+            <div className="text-brand-400 text-xs font-medium tracking-wider uppercase mb-4">Free Consultation</div>
             <h2 className="text-3xl md:text-4xl font-black mb-3">Talk to a Solar Expert</h2>
             <p className="text-gray-500 text-sm leading-relaxed">
               Leave your details and our Karachi-based solar engineer will call you within 2 hours — no pushy sales, just honest advice.
