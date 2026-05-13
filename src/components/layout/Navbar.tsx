@@ -101,7 +101,7 @@ export default function Navbar() {
 
   return (
     <>
-      <header className={`sticky top-0 z-30 bg-brand-500/[.97] backdrop-blur-xl transition-shadow duration-200 ${scrolled ? 'shadow-apple-lg' : ''}`}>
+      <header className={`sticky top-0 z-30 bg-brand-500/[.97] backdrop-blur-xl transition-shadow duration-200 border-b-2 border-gold-500 ${scrolled ? 'shadow-apple-lg' : ''}`}>
 
         {/* ── Row 1: Logo + Search + Icons ──────────────────────────── */}
         <div className="border-b border-brand-400/30">

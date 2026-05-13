@@ -54,12 +54,12 @@ export default function ProductCard({ product: p }: Props) {
         {/* Badges — top */}
         <div className="absolute top-2 left-2 flex flex-col gap-1 max-w-[calc(100%-1rem)]">
           {p.stock_status === 'Discontinued' && (
-            <span className="inline-flex items-center text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 tracking-wide">
+            <span className="inline-flex items-center text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-300 tracking-wide">
               Discontinued
             </span>
           )}
           {p.featured && (
-            <span className="inline-flex items-center gap-0.5 bg-amber-400 text-amber-900 text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+            <span className="inline-flex items-center gap-0.5 bg-gold-500 text-brand-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full">
               <Star className="w-2 h-2 fill-current" /> Featured
             </span>
           )}

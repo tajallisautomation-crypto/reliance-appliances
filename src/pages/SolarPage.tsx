@@ -76,7 +76,7 @@ export interface SolarPackage {
 export const PACKAGES: SolarPackage[] = [
   {
     id: 'ups-3.6kw', name: '3.6kW UPS System', kw: '3.6kW',
-    type: 'ups', badge: 'Apartment Friendly', badgeColor: 'bg-blue-600', popular: false,
+    type: 'ups', badge: 'Apartment Friendly', badgeColor: 'bg-blue-600 text-white', popular: false,
     includes: ['No rooftop needed — works in flats & apartments', 'All wiring & electrical equipment', 'Professional installation & transport'],
     warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
     total: 285000, frameDeduction: 0,
@@ -85,7 +85,7 @@ export const PACKAGES: SolarPackage[] = [
   },
   {
     id: 'solar-3.6kw', name: '3.6kW Solar System', kw: '3.6kW',
-    type: 'solar', badge: 'Solar + Backup', badgeColor: 'bg-amber-500', popular: false,
+    type: 'solar', badge: 'Solar + Backup', badgeColor: 'bg-gold-500 text-brand-700', popular: false,
     includes: [
       'Crown Bi-Facial 620W Solar Plates ×6',
       'All wiring & electrical equipment',
@@ -100,7 +100,7 @@ export const PACKAGES: SolarPackage[] = [
   },
   {
     id: 'ups-5kw', name: '5kW UPS System', kw: '5kW',
-    type: 'ups', badge: 'Apartment Friendly', badgeColor: 'bg-blue-600', popular: false,
+    type: 'ups', badge: 'Apartment Friendly', badgeColor: 'bg-blue-600 text-white', popular: false,
     includes: ['No rooftop needed — works in flats & apartments', 'All wiring & electrical equipment', 'Professional installation & transport'],
     warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
     total: 475000, frameDeduction: 0,
@@ -109,7 +109,7 @@ export const PACKAGES: SolarPackage[] = [
   },
   {
     id: 'solar-5kw', name: '5kW Solar System', kw: '5kW',
-    type: 'solar', badge: 'Most Popular', badgeColor: 'bg-brand-500', popular: true,
+    type: 'solar', badge: 'Most Popular', badgeColor: 'bg-brand-500 text-white', popular: true,
     includes: [
       'Crown Bi-Facial 620W Solar Plates ×8',
       'All wiring & electrical equipment',
@@ -123,7 +123,7 @@ export const PACKAGES: SolarPackage[] = [
   },
   {
     id: 'solar-8kw', name: '8kW Solar System', kw: '8kW',
-    type: 'solar', badge: 'Maximum Power', badgeColor: 'bg-blue-600', popular: false,
+    type: 'solar', badge: 'Maximum Power', badgeColor: 'bg-blue-600 text-white', popular: false,
     includes: [
       'Crown Bi-Facial 620W Solar Plates ×14',
       'All wiring & electrical equipment',
@@ -137,7 +137,7 @@ export const PACKAGES: SolarPackage[] = [
   },
   {
     id: 'solar-12kw', name: '12kW Solar System', kw: '12kW',
-    type: 'solar', badge: 'Net Metering Ready', badgeColor: 'bg-green-600', popular: false,
+    type: 'solar', badge: 'Net Metering Ready', badgeColor: 'bg-green-600 text-white', popular: false,
     includes: [
       'Crown Bi-Facial 620W Solar Plates ×20',
       'All wiring & electrical equipment',
@@ -298,7 +298,7 @@ function PackageCard({
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div>
-            <span className={`inline-block text-white text-xs font-semibold px-2.5 py-1 rounded-full mb-2 ${pkg.badgeColor}`}>
+            <span className={`inline-block text-xs font-semibold px-2.5 py-1 rounded-full mb-2 ${pkg.badgeColor}`}>
               {pkg.badge}
             </span>
             <h3 className="text-xl font-black text-gray-900 leading-tight">{pkg.name}</h3>
@@ -314,10 +314,10 @@ function PackageCard({
 
         {/* Frame toggle — shown immediately after component selection */}
         {pkg.frameDeduction > 0 && (
-          <label className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-4 cursor-pointer">
+          <label className="flex items-center justify-between gap-3 bg-gold-300/20 border border-gold-500/40 rounded-2xl px-4 py-3 mb-4 cursor-pointer">
             <div>
-              <p className="text-sm font-semibold text-amber-900">{pkg.frameLabel}</p>
-              <p className="text-xs text-amber-700">
+              <p className="text-sm font-semibold text-brand-700">{pkg.frameLabel}</p>
+              <p className="text-xs text-brand-500">
                 {withFrame
                   ? `Remove to save PKR ${formatPrice(pkg.frameDeduction)}`
                   : `Add for PKR ${formatPrice(pkg.frameDeduction)} more`}

@@ -191,8 +191,8 @@ export default function About() {
             {
               icon: Clock,
               title: 'Support Response',
-              color: 'text-amber-600',
-              bg: 'bg-amber-50',
+              color: 'text-gold-600',
+              bg: 'bg-gold-300/20',
               points: [
                 'Normal requests: within 48 hours',
                 'Urgent requests: same day (subject to availability)',

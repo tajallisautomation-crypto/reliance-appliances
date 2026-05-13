@@ -15,7 +15,7 @@ const HOME_CATEGORIES = [
   { id: 'washing-machines',   name: 'Washing Machines',  Icon: Shirt,            color: 'text-indigo-500', to: '/products?category=washing-machines'   },
   { id: 'freezers',           name: 'Freezers',          Icon: Snowflake,        color: 'text-sky-500',    to: '/products?category=freezers'           },
   { id: 'televisions',        name: 'Televisions',       Icon: Tv,               color: 'text-gray-700',   to: '/products?category=televisions'        },
-  { id: 'solar',              name: 'Solar & Energy',    Icon: Sun,              color: 'text-amber-500',  to: '/solar'                                },
+  { id: 'solar',              name: 'Solar & Energy',    Icon: Sun,              color: 'text-gold-500',   to: '/solar'                                },
   { id: 'kitchen-appliances', name: 'Kitchen',           Icon: UtensilsCrossed,  color: 'text-brand-500', to: '/products?category=kitchen-appliances' },
   { id: 'water-dispensers',   name: 'Water Dispensers',  Icon: Droplets,         color: 'text-teal-500',   to: '/products?category=water-dispensers'   },
   { id: 'small-appliances',   name: 'Small Appliances',  Icon: Plug,             color: 'text-purple-500', to: '/products?category=small-appliances'   },
@@ -130,7 +130,7 @@ export default function Home() {
                 {[
                   { Icon: CalendarDays, value: '11 Years',  label: 'Established 2015', color: 'text-brand-500' },
                   { Icon: Users,        value: '14,400+',   label: 'Customer Loyalty', color: 'text-blue-500'  },
-                  { Icon: Star,         value: '75%',       label: 'Repeat Customers', color: 'text-amber-500' },
+                  { Icon: Star,         value: '75%',       label: 'Repeat Customers', color: 'text-gold-500'  },
                   { Icon: Package,      value: '24,000+',   label: 'Orders Fulfilled', color: 'text-green-500' },
                 ].map(({ Icon, value, label, color }) => (
                   <div key={label}
@@ -194,7 +194,7 @@ export default function Home() {
             style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.8) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.8) 1px,transparent 1px)', backgroundSize: '32px 32px' }} />
           <div className="relative flex flex-col md:flex-row items-center gap-8 px-8 py-10 md:py-12">
             <div className="flex-1 text-center md:text-left">
-              <p className="text-brand-400 text-xs font-bold uppercase tracking-widest mb-3">Build a Package</p>
+              <p className="text-gold-400 text-xs font-bold uppercase tracking-widest mb-3">Build a Package</p>
               <h2 className="text-3xl md:text-4xl font-black text-white mb-3 leading-tight">Your home, fully equipped.<br className="hidden md:block" />One order. One deal.</h2>
               <p className="text-gray-400 text-sm max-w-md">
                 Mix any 3+ appliances — ACs, fridges, washing machines, TVs, solar — and get <strong className="text-white">5% off your entire order</strong> automatically.
@@ -215,7 +215,7 @@ export default function Home() {
       <section className="max-w-7xl mx-auto px-4 pb-16">
         <div className="bg-gray-950 rounded-3xl p-8 md:p-12">
           <div className="text-center mb-10">
-            <p className="text-brand-400 text-xs font-bold uppercase tracking-widest mb-3">Flexible Installments</p>
+            <p className="text-gold-400 text-xs font-bold uppercase tracking-widest mb-3">Flexible Installments</p>
             <h2 className="text-3xl md:text-4xl font-black text-white mb-3">Own it today. Pay your way.</h2>
             <p className="text-gray-400">No bank account needed · No credit check · No hidden charges.</p>
           </div>
@@ -486,7 +486,7 @@ export default function Home() {
       <section className="max-w-7xl mx-auto px-4 py-14">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <p className="text-brand-500 text-xs font-bold uppercase tracking-widest mb-1">Featured</p>
+            <p className="text-gold-600 text-xs font-bold uppercase tracking-widest mb-1">Featured</p>
             <h2 className="text-2xl md:text-3xl font-black text-gray-900">Top Picks for You</h2>
           </div>
           <Link to="/products?featured=true"
