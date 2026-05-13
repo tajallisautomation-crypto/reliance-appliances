@@ -10,15 +10,15 @@ import { getProducts, getProductCount, type Product, formatPrice } from '../lib/
 
 // Shop-by-category — 9 stable main categories only. Subcategories live inside filters/BYOP/buying guides.
 const HOME_CATEGORIES = [
-  { id: 'air-conditioners',   name: 'Air Conditioners',  Icon: AirVent,          color: 'text-blue-500',   to: '/products?category=air-conditioners'   },
-  { id: 'refrigerators',      name: 'Refrigerators',     Icon: Refrigerator,     color: 'text-cyan-500',   to: '/products?category=refrigerators'      },
-  { id: 'washing-machines',   name: 'Washing Machines',  Icon: Shirt,            color: 'text-indigo-500', to: '/products?category=washing-machines'   },
-  { id: 'freezers',           name: 'Freezers',          Icon: Snowflake,        color: 'text-sky-500',    to: '/products?category=freezers'           },
-  { id: 'televisions',        name: 'Televisions',       Icon: Tv,               color: 'text-gray-700',   to: '/products?category=televisions'        },
-  { id: 'solar',              name: 'Solar & Energy',    Icon: Sun,              color: 'text-gold-700',   to: '/solar'                                },
-  { id: 'kitchen-appliances', name: 'Kitchen',           Icon: UtensilsCrossed,  color: 'text-brand-500', to: '/products?category=kitchen-appliances' },
-  { id: 'water-dispensers',   name: 'Water Dispensers',  Icon: Droplets,         color: 'text-teal-500',   to: '/products?category=water-dispensers'   },
-  { id: 'small-appliances',   name: 'Small Appliances',  Icon: Plug,             color: 'text-purple-500', to: '/products?category=small-appliances'   },
+  { id: 'air-conditioners',   name: 'Air Conditioners',  Icon: AirVent,          color: 'text-blue-600',    bg: 'bg-blue-50',          to: '/products?category=air-conditioners'   },
+  { id: 'refrigerators',      name: 'Refrigerators',     Icon: Refrigerator,     color: 'text-cyan-700',    bg: 'bg-cyan-50',          to: '/products?category=refrigerators'      },
+  { id: 'washing-machines',   name: 'Washing Machines',  Icon: Shirt,            color: 'text-indigo-600',  bg: 'bg-indigo-50',        to: '/products?category=washing-machines'   },
+  { id: 'freezers',           name: 'Freezers',          Icon: Snowflake,        color: 'text-sky-600',     bg: 'bg-sky-50',           to: '/products?category=freezers'           },
+  { id: 'televisions',        name: 'Televisions',       Icon: Tv,               color: 'text-gray-700',    bg: 'bg-gray-100',         to: '/products?category=televisions'        },
+  { id: 'solar',              name: 'Solar & Energy',    Icon: Sun,              color: 'text-gold-700',    bg: 'bg-gold-300/25',      to: '/solar'                                },
+  { id: 'kitchen-appliances', name: 'Kitchen',           Icon: UtensilsCrossed,  color: 'text-brand-600',   bg: 'bg-brand-50',         to: '/products?category=kitchen-appliances' },
+  { id: 'water-dispensers',   name: 'Water Dispensers',  Icon: Droplets,         color: 'text-teal-700',    bg: 'bg-teal-50',          to: '/products?category=water-dispensers'   },
+  { id: 'small-appliances',   name: 'Small Appliances',  Icon: Plug,             color: 'text-purple-600',  bg: 'bg-purple-50',        to: '/products?category=small-appliances'   },
 ]
 import { calcPlan } from '../lib/plans'
 import ProductCard from '../components/products/ProductCard'
@@ -91,74 +91,82 @@ export default function Home() {
       />
 
       {/* ── HERO ─────────────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-16 md:pt-20 md:pb-24">
-        <div className="grid md:grid-cols-2 gap-12 lg:gap-20 items-center">
+      <section className="relative bg-gradient-to-b from-brand-50/50 via-brand-50/20 to-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-16 md:pt-20 md:pb-24">
+          <div className="grid md:grid-cols-2 gap-12 lg:gap-20 items-center">
 
-          {/* Left: text */}
-          <div>
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-5">
-              <span className="text-brand-500 text-xs font-bold uppercase tracking-[0.2em]">Karachi</span>
-              <span className="text-brand-400 text-xs">·</span>
-              <span className="text-brand-500 text-xs font-bold uppercase tracking-[0.2em]">Since 2015</span>
-              <span className="text-brand-400 text-xs">·</span>
-              <span className="text-brand-500 text-xs font-bold uppercase tracking-[0.2em] whitespace-nowrap">11 Years of Trust</span>
-            </div>
-            <h1 className="leading-[1.06] tracking-tight mb-6">
-              <span className="block text-2xl md:text-3xl lg:text-4xl font-bold text-gray-500 mb-2 tracking-normal">
-                Home Appliances &amp; Solar Solutions
-              </span>
-              <span className="block text-5xl md:text-6xl lg:text-[4.5rem] font-black text-brand-500">
-                All on Installments.
-              </span>
-            </h1>
-            <p className="text-lg text-gray-500 leading-relaxed mb-8 max-w-md">
-              Karachi's trusted store for ACs, fridges, washing machines, solar & more — since 2015.
-              Cash or installments. Delivered to your door.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Link to="/products"
-                className="inline-flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-7 py-4 rounded-2xl shadow-brand transition-all min-w-[168px]">
-                Shop Now <ArrowRight className="w-4 h-4" />
-              </Link>
-              <Link to="/solar"
-                className="inline-flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white font-bold px-7 py-4 rounded-2xl transition-all min-w-[168px]">
-                <Zap className="w-4 h-4" /> Solar Solutions
-              </Link>
-            </div>
-            <div className="mt-6 pt-5 border-t border-gray-100">
-              <div className="grid grid-cols-2 gap-2.5">
-                {[
-                  { Icon: CalendarDays, value: '11 Years',  label: 'Established 2015', color: 'text-brand-500' },
-                  { Icon: Users,        value: '14,400+',   label: 'Customer Loyalty', color: 'text-blue-500'  },
-                  { Icon: Star,         value: '75%',       label: 'Repeat Customers', color: 'text-brand-500' },
-                  { Icon: Package,      value: '24,000+',   label: 'Orders Fulfilled', color: 'text-green-500' },
-                ].map(({ Icon, value, label, color }) => (
-                  <div key={label}
-                    className="group flex items-center gap-3 bg-gray-50 hover:bg-white border border-transparent hover:border-gray-200 hover:shadow-soft rounded-2xl px-3.5 py-3 transition-all duration-200 cursor-default">
-                    <Icon className={`w-5 h-5 ${color} shrink-0`} />
-                    <div>
-                      <p className="text-sm font-black text-gray-900 leading-none">{value}</p>
-                      <p className="text-[11px] text-gray-400 font-medium mt-0.5 leading-none">{label}</p>
+            {/* Left: text */}
+            <div>
+              {/* Trust badge pill */}
+              <div className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 bg-white border border-brand-100 shadow-sm rounded-full px-4 py-1.5 mb-6">
+                <span className="text-brand-600 text-xs font-bold uppercase tracking-[0.18em]">Karachi</span>
+                <span className="text-brand-300 text-xs">·</span>
+                <span className="text-brand-600 text-xs font-bold uppercase tracking-[0.18em]">Since 2015</span>
+                <span className="text-brand-300 text-xs">·</span>
+                <span className="text-brand-600 text-xs font-bold uppercase tracking-[0.18em] whitespace-nowrap">11 Years of Trust</span>
+              </div>
+
+              <h1 className="leading-[1.06] tracking-tight mb-6">
+                <span className="block text-2xl md:text-3xl lg:text-4xl font-bold text-gray-500 mb-2 tracking-normal">
+                  Home Appliances &amp; Solar Solutions
+                </span>
+                <span className="block text-5xl md:text-6xl lg:text-[4.5rem] font-black text-brand-500">
+                  All on Installments<span className="text-gold-500">.</span>
+                </span>
+              </h1>
+              <p className="text-lg text-gray-500 leading-relaxed mb-8 max-w-md">
+                Karachi's trusted store for ACs, fridges, washing machines, solar &amp; more — since 2015.
+                Cash or installments. Delivered to your door.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Link to="/products"
+                  className="inline-flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-7 py-4 rounded-2xl shadow-brand transition-all min-w-[168px]">
+                  Shop Now <ArrowRight className="w-4 h-4" />
+                </Link>
+                <Link to="/solar"
+                  className="inline-flex items-center justify-center gap-2 bg-eco-500 hover:bg-eco-600 text-white font-bold px-7 py-4 rounded-2xl transition-all min-w-[168px]">
+                  <Zap className="w-4 h-4" /> Solar Solutions
+                </Link>
+              </div>
+
+              {/* Stat cards */}
+              <div className="mt-6 pt-5 border-t border-brand-100">
+                <div className="grid grid-cols-2 gap-2.5">
+                  {[
+                    { Icon: CalendarDays, value: '11 Years',  label: 'Established 2015', iconColor: 'text-brand-600',  iconBg: 'bg-brand-50'      },
+                    { Icon: Users,        value: '14,400+',   label: 'Customer Loyalty', iconColor: 'text-blue-600',   iconBg: 'bg-blue-50'       },
+                    { Icon: Star,         value: '75%',       label: 'Repeat Customers', iconColor: 'text-gold-600',   iconBg: 'bg-gold-300/25'   },
+                    { Icon: Package,      value: '24,000+',   label: 'Orders Fulfilled', iconColor: 'text-eco-600',    iconBg: 'bg-eco-50'        },
+                  ].map(({ Icon, value, label, iconColor, iconBg }) => (
+                    <div key={label}
+                      className="flex items-center gap-3 bg-white border border-gray-100 shadow-apple rounded-2xl px-3.5 py-3 cursor-default">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
+                        <Icon className={`w-4.5 h-4.5 ${iconColor}`} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-gray-900 leading-none">{value}</p>
+                        <p className="text-[11px] text-gray-400 font-medium mt-0.5 leading-none">{label}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Right: hero visual */}
-          <div className="relative hidden md:block">
-            <div className="aspect-square rounded-4xl overflow-hidden bg-gradient-to-br from-brand-50 to-gray-100 shadow-apple-2xl">
-              {heroProduct?.thumbnail ? (
-                <img
-                  src={heroProduct.thumbnail}
-                  alt={heroProduct.simplified_name || heroProduct.model}
-                  className="w-full h-full object-cover animate-fade-in"
-                  loading="eager"
-                />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 animate-pulse" />
-              )}
+            {/* Right: hero visual */}
+            <div className="relative hidden md:block">
+              <div className="aspect-square rounded-4xl overflow-hidden bg-gradient-to-br from-brand-50 to-brand-100 shadow-apple-2xl">
+                {heroProduct?.thumbnail ? (
+                  <img
+                    src={heroProduct.thumbnail}
+                    alt={heroProduct.simplified_name || heroProduct.model}
+                    className="w-full h-full object-cover animate-fade-in"
+                    loading="eager"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-brand-50 to-brand-100 animate-pulse" />
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -174,11 +182,13 @@ export default function Home() {
           </Link>
         </div>
         <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-9 gap-3 sm:gap-4">
-          {HOME_CATEGORIES.map(({ id, name, Icon, color, to }) => (
+          {HOME_CATEGORIES.map(({ id, name, Icon, color, bg, to }) => (
             <Link key={id} to={to}
-              className="group flex flex-col items-center gap-2 py-5 px-2 rounded-3xl bg-gray-50 hover:bg-brand-50 border border-transparent hover:border-brand-100 hover:shadow-sm transition-all duration-200 text-center">
-              <Icon className={`w-7 h-7 ${color} group-hover:scale-110 transition-transform duration-200`} />
-              <span className="text-[11px] font-bold text-gray-500 group-hover:text-brand-700 leading-tight">{name}</span>
+              className="group flex flex-col items-center gap-2.5 py-5 px-2 rounded-3xl bg-white hover:bg-brand-50 border border-gray-100 hover:border-brand-200 hover:shadow-sm transition-all duration-200 text-center">
+              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${bg} group-hover:scale-110 transition-transform duration-200`}>
+                <Icon className={`w-5 h-5 ${color}`} />
+              </div>
+              <span className="text-[11px] font-bold text-gray-600 group-hover:text-brand-700 leading-tight">{name}</span>
             </Link>
           ))}
         </div>

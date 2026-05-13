@@ -4760,12 +4760,6 @@ async function generateQuotationPdf(opts: {
     ['PHONE', opts.customerPhone ? fmtPKPhone(opts.customerPhone) : '—'],
     ...(opts.customerEmail ? [['EMAIL', opts.customerEmail] as [string, string]] : []),
     ['ADDRESS', opts.customerAddress ? normalizeAddress(opts.customerAddress) : '—'],
-    ...(opts.customerArea ? [['AREA', opts.customerArea] as [string, string]] : []),
-    ['TYPE', opts.customerType === 'apartment' ? 'Flat / Apartment'
-      : opts.customerType === 'house' ? 'House / Independent Unit' : 'Commercial'],
-    ['EXISTING', opts.isExistingCustomer === true ? 'Yes — Returning'
-      : opts.isExistingCustomer === false ? 'No — New' : '—'],
-    ['ETA', opts.deliveryEta || '—'],
   ];
 
   const custRowH = 4.3;
@@ -5072,8 +5066,7 @@ async function generateQuotationPdf(opts: {
   // WARRANTY — first in right column, no top separator
   if (warrantyEntries.length > 0) {
     const wtyRowH = 2.9;
-    const wtyModelH = 2.5;
-    const totalWtyBodyH = warrantyEntries.reduce((s, we) => s + wtyRowH + (we.model ? wtyModelH : 0), 0) + 1;
+    const totalWtyBodyH = warrantyEntries.length * wtyRowH + 1;
     doc.setFillColor(26, 26, 26);
     doc.rect(rightX, rightY, rightW, 3.5, 'F');
     doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(255, 255, 255);
@@ -5086,20 +5079,15 @@ async function generateQuotationPdf(opts: {
     doc.setLineWidth(0.2);
     let wy = rightY + wtyRowH;
     for (const we of warrantyEntries) {
+      const wLabel = we.model || we.name;
       doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(25, 25, 25);
-      const wName = doc.splitTextToSize(`· ${we.name}`, rightW - 28)[0];
-      doc.text(wName, rightX + 2, wy);
+      doc.text(`· ${wLabel}`, rightX + 2, wy);
       if (we.coverage) {
         doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(80, 80, 80);
         const covTxt = doc.splitTextToSize(we.coverage, rightW - 28);
         doc.text(covTxt[0] || we.coverage, rightX + rightW - 2, wy, { align: 'right' });
       }
       wy += wtyRowH;
-      if (we.model) {
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(100, 100, 100);
-        doc.text(`Model: ${we.model}`, rightX + 5, wy);
-        wy += wtyModelH;
-      }
     }
     rightY += totalWtyBodyH + 4;
   }
@@ -5379,7 +5367,7 @@ async function generateQuotationPdf(opts: {
         doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(80, 60, 0);
         const pNameFit = doc.splitTextToSize(pl.fullName, eColW2 - 22);
         doc.text(`· ${pNameFit[0]}`, margin + 3, ey);
-        const kwhLabel = pl.isEst ? `~${pl.kwh * pl.line.qty} kWh/mo` : `${pl.kwh * pl.line.qty} kWh/mo`;
+        const kwhLabel = `${pl.kwh * pl.line.qty} kWh/mo${pl.isEst ? ' est.' : ''}`;
         doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(101, 61, 0);
         doc.text(kwhLabel, margin + eColW2 - 2, ey, { align: 'right' });
         ey += pwrRowH2;
@@ -5397,21 +5385,18 @@ async function generateQuotationPdf(opts: {
       doc.text(`${totalEffKwh} kWh/mo`, margin + eColW2 - 2, ey, { align: 'right' });
       const hasEst2 = energyLines2.some(l => l.isEst);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(120, 80, 0);
-      doc.text(`${hasEst2 ? 'Est. ' : ''}electricity bill ~${PKR(totalEffKwh * UNIT_RATE_PKR)}/month`, margin + 3, ey + 3.5);
+      doc.text(`${hasEst2 ? 'Est. ' : ''}electricity cost: ${PKR(totalEffKwh * UNIT_RATE_PKR)}/month`, margin + 3, ey + 3.5);
       const inverterAcKwh2 = energyLines2
         .filter(l => /air.?cond|split.*ac/i.test(l.line.category || '') && /inverter/i.test(l.fullName))
         .reduce((s, l) => s + l.kwh * l.line.qty, 0);
+      let extraNoteY = ey + 7.0;
       if (inverterAcKwh2 > 0) {
-        const co2SavedKg = Math.round(inverterAcKwh2 * 0.35 * 0.45);
+        const co2SavedKgMo = Math.round(inverterAcKwh2 * 0.35 * 0.45);
+        const treesPerYear = Math.max(1, Math.round(co2SavedKgMo * 12 / 22));
         doc.setFont('helvetica', 'bold'); doc.setFontSize(4.8); doc.setTextColor(34, 120, 60);
-        doc.text(`♻ ~${co2SavedKg} kg CO₂ saved/mo vs fixed-speed AC`, margin + 3, ey + 7.0);
-        doc.setFont('helvetica', 'italic'); doc.setFontSize(4.8); doc.setTextColor(160, 110, 40);
-        doc.text('Basis: AC ~8h/day  |  Fridge/Freezer ~24h/day', margin + 3, ey + 10.0);
-      } else {
-        doc.setFont('helvetica', 'italic'); doc.setFontSize(4.8); doc.setTextColor(160, 110, 40);
-        doc.text('Basis: AC ~8h/day  |  Fridge/Freezer ~24h/day', margin + 3, ey + 7.0);
+        doc.text(`Inverter AC saves equiv. of ${treesPerYear} tree${treesPerYear !== 1 ? 's' : ''} planted/yr`, margin + 3, extraNoteY);
+        extraNoteY += 3.5;
       }
-      // Inverter savings vs non-inverter equivalents
       if (hasAnyInverter2) {
         const invSavingsKwh = energyLines2
           .filter(l => /inverter/i.test(l.fullName))
@@ -5420,10 +5405,12 @@ async function generateQuotationPdf(opts: {
             const factor = isAc ? 0.35 : 0.30;
             return s + Math.round(l.kwh * l.line.qty * factor / (1 - factor));
           }, 0);
-        const invBaseY = inverterAcKwh2 > 0 ? ey + 13.5 : ey + 10.5;
         doc.setFont('helvetica', 'bold'); doc.setFontSize(4.8); doc.setTextColor(22, 100, 50);
-        doc.text(`⚡ Inverter saving: ~${invSavingsKwh} kWh/mo vs non-inverter equivalents`, margin + 3, invBaseY);
+        doc.text(`Inverter saves ${invSavingsKwh} kWh/mo vs non-inverter`, margin + 3, extraNoteY);
+        extraNoteY += 3.5;
       }
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(4.5); doc.setTextColor(160, 110, 40);
+      doc.text(`Basis: AC 8h/day | Fridge/Freezer 24h/day | KE rate ${UNIT_RATE_PKR} PKR/kWh`, margin + 3, extraNoteY);
     }
 
     // Right: Solar / UPS advisory
@@ -8231,6 +8218,10 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
   const [customerEmail,   setCustomerEmail]   = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [customerCnic,    setCustomerCnic]    = useState('');
+
+  // ── Customer autofill ──
+  interface AutofillCandidate { name: string; email: string; address: string; cnic: string; area: string; customerType: 'house' | 'apartment' | 'commercial' }
+  const [autofillCandidate, setAutofillCandidate] = useState<AutofillCandidate | null>(null);
   const [docType, setDocType]                 = useState<'quotation' | 'invoice' | 'installment-invoice' | 'service_receipt'>('quotation');
   const [discount, setDiscount]           = useState(0);
   const [discountRaw, setDiscountRaw]     = useState('0');
@@ -8415,6 +8406,40 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       } catch { /* ignore */ }
     }
   }, []);
+
+  // ── Phone autofill lookup ────────────────────────────────────────────────
+  useEffect(() => {
+    const digits = customerPhone.replace(/\D/g, '');
+    if (digits.length < 7) { setAutofillCandidate(null); return; }
+    const t = setTimeout(async () => {
+      const { data } = await supabase
+        .from('invoices')
+        .select('customer_name,customer_phone,customer_email,customer_address,customer_cnic,customer_area,customer_type')
+        .ilike('customer_phone', `%${digits.slice(-7)}%`)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (data && data.length > 0) {
+        const r = data[0];
+        // Only suggest if at least name is present and we haven't already auto-populated from it
+        if (r.customer_name && r.customer_name !== customerName) {
+          setAutofillCandidate({
+            name: r.customer_name ?? '',
+            email: r.customer_email ?? '',
+            address: r.customer_address ?? '',
+            cnic: r.customer_cnic ?? '',
+            area: r.customer_area ?? '',
+            customerType: (r.customer_type ?? 'house') as 'house' | 'apartment' | 'commercial',
+          });
+        } else {
+          setAutofillCandidate(null);
+        }
+      } else {
+        setAutofillCandidate(null);
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerPhone]);
 
   useEffect(() => {
     if (autosaveRef.current) clearTimeout(autosaveRef.current);
@@ -9288,6 +9313,27 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-red-400 text-xs font-bold">✗</span>
             )}
           </div>
+          {autofillCandidate && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-brand-50 border border-brand-200 rounded-xl text-xs">
+              <span className="text-gray-600 flex-1 truncate">Returning customer: <strong>{autofillCandidate.name}</strong></span>
+              <button
+                onClick={() => {
+                  setCustomerName(autofillCandidate.name);
+                  if (autofillCandidate.email)   setCustomerEmail(autofillCandidate.email);
+                  if (autofillCandidate.address) setCustomerAddress(autofillCandidate.address);
+                  if (autofillCandidate.cnic)    setCustomerCnic(autofillCandidate.cnic);
+                  if (autofillCandidate.area)    setCustomerArea(autofillCandidate.area);
+                  setCustomerType(autofillCandidate.customerType);
+                  setAutofillCandidate(null);
+                }}
+                className="px-3 py-1 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-lg transition-colors shrink-0">
+                Autofill
+              </button>
+              <button onClick={() => setAutofillCandidate(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
           <input value={customerEmail} onChange={e => setCustomerEmail(e.target.value)}
             placeholder="Email (optional)"
             type="email"
@@ -10333,59 +10379,62 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
         )}
 
         {services.map((svc, i) => (
-          <div key={svc.service_type} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-800">{svc.service_name}</p>
-              <p className="text-xs text-gray-400">{svc.description}</p>
-            </div>
-            <div className="flex gap-1 shrink-0">
-              {(['not_selected', 'included', 'charged'] as const).map(opt => (
-                <button
-                  key={opt}
-                  onClick={() => updateService(i, { status: opt })}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
-                    svc.status === opt
-                      ? opt === 'charged' ? 'bg-brand-500 text-white'
-                        : opt === 'included' ? 'bg-green-500 text-white'
-                        : 'bg-gray-200 text-gray-600'
-                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                  }`}
-                >
-                  {opt === 'not_selected' ? '—' : opt.charAt(0).toUpperCase() + opt.slice(1)}
-                </button>
-              ))}
-            </div>
-            {svc.status === 'included' && (
-              <div className="flex items-center gap-1 shrink-0">
-                <span className="text-xs text-gray-400">Value: PKR</span>
+          <div key={svc.service_type} className="py-2 border-b border-gray-50 last:border-0 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <div className="flex-1 min-w-0 space-y-1">
                 <input
-                  type="number"
-                  value={svc.visible_value}
-                  onChange={e => updateService(i, { visible_value: Number(e.target.value) })}
-                  className="w-24 border border-gray-200 rounded-lg px-2 py-1 text-xs text-right focus:outline-none focus:ring-1 focus:ring-brand-400"
+                  value={svc.service_name}
+                  onChange={e => updateService(i, { service_name: e.target.value })}
+                  className="w-full text-sm font-semibold text-gray-800 border border-transparent hover:border-gray-200 focus:border-brand-400 rounded-lg px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-300 bg-transparent"
+                />
+                <input
+                  value={svc.description}
+                  onChange={e => updateService(i, { description: e.target.value })}
+                  placeholder="Description (optional)"
+                  className="w-full text-xs text-gray-400 border border-transparent hover:border-gray-200 focus:border-brand-400 rounded-lg px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-300 bg-transparent"
                 />
               </div>
-            )}
-            {svc.status === 'charged' && (
-              <div className="flex items-center gap-1 shrink-0">
-                <span className="text-xs text-gray-400">PKR</span>
-                <input
-                  type="number"
-                  value={svc.charged_amount}
-                  onChange={e => updateService(i, {
-                    charged_amount: Number(e.target.value),
-                    visible_value: Number(e.target.value),
-                  })}
-                  className="w-24 border border-brand-200 rounded-lg px-2 py-1 text-xs text-right focus:outline-none focus:ring-1 focus:ring-brand-400"
-                />
+              <div className="flex gap-1 shrink-0">
+                {(['not_selected', 'included', 'charged'] as const).map(opt => (
+                  <button
+                    key={opt}
+                    onClick={() => updateService(i, { status: opt })}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                      svc.status === opt
+                        ? opt === 'charged' ? 'bg-brand-500 text-white'
+                          : opt === 'included' ? 'bg-green-500 text-white'
+                          : 'bg-gray-200 text-gray-600'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}
+                  >
+                    {opt === 'not_selected' ? '—' : opt.charAt(0).toUpperCase() + opt.slice(1)}
+                  </button>
+                ))}
               </div>
-            )}
-            {/* Remove button only for custom (non-default) services */}
-            {svc.service_type.startsWith('custom_') && (
               <button onClick={() => setServices(prev => prev.filter((_, j) => j !== i))}
                 className="text-gray-300 hover:text-red-500 transition-colors p-1 shrink-0">
                 <X className="w-4 h-4" />
               </button>
+            </div>
+            {svc.status !== 'not_selected' && (
+              <div className="flex items-center gap-1 pl-2">
+                <span className="text-xs text-gray-400">
+                  {svc.status === 'charged' ? 'Charge PKR' : 'Value PKR'}
+                </span>
+                <input
+                  type="number"
+                  value={svc.status === 'charged' ? svc.charged_amount : svc.visible_value}
+                  onChange={e => {
+                    const v = Number(e.target.value);
+                    updateService(i, svc.status === 'charged'
+                      ? { charged_amount: v, visible_value: v }
+                      : { visible_value: v });
+                  }}
+                  className={`w-28 border rounded-lg px-2 py-1 text-xs text-right focus:outline-none focus:ring-1 focus:ring-brand-400 ${
+                    svc.status === 'charged' ? 'border-brand-200' : 'border-gray-200'
+                  }`}
+                />
+              </div>
             )}
           </div>
         ))}
