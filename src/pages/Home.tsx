@@ -145,7 +145,7 @@ export default function Home() {
                       </div>
                       <div>
                         <p className="text-sm font-black text-gray-900 leading-none">{value}</p>
-                        <p className="text-[11px] text-gray-400 font-medium mt-0.5 leading-none">{label}</p>
+                        <p className="text-[11px] text-gray-500 font-medium mt-0.5 leading-none">{label}</p>
                       </div>
                     </div>
                   ))}

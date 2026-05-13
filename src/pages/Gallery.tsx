@@ -251,7 +251,7 @@ export default function Gallery() {
 
         {/* Item count */}
         {!loading && items.length > 0 && (
-          <p className="text-center text-gray-400 text-sm mt-8">
+          <p className="text-center text-gray-500 text-sm mt-8">
             {items.length} {items.length === 1 ? 'item' : 'items'} shown
           </p>
         )}

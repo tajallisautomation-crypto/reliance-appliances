@@ -131,7 +131,7 @@ export default function InstallmentsPage() {
                   <div className="text-2xl font-black text-gray-900 mb-2">{p.label}</div>
                   <div className="text-4xl font-black text-brand-500 mb-4">{p.splits}×</div>
                   <p className="text-sm text-gray-500 leading-relaxed">{p.note}</p>
-                  <p className="text-xs text-gray-400 mt-3">Use the calculator below to see exact amounts for your product.</p>
+                  <p className="text-xs text-gray-500 mt-3">Use the calculator below to see exact amounts for your product.</p>
                 </div>
               </div>
             ))}
@@ -234,7 +234,7 @@ export default function InstallmentsPage() {
                 </div>
                 <div>
                   <h3 className="font-bold text-gray-900">Buyer Documents</h3>
-                  <p className="text-xs text-gray-400">Required from the purchaser</p>
+                  <p className="text-xs text-gray-500">Required from the purchaser</p>
                 </div>
               </div>
               <ul className="space-y-3">
@@ -255,7 +255,7 @@ export default function InstallmentsPage() {
                 </div>
                 <div>
                   <h3 className="font-bold text-gray-900">Guarantor Documents</h3>
-                  <p className="text-xs text-gray-400">Required from the guarantor(s)</p>
+                  <p className="text-xs text-gray-500">Required from the guarantor(s)</p>
                 </div>
               </div>
               <ul className="space-y-3">

@@ -122,7 +122,7 @@ export function Services() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {SERVICE_ITEMS.map(s => (
               <div key={s.title} className="bg-white rounded-2xl p-6 border border-gray-100 hover:border-brand-200 hover:shadow-soft transition-all">
-                <div className="text-3xl mb-4">{s.icon}</div>
+                <div className="w-12 h-12 bg-brand-50 rounded-2xl flex items-center justify-center mb-4 text-2xl">{s.icon}</div>
                 <h3 className="font-bold text-gray-900 mb-2">{s.title}</h3>
                 <p className="text-sm text-gray-500 mb-4 leading-relaxed">{s.desc}</p>
                 <div className="flex flex-wrap gap-1.5">

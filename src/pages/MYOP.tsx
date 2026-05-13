@@ -1014,7 +1014,7 @@ export default function MYOPPage() {
             <div className="mb-5">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Guided Starter Packs</p>
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Guided Starter Packs</p>
                   <p className="text-[11px] text-gray-400 mt-0.5">Start with a template, then swap any product</p>
                 </div>
                 {/* House / Apartment toggle */}

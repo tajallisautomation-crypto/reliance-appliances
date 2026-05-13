@@ -464,14 +464,16 @@ export default function SolarPage() {
       </div>
 
       {/* Benefits */}
-      <div className="max-w-5xl mx-auto px-4 py-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {SOLAR_BENEFITS.map(b => (
-          <div key={b.title} className="text-center p-5">
-            <div className="text-4xl mb-3">{b.icon}</div>
-            <div className="font-bold text-gray-800 mb-1">{b.title}</div>
-            <div className="text-sm text-gray-500">{b.desc}</div>
-          </div>
-        ))}
+      <div className="bg-gradient-to-b from-amber-50/50 to-white">
+        <div className="max-w-5xl mx-auto px-4 py-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {SOLAR_BENEFITS.map(b => (
+            <div key={b.title} className="bg-white border border-amber-100 rounded-2xl p-6 shadow-sm text-center">
+              <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl">{b.icon}</div>
+              <div className="font-bold text-gray-800 mb-2">{b.title}</div>
+              <div className="text-sm text-gray-500 leading-relaxed">{b.desc}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* ── PACKAGES SECTION ─────────────────────────────────────────── */}
@@ -534,7 +536,12 @@ export default function SolarPage() {
 
       {/* Products */}
       <div id="products" className="max-w-7xl mx-auto px-4 pb-14">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Solar Products</h2>
+        <div className="flex items-baseline justify-between mb-6">
+          <div>
+            <p className="text-amber-600 text-xs font-bold uppercase tracking-widest mb-1">Individual Components</p>
+            <h2 className="text-2xl font-black text-gray-900">Solar Products</h2>
+          </div>
+        </div>
         {loading ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {Array.from({length:8}).map((_,i) => <div key={i} className="bg-gray-100 rounded-2xl h-72 animate-pulse"/>)}
