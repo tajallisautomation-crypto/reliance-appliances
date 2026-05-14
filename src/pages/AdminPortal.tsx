@@ -4206,6 +4206,7 @@ interface InvoiceLogPayload {
   instMonthlyAmt:  number;
   instFirstDate:   string;
   notes?:          string;
+  preparedBy?:     string;
 }
 
 async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<void> {
@@ -4244,6 +4245,7 @@ async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<void> {
         guarantor_phone:     payload.guarantorPhone || null,
         guarantor_cnic:      payload.guarantorCnic || null,
         notes:               payload.notes || null,
+        prepared_by:         payload.preparedBy || null,
       })
       .select('id')
       .single();
@@ -4386,6 +4388,7 @@ async function updateInvoiceInSupabase(invoiceId: string, payload: InvoiceLogPay
         guarantor_phone:     payload.guarantorPhone || null,
         guarantor_cnic:      payload.guarantorCnic || null,
         notes:               payload.notes || null,
+        prepared_by:         payload.preparedBy || null,
       })
       .eq('id', invoiceId);
     if (invErr) { console.warn('[invoice-update] header failed:', invErr.message); return; }
@@ -4591,8 +4594,10 @@ function normalizeAddress(raw: string): string {
     s = s.replace(new RegExp(`([^,])\\s+(${city})\\s*$`), `$1, $2`);
   }
 
-  // Clean spacing and trailing duplicate city
+  // Clean spacing, collapse consecutive commas, remove trailing duplicate city
   s = s.replace(/\s*,\s*/g, ', ').replace(/\s{2,}/g, ' ').trim();
+  s = s.replace(/(,\s*){2,}/g, ', ');
+  s = s.replace(/,\s*$/, '').trim();
   s = s.replace(/, ([^,]+)(, \1)+$/i, ', $1');
   return s;
 }
@@ -6770,7 +6775,7 @@ function CustomerCrmTab() {
     setLoading(true);
     const { data } = await supabase
       .from('invoices')
-      .select('id,ref_number,doc_type,customer_name,customer_phone,customer_email,customer_address,customer_cnic,customer_area,sale_type,service_level,discount_reason,subtotal,discount_pct,discount_type,grand_total,advance_pct,payment_status,created_at,inst_total_price,inst_advance_amt,inst_months,inst_monthly_amt,inst_first_date,custom_charges_json,guarantor_name,guarantor_phone,guarantor_cnic,notes')
+      .select('id,ref_number,doc_type,customer_name,customer_phone,customer_email,customer_address,customer_cnic,customer_area,sale_type,service_level,discount_reason,subtotal,discount_pct,discount_type,grand_total,advance_pct,payment_status,created_at,inst_total_price,inst_advance_amt,inst_months,inst_monthly_amt,inst_first_date,custom_charges_json,guarantor_name,guarantor_phone,guarantor_cnic,notes,prepared_by')
       .order('created_at', { ascending: false });
     if (data) setInvoices(data as InvoiceRow[]);
     setLoading(false);
@@ -7400,6 +7405,7 @@ type InvoiceRow = {
   guarantor_phone: string | null;
   guarantor_cnic: string | null;
   notes: string | null;
+  prepared_by: string | null;
   invoice_lines?: Array<{
     name: string;
     model: string | null;
@@ -8567,8 +8573,10 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
     if (dp > 100) { setDiscountMode('fixed'); setDiscountFixed(dp); setDiscountFixedRaw(String(dp)); setDiscount(0); setDiscountRaw('0'); }
     else { setDiscountMode('percentage'); setDiscount(dp); setDiscountRaw(String(dp)); setDiscountFixed(0); setDiscountFixedRaw('0'); }
     setAdvancePct(row.advance_pct ?? 70);
+    setAdvancePaid(row.payment_status === 'paid' || row.payment_status === 'advance_paid');
     setAdvanceMode('pct');
     setAdvanceFixedAmt(0);
+    setPreparedBy(row.prepared_by ?? '');
     setCashPaySchedule([]);
     setInstTotalPrice(row.inst_total_price ?? 0);
     setInstAdvanceAmt(row.inst_advance_amt ?? 0);
@@ -9085,6 +9093,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
         instFirstDate,
         customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
         guarantorName, guarantorPhone, guarantorCnic,
+        preparedBy,
         notes: (() => {
           if (docType !== 'service_receipt') return invoiceNotes;
           const devicePart = [srDeviceBrand, srDeviceModel].filter(Boolean).join(' ');
