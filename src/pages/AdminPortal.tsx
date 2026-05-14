@@ -4807,8 +4807,6 @@ async function generateQuotationPdf(opts: {
     ['DATE', dateStr],
     ['PREPARED BY', opts.preparedBy || '—'],
     ['SALE TYPE', opts.saleType === 'cash' ? 'Cash' : 'Installment'],
-    ['SERVICE', opts.installationType === 'installation-included' ? 'Supply + Install' : 'Supply Only'],
-    ['STOCK', opts.stockStatus],
     ...(opts.docType !== 'invoice' ? [['VALID', `${validUntilStr} (${opts.validityHours}h)`] as [string, string]] : []),
   ];
 
@@ -5180,8 +5178,13 @@ async function generateQuotationPdf(opts: {
       ? opts.advanceAmtFixed
       : Math.round(grandTotal * opts.advancePct / 100);
     const _isFullyPaid = opts.advancePaid && _gtAdvAmt >= grandTotal;
-    const _balStatusLabel = _isFullyPaid ? 'AMOUNT PAID' : 'BALANCE DUE';
-    const _balStatusAmt = _isFullyPaid ? grandTotal : (grandTotal - (opts.advancePaid ? _gtAdvAmt : 0));
+    const _balOnDelivery = Math.max(0, grandTotal - _gtAdvAmt);
+    const _balStatusLabel = _isFullyPaid
+      ? 'AMOUNT PAID'
+      : _balOnDelivery === 0 ? 'ADVANCE DUE' : 'BALANCE DUE';
+    const _balStatusAmt = _isFullyPaid ? grandTotal
+      : _balOnDelivery === 0 ? grandTotal
+      : _balOnDelivery;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(246, 196, 0);
     doc.text(_balStatusLabel, rightX + 3, pry + 13);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(255, 255, 255);
@@ -5342,17 +5345,13 @@ async function generateQuotationPdf(opts: {
 
     const hasInverterAcKwh2 = energyLines2.some(l => /air.?cond|split.*ac/i.test(l.line.category || '') && /inverter/i.test(l.fullName));
     const hasAnyInverter2 = energyLines2.some(l => /inverter/i.test(l.fullName));
-    const energyH2 = 7 + dispRows2 * pwrRowH2 + (hasInverterAcKwh2 ? 18 : 14) + (hasAnyInverter2 ? 3 : 0);
+    const energyH2 = 7 + dispRows2 * pwrRowH2 + 14 + (hasAnyInverter2 ? 3.5 : 0);
     // Estimate advisory height without paragraph limit so strip can stretch to fill whitespace
     const advParas2Preview = advisory2 ? advisory2.paragraphs : [''];
     const advEstH2 = 9 + advParas2Preview.reduce(
       (sum, p) => sum + Math.ceil(p.length / 48) * 3.2 + 2, 0
     );
-    const naturalStripH = Math.max(32, Math.max(energyH2, advEstH2));
-    // Stretch strip to fill whitespace before the fixed payment/trust/T&C block
-    const PAY_START_Y = 196;
-    const stretchTarget = PAY_START_Y - y - 12;
-    const stripH2 = Math.max(naturalStripH, Math.min(stretchTarget, naturalStripH + 55));
+    const stripH2 = Math.max(32, Math.max(energyH2, advEstH2));
 
     // Left: Energy consumption
     doc.setFillColor(255, 253, 234);
@@ -5395,13 +5394,6 @@ async function generateQuotationPdf(opts: {
         .filter(l => /air.?cond|split.*ac/i.test(l.line.category || '') && /inverter/i.test(l.fullName))
         .reduce((s, l) => s + l.kwh * l.line.qty, 0);
       let extraNoteY = ey + 7.0;
-      if (inverterAcKwh2 > 0) {
-        const co2SavedKgMo = Math.round(inverterAcKwh2 * 0.35 * 0.45);
-        const treesPerYear = Math.max(1, Math.round(co2SavedKgMo * 12 / 22));
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(4.8); doc.setTextColor(34, 120, 60);
-        doc.text(`Inverter AC saves equiv. of ${treesPerYear} tree${treesPerYear !== 1 ? 's' : ''} planted/yr`, margin + 3, extraNoteY);
-        extraNoteY += 3.5;
-      }
       if (hasAnyInverter2) {
         const invSavingsKwh = energyLines2
           .filter(l => /inverter/i.test(l.fullName))
@@ -5410,8 +5402,17 @@ async function generateQuotationPdf(opts: {
             const factor = isAc ? 0.35 : 0.30;
             return s + Math.round(l.kwh * l.line.qty * factor / (1 - factor));
           }, 0);
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(4.8); doc.setTextColor(22, 100, 50);
-        doc.text(`Inverter saves ${invSavingsKwh} kWh/mo vs non-inverter`, margin + 3, extraNoteY);
+        const co2SavedKgMo = Math.round(
+          energyLines2
+            .filter(l => /inverter/i.test(l.fullName))
+            .reduce((s, l) => {
+              const isAc = /air.?cond|split.*ac/i.test(l.line.category || '');
+              return s + l.kwh * l.line.qty * (isAc ? 0.35 : 0.30) * 0.45;
+            }, 0)
+        );
+        const treesPerYear = Math.max(1, Math.round(co2SavedKgMo * 12 / 22));
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(4.8); doc.setTextColor(34, 120, 60);
+        doc.text(`Inverter models save ${invSavingsKwh} kWh/mo — equiv. ${treesPerYear} tree${treesPerYear !== 1 ? 's' : ''} planted/yr`, margin + 3, extraNoteY);
         extraNoteY += 3.5;
       }
       doc.setFont('helvetica', 'italic'); doc.setFontSize(4.5); doc.setTextColor(160, 110, 40);
@@ -6773,11 +6774,21 @@ function CustomerCrmTab() {
 
   async function fetchInvoices() {
     setLoading(true);
-    const { data } = await supabase
+    const BASE_COLS = 'id,ref_number,doc_type,customer_name,customer_phone,customer_email,customer_address,customer_cnic,customer_area,sale_type,service_level,discount_reason,subtotal,discount_pct,discount_type,grand_total,advance_pct,payment_status,created_at,inst_total_price,inst_advance_amt,inst_months,inst_monthly_amt,inst_first_date,custom_charges_json,guarantor_name,guarantor_phone,guarantor_cnic,notes';
+    const { data, error } = await supabase
       .from('invoices')
-      .select('id,ref_number,doc_type,customer_name,customer_phone,customer_email,customer_address,customer_cnic,customer_area,sale_type,service_level,discount_reason,subtotal,discount_pct,discount_type,grand_total,advance_pct,payment_status,created_at,inst_total_price,inst_advance_amt,inst_months,inst_monthly_amt,inst_first_date,custom_charges_json,guarantor_name,guarantor_phone,guarantor_cnic,notes,prepared_by')
+      .select(BASE_COLS + ',prepared_by')
       .order('created_at', { ascending: false });
-    if (data) setInvoices(data as InvoiceRow[]);
+    if (data) {
+      setInvoices(data as unknown as InvoiceRow[]);
+    } else if (error) {
+      // prepared_by column may not exist yet (migration pending) — retry without it
+      const { data: fallback } = await supabase
+        .from('invoices')
+        .select(BASE_COLS)
+        .order('created_at', { ascending: false });
+      if (fallback) setInvoices(fallback.map(r => ({ ...r, prepared_by: null })) as InvoiceRow[]);
+    }
     setLoading(false);
   }
 
@@ -8577,6 +8588,8 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
     setAdvanceMode('pct');
     setAdvanceFixedAmt(0);
     setPreparedBy(row.prepared_by ?? '');
+    setStockStatus('Reprint copy');
+    localStorage.removeItem('tajallis-invoice-draft');
     setCashPaySchedule([]);
     setInstTotalPrice(row.inst_total_price ?? 0);
     setInstAdvanceAmt(row.inst_advance_amt ?? 0);
@@ -9031,7 +9044,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           saleType,
           refNumber,
           preparedBy,
-          stockStatus,
+          stockStatus: editingInvoiceId ? 'Reprint copy' : stockStatus,
           validityHours,
           installationType,
           installationLines: instLines,
