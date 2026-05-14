@@ -198,9 +198,13 @@ export function buildDetailedAdvisory(
 
   if (customerType === 'apartment') {
     const paras: string[] = [];
+    const hasAC = lines.some(l => /air.?condition|\bac\b/i.test(l.category));
+    const baseCost = hasAC ? 'PKR 220,000–300,000' : 'PKR 75,000–110,000';
+    const baseKva  = hasAC ? '3–5 kVA' : '1–1.5 kVA';
     paras.push(
-      'UPS / inverter backup is usually more practical than rooftop solar for your address. ' +
-      'A 1–1.2 kVA inverter with 1× tall-tubular battery typically runs one freezer + 3 fans + lights for ~3–4 hrs of load-shed.'
+      `UPS / inverter backup suits apartments better than rooftop solar. ` +
+      `A ${baseKva} system with 2 tall-tubular batteries covers your load during load-shed. ` +
+      `Est. PKR ${baseCost} installed — ask us for a free sizing quote.`
     );
 
     for (const l of lines) {
@@ -209,19 +213,19 @@ export function buildDetailedAdvisory(
         const isInverter = /inverter/i.test(l.name) || /inverter/i.test(cat) || /inverter/i.test(l.keySpec ?? '');
         if (isInverter) {
           paras.push(
-            `This is an inverter ${/freezer/i.test(l.name) ? 'freezer' : 'refrigerator'} — ` +
-            `energy-efficient and well-suited for future solar or UPS integration. Ask us to size a compatible backup.`
+            `Your inverter ${/freezer/i.test(l.name) ? 'freezer' : 'refrigerator'} is UPS-ready — ` +
+            `low inrush current makes it ideal for a 1 kVA backup (est. PKR 65,000–85,000 with 1 battery).`
           );
         } else {
           paras.push(
             `A standard ${/freezer/i.test(l.name) ? 'freezer' : 'refrigerator'} draws ~${l.kwhPerMonth || 30}–${(l.kwhPerMonth || 30) + 10} units/mo. ` +
-            `Upgrading to an inverter model can cut consumption by up to 40%.`
+            `Switching to an inverter model cuts this by ~40% and reduces UPS battery sizing.`
           );
         }
       } else if (/air.?condition|\bac\b/i.test(cat)) {
         paras.push(
-          `Air conditioners are high-load appliances. A 1.5-ton inverter AC draws ~${l.kwhPerMonth || 120} units/mo under typical use. ` +
-          `A 3–5 kVA UPS/inverter would be needed for uninterrupted cooling during load-shedding.`
+          `For uninterrupted AC during load-shedding, a 3–5 kVA inverter UPS is required. ` +
+          `Est. PKR 220,000–300,000 installed (inverter + 4 batteries + installation).`
         );
       }
     }
@@ -291,9 +295,8 @@ export function buildDetailedAdvisory(
       const isInverter = /inverter/i.test(l.name) || /inverter/i.test(cat);
       paras.push(
         isInverter
-          ? `Inverter ACs are solar-ready and pair well with hybrid systems. ` +
-            `A ${l.kwhPerMonth || 120}-unit/month load from this AC can be largely offset by a 2–3kW panel array.`
-          : `Standard ACs have high inrush current. Consider upgrading to an inverter model before adding solar for best ROI.`
+          ? `Inverter ACs pair well with hybrid solar. A ${l.kwhPerMonth || 120}-unit/month AC load can be offset by a 2–3kW panel array (est. already included above). For load-shed backup only, a 3kVA UPS costs ~PKR 220,000 installed.`
+          : `Standard ACs have high inrush current. Upgrade to an inverter model before adding solar. A 3kVA UPS for AC backup costs est. PKR 220,000–280,000 installed.`
       );
     }
   }
