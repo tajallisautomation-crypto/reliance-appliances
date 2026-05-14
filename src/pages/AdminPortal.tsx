@@ -4820,7 +4820,7 @@ async function generateQuotationPdf(opts: {
   // ── ROW 1 RIGHT: Invoice Meta ─────────────────────────────────────────────────
   const _qtAdvAmt2 = opts.advanceAmtFixed && opts.advanceAmtFixed > 0
     ? opts.advanceAmtFixed
-    : Math.round(grandTotal * opts.advancePct / 100);
+    : Math.ceil(Math.round(grandTotal * opts.advancePct / 100) / 100) * 100;
   const _qtBalDue = Math.max(0, grandTotal - (opts.amountPaid ?? (opts.advancePaid ? _qtAdvAmt2 : 0)));
   const _qtPmtStatus = opts.paymentStatus
     ?? (opts.advancePaid && _qtBalDue <= 0 ? 'paid'
@@ -4833,7 +4833,7 @@ async function generateQuotationPdf(opts: {
   const metaFields: Array<[string, string]> = [
     ['REF', opts.refNumber],
     ['DATE', dateStr],
-    ['PREPARED BY', opts.preparedBy || '—'],
+    ['PREPARED BY', opts.preparedBy || 'System'],
     ['SALE TYPE', opts.saleType === 'cash' ? 'Cash' : 'Installment'],
     ...(opts.docType !== 'invoice' ? [['VALID', `${validUntilStr} (${opts.validityHours}h)`] as [string, string]] : []),
     ['STATUS', _qtPmtLabel],
@@ -4912,6 +4912,8 @@ async function generateQuotationPdf(opts: {
       .replace(/\bSolar\s+Plates?\b/gi, 'Solar Panels')
       .replace(/\s{2,}/g, ' ')
       .trim();
+    // Normalise kW → kWh for battery items (energy storage is measured in kWh)
+    s = s.replace(/(\d+\.?\d*)\s*kW\s+(Battery)/gi, (_, n, b) => `${n} kWh ${b}`);
     // Remove trailing separator artifacts
     s = s.replace(/^[\s·\-]+|[\s·\-]+$/g, '').trim();
     return s;
@@ -5036,8 +5038,13 @@ async function generateQuotationPdf(opts: {
         if (line.model && line.model.trim()) nameParts.push(line.model.trim());
         if (_isBatteryAddon) nameParts.push('Added outside base package');
         else if (line.packageNote) nameParts.push(`> ${line.packageNote}`);
+        const _isBatteryLine = /battery/i.test(displayName + (line.category || ''));
         const specsText = line.keySpec
-          ? line.keySpec.split(',').map((s: string) => s.trim())
+          ? line.keySpec.split(',').map((s: string) => {
+              let spec = s.trim();
+              if (_isBatteryLine) spec = spec.replace(/(\d+\.?\d*)\s*kW\b(?!\s*h)/gi, '$1 kWh');
+              return spec;
+            })
               .filter((s: string) => s.length > 2 && !/:\s*(No|N\/A|None|—|NA|-)\s*$/i.test(s))
               .slice(0, 4)
               .map((s: string) => `· ${s}`)
@@ -5220,11 +5227,12 @@ async function generateQuotationPdf(opts: {
     // Advance/payment state — computed here so gtNavyBoxH can shrink when no second row needed
     const _gtAdvAmt = opts.advanceAmtFixed && opts.advanceAmtFixed > 0
       ? opts.advanceAmtFixed
-      : Math.round(grandTotal * opts.advancePct / 100);
-    const _isFullyPaid = opts.advancePaid && _gtAdvAmt >= grandTotal;
-    const _balOnDelivery = Math.max(0, grandTotal - _gtAdvAmt);
-    // Only show second row when there's a meaningful balance or payment confirmation to convey
-    const _needsSecondRow = _isFullyPaid || _balOnDelivery > 0;
+      : Math.ceil(Math.round(grandTotal * opts.advancePct / 100) / 100) * 100;
+    const _amtActuallyPaid = opts.amountPaid ?? (opts.advancePaid ? _gtAdvAmt : 0);
+    const _isFullyPaid = _amtActuallyPaid >= grandTotal && grandTotal > 0;
+    const _balOnDelivery = Math.max(0, grandTotal - _amtActuallyPaid);
+    // Only show second row when some payment has been made (to convey payment state)
+    const _needsSecondRow = _amtActuallyPaid > 0 || _isFullyPaid;
     const gtNavyBoxH = _needsSecondRow ? 18 : 10;
     const pricingH = pricingRows.length * pricingRowH + (gtNavyBoxH + 9);
     doc.setFillColor(250, 250, 250);
@@ -5258,8 +5266,8 @@ async function generateQuotationPdf(opts: {
     doc.text(PKR(grandTotal), rightX + rightW - 3, _gtTextY, { align: 'right' });
 
     if (_needsSecondRow) {
-      const _hasPartialAdvance = !_isFullyPaid && _gtAdvAmt > 0 && _gtAdvAmt < grandTotal;
-      const _balStatusLabel = _isFullyPaid ? 'PAID IN FULL' : _hasPartialAdvance ? 'BALANCE DUE' : 'UNPAID';
+      const _hasPartialAdvance = !_isFullyPaid && _amtActuallyPaid > 0 && _amtActuallyPaid < grandTotal;
+      const _balStatusLabel = _isFullyPaid ? 'PAID IN FULL' : _hasPartialAdvance ? 'BALANCE DUE' : 'AMOUNT DUE';
       const _balStatusColor: [number,number,number] = _isFullyPaid ? [134, 239, 172] : _hasPartialAdvance ? [246, 196, 0] : [252, 165, 165];
       const _balStatusAmt = _isFullyPaid ? grandTotal : _balOnDelivery;
       doc.setDrawColor(45, 85, 140); doc.setLineWidth(0.25);
@@ -5445,7 +5453,7 @@ async function generateQuotationPdf(opts: {
               if (m) inverterKw = Math.max(inverterKw, parseFloat(m[1]) * cqty);
             }
             if (/battery/i.test(cn)) {
-              const m = cn.match(/(\d+\.?\d*)\s*kw/i);
+              const m = cn.match(/(\d+\.?\d*)\s*kwh?/i);
               if (m) batteryKwh += parseFloat(m[1]) * cqty;
             }
             if (/panel|plate/i.test(cn)) {
@@ -5458,6 +5466,14 @@ async function generateQuotationPdf(opts: {
         }
       }
 
+      // Count standalone battery lines not inside a solar package
+      let standaloneBatteryKwh = 0;
+      for (const sl of opts.lines.filter(l => !l.isPackage && /battery/i.test(l.name || ''))) {
+        const m = `${sl.name} ${sl.keySpec || ''}`.match(/(\d+\.?\d*)\s*kwh/i);
+        if (m) standaloneBatteryKwh += parseFloat(m[1]) * sl.qty;
+      }
+      const totalBatteryKwh = batteryKwh + standaloneBatteryKwh;
+
       const systemKw = inverterKw > 0 ? inverterKw : 1;
       const totalPanelKw = panelCount > 0 && panelWatts > 0
         ? Math.round(panelCount * panelWatts / 100) / 10
@@ -5467,14 +5483,22 @@ async function generateQuotationPdf(opts: {
 
       const lRows: string[] = [];
       if (inverterKw > 0)   lRows.push(`Inverter capacity:  ${inverterKw} kW AC`);
-      if (batteryKwh > 0)   lRows.push(`Battery storage:  ${batteryKwh} kWh (LiFePO4)`);
+      if (totalBatteryKwh > 0) {
+        if (standaloneBatteryKwh > 0 && batteryKwh > 0) {
+          lRows.push(`Battery (base):  ${batteryKwh} kWh (LiFePO4)`);
+          lRows.push(`Battery (additional):  ${standaloneBatteryKwh} kWh`);
+          lRows.push(`Total storage:  ${totalBatteryKwh} kWh installed`);
+        } else {
+          lRows.push(`Battery storage:  ${totalBatteryKwh} kWh (LiFePO4)`);
+        }
+      }
       if (totalPanelKw > 0) lRows.push(`Panel array:  ${panelCount}× ${panelWatts}W = ${totalPanelKw} kWp DC`);
       lRows.push(`Max usable load:  ~${Math.round(systemKw * 0.95 * 10) / 10} kW`);
 
       const rRows: string[] = [];
       rRows.push(`Est. monthly output:  ~${monthlyGen} kWh`);
       rRows.push(`KE bill offset:  ~${PKR(billSaving)}/month`);
-      if (batteryKwh > 0) rRows.push(`Night backup:  ~${batteryKwh} kWh stored`);
+      if (totalBatteryKwh > 0) rRows.push(`Night backup:  ~${totalBatteryKwh} kWh stored`);
       if (totalEffKwh3 > 0) {
         const pct = Math.min(100, Math.round(monthlyGen / totalEffKwh3 * 100));
         rRows.push(`Load coverage:  ~${pct}% of ${totalEffKwh3} kWh/mo appliance load`);
@@ -5545,7 +5569,12 @@ async function generateQuotationPdf(opts: {
       const advParas3 = advisory3
         ? advisory3.paragraphs
         : ['Ask us for an energy-saving assessment and solar proposal tailored to your property type.'];
-      const advBodyH3 = 5 + advParas3.reduce((s, p) => s + Math.ceil(p.length / 80) * rowH3 + 1.5, 0);
+      // Use actual text wrapping for accurate height estimation (doc is already instantiated)
+      doc.setFontSize(5.5);
+      const advBodyH3 = 5 + advParas3.reduce((s, p) => {
+        const wrappedLines = doc.splitTextToSize(p, rightW3);
+        return s + wrappedLines.length * rowH3 + 1.5;
+      }, 0);
       const bodyH3 = Math.max(14, Math.max(energyBodyH3, advBodyH3));
       const sectionH3 = hdrH3 + bodyH3;
 
@@ -5614,7 +5643,14 @@ async function generateQuotationPdf(opts: {
           doc.text(`Inverter models save ~${invSav} kWh/mo`, margin + 3, ey3 + 6.5);
         }
         doc.setFont('helvetica', 'italic'); doc.setFontSize(4.5); doc.setTextColor(160, 110, 40);
-        doc.text(`Basis: AC 8h/day | Fridge/Freezer 24h/day | KE ${UNIT_RATE_PKR} PKR/kWh`,
+        const _basisHasAC = energyLines3.some(l => /air.?cond|split.*ac|window.*ac/i.test(l.line.category || ''));
+        const _basisHasFridge = energyLines3.some(l => /refrigerator|fridge|freezer/i.test(l.line.category || ''));
+        const _basisParts = [
+          ...(_basisHasAC ? ['AC 8h/day'] : []),
+          ...(_basisHasFridge ? ['Fridge/Freezer 24h/day'] : []),
+          `KE ${UNIT_RATE_PKR} PKR/kWh`,
+        ];
+        doc.text(`Basis: ${_basisParts.join(' | ')}`,
           margin + 3, ey3 + (hasAnyInverter3 ? 10 : 6.5));
       }
 
@@ -5723,18 +5759,19 @@ async function generateQuotationPdf(opts: {
 
   const advanceAmt = opts.advanceAmtFixed && opts.advanceAmtFixed > 0
     ? opts.advanceAmtFixed
-    : Math.round(grandTotal * opts.advancePct / 100);
+    : Math.ceil(Math.round(grandTotal * opts.advancePct / 100) / 100) * 100;
   const balanceAmt = grandTotal - advanceAmt;
   // When fully paid, skip the payment/bank station
-  const _isFullyPaidDoc = opts.advancePaid && balanceAmt <= 0;
+  const _paidSoFar = opts.amountPaid ?? (opts.advancePaid ? advanceAmt : 0);
+  const _isFullyPaidDoc = _paidSoFar >= grandTotal && grandTotal > 0;
   if (!_isFullyPaidDoc) {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(NAVY);
   doc.text('PAYMENT & BANK TRANSFER', margin, y);
   y += 3.5;
-  const advancePctDisplay = grandTotal > 0 ? Math.round(advanceAmt / grandTotal * 100) : opts.advancePct;
   const showInstTeaser = opts.saleType === 'cash' && grandTotal > 0 && !!opts.instTeaserMonthly && !!opts.instTeaserMonths;
   const hasCashSchedule = (opts.cashPaySchedule?.length ?? 0) > 0;
 
+  const _actBalDue = Math.max(0, grandTotal - _paidSoFar);
   const payBankH = hasCashSchedule ? Math.max(40, 10 + (opts.cashPaySchedule!.length + 1) * 5.0 + 6) : 40;
   const payColW = Math.round(printW * 0.34);  // 64mm — cash payment
   const qrColW = 44;                          // fixed 44mm for QR
@@ -5780,13 +5817,32 @@ async function generateQuotationPdf(opts: {
     doc.text(PKR(grandTotal), margin + payColW - 3, ppy + 3.5, { align: 'right' });
     ppy += 8;
   } else {
-    const payRows: Array<[string, string]> = [
-      ['Advance', `${advancePctDisplay}%  ${PKR(advanceAmt)}`],
-      ['Balance', `${100 - advancePctDisplay}%  ${PKR(balanceAmt)}`],
-      ['Due on', opts.advancePct === 0 ? 'Delivery' : opts.balanceNote || 'Delivery'],
-      ...(opts.docType !== 'invoice' ? [['Valid', opts.validityHours >= 168 ? '7 days' : `${opts.validityHours}h`] as [string, string]] : []),
-      // Installment teaser intentionally omitted — details shown in 12-MONTH OPTION block above
-    ];
+    // Payment state rows — show actual received amounts, not just the planned advance %
+    const payRows: Array<[string, string]> = (() => {
+      if (_isFullyPaidDoc) {
+        return [
+          ['Payment Received', PKR(grandTotal)],
+          ['Balance Due', PKR(0)],
+          ['Status', 'Paid in Full'],
+        ] as Array<[string, string]>;
+      }
+      if (opts.advancePaid && _paidSoFar > 0) {
+        // Partial: advance received, balance still outstanding
+        return [
+          ['Advance Received', PKR(_paidSoFar)],
+          ['Balance Due', PKR(_actBalDue)],
+          ['Due on', opts.balanceNote || 'Delivery'],
+          ...(opts.docType !== 'invoice' ? [['Valid', opts.validityHours >= 168 ? '7 days' : `${opts.validityHours}h`] as [string, string]] : []),
+        ] as Array<[string, string]>;
+      }
+      // Pending — no payment received yet
+      return [
+        ['Amount Due', PKR(grandTotal)],
+        ['Due', 'On delivery'],
+        ['Status', 'Pending Payment'],
+        ...(opts.docType !== 'invoice' ? [['Valid', opts.validityHours >= 168 ? '7 days' : `${opts.validityHours}h`] as [string, string]] : []),
+      ] as Array<[string, string]>;
+    })();
     for (const [lbl, val] of payRows) {
       const isOpt = lbl === 'Installment';
       doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5);
@@ -5913,21 +5969,41 @@ async function generateQuotationPdf(opts: {
   y += 3;
 
   // ── TERMS & CONDITIONS ─────────────────────────────────────────────────────────
-  const tcItems = [
-    'Prices valid until stated validity date.',
-    'Stock subject to confirmation before payment.',
+  const _isSolarDoc = opts.lines.some(l => /solar/i.test(l.category || '') || /solar.*system|solar.*package/i.test(l.name || ''));
+  const _isInvoiceDoc = opts.docType === 'invoice' || opts.docType === 'installment-invoice';
+  const _isFullyPaidForTerms = _paidSoFar >= grandTotal && grandTotal > 0;
+
+  const tcItems: string[] = [
+    // Quotation-only terms
+    ...(!_isInvoiceDoc ? [
+      'Prices valid until stated validity date.',
+      'Stock subject to confirmation before payment.',
+    ] : []),
+    // Universal terms
     'Warranty by official brand / manufacturer.',
     "Tajalli's facilitates; manufacturer decides.",
     'Installation included only if listed in services.',
     'Physical damage: report within 24 hours.',
     'Unboxed goods non-refundable unless warranty.',
-    'Payment terms apply as agreed before dispatch.',
-    'Supply Only: liability at point of handover.',
-    'Payment proof to +92 370 2578788 (WhatsApp).',
-    'Post-install issues: report within 48 hours.',
+    // Invoice-specific terms
+    ...(_isInvoiceDoc && !_isFullyPaidForTerms ? [
+      'Full payment required before or on delivery.',
+      'Ownership transfers only upon full payment receipt.',
+      'Payment proof to +92 370 2578788 (WhatsApp).',
+    ] : []),
+    ...(_isInvoiceDoc && _isFullyPaidForTerms ? [
+      'Payment received in full — no balance outstanding.',
+      'Post-install issues: report within 48 hours.',
+    ] : []),
+    // Quotation-only payment terms
+    ...(!_isInvoiceDoc ? [
+      'Payment terms apply as agreed before dispatch.',
+      'Supply Only: liability at point of handover.',
+      'Payment proof to +92 370 2578788 (WhatsApp).',
+      'Post-install issues: report within 48 hours.',
+    ] : []),
   ];
   // Solar-specific terms
-  const _isSolarDoc = opts.lines.some(l => /solar/i.test(l.category || '') || /solar.*system|solar.*package/i.test(l.name || ''));
   if (_isSolarDoc) {
     tcItems.push('Solar output estimates are indicative; actual generation varies with weather and shading.');
     tcItems.push('Panel performance based on ~5 peak sun hours/day (Karachi avg). Shading reduces yield.');
@@ -6950,6 +7026,14 @@ async function generateServiceReceiptPdf(opts: {
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' });
 
+  const fmtPKPhone = (p: string) => {
+    const d = p.replace(/\D/g, '');
+    if (d.length === 11 && d.startsWith('0')) return '+92 ' + d.slice(1, 4) + ' ' + d.slice(4);
+    if (d.length === 12 && d.startsWith('92')) return '+92 ' + d.slice(2, 5) + ' ' + d.slice(5);
+    if (d.length === 10) return '+92 ' + d.slice(0, 3) + ' ' + d.slice(3);
+    return p;
+  };
+
   let logoData: string | null = null;
   try { logoData = await loadLogoWhite(); } catch { /* fallback */ }
   let qrData: string | null = null;
@@ -7012,7 +7096,7 @@ async function generateServiceReceiptPdf(opts: {
   y += 3.5;
   const custFields: Array<[string, string]> = [
     ['NAME', opts.customerName || '—'],
-    ['PHONE', opts.customerPhone || '—'],
+    ['PHONE', opts.customerPhone ? fmtPKPhone(opts.customerPhone) : '—'],
     ...(opts.customerEmail ? [['EMAIL', opts.customerEmail] as [string, string]] : []),
     ['ADDRESS', opts.customerAddress || '—'],
   ];
@@ -7043,7 +7127,7 @@ async function generateServiceReceiptPdf(opts: {
   const metaRows: Array<[string, string]> = [
     ['REF',         opts.refNumber],
     ['DATE',        dateStr],
-    ['PREPARED BY', opts.preparedBy || '—'],
+    ['PREPARED BY', opts.preparedBy || 'System'],
     ['TYPE',        'Service Receipt'],
     ['STATUS',      _srStatusLabel2],
     ['BALANCE DUE', PKR(_srBalDue2)],
@@ -8885,6 +8969,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
   // ── Customer autofill ──
   interface AutofillCandidate { name: string; email: string; address: string; cnic: string; area: string; customerType: 'house' | 'apartment' | 'commercial' }
   const [autofillCandidate, setAutofillCandidate] = useState<AutofillCandidate | null>(null);
+  const [phoneNameConflict, setPhoneNameConflict] = useState<string | null>(null);
   const [docType, setDocType]                 = useState<'quotation' | 'invoice' | 'installment-invoice' | 'service_receipt'>('quotation');
   const [discount, setDiscount]           = useState(0);
   const [discountRaw, setDiscountRaw]     = useState('0');
@@ -9074,7 +9159,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
   // ── Phone autofill lookup ────────────────────────────────────────────────
   useEffect(() => {
     const digits = customerPhone.replace(/\D/g, '');
-    if (digits.length < 7) { setAutofillCandidate(null); return; }
+    if (digits.length < 7) { setAutofillCandidate(null); setPhoneNameConflict(null); return; }
     const t = setTimeout(async () => {
       const { data } = await supabase
         .from('invoices')
@@ -9084,10 +9169,18 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
         .limit(1);
       if (data && data.length > 0) {
         const r = data[0];
-        // Only suggest if at least name is present and we haven't already auto-populated from it
-        if (r.customer_name && r.customer_name !== customerName) {
+        const foundName = (r.customer_name ?? '').trim();
+        const enteredName = customerName.trim();
+        // Detect name conflict: same phone, different non-empty name already entered
+        if (foundName && enteredName && foundName.toLowerCase() !== enteredName.toLowerCase()) {
+          setPhoneNameConflict(foundName);
+        } else {
+          setPhoneNameConflict(null);
+        }
+        // Only suggest autofill if at least name is present and different from current
+        if (foundName && foundName !== enteredName) {
           setAutofillCandidate({
-            name: r.customer_name ?? '',
+            name: foundName,
             email: r.customer_email ?? '',
             address: r.customer_address ?? '',
             cnic: r.customer_cnic ?? '',
@@ -9099,6 +9192,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
         }
       } else {
         setAutofillCandidate(null);
+        setPhoneNameConflict(null);
       }
     }, 400);
     return () => clearTimeout(t);
@@ -10014,6 +10108,17 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                 Autofill
               </button>
               <button onClick={() => setAutofillCandidate(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+          {phoneNameConflict && !autofillCandidate && (
+            <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-300 rounded-xl text-xs">
+              <span className="text-amber-600 mt-0.5">⚠</span>
+              <span className="text-amber-700 flex-1">
+                This phone was previously saved as <strong>"{phoneNameConflict}"</strong>. Verify the name before generating.
+              </span>
+              <button onClick={() => setPhoneNameConflict(null)} className="text-amber-400 hover:text-amber-600 shrink-0">
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
