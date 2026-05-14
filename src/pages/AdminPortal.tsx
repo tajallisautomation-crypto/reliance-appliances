@@ -5674,7 +5674,7 @@ async function generateQuotationPdf(opts: {
           : 'ADVISORY')
         : 'ADVISORY';
       const advSubColor: [number, number, number] = advisory3?.color === 'blue'
-        ? [29, 78, 216] : [21, 128, 61];
+        ? [18, 63, 115] : [21, 128, 61];
       doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5);
       doc.setTextColor(...(advisory3 ? advSubColor : [70, 70, 70] as [number, number, number]));
       doc.text(advSubTitle, rightX3, sy3 + 4);
@@ -5919,7 +5919,7 @@ async function generateQuotationPdf(opts: {
     const trustStatW = Math.round(printW * 0.67);
     const commAreaX = margin + trustStatW;
     const commAreaW = printW - trustStatW;
-    doc.setFillColor(26, 26, 26);
+    doc.setFillColor(11, 37, 69);
     doc.rect(margin, y, trustStatW, trustH, 'F');
     doc.setFillColor(11, 37, 69);
     doc.rect(commAreaX, y, commAreaW, trustH, 'F');
@@ -6349,7 +6349,7 @@ async function generateInstallmentAdvancePdf(opts: {
   if (chargedAdvServices.length > 0 || includedAdvServices.length > 0) {
     const svcBodyAdv = [...chargedAdvServices, ...includedAdvServices].map(svc => {
       const statusLabel = svc.status === 'charged' ? 'BILLED' : 'INCL';
-      const statusColor: [number, number, number] = svc.status === 'charged' ? [246, 196, 0] : [22, 163, 74];
+      const statusColor: [number, number, number] = svc.status === 'charged' ? [18, 63, 115] : [22, 163, 74];
       const valueStr = svc.display_value
         ? svc.display_value
         : svc.status === 'charged' ? PKR(svc.charged_amount) : 'Included';
@@ -6520,7 +6520,7 @@ async function generateInstallmentAdvancePdf(opts: {
         : _advAdvisory.color === 'green' ? 'SOLAR ADVISORY'
         : 'ADVISORY')
       : 'ADVISORY';
-    const _advSubColor: [number, number, number] = _advAdvisory?.color === 'blue' ? [29, 78, 216] : [21, 128, 61];
+    const _advSubColor: [number, number, number] = _advAdvisory?.color === 'blue' ? [18, 63, 115] : [21, 128, 61];
     doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5);
     doc.setTextColor(...(_advAdvisory ? _advSubColor : [70, 70, 70] as [number, number, number]));
     doc.text(_advSubTitle, _advRX, _advSy + 4);
@@ -6583,7 +6583,7 @@ async function generateInstallmentAdvancePdf(opts: {
     const _advTrustStatW = Math.round(printW * 0.67);
     const _advCommX = margin + _advTrustStatW;
     const _advCommW = printW - _advTrustStatW;
-    doc.setFillColor(26, 26, 26);
+    doc.setFillColor(11, 37, 69);
     doc.rect(margin, y, _advTrustStatW, _advTrustH, 'F');
     doc.setFillColor(11, 37, 69);
     doc.rect(_advCommX, y, _advCommW, _advTrustH, 'F');
@@ -6907,7 +6907,7 @@ async function generateInstallmentPaymentPdf(opts: {
     const _pyTrustStatW = Math.round(printW * 0.67);
     const _pyCommX = margin + _pyTrustStatW;
     const _pyCommW = printW - _pyTrustStatW;
-    doc.setFillColor(26, 26, 26);
+    doc.setFillColor(11, 37, 69);
     doc.rect(margin, y, _pyTrustStatW, _pyTrustH, 'F');
     doc.setFillColor(11, 37, 69);
     doc.rect(_pyCommX, y, _pyCommW, _pyTrustH, 'F');
