@@ -4708,9 +4708,9 @@ async function generateQuotationPdf(opts: {
   doc.setFillColor(NAVY);
   doc.rect(0, 0, W, HEADER_H, 'F');
 
-  // Right meta zone — dark navy band for strong visual separation
+  // Right meta zone — aligned with right column (rightX) for visual consistency with body layout
   doc.setFillColor(11, 37, 69);
-  doc.rect(W - 62, 0, 62, HEADER_H, 'F');
+  doc.rect(rightX, 0, W - rightX, HEADER_H, 'F');
 
   // Logo — left
   if (logoData) {
@@ -4739,9 +4739,9 @@ async function generateQuotationPdf(opts: {
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
   doc.text(dateStr, W - margin, 28, { align: 'right' });
 
-  // Vertical separator
+  // Vertical separator — aligns with right column left edge
   doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
-  doc.line(W - 64, 3, W - 64, HEADER_H - 3);
+  doc.line(rightX, 3, rightX, HEADER_H - 3);
   doc.setLineWidth(0.2);
 
   // Contact strip — full width at very bottom of header
@@ -5147,7 +5147,16 @@ async function generateQuotationPdf(opts: {
 
     const pricingRowH = 4.8;
     const reasonH = (discountAmt > 0 && opts.discountReason) ? 7 : 0;
-    const pricingH = pricingRows.length * pricingRowH + 27 + reasonH;
+    // Advance/payment state — computed here so gtNavyBoxH can shrink when no second row needed
+    const _gtAdvAmt = opts.advanceAmtFixed && opts.advanceAmtFixed > 0
+      ? opts.advanceAmtFixed
+      : Math.round(grandTotal * opts.advancePct / 100);
+    const _isFullyPaid = opts.advancePaid && _gtAdvAmt >= grandTotal;
+    const _balOnDelivery = Math.max(0, grandTotal - _gtAdvAmt);
+    // Only show second row when there's a meaningful balance or payment confirmation to convey
+    const _needsSecondRow = _isFullyPaid || _balOnDelivery > 0;
+    const gtNavyBoxH = _needsSecondRow ? 18 : 10;
+    const pricingH = pricingRows.length * pricingRowH + (gtNavyBoxH + 9) + reasonH;
     doc.setFillColor(250, 250, 250);
     doc.rect(rightX, rightY, rightW, pricingH, 'F');
     doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
@@ -5169,29 +5178,23 @@ async function generateQuotationPdf(opts: {
     doc.line(rightX + 3, pry - 1, rightX + rightW - 3, pry - 1);
 
     doc.setFillColor(NAVY);
-    doc.rect(rightX, pry - 1, rightW, 18, 'F');
+    doc.rect(rightX, pry - 1, rightW, gtNavyBoxH, 'F');
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
-    doc.text('GRAND TOTAL', rightX + 3, pry + 5.5);
-    doc.text(PKR(grandTotal), rightX + rightW - 3, pry + 5.5, { align: 'right' });
+    const _gtTextY = _needsSecondRow ? pry + 5.5 : pry + 4.5;
+    doc.text('GRAND TOTAL', rightX + 3, _gtTextY);
+    doc.text(PKR(grandTotal), rightX + rightW - 3, _gtTextY, { align: 'right' });
 
-    const _gtAdvAmt = opts.advanceAmtFixed && opts.advanceAmtFixed > 0
-      ? opts.advanceAmtFixed
-      : Math.round(grandTotal * opts.advancePct / 100);
-    const _isFullyPaid = opts.advancePaid && _gtAdvAmt >= grandTotal;
-    const _balOnDelivery = Math.max(0, grandTotal - _gtAdvAmt);
-    const _balStatusLabel = _isFullyPaid
-      ? 'AMOUNT PAID'
-      : _balOnDelivery === 0 ? 'ADVANCE DUE' : 'BALANCE DUE';
-    const _balStatusAmt = _isFullyPaid ? grandTotal
-      : _balOnDelivery === 0 ? grandTotal
-      : _balOnDelivery;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(246, 196, 0);
-    doc.text(_balStatusLabel, rightX + 3, pry + 13);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(255, 255, 255);
-    doc.text(PKR(_balStatusAmt), rightX + rightW - 3, pry + 13, { align: 'right' });
+    if (_needsSecondRow) {
+      const _balStatusLabel = _isFullyPaid ? 'AMOUNT PAID' : 'BALANCE DUE';
+      const _balStatusAmt = _isFullyPaid ? grandTotal : _balOnDelivery;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(246, 196, 0);
+      doc.text(_balStatusLabel, rightX + 3, pry + 13);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(255, 255, 255);
+      doc.text(PKR(_balStatusAmt), rightX + rightW - 3, pry + 13, { align: 'right' });
+    }
 
     if (discountAmt > 0 && opts.discountReason) {
-      const calloutY = pry + 19;
+      const calloutY = pry + gtNavyBoxH + 1;
       doc.setFillColor(235, 242, 250);
       doc.rect(rightX, calloutY, rightW, 7, 'F');
       doc.setDrawColor(18, 63, 115); doc.setLineWidth(0.3);
@@ -5346,10 +5349,10 @@ async function generateQuotationPdf(opts: {
     const hasInverterAcKwh2 = energyLines2.some(l => /air.?cond|split.*ac/i.test(l.line.category || '') && /inverter/i.test(l.fullName));
     const hasAnyInverter2 = energyLines2.some(l => /inverter/i.test(l.fullName));
     const energyH2 = 7 + dispRows2 * pwrRowH2 + 14 + (hasAnyInverter2 ? 3.5 : 0);
-    // Estimate advisory height without paragraph limit so strip can stretch to fill whitespace
+    // Estimate advisory height: 75 chars/line matches actual jsPDF 5.5pt Helvetica at ~88mm column width
     const advParas2Preview = advisory2 ? advisory2.paragraphs : [''];
     const advEstH2 = 9 + advParas2Preview.reduce(
-      (sum, p) => sum + Math.ceil(p.length / 48) * 3.2 + 2, 0
+      (sum, p) => sum + Math.ceil(p.length / 75) * 3.2 + 2, 0
     );
     const stripH2 = Math.max(32, Math.max(energyH2, advEstH2));
 
@@ -5750,13 +5753,6 @@ async function generateQuotationPdf(opts: {
     doc.text(tcItems[i], tx + 4, tcy, { maxWidth: colTcW - 5 });
   }
 
-  // ── FOOTER ────────────────────────────────────────────────────────────────────
-  const footerY = 286;
-  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.3);
-  doc.line(margin, footerY, W - margin, footerY);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(120, 120, 120);
-  doc.text(`${opts.refNumber}  ·  ${badgeLabel}  ·  PAGE 1 OF 1${opts.showNtn ? '  ·  NTN: 42101-3836602-3' : ''}`, margin, footerY + 4.5);
-  doc.text('tajallis.com.pk  ·  support@tajallis.com.pk', W - margin, footerY + 4.5, { align: 'right' });
 
   return doc.output('blob');
 }
