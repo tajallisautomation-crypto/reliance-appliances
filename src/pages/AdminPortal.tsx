@@ -4922,7 +4922,7 @@ async function generateQuotationPdf(opts: {
   const itemsBody: any[] = [];
   for (const cat of categoryOrder) {
     itemsBody.push([{
-      content: (categoryDisplayName[cat] || cat).toUpperCase(), colSpan: 4,
+      content: (categoryDisplayName[cat] || cat).toUpperCase(), colSpan: 5,
       styles: { fillColor: [11, 37, 69], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6, cellPadding: { top: 1.0, bottom: 1.0, left: 2 } },
     }]);
     for (const line of grouped[cat]) {
@@ -4936,11 +4936,11 @@ async function generateQuotationPdf(opts: {
 
         // Package header row
         const hdrParts: string[] = [displayName];
-        if (line.model) hdrParts.push(`Model: ${line.model}`);
+        if (line.model) hdrParts.push(line.model);
         if (line.packageNote) hdrParts.push(line.packageNote);
-        if (line.kwhPerMonth > 0) hdrParts.push(`~${line.kwhPerMonth} kWh/mo`);
         itemsBody.push([
           { content: hdrParts.join('\n'), styles: { fontStyle: 'bold' as const, textColor: [20, 20, 20] as [number,number,number], fillColor: [255, 252, 245] as [number,number,number] } },
+          { content: '', styles: { fillColor: [255, 252, 245] as [number,number,number] } },
           { content: String(line.qty), styles: { fontStyle: 'bold' as const, fillColor: [255, 252, 245] as [number,number,number] } },
           { content: 'Package', styles: { fontStyle: 'italic' as const, textColor: [140, 80, 20] as [number,number,number], fillColor: [255, 252, 245] as [number,number,number] } },
           { content: PKR(line.qty * line.unitPrice), styles: { fontStyle: 'bold' as const, fillColor: [255, 252, 245] as [number,number,number] } },
@@ -4955,7 +4955,7 @@ async function generateQuotationPdf(opts: {
           const grpComps = includedComps.filter((c: PackageComponent) => (c.group || 'core') === grp);
           if (grpComps.length === 0) continue;
           itemsBody.push([{
-            content: GRP_LABELS[grp], colSpan: 4,
+            content: GRP_LABELS[grp], colSpan: 5,
             styles: {
               fillColor: [11, 37, 69] as [number,number,number],
               textColor: [185, 210, 240] as [number,number,number],
@@ -4969,7 +4969,7 @@ async function generateQuotationPdf(opts: {
             const pwTag = pwW ? `  ${pwW[1]}W` : '';
             const lineText = comp.qty > 1 ? `· ${comp.qty}×  ${shortName}${pwTag}` : `· ${shortName}${pwTag}`;
             itemsBody.push([{
-              content: lineText, colSpan: 4,
+              content: lineText, colSpan: 5,
               styles: {
                 textColor: [55, 65, 81] as [number,number,number],
                 fontSize: 5,
@@ -4982,7 +4982,7 @@ async function generateQuotationPdf(opts: {
         // Add-on sub-section
         if (addonComps.length > 0) {
           itemsBody.push([{
-            content: 'ADD-ONS', colSpan: 4,
+            content: 'ADD-ONS', colSpan: 5,
             styles: {
               fillColor: [253, 237, 225] as [number,number,number],
               textColor: [180, 60, 0] as [number,number,number],
@@ -4995,6 +4995,7 @@ async function generateQuotationPdf(opts: {
             const aText = comp.qty > 1 ? `· ${comp.qty}×  ${aShort}` : `· ${aShort}`;
             itemsBody.push([
               { content: aText, styles: { textColor: [160, 50, 0] as [number,number,number], fontSize: 5, cellPadding: { top: 0.4, bottom: 0.4, left: 14, right: 4 } } },
+              '',
               { content: String(comp.qty), styles: { textColor: [110, 110, 110] as [number,number,number], halign: 'right' as const } },
               { content: PKR(comp.addonPrice), styles: { halign: 'right' as const } },
               { content: PKR(comp.qty * comp.addonPrice), styles: { fontStyle: 'bold' as const, halign: 'right' as const } },
@@ -5003,12 +5004,20 @@ async function generateQuotationPdf(opts: {
         }
       } else {
         // ── Regular line ──────────────────────────────────────────────────────
+        // Model number only in product cell; keySpec bullets go in dedicated SPECS column
         const nameParts = [displayName];
-        // Model number on a compact secondary line — no keySpec bullets (redundant with name) or kWh (shown in energy strip)
         if (line.model && line.model.trim()) nameParts.push(line.model.trim());
         if (line.packageNote) nameParts.push(`> ${line.packageNote}`);
+        const specsText = line.keySpec
+          ? line.keySpec.split(',').map((s: string) => s.trim())
+              .filter((s: string) => s.length > 2 && !/:\s*(No|N\/A|None|—|NA|-)\s*$/i.test(s))
+              .slice(0, 4)
+              .map((s: string) => `· ${s}`)
+              .join('\n')
+          : '';
         itemsBody.push([
           nameParts.join('\n'),
+          specsText,
           String(line.qty),
           PKR(line.unitPrice),
           PKR(line.qty * line.unitPrice),
@@ -5019,23 +5028,23 @@ async function generateQuotationPdf(opts: {
 
   if (opts.installationLines.length > 0) {
     itemsBody.push([{
-      content: 'INSTALLATION', colSpan: 4,
+      content: 'INSTALLATION', colSpan: 5,
       styles: { fillColor: [11, 37, 69], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5, cellPadding: { top: 1.5, bottom: 1.5, left: 2 } },
     }]);
     for (const inst of opts.installationLines) {
-      itemsBody.push([inst.name, '1', PKR(inst.amount), PKR(inst.amount)]);
+      itemsBody.push([inst.name, '', '1', PKR(inst.amount), PKR(inst.amount)]);
     }
-    itemsBody.push(['Post-Install Check', '1', 'Complimentary', 'PKR 0']);
+    itemsBody.push(['Post-Install Check', '', '1', 'Complimentary', 'PKR 0']);
   }
 
   // ── Custom charges section ───────────────────────────────────────────────
   if ((opts.customCharges ?? []).length > 0) {
     itemsBody.push([{
-      content: 'ADDITIONAL CHARGES', colSpan: 4,
+      content: 'ADDITIONAL CHARGES', colSpan: 5,
       styles: { fillColor: [11, 37, 69] as [number,number,number], textColor: [255, 255, 255] as [number,number,number], fontStyle: 'bold' as const, fontSize: 6.5, cellPadding: { top: 1.5, bottom: 1.5, left: 2 } },
     }]);
     for (const cc of opts.customCharges!) {
-      itemsBody.push([cc.name, '1', PKR(cc.amount), PKR(cc.amount)]);
+      itemsBody.push([cc.name, '', '1', PKR(cc.amount), PKR(cc.amount)]);
     }
   }
 
@@ -5043,15 +5052,16 @@ async function generateQuotationPdf(opts: {
     startY: leftY,
     margin: { left: margin, right: leftAutoMarginRight },
     head: [
-      [{ content: 'ITEMS', colSpan: 4, styles: { fillColor: NAVY, textColor: [255,255,255] as [number,number,number], fontSize: 7, fontStyle: 'bold' as const, cellPadding: { top: 2, bottom: 2, left: 3 } } }],
-      ['PRODUCT / SPECS', 'QTY', 'UNIT', 'TOTAL'],
+      [{ content: 'ITEMS', colSpan: 5, styles: { fillColor: NAVY, textColor: [255,255,255] as [number,number,number], fontSize: 7, fontStyle: 'bold' as const, cellPadding: { top: 2, bottom: 2, left: 3 } } }],
+      ['PRODUCT', 'SPECS', 'QTY', 'UNIT', 'TOTAL'],
     ],
     body: itemsBody,
     columnStyles: {
-      0: { cellWidth: 'auto' },
-      1: { cellWidth: 8, halign: 'right' },
-      2: { cellWidth: 22, halign: 'right' },
-      3: { cellWidth: 22, halign: 'right', fontStyle: 'bold' },
+      0: { cellWidth: 42 },
+      1: { cellWidth: 26, fontSize: 5, textColor: [80, 80, 80] as [number, number, number] },
+      2: { cellWidth: 8, halign: 'right' },
+      3: { cellWidth: 18, halign: 'right' },
+      4: { cellWidth: 18, halign: 'right', fontStyle: 'bold' },
     },
     headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6 },
     bodyStyles: { fontSize: 6, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
@@ -5138,9 +5148,8 @@ async function generateQuotationPdf(opts: {
       ...(customChargesTotal > 0 ? [['Additional Charges', PKR(customChargesTotal)] as [string, string]] : []),
     ];
     if (discountAmt > 0) {
-      const discLabel = opts.discountMode === 'fixed'
-        ? `${opts.discountType} Discount (fixed)`
-        : `${opts.discountType} Discount (${opts.discount}%)`;
+      const discTypePrefix = opts.discountType ? `${opts.discountType} ` : '';
+      const discLabel = `${discTypePrefix}Discount`;
       pricingRows.push([discLabel, `- ${PKR(discountAmt)}`]);
     }
 
@@ -5371,7 +5380,8 @@ async function generateQuotationPdf(opts: {
       let ey = y + 9;
       for (const pl of energyLines2.slice(0, 6)) {
         doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(80, 60, 0);
-        const pNameFit = doc.splitTextToSize(pl.fullName, eColW2 - 22);
+        const energyLabel = (pl.line.model && pl.line.model.trim()) ? pl.line.model.trim() : pl.fullName;
+        const pNameFit = doc.splitTextToSize(energyLabel, eColW2 - 22);
         doc.text(`· ${pNameFit[0]}`, margin + 3, ey);
         const kwhLabel = `${pl.kwh * pl.line.qty} kWh/mo${pl.isEst ? ' est.' : ''}`;
         doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(101, 61, 0);

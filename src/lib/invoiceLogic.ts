@@ -197,37 +197,65 @@ export function buildDetailedAdvisory(
   );
 
   if (customerType === 'apartment') {
-    const paras: string[] = [];
+    const UPS_COST_PER_KW = 120_000;
+    const PKRfmtUps = (n: number) => `PKR ${Math.round(n).toLocaleString('en-PK')}`;
+
+    // Estimate peak power demand per product type
+    let peakKw = 0;
+    for (const l of lines) {
+      const cat = l.category.toLowerCase();
+      if (/air.?condition|\bac\b/i.test(cat)) {
+        peakKw += 1.8 * l.qty; // 1.5–1.7 ton inverter AC running load
+      } else if (/deep.?freez|vertical.?freez|chest.?freez/i.test(cat) || /freezer/i.test(l.name)) {
+        peakKw += 0.25 * l.qty;
+      } else if (/refrigerator|fridge/i.test(cat) || /fridge/i.test(l.name)) {
+        peakKw += 0.15 * l.qty;
+      } else if (l.kwhPerMonth > 0) {
+        peakKw += (l.kwhPerMonth / 30 / 8) * l.qty; // generic: assume 8h/day
+      }
+    }
+    const upsKw = Math.max(1, Math.ceil(peakKw * 2) / 2); // round to nearest 0.5 kW
+    const upsCost = upsKw * UPS_COST_PER_KW;
     const hasAC = lines.some(l => /air.?condition|\bac\b/i.test(l.category));
-    const baseCost = hasAC ? 'PKR 220,000–300,000' : 'PKR 75,000–110,000';
-    const baseKva  = hasAC ? '3–5 kVA' : '1–1.5 kVA';
+
+    const paras: string[] = [];
     paras.push(
       `UPS / inverter backup suits apartments better than rooftop solar. ` +
-      `A ${baseKva} system with 2 tall-tubular batteries covers your load during load-shed. ` +
-      `Est. PKR ${baseCost} installed — ask us for a free sizing quote.`
+      `A ${upsKw} kVA system covers your load during load-shed. ` +
+      `Est. ${PKRfmtUps(upsCost)} installed (${upsKw} kW x PKR 120,000/kW) — ask us for a free sizing quote.`
     );
 
     for (const l of lines) {
       const cat = l.category.toLowerCase();
       if (/freezer|refrigerator|fridge/i.test(cat) || /freezer|fridge/i.test(l.name)) {
         const isInverter = /inverter/i.test(l.name) || /inverter/i.test(cat) || /inverter/i.test(l.keySpec ?? '');
+        const itemKw = /deep.?freez|vertical.?freez/i.test(cat) || /freezer/i.test(l.name) ? 0.25 : 0.15;
+        const itemCost = itemKw * UPS_COST_PER_KW;
         if (isInverter) {
           paras.push(
             `Your inverter ${/freezer/i.test(l.name) ? 'freezer' : 'refrigerator'} is UPS-ready — ` +
-            `low inrush current makes it ideal for a 1 kVA backup (est. PKR 65,000–85,000 with 1 battery).`
+            `low inrush current means a ${itemKw} kW UPS (est. ${PKRfmtUps(itemCost)}) handles it comfortably.`
           );
         } else {
           paras.push(
             `A standard ${/freezer/i.test(l.name) ? 'freezer' : 'refrigerator'} draws ~${l.kwhPerMonth || 30}–${(l.kwhPerMonth || 30) + 10} units/mo. ` +
-            `Switching to an inverter model cuts this by ~40% and reduces UPS battery sizing.`
+            `Switching to an inverter model cuts this by ~40% and reduces UPS sizing.`
           );
         }
       } else if (/air.?condition|\bac\b/i.test(cat)) {
+        const acKw = 1.8;
+        const acCost = acKw * UPS_COST_PER_KW;
         paras.push(
-          `For uninterrupted AC during load-shedding, a 3–5 kVA inverter UPS is required. ` +
-          `Est. PKR 220,000–300,000 installed (inverter + 4 batteries + installation).`
+          `For uninterrupted AC during load-shedding, a ${acKw} kW UPS minimum is required. ` +
+          `Est. ${PKRfmtUps(acCost)} for AC backup alone (inverter + batteries + installation).`
         );
       }
+    }
+
+    if (!hasAC && paras.length === 1) {
+      paras.push(
+        `A basic 1 kW UPS (est. ${PKRfmtUps(UPS_COST_PER_KW)}) typically runs a freezer + fans + lights for 3–4 hrs.`
+      );
     }
 
     return { sectionLabel: 'FOR APARTMENT CUSTOMERS', color: 'blue', paragraphs: paras };
@@ -295,8 +323,8 @@ export function buildDetailedAdvisory(
       const isInverter = /inverter/i.test(l.name) || /inverter/i.test(cat);
       paras.push(
         isInverter
-          ? `Inverter ACs pair well with hybrid solar. A ${l.kwhPerMonth || 120}-unit/month AC load can be offset by a 2–3kW panel array (est. already included above). For load-shed backup only, a 3kVA UPS costs ~PKR 220,000 installed.`
-          : `Standard ACs have high inrush current. Upgrade to an inverter model before adding solar. A 3kVA UPS for AC backup costs est. PKR 220,000–280,000 installed.`
+          ? `Inverter ACs pair well with hybrid solar. A ${l.kwhPerMonth || 120}-unit/month AC load can be offset by a 2–3kW panel array (est. above). For load-shed UPS only: 1.8 kW x PKR 120,000/kW = est. PKR 216,000 installed.`
+          : `Standard ACs have high inrush current. Upgrade to an inverter model before adding solar. UPS backup for AC: ~1.8 kW x PKR 120,000/kW = est. PKR 216,000 installed.`
       );
     }
   }
