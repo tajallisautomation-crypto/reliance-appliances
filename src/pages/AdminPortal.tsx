@@ -5786,8 +5786,8 @@ async function generateQuotationPdf(opts: {
   y += 3;
 
   // ── TRUST + COMMUNITY STRIP ───────────────────────────────────────────────────
-  if (opts.docType === 'quotation') {
-    // Full 16mm strip with stats + QR codes (quotations only)
+  {
+    // Full 16mm strip with stats + QR codes (all doc types)
     const trustH = 16;
     const trustStatW = Math.round(printW * 0.67);
     const commAreaX = margin + trustStatW;
@@ -5848,14 +5848,6 @@ async function generateQuotationPdf(opts: {
       doc.text('Emergency Support', waCx, waQrY + QR_SIZE + 4, { align: 'center' });
     }
     y += trustH + 2;
-  } else {
-    // Compact 8mm trust bar for invoices and receipts
-    const _trustH2 = 8;
-    doc.setFillColor(26, 26, 26);
-    doc.rect(margin, y, printW, _trustH2, 'F');
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(190, 190, 190);
-    doc.text('11+ yrs  ·  24,000+ Orders Fulfilled  ·  14,000+ Locations Served  ·  1,600+ Community', W / 2, y + _trustH2 / 2 + 1.5, { align: 'center' });
-    y += _trustH2 + 2;
   }
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
   doc.line(margin, y, W - margin, y);
@@ -5945,6 +5937,7 @@ async function generateInstallmentAdvancePdf(opts: {
   instFirstDate: string;
   showNtn?: boolean;
   isApartmentClient?: boolean;
+  customerType?: 'house' | 'apartment' | 'commercial';
 }): Promise<Blob> {
   const NAVY  = '#123F73';
   const DNAV  = '#0B2545';
@@ -5963,6 +5956,10 @@ async function generateInstallmentAdvancePdf(opts: {
   try { logoData = await loadLogoWhite(); } catch { /* fallback */ }
   let qrData: string | null = null;
   try { qrData = await loadQrBase64(); } catch { /* skip */ }
+  let fbQrDataAdv: string | null = null;
+  try { fbQrDataAdv = await generateQrDataUrl('https://www.facebook.com/share/g/18be5ayTCF/'); } catch { /* skip */ }
+  let waQrDataAdv: string | null = null;
+  try { waQrDataAdv = await generateQrDataUrl('https://wa.me/923702578788'); } catch { /* skip */ }
 
   // ── 1. Unified header (matches main invoice) ─────────────────────────────
   const HEADER_H = 36;
@@ -6066,7 +6063,9 @@ async function generateInstallmentAdvancePdf(opts: {
   doc.line(margin, y - 1, W - margin, y - 1);
   doc.setLineWidth(0.2);
   const productSubtotal = opts.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
-  const discountAmt = Math.round(productSubtotal * opts.discount / 100);
+  const discountAmt = opts.discountMode === 'fixed'
+    ? Math.min(opts.discount, productSubtotal)
+    : Math.round(productSubtotal * opts.discount / 100);
   const cashPrice = productSubtotal - discountAmt;
 
   const categoryOrder: string[] = [];
@@ -6258,6 +6257,131 @@ async function generateInstallmentAdvancePdf(opts: {
     y += gtH + 6;
   }
 
+  // ── 6e. Energy Consumption & UPS/Solar Advisory ───────────────────────────
+  {
+    const _advCatKwh = (kwh: number, cat: string, nm: string): { kwh: number; isEst: boolean } => {
+      if (kwh > 0) return { kwh, isEst: false };
+      const c = cat.toLowerCase(), n = nm.toLowerCase();
+      if (/air.?cond|split\s+ac|window\s+ac/i.test(c) || /\bac\b/.test(n))            return { kwh: 240, isEst: true };
+      if (/refrigerator|fridge/i.test(c) || /fridge|refrig/i.test(n))                 return { kwh: 100, isEst: true };
+      if (/deep.?freez|chest.?freez|vertical.?freez/i.test(c) || /freezer/i.test(n))  return { kwh: 150, isEst: true };
+      if (/washing|washer/i.test(c))                                                   return { kwh: 30,  isEst: true };
+      if (/microwave/i.test(c))                                                        return { kwh: 12,  isEst: true };
+      if (/water.?heater|geyser/i.test(c))                                             return { kwh: 45,  isEst: true };
+      if (/television|led.*tv/i.test(c) || /\btv\b/.test(n))                          return { kwh: 10,  isEst: true };
+      return { kwh: 0, isEst: false };
+    };
+    const _advEnergyLines = opts.lines
+      .map(l => {
+        const fullName = l.displayPrefix ? `${l.displayPrefix}${l.name}` : l.name;
+        const { kwh, isEst } = _advCatKwh(l.kwhPerMonth || 0, l.category || '', fullName);
+        return { line: l, fullName, kwh, isEst };
+      })
+      .filter(l => l.kwh > 0 && !/solar/i.test(l.line.category || ''));
+    const _advTotalKwh = _advEnergyLines.reduce((s, l) => s + l.kwh * l.line.qty, 0);
+    const _advHasInv = _advEnergyLines.some(l => /inverter/i.test(l.fullName));
+    const _advRowH = 3.2; const _advHdrH = 5.5;
+    const _advMidX = margin + Math.round(printW * 0.48);
+    const _advLW = _advMidX - margin; const _advRW = margin + printW - _advMidX - 3; const _advRX = _advMidX + 3;
+    const _advAdvisoryLines = opts.lines.map(l => ({
+      name: l.displayPrefix ? `${l.displayPrefix}${l.name}` : l.name,
+      category: l.category || '',
+      kwhPerMonth: _advEnergyLines.find(e => e.line === l)?.kwh ?? (l.kwhPerMonth || 0),
+      qty: l.qty,
+      keySpec: l.keySpec,
+    }));
+    const _advAdvisory = buildDetailedAdvisory(opts.customerType ?? 'house', _advAdvisoryLines);
+    const _advDispRows = Math.min(_advEnergyLines.length, 6);
+    const _advBodyH = _advEnergyLines.length === 0
+      ? 8
+      : 5 + _advDispRows * _advRowH + 13 + (_advHasInv ? 3.5 : 0);
+    const _advParas = _advAdvisory
+      ? _advAdvisory.paragraphs
+      : ['Ask us for an energy-saving assessment and solar proposal tailored to your property type.'];
+    const _advAdvH = 5 + _advParas.reduce((s, p) => s + Math.ceil(p.length / 80) * _advRowH + 1.5, 0);
+    const _advSecBodyH = Math.max(14, Math.max(_advBodyH, _advAdvH));
+    const _advSecH = _advHdrH + _advSecBodyH;
+    const _advTitle = _advAdvisory
+      ? (_advAdvisory.color === 'blue'  ? 'ENERGY CONSUMPTION & UPS ADVISORY'
+        : _advAdvisory.color === 'green' ? 'ENERGY CONSUMPTION & SOLAR ADVISORY'
+        : 'ENERGY OVERVIEW')
+      : 'ENERGY OVERVIEW';
+    doc.setFillColor(255, 253, 234);
+    doc.rect(margin, y, printW, _advSecH, 'F');
+    doc.setFillColor(NAVY);
+    doc.rect(margin, y, printW, _advHdrH, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
+    doc.text(_advTitle, margin + 3, y + 3.8);
+    if (_advTotalKwh > 0) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(196, 213, 236);
+      doc.text(`${_advTotalKwh} kWh/mo`, W - margin, y + 3.8, { align: 'right' });
+    }
+    const _advSy = y + _advHdrH;
+    doc.setDrawColor(180, 150, 60); doc.setLineWidth(0.2);
+    doc.line(_advMidX, _advSy + 2, _advMidX, y + _advSecH - 2);
+    doc.setLineWidth(0.2);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(101, 61, 0);
+    doc.text('CONSUMPTION', margin + 3, _advSy + 4);
+    if (_advEnergyLines.length === 0) {
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(5.5); doc.setTextColor(120, 80, 0);
+      doc.text('Energy data not available — contact us for a consumption estimate.', margin + 3, _advSy + 8.5, { maxWidth: _advLW - 6 });
+    } else {
+      let _advEy = _advSy + 8;
+      for (const pl of _advEnergyLines.slice(0, 6)) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(80, 60, 0);
+        const lbl = (pl.line.model && pl.line.model.trim()) ? pl.line.model.trim() : pl.fullName;
+        doc.text(`· ${doc.splitTextToSize(lbl, _advLW - 22)[0]}`, margin + 3, _advEy);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(101, 61, 0);
+        doc.text(`${pl.kwh * pl.line.qty} kWh/mo${pl.isEst ? ' est.' : ''}`, _advMidX - 2, _advEy, { align: 'right' });
+        _advEy += _advRowH;
+      }
+      if (_advEnergyLines.length > 6) {
+        doc.setFont('helvetica', 'italic'); doc.setFontSize(5); doc.setTextColor(130, 100, 30);
+        doc.text(`+ ${_advEnergyLines.length - 6} more items`, margin + 3, _advEy); _advEy += _advRowH;
+      }
+      doc.setDrawColor(180, 140, 0); doc.setLineWidth(0.15);
+      doc.line(margin + 3, _advEy, _advMidX - 4, _advEy); _advEy += 3;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(101, 61, 0);
+      doc.text('TOTAL', margin + 3, _advEy);
+      doc.text(`${_advTotalKwh} kWh/mo`, _advMidX - 2, _advEy, { align: 'right' });
+      const _advHasEst = _advEnergyLines.some(l => l.isEst);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(120, 80, 0);
+      doc.text(`${_advHasEst ? 'Est. ' : ''}cost: ${PKR(_advTotalKwh * UNIT_RATE_PKR)}/month`, margin + 3, _advEy + 3);
+      if (_advHasInv) {
+        const _advInvSav = _advEnergyLines.filter(l => /inverter/i.test(l.fullName))
+          .reduce((s, l) => {
+            const f = /air.?cond|split.*ac/i.test(l.line.category || '') ? 0.35 : 0.30;
+            return s + Math.round(l.kwh * l.line.qty * f / (1 - f));
+          }, 0);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(4.8); doc.setTextColor(34, 120, 60);
+        doc.text(`Inverter models save ~${_advInvSav} kWh/mo`, margin + 3, _advEy + 6.5);
+      }
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(4.5); doc.setTextColor(160, 110, 40);
+      doc.text(`Basis: AC 8h/day | Fridge/Freezer 24h/day | KE ${UNIT_RATE_PKR} PKR/kWh`,
+        margin + 3, _advEy + (_advHasInv ? 10 : 6.5));
+    }
+    const _advSubTitle = _advAdvisory
+      ? (_advAdvisory.color === 'blue'  ? 'UPS / BACKUP ADVISORY'
+        : _advAdvisory.color === 'green' ? 'SOLAR ADVISORY'
+        : 'ADVISORY')
+      : 'ADVISORY';
+    const _advSubColor: [number, number, number] = _advAdvisory?.color === 'blue' ? [29, 78, 216] : [21, 128, 61];
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5);
+    doc.setTextColor(...(_advAdvisory ? _advSubColor : [70, 70, 70] as [number, number, number]));
+    doc.text(_advSubTitle, _advRX, _advSy + 4);
+    let _advAy = _advSy + 8;
+    for (const para of _advParas) {
+      const wrapped = doc.splitTextToSize(para, _advRW);
+      const available = Math.max(1, Math.floor((y + _advSecH - _advAy - 2) / _advRowH));
+      const toShow = wrapped.slice(0, available);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(40, 40, 40);
+      doc.text(toShow, _advRX, _advAy, { lineHeightFactor: 1.4 });
+      _advAy += toShow.length * _advRowH + 2;
+      if (_advAy >= y + _advSecH - 2) break;
+    }
+    y += _advSecH + 4;
+  }
+
   // ── 7. Bank + QR (unified payment station) ────────────────────────────────
   const _advBdH = 36;
   const _advQrColW = 44;
@@ -6297,6 +6421,57 @@ async function generateInstallmentAdvancePdf(opts: {
     doc.text("Tajalli's — Meezan Bank · Raast / IBAN", _advQrColX + _advQrColW / 2, _advQrY + _advQrSz + 8, { align: 'center', maxWidth: _advQrColW - 2 });
   }
   y += _advBdH + 6;
+
+  // ── 7b. Trust + community strip (full hero) ───────────────────────────────
+  {
+    const _advTrustH = 16;
+    const _advTrustStatW = Math.round(printW * 0.67);
+    const _advCommX = margin + _advTrustStatW;
+    const _advCommW = printW - _advTrustStatW;
+    doc.setFillColor(26, 26, 26);
+    doc.rect(margin, y, _advTrustStatW, _advTrustH, 'F');
+    doc.setFillColor(11, 37, 69);
+    doc.rect(_advCommX, y, _advCommW, _advTrustH, 'F');
+    const _advStats = [['11+ yrs','IN BUSINESS'],['24,000+','ORDERS FULFILLED'],['14,000+','LOCATIONS SERVED'],['1,600+','COMMUNITY']];
+    const _advSegW = _advTrustStatW / _advStats.length;
+    _advStats.forEach(([num, lbl], i) => {
+      const sx = margin + i * _advSegW + _advSegW / 2;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(246, 196, 0);
+      doc.text(num, sx, y + 5.5, { align: 'center' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(4); doc.setTextColor(170, 170, 170);
+      doc.text(lbl, sx, y + 10, { align: 'center' });
+    });
+    const _advQrSz = 6; const _advHalfW = _advCommW / 2;
+    const _advFbCx = _advCommX + _advHalfW / 2;
+    const _advFbQrX = _advCommX + (_advHalfW - _advQrSz) / 2; const _advFbQrY = y + 3.5;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(3.2); doc.setTextColor(255, 255, 255);
+    doc.text('PRIORITY SUPPORT', _advFbCx, y + 2.2, { align: 'center' });
+    if (fbQrDataAdv) {
+      doc.setFillColor(255, 255, 255);
+      doc.rect(_advFbQrX - 0.8, _advFbQrY - 0.8, _advQrSz + 1.6, _advQrSz + 1.6, 'F');
+      doc.addImage(fbQrDataAdv, 'PNG', _advFbQrX, _advFbQrY, _advQrSz, _advQrSz);
+    }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(3.5); doc.setTextColor(255, 255, 255);
+    doc.text('Appliance Reliance', _advFbCx, _advFbQrY + _advQrSz + 2, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(3); doc.setTextColor(180, 210, 255);
+    doc.text('Facebook Group', _advFbCx, _advFbQrY + _advQrSz + 4, { align: 'center' });
+    doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.2);
+    doc.line(_advCommX + _advHalfW, y + 2, _advCommX + _advHalfW, y + _advTrustH - 2);
+    const _advWaCx = _advCommX + _advHalfW + _advHalfW / 2;
+    const _advWaQrX = _advCommX + _advHalfW + (_advHalfW - _advQrSz) / 2; const _advWaQrY = y + 3.5;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(3.2); doc.setTextColor(255, 255, 255);
+    doc.text('EMERGENCY SUPPORT', _advWaCx, y + 2.2, { align: 'center' });
+    if (waQrDataAdv) {
+      doc.setFillColor(255, 255, 255);
+      doc.rect(_advWaQrX - 0.8, _advWaQrY - 0.8, _advQrSz + 1.6, _advQrSz + 1.6, 'F');
+      doc.addImage(waQrDataAdv, 'PNG', _advWaQrX, _advWaQrY, _advQrSz, _advQrSz);
+    }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(3.5); doc.setTextColor(255, 255, 255);
+    doc.text('+92 370 2578788', _advWaCx, _advWaQrY + _advQrSz + 2, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(3); doc.setTextColor(180, 210, 255);
+    doc.text('Emergency Support', _advWaCx, _advWaQrY + _advQrSz + 4, { align: 'center' });
+    y += _advTrustH + 4;
+  }
 
   // ── 8. CTA ────────────────────────────────────────────────────────────────
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(18, 63, 115);
@@ -6358,6 +6533,8 @@ async function generateInstallmentPaymentPdf(opts: {
   try { qrData = await loadQrBase64(); } catch { /* skip */ }
   let fbQrData: string | null = null;
   try { fbQrData = await generateQrDataUrl('https://www.facebook.com/share/g/18be5ayTCF/'); } catch { /* skip */ }
+  let waQrData: string | null = null;
+  try { waQrData = await generateQrDataUrl('https://wa.me/923702578788'); } catch { /* skip */ }
 
   // ── 1. Unified header (matches main invoice) ─────────────────────────────
   const HEADER_H_PY = 36;
@@ -6569,13 +6746,56 @@ async function generateInstallmentPaymentPdf(opts: {
     y = (doc as any).lastAutoTable.finalY + 6;
   }
 
-  // ── 6c. Trust bar (compact) ────────────────────────────────────────────────
-  const _pyTrustH = 8;
-  doc.setFillColor(26, 26, 26);
-  doc.rect(margin, y, printW, _pyTrustH, 'F');
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(190, 190, 190);
-  doc.text('11+ yrs  ·  24,000+ Orders Fulfilled  ·  14,000+ Locations Served  ·  1,600+ Community', W / 2, y + _pyTrustH / 2 + 1.5, { align: 'center' });
-  y += _pyTrustH + 6;
+  // ── 6c. Trust + community strip (full hero) ───────────────────────────────
+  {
+    const _pyTrustH = 16;
+    const _pyTrustStatW = Math.round(printW * 0.67);
+    const _pyCommX = margin + _pyTrustStatW;
+    const _pyCommW = printW - _pyTrustStatW;
+    doc.setFillColor(26, 26, 26);
+    doc.rect(margin, y, _pyTrustStatW, _pyTrustH, 'F');
+    doc.setFillColor(11, 37, 69);
+    doc.rect(_pyCommX, y, _pyCommW, _pyTrustH, 'F');
+    const _pyStats = [['11+ yrs','IN BUSINESS'],['24,000+','ORDERS FULFILLED'],['14,000+','LOCATIONS SERVED'],['1,600+','COMMUNITY']];
+    const _pySegW = _pyTrustStatW / _pyStats.length;
+    _pyStats.forEach(([num, lbl], i) => {
+      const sx = margin + i * _pySegW + _pySegW / 2;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(246, 196, 0);
+      doc.text(num, sx, y + 5.5, { align: 'center' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(4); doc.setTextColor(170, 170, 170);
+      doc.text(lbl, sx, y + 10, { align: 'center' });
+    });
+    const _pyQrSz = 6; const _pyHalfW = _pyCommW / 2;
+    const _pyFbCx = _pyCommX + _pyHalfW / 2;
+    const _pyFbQrX = _pyCommX + (_pyHalfW - _pyQrSz) / 2; const _pyFbQrY = y + 3.5;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(3.2); doc.setTextColor(255, 255, 255);
+    doc.text('PRIORITY SUPPORT', _pyFbCx, y + 2.2, { align: 'center' });
+    if (fbQrData) {
+      doc.setFillColor(255, 255, 255);
+      doc.rect(_pyFbQrX - 0.8, _pyFbQrY - 0.8, _pyQrSz + 1.6, _pyQrSz + 1.6, 'F');
+      doc.addImage(fbQrData, 'PNG', _pyFbQrX, _pyFbQrY, _pyQrSz, _pyQrSz);
+    }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(3.5); doc.setTextColor(255, 255, 255);
+    doc.text('Appliance Reliance', _pyFbCx, _pyFbQrY + _pyQrSz + 2, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(3); doc.setTextColor(180, 210, 255);
+    doc.text('Facebook Group', _pyFbCx, _pyFbQrY + _pyQrSz + 4, { align: 'center' });
+    doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.2);
+    doc.line(_pyCommX + _pyHalfW, y + 2, _pyCommX + _pyHalfW, y + _pyTrustH - 2);
+    const _pyWaCx = _pyCommX + _pyHalfW + _pyHalfW / 2;
+    const _pyWaQrX = _pyCommX + _pyHalfW + (_pyHalfW - _pyQrSz) / 2; const _pyWaQrY = y + 3.5;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(3.2); doc.setTextColor(255, 255, 255);
+    doc.text('EMERGENCY SUPPORT', _pyWaCx, y + 2.2, { align: 'center' });
+    if (waQrData) {
+      doc.setFillColor(255, 255, 255);
+      doc.rect(_pyWaQrX - 0.8, _pyWaQrY - 0.8, _pyQrSz + 1.6, _pyQrSz + 1.6, 'F');
+      doc.addImage(waQrData, 'PNG', _pyWaQrX, _pyWaQrY, _pyQrSz, _pyQrSz);
+    }
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(3.5); doc.setTextColor(255, 255, 255);
+    doc.text('+92 370 2578788', _pyWaCx, _pyWaQrY + _pyQrSz + 2, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(3); doc.setTextColor(180, 210, 255);
+    doc.text('Emergency Support', _pyWaCx, _pyWaQrY + _pyQrSz + 4, { align: 'center' });
+    y += _pyTrustH + 6;
+  }
 
   // ── 7. Bank + QR (unified payment station) ────────────────────────────────
   const _pyBdH = 36;
@@ -9488,6 +9708,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
         lines, discount, refNumber,
         instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, showNtn,
         isApartmentClient: customerType === 'apartment',
+        customerType,
         services,
         customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
         guarantorName, guarantorPhone, guarantorCnic,
@@ -11034,6 +11255,17 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               : instPayPdfState === 'error' ? <>⚠ Failed — retry</>
               : <>📄 Payment Invoice #{instPaymentNumber}</>}
           </button>
+
+          {editingInvoiceId && (
+            <button
+              onClick={saveEditsNow}
+              disabled={savingEdits}
+              className="flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-60 transition-colors whitespace-nowrap">
+              {savingEdits
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
+                : <>Save Invoice Changes</>}
+            </button>
+          )}
 
           {lines.length === 0 && (
             <p className="text-xs text-gray-400 self-center">Add at least one product to generate a document.</p>
