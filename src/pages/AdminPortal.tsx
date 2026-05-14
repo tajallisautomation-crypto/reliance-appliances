@@ -4624,7 +4624,7 @@ async function generateQuotationPdf(opts: {
   discountMode: 'percentage' | 'fixed';
   discountType: string;
   discountReason: string;
-  docType: 'quotation' | 'invoice';
+  docType: 'quotation' | 'invoice' | 'installment-invoice' | 'installment_payment_receipt' | 'service_receipt';
   saleType: 'cash' | 'installment';
   refNumber: string;
   preparedBy: string;
@@ -4705,7 +4705,10 @@ async function generateQuotationPdf(opts: {
 
   // ── ① HEADER STRIP (36mm) ─────────────────────────────────────────────────────
   const HEADER_H = 36;
-  const badgeLabel = opts.docType === 'invoice' ? 'INVOICE' : 'QUOTATION';
+  const badgeLabel =
+    opts.docType === 'service_receipt'             ? 'SERVICE RECEIPT'  :
+    opts.docType === 'installment_payment_receipt' ? 'PAYMENT RECEIPT'  :
+    opts.docType === 'invoice'                     ? 'INVOICE'          : 'QUOTATION';
 
   // Main navy band
   doc.setFillColor(NAVY);
@@ -4928,7 +4931,7 @@ async function generateQuotationPdf(opts: {
   const itemsBody: any[] = [];
   for (const cat of categoryOrder) {
     itemsBody.push([{
-      content: (categoryDisplayName[cat] || cat).toUpperCase(), colSpan: 5,
+      content: ((categoryDisplayName[cat] || cat).replace(/^\d+\.?\d*\s*(?:ton|kw|kva)\s+/i, '').trim() || cat).toUpperCase(), colSpan: 5,
       styles: { fillColor: [11, 37, 69], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6, cellPadding: { top: 1.0, bottom: 1.0, left: 2 } },
     }]);
     for (const line of grouped[cat]) {
@@ -5089,37 +5092,33 @@ async function generateQuotationPdf(opts: {
 
   // WARRANTY — first in right column, no top separator
   if (warrantyEntries.length > 0) {
-    const wtyRowH = 2.9;
-    const totalWtyBodyH = warrantyEntries.length * wtyRowH + 1;
-    doc.setFillColor(NAVY);
-    doc.rect(rightX, rightY, rightW, 3.5, 'F');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(255, 255, 255);
-    doc.text('WARRANTY COVERAGE', rightX + 3, rightY + 2.5);
-    rightY += 3.5;
-    doc.setFillColor(248, 250, 252);
-    doc.rect(rightX, rightY, rightW, totalWtyBodyH, 'F');
-    doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.15);
-    doc.rect(rightX, rightY, rightW, totalWtyBodyH, 'S');
-    doc.setLineWidth(0.2);
-    let wy = rightY + wtyRowH;
-    for (const we of warrantyEntries) {
-      const wLabel = we.model || we.name;
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(25, 25, 25);
-      doc.text(`· ${wLabel}`, rightX + 2, wy);
-      if (we.coverage) {
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(80, 80, 80);
-        const covTxt = doc.splitTextToSize(we.coverage, rightW - 28);
-        doc.text(covTxt[0] || we.coverage, rightX + rightW - 2, wy, { align: 'right' });
-      }
-      wy += wtyRowH;
-    }
-    rightY += totalWtyBodyH + 3;
+    const wtyBody = warrantyEntries.map(we => [
+      { content: we.model || we.name, styles: { fontStyle: 'bold' as const, fontSize: 5, textColor: [25, 25, 25] as [number,number,number] } },
+      { content: we.coverage, styles: { fontSize: 4.8, textColor: [80, 80, 80] as [number,number,number], halign: 'right' as const } },
+    ]);
+    autoTable(doc, {
+      startY: rightY,
+      margin: { left: rightX, right: margin },
+      head: [[
+        { content: 'WARRANTY COVERAGE', colSpan: 2, styles: { fillColor: [18,63,115] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, cellPadding: { top: 1.5, bottom: 1.5, left: 3, right: 2 } } },
+      ], [
+        { content: 'ITEM', styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5, cellPadding: { top: 1, bottom: 1, left: 3, right: 1 } } },
+        { content: 'COVERAGE', styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5, halign: 'right' as const, cellPadding: { top: 1, bottom: 1, left: 1, right: 3 } } },
+      ]],
+      body: wtyBody,
+      columnStyles: { 0: { cellWidth: 22 }, 1: { cellWidth: 'auto' } },
+      bodyStyles: { fontSize: 5, textColor: [40,40,40] as [number,number,number], lineColor: [229,231,235] as [number,number,number], lineWidth: 0.15, cellPadding: { top: 1, bottom: 1, left: 3, right: 2 } },
+      alternateRowStyles: { fillColor: [248,250,252] as [number,number,number] },
+      styles: { overflow: 'linebreak' },
+    });
+    // @ts-ignore
+    rightY = (doc as any).lastAutoTable.finalY + 3;
   }
 
-  // 12-MONTH OPTION — compact 2-line format, capped at RIGHT_CAP
+  // 12-MONTH FINANCING OPTION — compact format, capped at RIGHT_CAP
   const _p12 = calcPlan(grandTotal, '12m');
   if (opts.saleType === 'cash' && grandTotal > 0) {
-    const instBoxH = 4 + 4 + 4; // header 4 + line1 4 + line2 4 = 12mm
+    const instBoxH = 4 + 3.5 + 4 + 4; // header 4 + subtitle 3.5 + line1 4 + line2 4 = 15.5mm
     if (rightY + 4 + instBoxH <= RIGHT_CAP) {
       doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.3);
       doc.line(rightX, rightY + 1, rightX + rightW, rightY + 1);
@@ -5133,16 +5132,19 @@ async function generateQuotationPdf(opts: {
       doc.line(rightX, rightY, rightX, rightY + instBoxH);
       doc.setLineWidth(0.2);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
-      doc.text('12-MONTH OPTION', rightX + 3, rightY + 3);
-      // Line 1: Total
+      doc.text('12-MONTH FINANCING OPTION', rightX + 3, rightY + 3);
+      // Subtitle: clarify this is alternate to cash
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(4.5); doc.setTextColor(196, 213, 236);
+      doc.text('Alternate financing · includes financing charge', rightX + 3, rightY + 6.5, { maxWidth: rightW - 5 });
+      // Line 1: Financing total
       doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(63, 116, 184);
-      doc.text('Total', rightX + 3, rightY + 8);
+      doc.text('Financing Total', rightX + 3, rightY + 11);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(30, 30, 30);
-      doc.text(PKR(_p12.total), rightX + rightW - 3, rightY + 8, { align: 'right' });
+      doc.text(PKR(_p12.total), rightX + rightW - 3, rightY + 11, { align: 'right' });
       // Line 2: Advance + Monthly combined
       const advPct = Math.round(_p12.advancePct * 100);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(80, 100, 130);
-      doc.text(`${advPct}% adv ${PKR(_p12.advance)}  ·  ${PKR(_p12.monthly)}/mo × ${_p12.monthlyPayments}`, rightX + 3, rightY + 11.5, { maxWidth: rightW - 5 });
+      doc.text(`${advPct}% adv ${PKR(_p12.advance)}  ·  ${PKR(_p12.monthly)}/mo × ${_p12.monthlyPayments}`, rightX + 3, rightY + 14.5, { maxWidth: rightW - 5 });
       rightY += instBoxH + 2;
     }
   }
@@ -5188,7 +5190,10 @@ async function generateQuotationPdf(opts: {
 
     let pry = rightY + 4 + 4.5;
     for (const [lbl, val] of pricingRows) {
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(80, 80, 80);
+      const isDiscount = val.startsWith('- ');
+      doc.setFont('helvetica', isDiscount ? 'bold' : 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(...(isDiscount ? [22, 163, 74] as [number,number,number] : [80, 80, 80] as [number,number,number]));
       doc.text(lbl, rightX + 3, pry);
       doc.text(val, rightX + rightW - 3, pry, { align: 'right' });
       pry += pricingRowH;
@@ -5199,32 +5204,22 @@ async function generateQuotationPdf(opts: {
 
     doc.setFillColor(NAVY);
     doc.rect(rightX, pry - 1, rightW, gtNavyBoxH, 'F');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(255, 255, 255);
     const _gtTextY = _needsSecondRow ? pry + 5.5 : pry + 4.5;
     doc.text('GRAND TOTAL', rightX + 3, _gtTextY);
     doc.text(PKR(grandTotal), rightX + rightW - 3, _gtTextY, { align: 'right' });
 
     if (_needsSecondRow) {
-      const _balStatusLabel = _isFullyPaid ? 'AMOUNT PAID' : 'BALANCE DUE';
+      const _hasPartialAdvance = !_isFullyPaid && _gtAdvAmt > 0 && _gtAdvAmt < grandTotal;
+      const _balStatusLabel = _isFullyPaid ? 'PAID IN FULL' : _hasPartialAdvance ? 'BALANCE DUE' : 'UNPAID';
+      const _balStatusColor: [number,number,number] = _isFullyPaid ? [134, 239, 172] : _hasPartialAdvance ? [246, 196, 0] : [252, 165, 165];
       const _balStatusAmt = _isFullyPaid ? grandTotal : _balOnDelivery;
-      // Separator between GRAND TOTAL and second row
       doc.setDrawColor(45, 85, 140); doc.setLineWidth(0.25);
       doc.line(rightX + 2, pry + 8.5, rightX + rightW - 2, pry + 8.5);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(246, 196, 0);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(..._balStatusColor);
       doc.text(_balStatusLabel, rightX + 3, pry + 13);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(255, 255, 255);
       doc.text(PKR(_balStatusAmt), rightX + rightW - 3, pry + 13, { align: 'right' });
-    }
-
-    if (discountAmt > 0 && opts.discountReason) {
-      const calloutY = pry + gtNavyBoxH + 1;
-      doc.setFillColor(235, 242, 250);
-      doc.rect(rightX, calloutY, rightW, 7, 'F');
-      doc.setDrawColor(18, 63, 115); doc.setLineWidth(0.3);
-      doc.line(rightX, calloutY, rightX, calloutY + 7);
-      doc.setLineWidth(0.2);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(18, 63, 115);
-      doc.text('* ' + opts.discountReason, rightX + 3, calloutY + 4.5, { maxWidth: rightW - 6 });
     }
 
     rightY += pricingH + 4;
@@ -5308,6 +5303,8 @@ async function generateQuotationPdf(opts: {
     doc.rect(margin, leftY, leftW, 4, 'F');
     doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
     doc.text('AVAILABLE ADD-ONS', margin + 3, leftY + 3);
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(4.5); doc.setTextColor(196, 213, 236);
+    doc.text('Not included in grand total', margin + leftW - 3, leftY + 3, { align: 'right' });
     let sy = leftY + 4 + 3.0;
     for (const svc of optionalServices) {
       const priceStr = svc.display_value ?? (svc.visible_value > 0 ? PKR(svc.visible_value) : 'Contact us');
@@ -5389,7 +5386,7 @@ async function generateQuotationPdf(opts: {
               const m = cn.match(/(\d+\.?\d*)\s*kw/i);
               if (m) batteryKwh += parseFloat(m[1]) * cqty;
             }
-            if (/panel/i.test(cn)) {
+            if (/panel|plate/i.test(cn)) {
               const wM = cn.match(/(\d+)\s*[wW]\b/);
               const cntM = cn.match(/^(\d+)\s*[×x]/);
               if (wM) panelWatts = parseInt(wM[1]);
@@ -5682,10 +5679,18 @@ async function generateQuotationPdf(opts: {
 
   doc.setFillColor(243, 244, 246);
   doc.rect(margin, y, payColW, payBankH, 'F');
-  doc.setFillColor(240, 253, 244);
-  doc.rect(bankColX, y, bankColW, payBankH, 'F');
-  doc.setFillColor(232, 248, 237);
-  doc.rect(qrColX, y, qrColW, payBankH, 'F');
+  // Bank + QR share a single unified green payment station background
+  doc.setFillColor(235, 252, 240);
+  doc.rect(bankColX, y, bankColW + qrColW + 3, payBankH, 'F');
+  doc.setFillColor(243, 244, 246);
+  doc.rect(margin, y, payColW, payBankH, 'F');
+  // Green left accent bar on bank section
+  doc.setFillColor(22, 101, 52);
+  doc.rect(bankColX, y, 1.5, payBankH, 'F');
+  // Vertical divider between bank and QR
+  doc.setDrawColor(180, 220, 195); doc.setLineWidth(0.3);
+  doc.line(qrColX, y + 3, qrColX, y + payBankH - 3);
+  doc.setLineWidth(0.2);
 
   // Payment col
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(80, 80, 80);
@@ -5732,43 +5737,39 @@ async function generateQuotationPdf(opts: {
     doc.setDrawColor(160, 160, 160); doc.setLineWidth(0.3);
     doc.line(margin + 3, sigLineY + 5, margin + payColW - 3, sigLineY + 5);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(140, 140, 140);
-    doc.text('Customer Acknowledgement', margin + 3, sigLineY + 7.5);
+    doc.text('Client Acknowledgement', margin + 3, sigLineY + 7.5);
   }
 
-  // Bank col
+  // Bank col — starts after accent bar
+  const _bankTx = bankColX + 4.5;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
-  doc.text('BANK TRANSFER — RAAST / IBAN', bankColX + 3, y + 6);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(20, 20, 20);
-  doc.text("TAJALLI'S HOME COLLECTION", bankColX + 3, y + 12);
+  doc.text('BANK TRANSFER — RAAST / IBAN', _bankTx, y + 6);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(20, 20, 20);
+  doc.text("TAJALLI'S HOME COLLECTION", _bankTx, y + 12);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(40, 40, 40);
-  doc.text('PK33 MEZN 0001 0601 0187 4794', bankColX + 3, y + 18);
+  doc.text('PK33 MEZN 0001 0601 0187 4794', _bankTx, y + 18);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(80, 80, 80);
-  doc.text('Meezan Bank — F.B Area Branch', bankColX + 3, y + 24);
+  doc.text('Meezan Bank — F.B Area Branch', _bankTx, y + 24);
   if (!opts.advancePaid) {
     doc.setFont('helvetica', 'italic'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
-    doc.text('Send payment proof via WhatsApp to confirm.', bankColX + 3, y + 30, { maxWidth: bankColW - 6 });
+    doc.text('Send payment proof via WhatsApp to confirm.', _bankTx, y + 30, { maxWidth: bankColW - 8 });
   }
 
-  // QR col — Raast payment QR only, centered
-  const QR_S = 20;
+  // QR col — large, centered, with SCAN TO PAY label
+  const QR_S = 22;
   const qr1X = qrColX + (qrColW - QR_S) / 2;
-  const qrY = y + 8; // start below 6mm banner (banner: y+1..y+7)
+  const qrY = y + 5;
   if (qrData) {
-    doc.setFillColor(22, 101, 52);
-    doc.rect(qrColX + 2, y + 1, qrColW - 4, 6, 'F'); // 6mm banner, no overlap with QR box
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(255, 255, 255);
-    doc.text('SCAN TO PAY', qrColX + qrColW / 2, y + 5, { align: 'center' });
-
     doc.setFillColor(255, 255, 255);
-    doc.rect(qr1X - 1, qrY - 1, QR_S + 2, QR_S + 2, 'F');
-    doc.setDrawColor(22, 101, 52); doc.setLineWidth(0.4);
-    doc.rect(qr1X - 1, qrY - 1, QR_S + 2, QR_S + 2, 'S');
+    doc.rect(qr1X - 1.5, qrY - 1.5, QR_S + 3, QR_S + 3, 'F');
+    doc.setDrawColor(22, 101, 52); doc.setLineWidth(0.5);
+    doc.rect(qr1X - 1.5, qrY - 1.5, QR_S + 3, QR_S + 3, 'S');
     doc.setLineWidth(0.2);
     doc.addImage(qrData, 'JPEG', qr1X, qrY, QR_S, QR_S);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(22, 101, 52);
-    doc.text("Tajalli's — Meezan Bank", qrColX + qrColW / 2, qrY + QR_S + 4.5, { align: 'center' });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(22, 101, 52);
+    doc.text('SCAN TO PAY', qrColX + qrColW / 2, qrY + QR_S + 4.5, { align: 'center' });
     doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(80, 80, 80);
-    doc.text('Raast / IBAN', qrColX + qrColW / 2, qrY + QR_S + 8, { align: 'center' });
+    doc.text("Tajalli's — Meezan Bank · Raast / IBAN", qrColX + qrColW / 2, qrY + QR_S + 8, { align: 'center', maxWidth: qrColW - 2 });
   }
   y += payBankH + 2;
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
