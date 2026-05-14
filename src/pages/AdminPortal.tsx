@@ -4472,13 +4472,13 @@ const _pc = (
 const DEFAULT_PACKAGE_COMPONENTS: Record<string, PackageComponent[]> = {
   'solar-ups-3.6kw': [
     _pc('inv',   'Crown Yorker 3.6kW Hybrid Inverter',    1, '3.6kW · MPPT · Hybrid',             '3 year replacement',  'core'),
-    _pc('bat',   'Crown Elektra Boost Pro 2.4kW Battery', 1, '2.4kWh · LiFePO4 · 48V',            '10 year replacement', 'core'),
+    _pc('bat',   'Crown Elektra Boost Pro 2.4kWh Battery', 1, '2.4kWh · LiFePO4 · 48V',            '10 year replacement', 'core'),
     _pc('cable', 'Wiring, Cabling & Protection',          1, 'MCB · Earthing · AC/DC protection',  '1 year workmanship',  'infrastructure'),
     _pc('labor', 'Professional Installation & Transport', 1, 'Certified engineers',                 '1 year workmanship',  'service'),
   ],
   'solar-solar-3.6kw': [
     _pc('inv',    'Crown Yorker 3.6kW Hybrid Inverter',        1, '3.6kW · MPPT · Hybrid',            '3 year replacement',                    'core'),
-    _pc('bat',    'Crown Elektra Boost Pro 2.4kW Battery',     1, '2.4kWh · LiFePO4 · 48V',           '10 year replacement',                   'core'),
+    _pc('bat',    'Crown Elektra Boost Pro 2.4kWh Battery',     1, '2.4kWh · LiFePO4 · 48V',           '10 year replacement',                   'core'),
     _pc('panels', 'Crown Bi-Facial 620W Solar Plates',         6, '620W · Mono Bi-Facial · PERC',      '12 year product · 25 year performance', 'generation'),
     _pc('frame',  'Elevated Solar Frame & Mounting Structure', 1, 'Galvanised steel · Wind-rated',     '5 year structural',                     'infrastructure'),
     _pc('cable',  'DC/AC Wiring, Cabling & Protection',        1, 'Solar DC cable · MCB · Earthing',   '1 year workmanship',                    'infrastructure'),
@@ -4486,13 +4486,13 @@ const DEFAULT_PACKAGE_COMPONENTS: Record<string, PackageComponent[]> = {
   ],
   'solar-ups-5kw': [
     _pc('inv',   'Crown Yorker 5kW Hybrid Inverter',      1, '5kW · MPPT · Hybrid',             '3 year replacement',  'core'),
-    _pc('bat',   'Crown Elektra Boost Pro 5.12kW Battery',1, '5.12kWh · LiFePO4 · 48V',         '10 year replacement', 'core'),
+    _pc('bat',   'Crown Elektra Boost Pro 5.12kWh Battery',1, '5.12kWh · LiFePO4 · 48V',         '10 year replacement', 'core'),
     _pc('cable', 'Wiring, Cabling & Protection',          1, 'MCB · Earthing · AC/DC protection','1 year workmanship',  'infrastructure'),
     _pc('labor', 'Professional Installation & Transport', 1, 'Certified engineers',               '1 year workmanship',  'service'),
   ],
   'solar-solar-5kw': [
     _pc('inv',    'Crown Yorker 5kW Hybrid Inverter',          1, '5kW · MPPT · Hybrid',              '3 year replacement',                    'core'),
-    _pc('bat',    'Crown Elektra Boost Pro 5.12kW Battery',    1, '5.12kWh · LiFePO4 · 48V',          '10 year replacement',                   'core'),
+    _pc('bat',    'Crown Elektra Boost Pro 5.12kWh Battery',    1, '5.12kWh · LiFePO4 · 48V',          '10 year replacement',                   'core'),
     _pc('panels', 'Crown Bi-Facial 620W Solar Plates',         8, '620W · Mono Bi-Facial · PERC',      '12 year product · 25 year performance', 'generation'),
     _pc('frame',  'Elevated Solar Frame & Mounting Structure', 1, 'Galvanised steel · Wind-rated',     '5 year structural',                     'infrastructure'),
     _pc('cable',  'DC/AC Wiring, Cabling & Protection',        1, 'Solar DC cable · MCB · Earthing',   '1 year workmanship',                    'infrastructure'),
@@ -4500,7 +4500,7 @@ const DEFAULT_PACKAGE_COMPONENTS: Record<string, PackageComponent[]> = {
   ],
   'solar-solar-8kw': [
     _pc('inv',    'Crown Nexus 8kW Hybrid Inverter',           1, '8kW · MPPT · Hybrid',               '5 year replacement',                    'core'),
-    _pc('bat',    'Crown Elektra Boost Pro 5.12kW Battery',    1, '5.12kWh · LiFePO4 · 48V',           '10 year replacement',                   'core'),
+    _pc('bat',    'Crown Elektra Boost Pro 5.12kWh Battery',    1, '5.12kWh · LiFePO4 · 48V',           '10 year replacement',                   'core'),
     _pc('panels', 'Crown Bi-Facial 620W Solar Plates',        14, '620W · Mono Bi-Facial · PERC',       '12 year product · 25 year performance', 'generation'),
     _pc('frame',  'Elevated Solar Frame & Mounting Structure', 1, 'Galvanised steel · Wind-rated',      '5 year structural',                     'infrastructure'),
     _pc('cable',  'DC/AC Wiring, Cabling & Protection',        1, 'Solar DC cable · MCB · Earthing',    '1 year workmanship',                    'infrastructure'),
@@ -4508,7 +4508,7 @@ const DEFAULT_PACKAGE_COMPONENTS: Record<string, PackageComponent[]> = {
   ],
   'solar-solar-12kw': [
     _pc('inv',    'Crown Nexus 12kW Hybrid Inverter',          1, '12kW · MPPT · Hybrid',               '5 year replacement',                    'core'),
-    _pc('bat',    'Crown Elektra Boost Pro 5.12kW Battery',    1, '5.12kWh · LiFePO4 · 48V',            '10 year replacement',                   'core'),
+    _pc('bat',    'Crown Elektra Boost Pro 5.12kWh Battery',    1, '5.12kWh · LiFePO4 · 48V',            '10 year replacement',                   'core'),
     _pc('panels', 'Crown Bi-Facial 620W Solar Plates',        20, '620W · Mono Bi-Facial · PERC',        '12 year product · 25 year performance', 'generation'),
     _pc('frame',  'Elevated Solar Frame & Mounting Structure', 1, 'Galvanised steel · Wind-rated',       '5 year structural',                     'infrastructure'),
     _pc('cable',  'DC/AC Wiring, Cabling & Protection',        1, 'Solar DC cable · MCB · Earthing',     '1 year workmanship',                    'infrastructure'),
@@ -4647,6 +4647,8 @@ async function generateQuotationPdf(opts: {
   instMonthlyAmt?: number;
   instFirstDate?: string;
   invoiceDate?: string;
+  paymentStatus?: string;
+  amountPaid?: number;
 }): Promise<Blob> {
   const NAVY  = '#123F73';
   const DNAV  = '#0B2545';
@@ -4816,12 +4818,26 @@ async function generateQuotationPdf(opts: {
   leftY += custBlockH + 2;
 
   // ── ROW 1 RIGHT: Invoice Meta ─────────────────────────────────────────────────
+  const _qtAdvAmt2 = opts.advanceAmtFixed && opts.advanceAmtFixed > 0
+    ? opts.advanceAmtFixed
+    : Math.round(grandTotal * opts.advancePct / 100);
+  const _qtBalDue = Math.max(0, grandTotal - (opts.amountPaid ?? (opts.advancePaid ? _qtAdvAmt2 : 0)));
+  const _qtPmtStatus = opts.paymentStatus
+    ?? (opts.advancePaid && _qtBalDue <= 0 ? 'paid'
+      : opts.advancePaid ? 'partial'
+      : 'pending');
+  const _qtPmtLabel = _qtPmtStatus === 'paid' ? 'PAID IN FULL'
+    : _qtPmtStatus === 'partial' ? 'PARTIAL'
+    : _qtPmtStatus === 'overdue' ? 'OVERDUE'
+    : 'PENDING';
   const metaFields: Array<[string, string]> = [
     ['REF', opts.refNumber],
     ['DATE', dateStr],
     ['PREPARED BY', opts.preparedBy || '—'],
     ['SALE TYPE', opts.saleType === 'cash' ? 'Cash' : 'Installment'],
     ...(opts.docType !== 'invoice' ? [['VALID', `${validUntilStr} (${opts.validityHours}h)`] as [string, string]] : []),
+    ['STATUS', _qtPmtLabel],
+    ['BALANCE DUE', PKR(_qtBalDue)],
   ];
 
   const metaBlockH = metaFields.length * 4.0 + 8;
@@ -4925,7 +4941,7 @@ async function generateQuotationPdf(opts: {
   // Add installation warranty if any installation lines exist
   if (opts.installationLines.length > 0 && !_wtySet.has('_install')) {
     _wtySet.add('_install');
-    warrantyEntries.push({ name: 'Installation & Setup', coverage: formatWty('1 year workmanship') });
+    warrantyEntries.push({ name: 'Installation & Transport', coverage: formatWty('1 year workmanship') });
   }
 
   const _hasSolarPkg = opts.lines.some(l => l.isPackage && (/solar/i.test(l.category || '') || /solar.*system|solar.*package/i.test(l.name || '')));
@@ -5095,8 +5111,15 @@ async function generateQuotationPdf(opts: {
 
   // WARRANTY — first in right column, no top separator
   if (warrantyEntries.length > 0) {
-    const _wtyBrands = ['Haier','Westpoint','Dawlance','PEL','Orient','Gree','Changhong','Ruba','Samsung','LG','Panasonic','Siemens'];
-    const _inferProvider = (nm: string) => _wtyBrands.find(b => nm.toLowerCase().includes(b.toLowerCase())) ?? 'Manufacturer';
+    const _wtyBrands = ['Haier','Westpoint','Dawlance','PEL','Orient','Gree','Changhong','Ruba','Samsung','LG','Panasonic','Siemens','Nexus','Crown','Tesla','Jinko','LONGi','Canadian Solar'];
+    const _inferProvider = (nm: string): string => {
+      const n = nm.toLowerCase();
+      if (/\binstall|\btransport|\bsetup.*tech|\btech.*setup|\blabour|\blabor/i.test(n)) return "Tajalli's";
+      if (/\bwiring|\bcabling|\bprotection|\bearth|\bmcb|\bbreaker|\bfuse/i.test(n)) return "Tajalli's / Installer";
+      if (/\bframe|\bmounting|\bstructure|\bfabricat|\broof.*mount|\bmount.*roof/i.test(n)) return "Tajalli's / Fabricator";
+      if (/workmanship/i.test(nm)) return "Tajalli's";
+      return _wtyBrands.find(b => nm.toLowerCase().includes(b.toLowerCase())) ?? 'Manufacturer';
+    };
     const wtyBody = warrantyEntries.map(we => [
       { content: we.model || we.name, styles: { fontStyle: 'bold' as const, fontSize: 4.8, textColor: [25, 25, 25] as [number,number,number] } },
       { content: we.coverage, styles: { fontSize: 4.5, textColor: [60, 60, 60] as [number,number,number] } },
@@ -5124,37 +5147,54 @@ async function generateQuotationPdf(opts: {
     rightY = (doc as any).lastAutoTable.finalY + 3;
   }
 
-  // 12-MONTH FINANCING OPTION — compact format, capped at RIGHT_CAP
+  // 12-MONTH FINANCING OPTION — shown only on quotations; cash invoices get a "not selected" label
   const _p12 = calcPlan(grandTotal, '12m');
   if (opts.saleType === 'cash' && grandTotal > 0) {
-    const instBoxH = 4 + 3.5 + 4 + 4; // header 4 + subtitle 3.5 + line1 4 + line2 4 = 15.5mm
-    if (rightY + 4 + instBoxH <= RIGHT_CAP) {
-      doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.3);
-      doc.line(rightX, rightY + 1, rightX + rightW, rightY + 1);
-      doc.setLineWidth(0.2);
-      rightY += 4;
-      doc.setFillColor(235, 242, 250);
-      doc.rect(rightX, rightY, rightW, instBoxH, 'F');
-      doc.setFillColor(NAVY);
-      doc.rect(rightX, rightY, rightW, 4, 'F');
-      doc.setDrawColor(NAVY); doc.setLineWidth(0.4);
-      doc.line(rightX, rightY, rightX, rightY + instBoxH);
-      doc.setLineWidth(0.2);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
-      doc.text('12-MONTH FINANCING OPTION', rightX + 3, rightY + 3);
-      // Subtitle: clarify this is alternate to cash
-      doc.setFont('helvetica', 'italic'); doc.setFontSize(4.5); doc.setTextColor(196, 213, 236);
-      doc.text('Alternate financing · includes financing charge', rightX + 3, rightY + 6.5, { maxWidth: rightW - 5 });
-      // Line 1: Financing total
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(63, 116, 184);
-      doc.text('Financing Total', rightX + 3, rightY + 11);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(30, 30, 30);
-      doc.text(PKR(_p12.total), rightX + rightW - 3, rightY + 11, { align: 'right' });
-      // Line 2: Advance + Monthly combined
-      const advPct = Math.round(_p12.advancePct * 100);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(80, 100, 130);
-      doc.text(`${advPct}% adv ${PKR(_p12.advance)}  ·  ${PKR(_p12.monthly)}/mo × ${_p12.monthlyPayments}`, rightX + 3, rightY + 14.5, { maxWidth: rightW - 5 });
-      rightY += instBoxH + 2;
+    const _isQuotation = opts.docType === 'quotation';
+    if (_isQuotation) {
+      const instBoxH = 4 + 3.5 + 4 + 4;
+      if (rightY + 4 + instBoxH <= RIGHT_CAP) {
+        doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.3);
+        doc.line(rightX, rightY + 1, rightX + rightW, rightY + 1);
+        doc.setLineWidth(0.2);
+        rightY += 4;
+        doc.setFillColor(235, 242, 250);
+        doc.rect(rightX, rightY, rightW, instBoxH, 'F');
+        doc.setFillColor(NAVY);
+        doc.rect(rightX, rightY, rightW, 4, 'F');
+        doc.setDrawColor(NAVY); doc.setLineWidth(0.4);
+        doc.line(rightX, rightY, rightX, rightY + instBoxH);
+        doc.setLineWidth(0.2);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
+        doc.text('12-MONTH FINANCING OPTION', rightX + 3, rightY + 3);
+        doc.setFont('helvetica', 'italic'); doc.setFontSize(4.5); doc.setTextColor(196, 213, 236);
+        doc.text('Alternate financing · includes financing charge', rightX + 3, rightY + 6.5, { maxWidth: rightW - 5 });
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(63, 116, 184);
+        doc.text('Financing Total', rightX + 3, rightY + 11);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(30, 30, 30);
+        doc.text(PKR(_p12.total), rightX + rightW - 3, rightY + 11, { align: 'right' });
+        const advPct = Math.round(_p12.advancePct * 100);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(80, 100, 130);
+        doc.text(`${advPct}% adv ${PKR(_p12.advance)}  ·  ${PKR(_p12.monthly)}/mo × ${_p12.monthlyPayments}`, rightX + 3, rightY + 14.5, { maxWidth: rightW - 5 });
+        rightY += instBoxH + 2;
+      }
+    } else {
+      // Cash invoice: financing not selected — show compact label
+      const _nfBoxH = 7;
+      if (rightY + 4 + _nfBoxH <= RIGHT_CAP) {
+        doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.3);
+        doc.line(rightX, rightY + 1, rightX + rightW, rightY + 1);
+        doc.setLineWidth(0.2);
+        rightY += 4;
+        doc.setFillColor(248, 248, 248);
+        doc.rect(rightX, rightY, rightW, _nfBoxH, 'F');
+        doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
+        doc.line(rightX, rightY, rightX, rightY + _nfBoxH);
+        doc.setLineWidth(0.2);
+        doc.setFont('helvetica', 'italic'); doc.setFontSize(5); doc.setTextColor(160, 160, 160);
+        doc.text('Alternative Financing Option — Not Selected', rightX + 3, rightY + 4.5, { maxWidth: rightW - 5 });
+        rightY += _nfBoxH + 2;
+      }
     }
   }
 
@@ -5256,6 +5296,7 @@ async function generateQuotationPdf(opts: {
   });
 
   if (activeServices.length > 0) {
+    const _showMktRate = opts.docType === 'quotation' && activeServices.some(s => s.visible_value > 0);
     const activeSvcBody: any[] = activeServices.map(svc => {
       const override = opts.installationType === 'installation-included'
         && /install/i.test(svc.service_name) && svc.status === 'not_selected';
@@ -5263,35 +5304,48 @@ async function generateQuotationPdf(opts: {
       const statusLabel = effStatus === 'included' ? 'INCL' : 'BILLED';
       const statusColor: [number, number, number] = effStatus === 'included' ? [22, 163, 74] : [18, 63, 115];
       const amtLabel = effStatus === 'included' ? 'Included' : PKR(svc.charged_amount);
-      const mktLabel = (opts.docType === 'quotation' && svc.visible_value > 0) ? PKR(svc.visible_value) : '—';
+      if (_showMktRate) {
+        const mktLabel = svc.visible_value > 0 ? PKR(svc.visible_value) : '—';
+        return [
+          { content: svc.service_name, styles: { fontStyle: 'bold' as const } },
+          { content: mktLabel, styles: { textColor: [120, 120, 120] as [number,number,number], halign: 'right' as const } },
+          { content: statusLabel, styles: { textColor: statusColor, fontStyle: 'bold' as const, halign: 'center' as const } },
+          { content: amtLabel, styles: { fontStyle: 'bold' as const,
+            textColor: effStatus === 'included' ? [22, 163, 74] as [number,number,number] : [40,40,40] as [number,number,number],
+            halign: 'right' as const } },
+        ];
+      }
       return [
         { content: svc.service_name, styles: { fontStyle: 'bold' as const } },
-        { content: mktLabel, styles: { textColor: [120, 120, 120] as [number,number,number], halign: 'right' as const } },
         { content: statusLabel, styles: { textColor: statusColor, fontStyle: 'bold' as const, halign: 'center' as const } },
         { content: amtLabel, styles: { fontStyle: 'bold' as const,
           textColor: effStatus === 'included' ? [22, 163, 74] as [number,number,number] : [40,40,40] as [number,number,number],
           halign: 'right' as const } },
       ];
     });
+    const _svcColSpan = _showMktRate ? 4 : 3;
+    const _svcSubHead = _showMktRate ? [
+      { content: 'SERVICE',     styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'left' as const,   cellPadding: { top: 1.5, bottom: 1.5, left: 3, right: 1 } } },
+      { content: 'MARKET RATE', styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'right' as const,  cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } } },
+      { content: 'STATUS',      styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'center' as const, cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } } },
+      { content: 'AMOUNT',      styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'right' as const,  cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 3 } } },
+    ] : [
+      { content: 'SERVICE',     styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'left' as const,   cellPadding: { top: 1.5, bottom: 1.5, left: 3, right: 1 } } },
+      { content: 'STATUS',      styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'center' as const, cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } } },
+      { content: 'AMOUNT',      styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'right' as const,  cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 3 } } },
+    ];
+    const _svcColStyles: Record<number, object> = _showMktRate
+      ? { 0: { cellWidth: 'auto' }, 1: { cellWidth: 24, halign: 'right' }, 2: { cellWidth: 14, halign: 'center' }, 3: { cellWidth: 22, halign: 'right' } }
+      : { 0: { cellWidth: 'auto' }, 1: { cellWidth: 14, halign: 'center' }, 2: { cellWidth: 22, halign: 'right' } };
     autoTable(doc, {
       startY: leftY,
       margin: { left: margin, right: leftAutoMarginRight },
       head: [
-        [{ content: 'SERVICES', colSpan: 4, styles: { fillColor: NAVY, textColor: [255,255,255] as [number,number,number], fontSize: 7, fontStyle: 'bold' as const, cellPadding: { top: 2.5, bottom: 2.5, left: 3 } } }],
-        [
-          { content: 'SERVICE',     styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'left' as const,   cellPadding: { top: 1.5, bottom: 1.5, left: 3, right: 1 } } },
-          { content: 'MARKET RATE', styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'right' as const,  cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } } },
-          { content: 'STATUS',      styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'center' as const, cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } } },
-          { content: 'AMOUNT',      styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'right' as const,  cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 3 } } },
-        ],
+        [{ content: 'SERVICES', colSpan: _svcColSpan, styles: { fillColor: NAVY, textColor: [255,255,255] as [number,number,number], fontSize: 7, fontStyle: 'bold' as const, cellPadding: { top: 2.5, bottom: 2.5, left: 3 } } }],
+        _svcSubHead,
       ],
       body: activeSvcBody,
-      columnStyles: {
-        0: { cellWidth: 'auto' },
-        1: { cellWidth: 24, halign: 'right' as const },
-        2: { cellWidth: 14, halign: 'center' as const },
-        3: { cellWidth: 22, halign: 'right' as const },
-      },
+      columnStyles: _svcColStyles,
       headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6 },
       bodyStyles: { fontSize: 6, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
       alternateRowStyles: { fillColor: [250, 250, 250] },
@@ -5666,14 +5720,17 @@ async function generateQuotationPdf(opts: {
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
   doc.line(margin, y - 1, W - margin, y - 1);
   doc.setLineWidth(0.2);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(NAVY);
-  doc.text('PAYMENT & BANK TRANSFER', margin, y);
-  y += 3.5;
 
   const advanceAmt = opts.advanceAmtFixed && opts.advanceAmtFixed > 0
     ? opts.advanceAmtFixed
     : Math.round(grandTotal * opts.advancePct / 100);
   const balanceAmt = grandTotal - advanceAmt;
+  // When fully paid, skip the payment/bank station
+  const _isFullyPaidDoc = opts.advancePaid && balanceAmt <= 0;
+  if (!_isFullyPaidDoc) {
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(NAVY);
+  doc.text('PAYMENT & BANK TRANSFER', margin, y);
+  y += 3.5;
   const advancePctDisplay = grandTotal > 0 ? Math.round(advanceAmt / grandTotal * 100) : opts.advancePct;
   const showInstTeaser = opts.saleType === 'cash' && grandTotal > 0 && !!opts.instTeaserMonthly && !!opts.instTeaserMonths;
   const hasCashSchedule = (opts.cashPaySchedule?.length ?? 0) > 0;
@@ -5780,6 +5837,7 @@ async function generateQuotationPdf(opts: {
     doc.text("Tajalli's — Meezan Bank · Raast / IBAN", qrColX + qrColW / 2, qrY + QR_S + 8, { align: 'center', maxWidth: qrColW - 2 });
   }
   y += payBankH + 2;
+  } // end if (!_isFullyPaidDoc)
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
   doc.line(margin, y, W - margin, y);
   doc.setLineWidth(0.2);
@@ -6041,12 +6099,15 @@ async function generateInstallmentAdvancePdf(opts: {
   doc.rect(advCustRX, y, advCustRW, 4, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
   doc.text('DOCUMENT DETAILS', advCustRX + 3, y + 3);
+  const _advBalDue = opts.instTotalPrice - opts.instAdvanceAmt;
   const advMetaRows: Array<[string, string]> = [
-    ['TYPE',    'Advance Invoice'],
-    ['REF',     opts.refNumber],
-    ['DATE',    dateStr],
-    ['ADVANCE', 'Due on confirmation'],
-    ['PLAN',    `${opts.instMonths}-month installment`],
+    ['TYPE',        'Advance Invoice'],
+    ['REF',         opts.refNumber],
+    ['DATE',        dateStr],
+    ['ADVANCE DUE', PKR(opts.instAdvanceAmt)],
+    ['BALANCE',     PKR(_advBalDue)],
+    ['STATUS',      'PENDING ADVANCE'],
+    ['PLAN',        `${opts.instMonths}-month installment`],
   ];
   let advMY = y + 4 + 4.8;
   for (const [lbl, val] of advMetaRows) {
@@ -6931,6 +6992,16 @@ async function generateServiceReceiptPdf(opts: {
 
   let y = HEADER_H + 4;
 
+  // ── Pre-compute totals (needed for meta panel balance display) ────────────
+  const _srWorkTotal0 = opts.jobLines.filter(l => l.type === 'work').reduce((s, l) => s + l.qty * l.unitPrice, 0);
+  const _srPartsTotal0 = opts.jobLines.filter(l => l.type === 'part').reduce((s, l) => s + l.qty * l.unitPrice, 0);
+  const _srCustomTotal0 = opts.customCharges.reduce((s, c) => s + c.amount, 0);
+  const _srBaseTotal0 = _srWorkTotal0 + _srPartsTotal0 + _srCustomTotal0;
+  const _srDiscAmt0 = opts.discountMode === 'fixed'
+    ? Math.min(opts.discount, _srBaseTotal0)
+    : opts.discount > 0 ? Math.round(_srBaseTotal0 * opts.discount / 100) : 0;
+  const _srGrandTotal0 = _srBaseTotal0 - _srDiscAmt0;
+
   // ── Customer + meta (two-column) ─────────────────────────────────────────
   const colGap = 4; const leftW = 112; const rightW = printW - leftW - colGap;
   const rightX = margin + leftW + colGap;
@@ -6964,11 +7035,18 @@ async function generateServiceReceiptPdf(opts: {
   // Right: receipt meta
   doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(NAVY);
   doc.text('RECEIPT DETAILS', rightX, y - 3.5);
+  const _srBalDue2 = opts.paymentStatus === 'paid' ? 0 : _srGrandTotal0;
+  const _srStatusLabel2 = opts.paymentStatus === 'paid' ? 'PAID IN FULL'
+    : opts.paymentStatus === 'partial' ? 'PARTIAL'
+    : opts.paymentStatus === 'overdue' ? 'OVERDUE'
+    : 'PENDING';
   const metaRows: Array<[string, string]> = [
     ['REF',         opts.refNumber],
     ['DATE',        dateStr],
     ['PREPARED BY', opts.preparedBy || '—'],
     ['TYPE',        'Service Receipt'],
+    ['STATUS',      _srStatusLabel2],
+    ['BALANCE DUE', PKR(_srBalDue2)],
   ];
   const metaBlockH = metaRows.length * 4.5 + 5;
   doc.setFillColor(243, 244, 246);
@@ -7017,26 +7095,29 @@ async function generateServiceReceiptPdf(opts: {
   const workLines = opts.jobLines.filter(l => l.type === 'work');
   const partLines = opts.jobLines.filter(l => l.type === 'part');
 
+  const _srWorkSubtotal = workLines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+  const _srPartsSubtotal = partLines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+  const _srCustomSubtotal = opts.customCharges.reduce((s, c) => s + c.amount, 0);
+
   if (workLines.length > 0) {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(NAVY);
     doc.text('WORK PERFORMED', margin, y);
     y += 3.5;
+    const _workBody: any[] = workLines.map(l => [
+      { content: l.description, styles: { fontStyle: 'bold' as const } },
+      { content: String(l.qty), styles: { halign: 'center' as const } },
+      { content: PKR(l.unitPrice), styles: { halign: 'right' as const } },
+      { content: PKR(l.qty * l.unitPrice), styles: { fontStyle: 'bold' as const, halign: 'right' as const } },
+    ]);
+    _workBody.push([
+      { content: 'LABOUR SUBTOTAL', colSpan: 3, styles: { fillColor: [243,244,246] as [number,number,number], fontStyle: 'bold' as const, fontSize: 6, textColor: [80,80,80] as [number,number,number], halign: 'right' as const } },
+      { content: PKR(_srWorkSubtotal), styles: { fillColor: [243,244,246] as [number,number,number], fontStyle: 'bold' as const, fontSize: 7, textColor: [18,63,115] as [number,number,number], halign: 'right' as const } },
+    ]);
     autoTable(doc, {
-      startY: y,
-      margin: { left: margin, right: margin },
+      startY: y, margin: { left: margin, right: margin },
       head: [['DESCRIPTION', 'QTY', 'RATE', 'AMOUNT']],
-      body: workLines.map(l => [
-        { content: l.description, styles: { fontStyle: 'bold' as const } },
-        { content: String(l.qty), styles: { halign: 'center' as const } },
-        { content: PKR(l.unitPrice), styles: { halign: 'right' as const } },
-        { content: PKR(l.qty * l.unitPrice), styles: { fontStyle: 'bold' as const, halign: 'right' as const } },
-      ]),
-      columnStyles: {
-        0: { cellWidth: 'auto' },
-        1: { cellWidth: 12, halign: 'center' as const },
-        2: { cellWidth: 28, halign: 'right' as const },
-        3: { cellWidth: 28, halign: 'right' as const },
-      },
+      body: _workBody,
+      columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 12, halign: 'center' as const }, 2: { cellWidth: 28, halign: 'right' as const }, 3: { cellWidth: 28, halign: 'right' as const } },
       headStyles: { fillColor: NAVY, textColor: [255,255,255], fontStyle: 'bold', fontSize: 7 },
       bodyStyles: { fontSize: 7, textColor: [40,40,40], lineColor: [229,231,235], lineWidth: 0.15 },
       alternateRowStyles: { fillColor: [250,250,250] },
@@ -7050,22 +7131,21 @@ async function generateServiceReceiptPdf(opts: {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(NAVY);
     doc.text('PARTS / SPARE PARTS', margin, y);
     y += 3.5;
+    const _partsBody: any[] = partLines.map(l => [
+      { content: l.description, styles: { fontStyle: 'bold' as const } },
+      { content: String(l.qty), styles: { halign: 'center' as const } },
+      { content: PKR(l.unitPrice), styles: { halign: 'right' as const } },
+      { content: PKR(l.qty * l.unitPrice), styles: { fontStyle: 'bold' as const, halign: 'right' as const } },
+    ]);
+    _partsBody.push([
+      { content: 'PARTS SUBTOTAL', colSpan: 3, styles: { fillColor: [243,244,246] as [number,number,number], fontStyle: 'bold' as const, fontSize: 6, textColor: [80,80,80] as [number,number,number], halign: 'right' as const } },
+      { content: PKR(_srPartsSubtotal), styles: { fillColor: [243,244,246] as [number,number,number], fontStyle: 'bold' as const, fontSize: 7, textColor: [18,63,115] as [number,number,number], halign: 'right' as const } },
+    ]);
     autoTable(doc, {
-      startY: y,
-      margin: { left: margin, right: margin },
+      startY: y, margin: { left: margin, right: margin },
       head: [['PART DESCRIPTION', 'QTY', 'UNIT PRICE', 'AMOUNT']],
-      body: partLines.map(l => [
-        { content: l.description, styles: { fontStyle: 'bold' as const } },
-        { content: String(l.qty), styles: { halign: 'center' as const } },
-        { content: PKR(l.unitPrice), styles: { halign: 'right' as const } },
-        { content: PKR(l.qty * l.unitPrice), styles: { fontStyle: 'bold' as const, halign: 'right' as const } },
-      ]),
-      columnStyles: {
-        0: { cellWidth: 'auto' },
-        1: { cellWidth: 12, halign: 'center' as const },
-        2: { cellWidth: 28, halign: 'right' as const },
-        3: { cellWidth: 28, halign: 'right' as const },
-      },
+      body: _partsBody,
+      columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 12, halign: 'center' as const }, 2: { cellWidth: 28, halign: 'right' as const }, 3: { cellWidth: 28, halign: 'right' as const } },
       headStyles: { fillColor: NAVY, textColor: [255,255,255], fontStyle: 'bold', fontSize: 7 },
       bodyStyles: { fontSize: 7, textColor: [40,40,40], lineColor: [229,231,235], lineWidth: 0.15 },
       alternateRowStyles: { fillColor: [250,250,250] },
@@ -7079,21 +7159,23 @@ async function generateServiceReceiptPdf(opts: {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(NAVY);
     doc.text('ADDITIONAL CHARGES', margin, y);
     y += 3.5;
-    const ccBody = opts.customCharges.map(c => [
+    const _ccBody: any[] = opts.customCharges.map(c => [
       { content: c.name, styles: { fontStyle: 'bold' as const } },
       { content: PKR(c.amount), styles: { fontStyle: 'bold' as const, halign: 'right' as const } },
     ]);
+    _ccBody.push([
+      { content: 'CHARGES SUBTOTAL', styles: { fillColor: [243,244,246] as [number,number,number], fontStyle: 'bold' as const, fontSize: 6, textColor: [80,80,80] as [number,number,number] } },
+      { content: PKR(_srCustomSubtotal), styles: { fillColor: [243,244,246] as [number,number,number], fontStyle: 'bold' as const, fontSize: 7, textColor: [18,63,115] as [number,number,number], halign: 'right' as const } },
+    ]);
     autoTable(doc, {
-      startY: y,
-      margin: { left: margin, right: margin },
+      startY: y, margin: { left: margin, right: margin },
       head: [['CHARGE DESCRIPTION', 'AMOUNT']],
-      body: ccBody,
+      body: _ccBody,
       columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 30, halign: 'right' as const } },
       headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
       bodyStyles: { fontSize: 7, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
       styles: { overflow: 'linebreak', cellPadding: 1.2 },
     });
-    // @ts-ignore
     y = (doc as any).lastAutoTable.finalY + 4;
   }
 
@@ -7102,9 +7184,9 @@ async function generateServiceReceiptPdf(opts: {
   doc.line(margin, y, W - margin, y);
   doc.setLineWidth(0.2);
   y += 3;
-  const workTotal = opts.jobLines.filter(l => l.type === 'work').reduce((s, l) => s + l.qty * l.unitPrice, 0);
-  const partsTotal = opts.jobLines.filter(l => l.type === 'part').reduce((s, l) => s + l.qty * l.unitPrice, 0);
-  const customTotal = opts.customCharges.reduce((s, c) => s + c.amount, 0);
+  const workTotal = _srWorkSubtotal;
+  const partsTotal = _srPartsSubtotal;
+  const customTotal = _srCustomSubtotal;
   const baseTotal = workTotal + partsTotal + customTotal;
   let discountAmt = 0;
   if (opts.discountMode === 'fixed') {
@@ -7115,10 +7197,13 @@ async function generateServiceReceiptPdf(opts: {
   const grandTotal = baseTotal - discountAmt;
 
   const totalsRightX = W - margin - 70;
+  // Only show summary rows not already subtotalled in the individual tables
   const pricingRows: Array<[string, string]> = [];
-  if (workTotal > 0)   pricingRows.push(['Labour & Service', PKR(workTotal)]);
-  if (partsTotal > 0)  pricingRows.push(['Parts & Materials', PKR(partsTotal)]);
-  if (customTotal > 0) pricingRows.push(['Additional Charges', PKR(customTotal)]);
+  const _numSections = (workTotal > 0 ? 1 : 0) + (partsTotal > 0 ? 1 : 0) + (customTotal > 0 ? 1 : 0);
+  if (_numSections > 1) {
+    // Multiple sections: show combined base before discount
+    pricingRows.push(['Combined Subtotal', PKR(baseTotal)]);
+  }
   if (discountAmt > 0) {
     const lbl = opts.discountMode === 'fixed'
       ? `${opts.discountType} Discount (fixed)`
@@ -7186,7 +7271,9 @@ async function generateServiceReceiptPdf(opts: {
     y += 14;
   }
 
-  // ── Bank + QR (unified payment station — matches main invoice style) ─────────
+  // ── Bank + QR (hidden when fully paid) ───────────────────────────────────────
+  const _srFullyPaid = opts.paymentStatus === 'paid';
+  if (!_srFullyPaid) {
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
   doc.line(margin, y, W - margin, y);
   doc.setLineWidth(0.2);
@@ -7232,6 +7319,7 @@ async function generateServiceReceiptPdf(opts: {
     doc.text("Tajalli's — Meezan Bank · Raast / IBAN", _srQrColX + _srQrColW / 2, _srQrY + _srQrSz + 8, { align: 'center', maxWidth: _srQrColW - 2 });
   }
   y += bdH + 4;
+  } // end if (!_srFullyPaid)
 
   // ── Footer ────────────────────────────────────────────────────────────────
   const footerY = 285;
@@ -9597,6 +9685,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
 
   async function generate() {
     if (docType !== 'service_receipt' && !lines.length || pdfState === 'generating') return;
+    if (!preparedBy.trim()) { alert('Please enter a name in the "Prepared By" field before generating.'); return; }
     setPdfState('generating');
     setGenerating(true);
     const timeout = setTimeout(() => {
@@ -9699,6 +9788,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
 
   async function generateAdvanceInvoice() {
     if (!lines.length || instAdvPdfState === 'generating') return;
+    if (!preparedBy.trim()) { alert('Please enter a name in the "Prepared By" field before generating.'); return; }
     setInstAdvPdfState('generating');
     const timeout = setTimeout(() => setInstAdvPdfState('error'), 15000);
     try {
@@ -9933,6 +10023,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
             type="email"
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
           <input value={customerAddress} onChange={e => setCustomerAddress(e.target.value)}
+            onBlur={e => setCustomerAddress(e.target.value.replace(/\s{2,}/g, ' ').replace(/\s*,\s*/g, ', ').trim())}
             placeholder="Delivery address (optional)"
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
           {docType === 'service_receipt' && (
@@ -10009,10 +10100,12 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           {/* Prepared by + Stock status */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Prepared By</label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">
+                Prepared By <span className="text-red-500">*</span>
+              </label>
               <input value={preparedBy} onChange={e => setPreparedBy(e.target.value)}
-                placeholder="Staff name"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
+                placeholder="Staff name (required)"
+                className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 ${!preparedBy.trim() ? 'border-red-300 bg-red-50' : 'border-gray-200'}`} />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">Stock Status</label>
