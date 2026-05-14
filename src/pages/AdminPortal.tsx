@@ -4357,7 +4357,7 @@ interface PackageComponent {
   group: 'core' | 'generation' | 'infrastructure' | 'service';
 }
 
-async function updateInvoiceInSupabase(invoiceId: string, payload: InvoiceLogPayload): Promise<void> {
+async function updateInvoiceInSupabase(invoiceId: string, payload: InvoiceLogPayload): Promise<boolean> {
   try {
     const { error: invErr } = await supabase
       .from('invoices')
@@ -4391,7 +4391,7 @@ async function updateInvoiceInSupabase(invoiceId: string, payload: InvoiceLogPay
         prepared_by:         payload.preparedBy || null,
       })
       .eq('id', invoiceId);
-    if (invErr) { console.warn('[invoice-update] header failed:', invErr.message); return; }
+    if (invErr) { console.warn('[invoice-update] header failed:', invErr.message); return false; }
 
     // Replace lines
     await supabase.from('invoice_lines').delete().eq('invoice_id', invoiceId);
@@ -4435,8 +4435,10 @@ async function updateInvoiceInSupabase(invoiceId: string, payload: InvoiceLogPay
       const { error: svcErr } = await supabase.from('invoice_services').insert(serviceRows);
       if (svcErr) console.warn('[invoice-update] services failed:', svcErr.message);
     }
+    return true;
   } catch (e) {
     console.warn('[invoice-update] unexpected:', e);
+    return false;
   }
 }
 
@@ -4654,7 +4656,7 @@ async function generateQuotationPdf(opts: {
   const printW = W - margin * 2;
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const PKR = (n: number) => `PKR ${(Math.ceil(n / 100) * 100).toLocaleString('en-PK')}`;
+  const PKR = (n: number) => { const v = Math.ceil(n / 100) * 100; return `PKR ${v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`; };
   const fmtPKPhone = (p: string) => {
     const d = p.replace(/\D/g, '');
     if (d.length === 11 && d.startsWith('0')) return '+92 ' + d.slice(1, 4) + ' ' + d.slice(4);
@@ -4713,24 +4715,28 @@ async function generateQuotationPdf(opts: {
   doc.setFillColor(11, 37, 69);
   doc.rect(rightX, 0, W - rightX, HEADER_H, 'F');
 
-  // Logo — left
+  // Logo — vertically centered in header
+  const _logoH = 25;
+  const _logoY = Math.round((HEADER_H - _logoH) / 2); // center vertically
   if (logoData) {
-    doc.addImage(logoData, 'PNG', margin, 4, 0, 27);
+    doc.addImage(logoData, 'PNG', margin, _logoY, 0, _logoH);
   } else {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
-    doc.text("Tajalli's", margin, 18);
+    doc.text("Tajalli's", margin, 20);
   }
 
-  // Brand — two-line layout
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(255, 255, 255);
-  doc.text('HOME & COMMERCIAL', margin + 38, 13);
-  doc.text('SOLUTIONS', margin + 38, 21);
+  // Brand — pushed down to align with logo text region
+  const _brandX = margin + 38;
+  const _brandMaxW = rightX - _brandX - 3;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(255, 255, 255);
+  doc.text('HOME & COMMERCIAL', _brandX, 15, { maxWidth: _brandMaxW });
+  doc.text('SOLUTIONS', _brandX, 23, { maxWidth: _brandMaxW });
   // Thin white rule beneath brand
   doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
-  doc.line(margin + 38, 23.5, margin + 38 + 74, 23.5);
+  doc.line(_brandX, 25.5, _brandX + _brandMaxW, 25.5);
   // Tagline below rule
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
-  doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', margin + 38, 28.5);
+  doc.text('Ghar Se Tijarat Tak -- Har Zaroorat Ka Hal', _brandX, 30, { maxWidth: _brandMaxW });
 
   // Right meta zone: doc-type label (tiny, muted) → REF (large, dominant) → date (small)
   doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(246, 196, 0);
@@ -5052,8 +5058,14 @@ async function generateQuotationPdf(opts: {
     startY: leftY,
     margin: { left: margin, right: leftAutoMarginRight },
     head: [
-      [{ content: 'ITEMS', colSpan: 5, styles: { fillColor: NAVY, textColor: [255,255,255] as [number,number,number], fontSize: 7, fontStyle: 'bold' as const, cellPadding: { top: 2, bottom: 2, left: 3 } } }],
-      ['PRODUCT', 'SPECS', 'QTY', 'UNIT', 'TOTAL'],
+      [{ content: 'ITEMS', colSpan: 5, styles: { fillColor: NAVY, textColor: [255,255,255] as [number,number,number], fontSize: 7, fontStyle: 'bold' as const, cellPadding: { top: 2.5, bottom: 2.5, left: 3 } } }],
+      [
+        { content: 'PRODUCT', styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'left' as const, cellPadding: { top: 1.5, bottom: 1.5, left: 3, right: 1 } } },
+        { content: 'SPECS',   styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } } },
+        { content: 'QTY',     styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'right' as const, cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } } },
+        { content: 'UNIT',    styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'right' as const, cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } } },
+        { content: 'TOTAL',   styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'right' as const, cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 3 } } },
+      ],
     ],
     body: itemsBody,
     columnStyles: {
@@ -5069,7 +5081,7 @@ async function generateQuotationPdf(opts: {
     styles: { overflow: 'linebreak', cellPadding: cellPad },
   });
   // @ts-ignore
-  leftY = (doc as any).lastAutoTable.finalY + 5;
+  leftY = (doc as any).lastAutoTable.finalY + 3;
 
   // ── ROW 2 RIGHT: Warranty → 12-Month Option → Pricing (balanced) ─────────────
   // Warranty and 12-month are capped; Pricing always renders at bottom of column.
@@ -5101,7 +5113,7 @@ async function generateQuotationPdf(opts: {
       }
       wy += wtyRowH;
     }
-    rightY += totalWtyBodyH + 4;
+    rightY += totalWtyBodyH + 3;
   }
 
   // 12-MONTH OPTION — compact 2-line format, capped at RIGHT_CAP
@@ -5195,6 +5207,9 @@ async function generateQuotationPdf(opts: {
     if (_needsSecondRow) {
       const _balStatusLabel = _isFullyPaid ? 'AMOUNT PAID' : 'BALANCE DUE';
       const _balStatusAmt = _isFullyPaid ? grandTotal : _balOnDelivery;
+      // Separator between GRAND TOTAL and second row
+      doc.setDrawColor(45, 85, 140); doc.setLineWidth(0.25);
+      doc.line(rightX + 2, pry + 8.5, rightX + rightW - 2, pry + 8.5);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(246, 196, 0);
       doc.text(_balStatusLabel, rightX + 3, pry + 13);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(255, 255, 255);
@@ -5209,10 +5224,10 @@ async function generateQuotationPdf(opts: {
       doc.line(rightX, calloutY, rightX, calloutY + 7);
       doc.setLineWidth(0.2);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(18, 63, 115);
-      doc.text('✶ ' + opts.discountReason, rightX + 3, calloutY + 4.5, { maxWidth: rightW - 6 });
+      doc.text('* ' + opts.discountReason, rightX + 3, calloutY + 4.5, { maxWidth: rightW - 6 });
     }
 
-    rightY += pricingH + 5;
+    rightY += pricingH + 4;
   }
 
   // ── ROW 3 LEFT: Services (active) + Optional suggestions ─────────────────────
@@ -5259,8 +5274,13 @@ async function generateQuotationPdf(opts: {
       startY: leftY,
       margin: { left: margin, right: leftAutoMarginRight },
       head: [
-        [{ content: 'SERVICES', colSpan: 4, styles: { fillColor: NAVY, textColor: [255,255,255] as [number,number,number], fontSize: 7, fontStyle: 'bold' as const, cellPadding: { top: 2, bottom: 2, left: 3 } } }],
-        ['SERVICE', 'MARKET RATE', 'STATUS', 'AMOUNT'],
+        [{ content: 'SERVICES', colSpan: 4, styles: { fillColor: NAVY, textColor: [255,255,255] as [number,number,number], fontSize: 7, fontStyle: 'bold' as const, cellPadding: { top: 2.5, bottom: 2.5, left: 3 } } }],
+        [
+          { content: 'SERVICE',     styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'left' as const,   cellPadding: { top: 1.5, bottom: 1.5, left: 3, right: 1 } } },
+          { content: 'MARKET RATE', styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'right' as const,  cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } } },
+          { content: 'STATUS',      styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'center' as const, cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } } },
+          { content: 'AMOUNT',      styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'right' as const,  cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 3 } } },
+        ],
       ],
       body: activeSvcBody,
       columnStyles: {
@@ -5275,7 +5295,7 @@ async function generateQuotationPdf(opts: {
       styles: { overflow: 'linebreak', cellPadding: cellPad },
     });
     // @ts-ignore
-    leftY = (doc as any).lastAutoTable.finalY + 5;
+    leftY = (doc as any).lastAutoTable.finalY + 3;
   }
 
   if (optionalServices.length > 0) {
@@ -5301,165 +5321,271 @@ async function generateQuotationPdf(opts: {
   }
 
   // ── SYNC COLUMNS → FULL-WIDTH ZONE ───────────────────────────────────────────
-  let y = Math.max(leftY, rightY) + 6;
+  let y = Math.max(leftY, rightY) + 4;
   // Horizontal rule to cleanly separate two-column zone from full-width sections
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
   doc.line(margin, y - 3, W - margin, y - 3);
   doc.setLineWidth(0.2);
 
-  // ── FULL-WIDTH ENERGY CONSUMPTION + SOLAR/UPS ADVISORY ───────────────────────
-  // Always rendered. Category-based kWh estimates fill in when product specs lack
-  // explicit energy data, so every invoice shows consumption figures.
+  // ── UNIFIED ENERGY / SOLAR SECTION ───────────────────────────────────────
   {
-    const catKwh = (kwhPerMonth: number, category: string, name: string): { kwh: number; isEst: boolean } => {
-      if (kwhPerMonth > 0) return { kwh: kwhPerMonth, isEst: false };
-      const cat = category.toLowerCase();
-      const nm  = name.toLowerCase();
-      if (/air.?cond|split\s+ac|window\s+ac/i.test(cat) || /\bac\b/.test(nm))           return { kwh: 240, isEst: true };  // 8h/day @ ~1 kW avg
-      if (/refrigerator|fridge/i.test(cat) || /fridge|refrig/i.test(nm))                return { kwh: 100, isEst: true };  // 24h/day operation
-      if (/deep.?freez|chest.?freez|vertical.?freez/i.test(cat) || /freezer/i.test(nm)) return { kwh: 150, isEst: true };  // 24h/day operation
-      if (/washing|washer/i.test(cat))                                                   return { kwh: 30,  isEst: true };
-      if (/microwave/i.test(cat))                                                        return { kwh: 12,  isEst: true };
-      if (/water.?heater|geyser/i.test(cat))                                             return { kwh: 45,  isEst: true };
-      if (/television|led.*tv/i.test(cat) || /\btv\b/.test(nm))                         return { kwh: 10,  isEst: true };
+    const catKwh2 = (kwh: number, cat: string, nm: string): { kwh: number; isEst: boolean } => {
+      if (kwh > 0) return { kwh, isEst: false };
+      const c = cat.toLowerCase(), n = nm.toLowerCase();
+      if (/air.?cond|split\s+ac|window\s+ac/i.test(c) || /\bac\b/.test(n))            return { kwh: 240, isEst: true };
+      if (/refrigerator|fridge/i.test(c) || /fridge|refrig/i.test(n))                 return { kwh: 100, isEst: true };
+      if (/deep.?freez|chest.?freez|vertical.?freez/i.test(c) || /freezer/i.test(n))  return { kwh: 150, isEst: true };
+      if (/washing|washer/i.test(c))                                                   return { kwh: 30,  isEst: true };
+      if (/microwave/i.test(c))                                                        return { kwh: 12,  isEst: true };
+      if (/water.?heater|geyser/i.test(c))                                             return { kwh: 45,  isEst: true };
+      if (/television|led.*tv/i.test(c) || /\btv\b/.test(n))                          return { kwh: 10,  isEst: true };
       return { kwh: 0, isEst: false };
     };
 
-    const energyLines2 = opts.lines
+    const isSolar = opts.lines.some(l =>
+      /solar/i.test(l.category || '') || /solar.*system|solar.*package/i.test(l.name || '')
+    );
+
+    // Energy lines excluding solar items
+    const energyLines3 = opts.lines
       .map(l => {
         const fullName = l.displayPrefix ? `${l.displayPrefix}${l.name}` : l.name;
-        const { kwh, isEst } = catKwh(l.kwhPerMonth || 0, l.category || '', fullName);
+        const { kwh, isEst } = catKwh2(l.kwhPerMonth || 0, l.category || '', fullName);
         return { line: l, fullName, kwh, isEst };
       })
-      .filter(l => l.kwh > 0 && !/solar.*inv|inverter.*sys/i.test(l.line.category || ''));
-    const totalEffKwh = energyLines2.reduce((s, l) => s + l.kwh * l.line.qty, 0);
+      .filter(l => l.kwh > 0 && !/solar/i.test(l.line.category || ''));
 
-    const advisoryLines2 = opts.lines.map(l => {
-      const fullName = l.displayPrefix ? `${l.displayPrefix}${l.name}` : l.name;
-      const energyEntry = energyLines2.find(e => e.line === l);
-      return {
-        name: fullName,
-        category: l.category || '',
-        kwhPerMonth: energyEntry ? energyEntry.kwh : (l.kwhPerMonth || 0),
-        qty: l.qty,
-        keySpec: l.keySpec,
-      };
-    });
-    const advisory2 = buildDetailedAdvisory(opts.customerType, advisoryLines2);
+    const totalEffKwh3 = energyLines3.reduce((s, l) => s + l.kwh * l.line.qty, 0);
+    const hasAnyInverter3 = energyLines3.some(l => /inverter/i.test(l.fullName));
 
-    const pwrRowH2  = 3.0;
-    const dispRows2 = Math.min(energyLines2.length, 6);
+    const midX3 = margin + Math.round(printW * 0.48);
+    const leftW3 = midX3 - margin;
+    const rightW3 = margin + printW - midX3 - 3;
+    const rightX3 = midX3 + 3;
+    const rowH3 = 3.2;
+    const hdrH3 = 5.5;
 
-    const eColW2 = Math.round(printW * 0.48);
-    const aColX2 = margin + eColW2 + 3;
-    const aColW2 = printW - eColW2 - 3;
+    if (isSolar) {
+      // ── SOLAR SYSTEM OVERVIEW ─────────────────────────────────────────────
+      let inverterKw = 0, batteryKwh = 0, panelCount = 0, panelWatts = 0;
+      const solarLines3 = opts.lines.filter(l =>
+        /solar/i.test(l.category || '') || /solar.*system|solar.*package/i.test(l.name || '')
+      );
+      for (const sl of solarLines3) {
+        // Fallback: parse system kW from main line name
+        if (inverterKw === 0) {
+          const m = `${sl.name} ${sl.model || ''}`.match(/(\d+\.?\d*)\s*kw/i);
+          if (m) inverterKw = parseFloat(m[1]);
+        }
+        if (Array.isArray(sl.packageComponents)) {
+          for (const comp of sl.packageComponents as Array<{ name?: string; qty?: number }>) {
+            const cn = (comp.name ?? '').trim();
+            const cqty = comp.qty ?? 1;
+            if (/inverter/i.test(cn) && !/battery/i.test(cn)) {
+              const m = cn.match(/(\d+\.?\d*)\s*kw/i);
+              if (m) inverterKw = Math.max(inverterKw, parseFloat(m[1]) * cqty);
+            }
+            if (/battery/i.test(cn)) {
+              const m = cn.match(/(\d+\.?\d*)\s*kw/i);
+              if (m) batteryKwh += parseFloat(m[1]) * cqty;
+            }
+            if (/panel/i.test(cn)) {
+              const wM = cn.match(/(\d+)\s*[wW]\b/);
+              const cntM = cn.match(/^(\d+)\s*[×x]/);
+              if (wM) panelWatts = parseInt(wM[1]);
+              panelCount += parseInt(cntM?.[1] ?? '1') * cqty;
+            }
+          }
+        }
+      }
 
-    const hasInverterAcKwh2 = energyLines2.some(l => /air.?cond|split.*ac/i.test(l.line.category || '') && /inverter/i.test(l.fullName));
-    const hasAnyInverter2 = energyLines2.some(l => /inverter/i.test(l.fullName));
-    const energyH2 = 7 + dispRows2 * pwrRowH2 + 14 + (hasAnyInverter2 ? 3.5 : 0);
-    // Estimate advisory height: 75 chars/line matches actual jsPDF 5.5pt Helvetica at ~88mm column width
-    const advParas2Preview = advisory2 ? advisory2.paragraphs : [''];
-    const advEstH2 = 9 + advParas2Preview.reduce(
-      (sum, p) => sum + Math.ceil(p.length / 75) * 3.2 + 2, 0
-    );
-    const stripH2 = Math.max(32, Math.max(energyH2, advEstH2));
+      const systemKw = inverterKw > 0 ? inverterKw : 1;
+      const totalPanelKw = panelCount > 0 && panelWatts > 0
+        ? Math.round(panelCount * panelWatts / 100) / 10
+        : 0;
+      const monthlyGen = Math.round(systemKw * 5 * 30);
+      const billSaving = Math.round(monthlyGen * UNIT_RATE_PKR);
 
-    // Left: Energy consumption
-    doc.setFillColor(255, 253, 234);
-    doc.rect(margin, y, eColW2, stripH2, 'F');
-    doc.setDrawColor(202, 138, 4); doc.setLineWidth(0.4);
-    doc.line(margin, y, margin, y + stripH2);
-    doc.setLineWidth(0.2);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(101, 61, 0);
-    doc.text('ENERGY CONSUMPTION', margin + 3, y + 5);
+      const lRows: string[] = [];
+      if (inverterKw > 0)   lRows.push(`Inverter output:  ${inverterKw} kW`);
+      if (batteryKwh > 0)   lRows.push(`Battery storage:  ${batteryKwh} kWh`);
+      if (totalPanelKw > 0) lRows.push(`Panel array:  ${panelCount}× ${panelWatts}W = ${totalPanelKw} kW peak`);
+      lRows.push(`Max usable load:  ~${Math.round(systemKw * 0.95 * 10) / 10} kW`);
 
-    if (energyLines2.length === 0) {
-      doc.setFont('helvetica', 'italic'); doc.setFontSize(5.5); doc.setTextColor(120, 80, 0);
-      doc.text('Energy data not available — contact us for a consumption estimate.', margin + 3, y + 10, { maxWidth: eColW2 - 6 });
+      const rRows: string[] = [];
+      rRows.push(`Est. monthly output:  ~${monthlyGen} kWh`);
+      rRows.push(`KE bill offset:  ~${PKR(billSaving)}/month`);
+      if (batteryKwh > 0) rRows.push(`Night backup:  ~${batteryKwh} kWh stored`);
+      if (totalEffKwh3 > 0) {
+        const pct = Math.min(100, Math.round(monthlyGen / totalEffKwh3 * 100));
+        rRows.push(`Load coverage:  ~${pct}% of ${totalEffKwh3} kWh/mo appliance load`);
+      }
+      rRows.push(`Basis: 5 peak sun hrs/day · Karachi avg.`);
+
+      const dataRows3 = Math.max(lRows.length, rRows.length);
+      const subHdrH3 = 5.5;
+      const bodyH3 = dataRows3 * rowH3 + 4;
+      const sectionH3 = hdrH3 + subHdrH3 + bodyH3;
+
+      // Background + NAVY header
+      doc.setFillColor(240, 247, 255);
+      doc.rect(margin, y, printW, sectionH3, 'F');
+      doc.setFillColor(NAVY);
+      doc.rect(margin, y, printW, hdrH3, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
+      doc.text('SOLAR SYSTEM OVERVIEW', margin + 3, y + 3.8);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(196, 213, 236);
+      doc.text(`${systemKw} kW System`, W - margin, y + 3.8, { align: 'right' });
+
+      const sy3 = y + hdrH3;
+
+      // Sub-column headers
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(NAVY);
+      doc.text('SYSTEM CAPACITY', margin + 3, sy3 + 3.8);
+      doc.text('GENERATION & LOAD COVERAGE', rightX3, sy3 + 3.8);
+
+      // Vertical divider
+      doc.setDrawColor(180, 200, 225); doc.setLineWidth(0.2);
+      doc.line(midX3, sy3 + 1, midX3, y + sectionH3 - 2);
+      doc.setLineWidth(0.2);
+
+      let lY3 = sy3 + subHdrH3 + 1;
+      for (const r of lRows) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(30, 30, 30);
+        doc.text(`· ${r}`, margin + 3, lY3);
+        lY3 += rowH3;
+      }
+      let rY3 = sy3 + subHdrH3 + 1;
+      for (const r of rRows) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(30, 30, 30);
+        doc.text(`· ${r}`, rightX3, rY3, { maxWidth: rightW3 });
+        rY3 += rowH3;
+      }
+
+      y += sectionH3 + 2;
+
     } else {
-      let ey = y + 9;
-      for (const pl of energyLines2.slice(0, 6)) {
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(80, 60, 0);
-        const energyLabel = (pl.line.model && pl.line.model.trim()) ? pl.line.model.trim() : pl.fullName;
-        const pNameFit = doc.splitTextToSize(energyLabel, eColW2 - 22);
-        doc.text(`· ${pNameFit[0]}`, margin + 3, ey);
-        const kwhLabel = `${pl.kwh * pl.line.qty} kWh/mo${pl.isEst ? ' est.' : ''}`;
+      // ── REGULAR INVOICE: ENERGY CONSUMPTION & ADVISORY ───────────────────
+      const advisoryLines3 = opts.lines.map(l => {
+        const fullName = l.displayPrefix ? `${l.displayPrefix}${l.name}` : l.name;
+        const energyEntry = energyLines3.find(e => e.line === l);
+        return {
+          name: fullName,
+          category: l.category || '',
+          kwhPerMonth: energyEntry ? energyEntry.kwh : (l.kwhPerMonth || 0),
+          qty: l.qty,
+          keySpec: l.keySpec,
+        };
+      });
+      const advisory3 = buildDetailedAdvisory(opts.customerType, advisoryLines3);
+
+      const dispRows3 = Math.min(energyLines3.length, 6);
+      const energyBodyH3 = energyLines3.length === 0
+        ? 8
+        : 5 + dispRows3 * rowH3 + 13 + (hasAnyInverter3 ? 3.5 : 0);
+      const advParas3 = advisory3
+        ? advisory3.paragraphs
+        : ['Ask us for an energy-saving assessment and solar proposal tailored to your property type.'];
+      const advBodyH3 = 5 + advParas3.reduce((s, p) => s + Math.ceil(p.length / 80) * rowH3 + 1.5, 0);
+      const bodyH3 = Math.max(14, Math.max(energyBodyH3, advBodyH3));
+      const sectionH3 = hdrH3 + bodyH3;
+
+      const sectionTitle = advisory3
+        ? (advisory3.color === 'blue'  ? 'ENERGY CONSUMPTION & UPS ADVISORY'
+          : advisory3.color === 'green' ? 'ENERGY CONSUMPTION & SOLAR ADVISORY'
+          : 'ENERGY OVERVIEW')
+        : 'ENERGY OVERVIEW';
+
+      // Background + NAVY header
+      doc.setFillColor(255, 253, 234);
+      doc.rect(margin, y, printW, sectionH3, 'F');
+      doc.setFillColor(NAVY);
+      doc.rect(margin, y, printW, hdrH3, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
+      doc.text(sectionTitle, margin + 3, y + 3.8);
+      if (totalEffKwh3 > 0) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(196, 213, 236);
+        doc.text(`${totalEffKwh3} kWh/mo`, W - margin, y + 3.8, { align: 'right' });
+      }
+
+      const sy3 = y + hdrH3;
+
+      // Vertical divider
+      doc.setDrawColor(180, 150, 60); doc.setLineWidth(0.2);
+      doc.line(midX3, sy3 + 2, midX3, y + sectionH3 - 2);
+      doc.setLineWidth(0.2);
+
+      // Left sub-header: CONSUMPTION
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(101, 61, 0);
+      doc.text('CONSUMPTION', margin + 3, sy3 + 4);
+
+      if (energyLines3.length === 0) {
+        doc.setFont('helvetica', 'italic'); doc.setFontSize(5.5); doc.setTextColor(120, 80, 0);
+        doc.text('Energy data not available — contact us for a consumption estimate.',
+          margin + 3, sy3 + 8.5, { maxWidth: leftW3 - 6 });
+      } else {
+        let ey3 = sy3 + 8;
+        for (const pl of energyLines3.slice(0, 6)) {
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(80, 60, 0);
+          const lbl = (pl.line.model && pl.line.model.trim()) ? pl.line.model.trim() : pl.fullName;
+          doc.text(`· ${doc.splitTextToSize(lbl, leftW3 - 22)[0]}`, margin + 3, ey3);
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(101, 61, 0);
+          doc.text(`${pl.kwh * pl.line.qty} kWh/mo${pl.isEst ? ' est.' : ''}`, midX3 - 2, ey3, { align: 'right' });
+          ey3 += rowH3;
+        }
+        if (energyLines3.length > 6) {
+          doc.setFont('helvetica', 'italic'); doc.setFontSize(5); doc.setTextColor(130, 100, 30);
+          doc.text(`+ ${energyLines3.length - 6} more items`, margin + 3, ey3); ey3 += rowH3;
+        }
+        doc.setDrawColor(180, 140, 0); doc.setLineWidth(0.15);
+        doc.line(margin + 3, ey3, midX3 - 4, ey3); ey3 += 3;
         doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(101, 61, 0);
-        doc.text(kwhLabel, margin + eColW2 - 2, ey, { align: 'right' });
-        ey += pwrRowH2;
-      }
-      if (energyLines2.length > 6) {
-        doc.setFont('helvetica', 'italic'); doc.setFontSize(5); doc.setTextColor(130, 100, 30);
-        doc.text(`+ ${energyLines2.length - 6} more items`, margin + 3, ey);
-        ey += pwrRowH2;
-      }
-      doc.setDrawColor(180, 140, 0); doc.setLineWidth(0.15);
-      doc.line(margin + 3, ey, margin + eColW2 - 3, ey);
-      ey += 3.5;
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(101, 61, 0);
-      doc.text('TOTAL', margin + 3, ey);
-      doc.text(`${totalEffKwh} kWh/mo`, margin + eColW2 - 2, ey, { align: 'right' });
-      const hasEst2 = energyLines2.some(l => l.isEst);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(120, 80, 0);
-      doc.text(`${hasEst2 ? 'Est. ' : ''}electricity cost: ${PKR(totalEffKwh * UNIT_RATE_PKR)}/month`, margin + 3, ey + 3.5);
-      const inverterAcKwh2 = energyLines2
-        .filter(l => /air.?cond|split.*ac/i.test(l.line.category || '') && /inverter/i.test(l.fullName))
-        .reduce((s, l) => s + l.kwh * l.line.qty, 0);
-      let extraNoteY = ey + 7.0;
-      if (hasAnyInverter2) {
-        const invSavingsKwh = energyLines2
-          .filter(l => /inverter/i.test(l.fullName))
-          .reduce((s, l) => {
-            const isAc = /air.?cond|split.*ac/i.test(l.line.category || '');
-            const factor = isAc ? 0.35 : 0.30;
-            return s + Math.round(l.kwh * l.line.qty * factor / (1 - factor));
-          }, 0);
-        const co2SavedKgMo = Math.round(
-          energyLines2
-            .filter(l => /inverter/i.test(l.fullName))
+        doc.text('TOTAL', margin + 3, ey3);
+        doc.text(`${totalEffKwh3} kWh/mo`, midX3 - 2, ey3, { align: 'right' });
+        const hasEst3 = energyLines3.some(l => l.isEst);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(120, 80, 0);
+        doc.text(`${hasEst3 ? 'Est. ' : ''}cost: ${PKR(totalEffKwh3 * UNIT_RATE_PKR)}/month`, margin + 3, ey3 + 3);
+        if (hasAnyInverter3) {
+          const invSav = energyLines3.filter(l => /inverter/i.test(l.fullName))
             .reduce((s, l) => {
-              const isAc = /air.?cond|split.*ac/i.test(l.line.category || '');
-              return s + l.kwh * l.line.qty * (isAc ? 0.35 : 0.30) * 0.45;
-            }, 0)
-        );
-        const treesPerYear = Math.max(1, Math.round(co2SavedKgMo * 12 / 22));
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(4.8); doc.setTextColor(34, 120, 60);
-        doc.text(`Inverter models save ${invSavingsKwh} kWh/mo — equiv. ${treesPerYear} tree${treesPerYear !== 1 ? 's' : ''} planted/yr`, margin + 3, extraNoteY);
-        extraNoteY += 3.5;
+              const f = /air.?cond|split.*ac/i.test(l.line.category || '') ? 0.35 : 0.30;
+              return s + Math.round(l.kwh * l.line.qty * f / (1 - f));
+            }, 0);
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(4.8); doc.setTextColor(34, 120, 60);
+          doc.text(`Inverter models save ~${invSav} kWh/mo`, margin + 3, ey3 + 6.5);
+        }
+        doc.setFont('helvetica', 'italic'); doc.setFontSize(4.5); doc.setTextColor(160, 110, 40);
+        doc.text(`Basis: AC 8h/day | Fridge/Freezer 24h/day | KE ${UNIT_RATE_PKR} PKR/kWh`,
+          margin + 3, ey3 + (hasAnyInverter3 ? 10 : 6.5));
       }
-      doc.setFont('helvetica', 'italic'); doc.setFontSize(4.5); doc.setTextColor(160, 110, 40);
-      doc.text(`Basis: AC 8h/day | Fridge/Freezer 24h/day | KE rate ${UNIT_RATE_PKR} PKR/kWh`, margin + 3, extraNoteY);
+
+      // Right sub-header + advisory paragraphs
+      const advSubTitle = advisory3
+        ? (advisory3.color === 'blue'  ? 'UPS / BACKUP ADVISORY'
+          : advisory3.color === 'green' ? 'SOLAR ADVISORY'
+          : 'ADVISORY')
+        : 'ADVISORY';
+      const advSubColor: [number, number, number] = advisory3?.color === 'blue'
+        ? [29, 78, 216] : [21, 128, 61];
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5);
+      doc.setTextColor(...(advisory3 ? advSubColor : [70, 70, 70] as [number, number, number]));
+      doc.text(advSubTitle, rightX3, sy3 + 4);
+
+      let ay3 = sy3 + 8;
+      for (const para of advParas3) {
+        const wrapped = doc.splitTextToSize(para, rightW3);
+        const available = Math.max(1, Math.floor((y + sectionH3 - ay3 - 2) / rowH3));
+        const toShow = wrapped.slice(0, available);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(40, 40, 40);
+        doc.text(toShow, rightX3, ay3, { lineHeightFactor: 1.4 });
+        ay3 += toShow.length * rowH3 + 2;
+        if (ay3 >= y + sectionH3 - 2) break;
+      }
+
+      y += sectionH3 + 2;
     }
 
-    // Right: Solar / UPS advisory
-    const advFill2: [number,number,number]   = !advisory2 ? [248,248,248] : advisory2.color === 'blue' ? [239,246,255] : advisory2.color === 'green' ? [240,253,244] : [248,248,248];
-    const advBorder2: [number,number,number] = !advisory2 ? [160,160,160] : advisory2.color === 'blue' ? [59,130,246]  : advisory2.color === 'green' ? [34,197,94]   : [160,160,160];
-    doc.setFillColor(...advFill2);
-    doc.rect(aColX2, y, aColW2, stripH2, 'F');
-    doc.setDrawColor(...advBorder2); doc.setLineWidth(0.5);
-    doc.line(aColX2, y, aColX2, y + stripH2);
-    doc.setLineWidth(0.2);
-    const advTitle2 = advisory2
-      ? (advisory2.color === 'green' ? 'SOLAR RECOMMENDATION' : advisory2.color === 'blue' ? 'UPS / BACKUP ADVISORY' : 'ENERGY ADVISORY')
-      : 'ENERGY ADVISORY';
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(NAVY);
-    doc.text(advTitle2, aColX2 + 3, y + 5);
-    const advParas2 = advisory2
-      ? advisory2.paragraphs
-      : ['Ask us for an energy-saving assessment and solar proposal tailored to your property type.'];
-    let ay = y + 9;
-    for (const para of advParas2) {
-      const wrapped = doc.splitTextToSize(para, aColW2 - 5);
-      const available = Math.max(1, Math.floor((y + stripH2 - ay - 2) / 3.2));
-      const toShow = wrapped.slice(0, available);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(40, 40, 40);
-      doc.text(toShow, aColX2 + 3, ay, { lineHeightFactor: 1.4 });
-      ay += toShow.length * 3.2 + 2;
-      if (ay >= y + stripH2 - 2) break;
-    }
-
-    y += stripH2 + 2;
-    // Separator below energy strip
+    // Separator below section
     doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
     doc.line(margin, y, W - margin, y);
     doc.setLineWidth(0.2);
@@ -5807,7 +5933,7 @@ async function generateInstallmentAdvancePdf(opts: {
   const printW = W - margin * 2;
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const PKR = (n: number) => `PKR ${(Math.ceil(n / 100) * 100).toLocaleString('en-PK')}`;
+  const PKR = (n: number) => { const v = Math.ceil(n / 100) * 100; return `PKR ${v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`; };
   const now = new Date();
   const fmtDate = (d: Date) => d.toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' });
   const dateStr = fmtDate(now);
@@ -6096,7 +6222,7 @@ async function generateInstallmentPaymentPdf(opts: {
   const printW = W - margin * 2;
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const PKR = (n: number) => `PKR ${(Math.ceil(n / 100) * 100).toLocaleString('en-PK')}`;
+  const PKR = (n: number) => { const v = Math.ceil(n / 100) * 100; return `PKR ${v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`; };
   const fmtDate = (d: Date) => d.toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' });
   const now = new Date();
   const dateStr = fmtDate(now);
@@ -6378,7 +6504,7 @@ async function generateServiceReceiptPdf(opts: {
   const printW = W - margin * 2;
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const PKR = (n: number) => `PKR ${(Math.ceil(n / 100) * 100).toLocaleString('en-PK')}`;
+  const PKR = (n: number) => { const v = Math.ceil(n / 100) * 100; return `PKR ${v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`; };
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' });
 
@@ -7859,7 +7985,7 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
           const spaceIdx = devicePart.indexOf(' ');
           deviceBrand = spaceIdx > -1 ? devicePart.slice(0, spaceIdx) : devicePart;
           deviceModel = spaceIdx > -1 ? devicePart.slice(spaceIdx + 1) : '';
-          faultDesc = prefixMatch[2].trim();
+          faultDesc = prefixMatch[2].trim().replace(/^—$/, '');
           warrantyDays = prefixMatch[3] ? Number(prefixMatch[3]) : 0;
           srNotes = notesRaw.replace(prefixMatch[0], '').trim();
         }
@@ -8253,6 +8379,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
   const [productSearch, setProductSearch] = useState('');
   const [generating, setGenerating]       = useState(false);
   const [pdfState, setPdfState]           = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
+  const [savingEdits, setSavingEdits]     = useState(false);
   // ── Package templates state ──
   type PkgTemplate = { id: string; name: string; description: string | null; category_tag: string | null; lines: QuoteLine[]; discount: number; discount_type: string };
   const [templates, setTemplates]         = useState<PkgTemplate[]>([]);
@@ -8991,6 +9118,57 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
     });
   }, [lines, products]);
 
+  function buildCurrentLogPayload(): InvoiceLogPayload {
+    return {
+      refNumber,
+      docType: docType as InvoiceLogPayload['docType'],
+      customerName, customerPhone: customerPhone.replace(/\D/g, ''),
+      customerEmail, customerAddress, customerCnic,
+      customerType, serviceLevel, discountReason,
+      lines: docType === 'service_receipt'
+        ? srJobLines.map(l => ({
+            id: l.id, name: l.description, model: '', qty: l.qty, unitPrice: l.unitPrice,
+            category: l.type === 'work' ? 'Service Work' : 'Spare Part',
+            warranty: '', keySpec: '', kwhPerMonth: 0, savingsPct: 0,
+            minPrice: 0, floorPrice: 0, overrideReason: '',
+            displayPrefix: '', packageNote: '', isPackage: false, packageComponents: [],
+          }))
+        : lines,
+      services, discount: discountMode === 'fixed' ? discountFixed : discount, discountType,
+      grandTotal: docType === 'service_receipt' ? srGrandTotal : effectiveTotal, serviceTotal, advancePct,
+      instTotalPrice: saleType === 'installment' ? instTotalPrice : 0,
+      instAdvanceAmt: saleType === 'installment' ? instAdvanceAmt : 0,
+      instMonths: saleType === 'installment' ? instMonths : 0,
+      instMonthlyAmt: saleType === 'installment' ? instMonthlyAmt : 0,
+      instFirstDate,
+      customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
+      guarantorName, guarantorPhone, guarantorCnic, preparedBy,
+      notes: (() => {
+        if (docType !== 'service_receipt') return invoiceNotes;
+        const devicePart = [srDeviceBrand, srDeviceModel].filter(Boolean).join(' ');
+        const parts: string[] = [];
+        if (devicePart) parts.push('Device: ' + devicePart);
+        if (srFaultDesc) parts.push('Fault: ' + srFaultDesc);
+        if (srWarrantyDays > 0) parts.push('Warranty: ' + srWarrantyDays + ' days');
+        const prefix = parts.length ? '[' + parts.join(' | ') + ']' : '';
+        return [prefix, invoiceNotes].filter(Boolean).join('\n\n');
+      })(),
+    };
+  }
+
+  async function saveEditsNow() {
+    if (!editingInvoiceId) return;
+    setSavingEdits(true);
+    try {
+      const ok = await updateInvoiceInSupabase(editingInvoiceId, buildCurrentLogPayload());
+      setToastMsg(ok ? 'Changes saved ✓' : 'Save failed — check console for details');
+    } catch {
+      setToastMsg('Save failed — unexpected error');
+    } finally {
+      setSavingEdits(false);
+    }
+  }
+
   async function generate() {
     if (docType !== 'service_receipt' && !lines.length || pdfState === 'generating') return;
     setPdfState('generating');
@@ -9076,52 +9254,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       setPdfUrl(url);
       const a = document.createElement('a');
       a.href = url; a.download = `${(customerName || 'Customer').replace(/[/\\:*?"<>|]/g, '').trim()} - ${refNumber}.pdf`; a.click();
-      const logPayload: InvoiceLogPayload = {
-        refNumber,
-        docType: docType as 'quotation' | 'invoice' | 'installment-invoice' | 'installment_payment_receipt' | 'service_receipt',
-        customerName, customerPhone: customerPhone.replace(/\D/g, ''),
-        customerEmail, customerAddress, customerCnic,
-        customerType, serviceLevel, discountReason,
-        lines: docType === 'service_receipt'
-          ? srJobLines.map(l => ({
-              id: l.id,
-              name: l.description,
-              model: '',
-              qty: l.qty,
-              unitPrice: l.unitPrice,
-              category: l.type === 'work' ? 'Service Work' : 'Spare Part',
-              warranty: '',
-              keySpec: '',
-              kwhPerMonth: 0,
-              savingsPct: 0,
-              minPrice: 0,
-              floorPrice: 0,
-              overrideReason: '',
-              displayPrefix: '',
-              packageNote: '',
-              isPackage: false,
-              packageComponents: [],
-            }))
-          : lines,
-        services, discount: discountMode === 'fixed' ? discountFixed : discount, discountType,
-        grandTotal: docType === 'service_receipt' ? srGrandTotal : effectiveTotal, serviceTotal, advancePct,
-        instTotalPrice: saleType === 'installment' ? instTotalPrice : 0,
-        instAdvanceAmt: saleType === 'installment' ? instAdvanceAmt : 0,
-        instMonths: saleType === 'installment' ? instMonths : 0,
-        instMonthlyAmt: saleType === 'installment' ? instMonthlyAmt : 0,
-        instFirstDate,
-        customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
-        guarantorName, guarantorPhone, guarantorCnic,
-        preparedBy,
-        notes: (() => {
-          if (docType !== 'service_receipt') return invoiceNotes;
-          const devicePart = [srDeviceBrand, srDeviceModel].filter(Boolean).join(' ');
-          const parts = ['Device: ' + devicePart, 'Fault: ' + (srFaultDesc || '—')];
-          if (srWarrantyDays > 0) parts.push('Warranty: ' + srWarrantyDays + ' days');
-          const prefix = parts.length ? '[' + parts.join(' | ') + ']' : '';
-          return [prefix, invoiceNotes].filter(Boolean).join('\n\n');
-        })(),
-      };
+      const logPayload = buildCurrentLogPayload();
       if (editingInvoiceId) {
         updateInvoiceInSupabase(editingInvoiceId, logPayload);
       } else {
@@ -9284,16 +9417,21 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
             <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
-            <span><span className="font-bold">Editing</span> — changes will update invoice <span className="font-mono">{refNumber}</span> in the database.</span>
+            <span><span className="font-bold">Editing</span> invoice <span className="font-mono">{refNumber}</span> — save without re-generating PDF, or generate to update both.</span>
           </div>
-          <button
-            onClick={() => {
-              setEditingInvoiceId(null);
-              setRefNumber(generateRefNumber());
-            }}
-            className="text-xs font-semibold text-blue-600 hover:text-blue-800 whitespace-nowrap">
-            ✕ Cancel edit
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={saveEditsNow}
+              disabled={savingEdits}
+              className="text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-60 whitespace-nowrap">
+              {savingEdits ? 'Saving…' : 'Save Changes'}
+            </button>
+            <button
+              onClick={() => { setEditingInvoiceId(null); setRefNumber(generateRefNumber()); }}
+              className="text-xs font-semibold text-blue-600 hover:text-blue-800 whitespace-nowrap">
+              ✕ Cancel
+            </button>
+          </div>
         </div>
       )}
 
@@ -10444,26 +10582,24 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                 <X className="w-4 h-4" />
               </button>
             </div>
-            {svc.status !== 'not_selected' && (
-              <div className="flex items-center gap-1 pl-2">
-                <span className="text-xs text-gray-400">
-                  {svc.status === 'charged' ? 'Charge PKR' : 'Value PKR'}
-                </span>
-                <input
-                  type="number"
-                  value={svc.status === 'charged' ? svc.charged_amount : svc.visible_value}
-                  onChange={e => {
-                    const v = Number(e.target.value);
-                    updateService(i, svc.status === 'charged'
-                      ? { charged_amount: v, visible_value: v }
-                      : { visible_value: v });
-                  }}
-                  className={`w-28 border rounded-lg px-2 py-1 text-xs text-right focus:outline-none focus:ring-1 focus:ring-brand-400 ${
-                    svc.status === 'charged' ? 'border-brand-200' : 'border-gray-200'
-                  }`}
-                />
-              </div>
-            )}
+            <div className="flex items-center gap-1 pl-2">
+              <span className="text-xs text-gray-400">
+                {svc.status === 'charged' ? 'Charge PKR' : svc.status === 'included' ? 'Value PKR' : 'Market rate PKR'}
+              </span>
+              <input
+                type="number"
+                value={svc.status === 'charged' ? svc.charged_amount : svc.visible_value}
+                onChange={e => {
+                  const v = Number(e.target.value);
+                  updateService(i, svc.status === 'charged'
+                    ? { charged_amount: v, visible_value: v }
+                    : { visible_value: v });
+                }}
+                className={`w-28 border rounded-lg px-2 py-1 text-xs text-right focus:outline-none focus:ring-1 focus:ring-brand-400 ${
+                  svc.status === 'charged' ? 'border-brand-200' : 'border-gray-200'
+                }`}
+              />
+            </div>
           </div>
         ))}
         {serviceTotal > 0 && (
@@ -10559,6 +10695,16 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       {/* ── Quotation / Invoice buttons ── */}
       {docType !== 'installment-invoice' && (
         <div className="flex flex-wrap gap-3">
+          {editingInvoiceId && (
+            <button
+              onClick={saveEditsNow}
+              disabled={savingEdits}
+              className="flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-60 transition-colors whitespace-nowrap">
+              {savingEdits
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
+                : <>Save Invoice Changes</>}
+            </button>
+          )}
           <button
             onClick={generate}
             disabled={
