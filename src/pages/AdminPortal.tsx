@@ -4928,6 +4928,8 @@ async function generateQuotationPdf(opts: {
     warrantyEntries.push({ name: 'Installation & Setup', coverage: formatWty('1 year workmanship') });
   }
 
+  const _hasSolarPkg = opts.lines.some(l => l.isPackage && (/solar/i.test(l.category || '') || /solar.*system|solar.*package/i.test(l.name || '')));
+
   const itemsBody: any[] = [];
   for (const cat of categoryOrder) {
     itemsBody.push([{
@@ -5013,10 +5015,11 @@ async function generateQuotationPdf(opts: {
         }
       } else {
         // ── Regular line ──────────────────────────────────────────────────────
-        // Model number only in product cell; keySpec bullets go in dedicated SPECS column
-        const nameParts = [displayName];
+        const _isBatteryAddon = _hasSolarPkg && /battery/i.test(displayName + (line.category || ''));
+        const nameParts = [_isBatteryAddon ? `Additional Battery — ${displayName}` : displayName];
         if (line.model && line.model.trim()) nameParts.push(line.model.trim());
-        if (line.packageNote) nameParts.push(`> ${line.packageNote}`);
+        if (_isBatteryAddon) nameParts.push('Added outside base package');
+        else if (line.packageNote) nameParts.push(`> ${line.packageNote}`);
         const specsText = line.keySpec
           ? line.keySpec.split(',').map((s: string) => s.trim())
               .filter((s: string) => s.length > 2 && !/:\s*(No|N\/A|None|—|NA|-)\s*$/i.test(s))
@@ -5092,22 +5095,28 @@ async function generateQuotationPdf(opts: {
 
   // WARRANTY — first in right column, no top separator
   if (warrantyEntries.length > 0) {
+    const _wtyBrands = ['Haier','Westpoint','Dawlance','PEL','Orient','Gree','Changhong','Ruba','Samsung','LG','Panasonic','Siemens'];
+    const _inferProvider = (nm: string) => _wtyBrands.find(b => nm.toLowerCase().includes(b.toLowerCase())) ?? 'Manufacturer';
     const wtyBody = warrantyEntries.map(we => [
-      { content: we.model || we.name, styles: { fontStyle: 'bold' as const, fontSize: 5, textColor: [25, 25, 25] as [number,number,number] } },
-      { content: we.coverage, styles: { fontSize: 4.8, textColor: [80, 80, 80] as [number,number,number], halign: 'right' as const } },
+      { content: we.model || we.name, styles: { fontStyle: 'bold' as const, fontSize: 4.8, textColor: [25, 25, 25] as [number,number,number] } },
+      { content: we.coverage, styles: { fontSize: 4.5, textColor: [60, 60, 60] as [number,number,number] } },
+      { content: _inferProvider(we.name), styles: { fontSize: 4.5, textColor: [80, 80, 80] as [number,number,number] } },
+      { content: "Tajalli's", styles: { fontSize: 4.5, textColor: [22, 101, 52] as [number,number,number], fontStyle: 'bold' as const } },
     ]);
     autoTable(doc, {
       startY: rightY,
       margin: { left: rightX, right: margin },
       head: [[
-        { content: 'WARRANTY COVERAGE', colSpan: 2, styles: { fillColor: [18,63,115] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, cellPadding: { top: 1.5, bottom: 1.5, left: 3, right: 2 } } },
+        { content: 'WARRANTY COVERAGE', colSpan: 4, styles: { fillColor: [18,63,115] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, cellPadding: { top: 1.5, bottom: 1.5, left: 3, right: 2 } } },
       ], [
-        { content: 'ITEM', styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5, cellPadding: { top: 1, bottom: 1, left: 3, right: 1 } } },
-        { content: 'COVERAGE', styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5, halign: 'right' as const, cellPadding: { top: 1, bottom: 1, left: 1, right: 3 } } },
+        { content: 'ITEM', styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 4.5, cellPadding: { top: 1, bottom: 1, left: 3, right: 1 } } },
+        { content: 'COVERAGE', styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 4.5 } },
+        { content: 'PROVIDER', styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 4.5 } },
+        { content: 'CLAIM VIA', styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 4.5, halign: 'right' as const, cellPadding: { top: 1, bottom: 1, left: 1, right: 3 } } },
       ]],
       body: wtyBody,
-      columnStyles: { 0: { cellWidth: 22 }, 1: { cellWidth: 'auto' } },
-      bodyStyles: { fontSize: 5, textColor: [40,40,40] as [number,number,number], lineColor: [229,231,235] as [number,number,number], lineWidth: 0.15, cellPadding: { top: 1, bottom: 1, left: 3, right: 2 } },
+      columnStyles: { 0: { cellWidth: 16 }, 1: { cellWidth: 18 }, 2: { cellWidth: 14 }, 3: { cellWidth: 'auto' } },
+      bodyStyles: { fontSize: 4.5, textColor: [40,40,40] as [number,number,number], lineColor: [229,231,235] as [number,number,number], lineWidth: 0.15, cellPadding: { top: 1, bottom: 1, left: 3, right: 2 } },
       alternateRowStyles: { fillColor: [248,250,252] as [number,number,number] },
       styles: { overflow: 'linebreak' },
     });
@@ -5168,7 +5177,6 @@ async function generateQuotationPdf(opts: {
     }
 
     const pricingRowH = 4.8;
-    const reasonH = (discountAmt > 0 && opts.discountReason) ? 7 : 0;
     // Advance/payment state — computed here so gtNavyBoxH can shrink when no second row needed
     const _gtAdvAmt = opts.advanceAmtFixed && opts.advanceAmtFixed > 0
       ? opts.advanceAmtFixed
@@ -5178,7 +5186,7 @@ async function generateQuotationPdf(opts: {
     // Only show second row when there's a meaningful balance or payment confirmation to convey
     const _needsSecondRow = _isFullyPaid || _balOnDelivery > 0;
     const gtNavyBoxH = _needsSecondRow ? 18 : 10;
-    const pricingH = pricingRows.length * pricingRowH + (gtNavyBoxH + 9) + reasonH;
+    const pricingH = pricingRows.length * pricingRowH + (gtNavyBoxH + 9);
     doc.setFillColor(250, 250, 250);
     doc.rect(rightX, rightY, rightW, pricingH, 'F');
     doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
@@ -5254,8 +5262,8 @@ async function generateQuotationPdf(opts: {
       const effStatus = override ? 'included' : svc.status;
       const statusLabel = effStatus === 'included' ? 'INCL' : 'BILLED';
       const statusColor: [number, number, number] = effStatus === 'included' ? [22, 163, 74] : [18, 63, 115];
-      const amtLabel = effStatus === 'included' ? 'PKR 0' : PKR(svc.charged_amount);
-      const mktLabel = svc.visible_value > 0 ? PKR(svc.visible_value) : '—';
+      const amtLabel = effStatus === 'included' ? 'Included' : PKR(svc.charged_amount);
+      const mktLabel = (opts.docType === 'quotation' && svc.visible_value > 0) ? PKR(svc.visible_value) : '—';
       return [
         { content: svc.service_name, styles: { fontStyle: 'bold' as const } },
         { content: mktLabel, styles: { textColor: [120, 120, 120] as [number,number,number], halign: 'right' as const } },
@@ -5404,9 +5412,9 @@ async function generateQuotationPdf(opts: {
       const billSaving = Math.round(monthlyGen * UNIT_RATE_PKR);
 
       const lRows: string[] = [];
-      if (inverterKw > 0)   lRows.push(`Inverter output:  ${inverterKw} kW`);
-      if (batteryKwh > 0)   lRows.push(`Battery storage:  ${batteryKwh} kWh`);
-      if (totalPanelKw > 0) lRows.push(`Panel array:  ${panelCount}× ${panelWatts}W = ${totalPanelKw} kW peak`);
+      if (inverterKw > 0)   lRows.push(`Inverter capacity:  ${inverterKw} kW AC`);
+      if (batteryKwh > 0)   lRows.push(`Battery storage:  ${batteryKwh} kWh (LiFePO4)`);
+      if (totalPanelKw > 0) lRows.push(`Panel array:  ${panelCount}× ${panelWatts}W = ${totalPanelKw} kWp DC`);
       lRows.push(`Max usable load:  ~${Math.round(systemKw * 0.95 * 10) / 10} kW`);
 
       const rRows: string[] = [];
@@ -5777,77 +5785,78 @@ async function generateQuotationPdf(opts: {
   doc.setLineWidth(0.2);
   y += 3;
 
-  // ── TRUST + COMMUNITY STRIP (compact 16mm) ───────────────────────────────────
-  const trustH = 16;
-  const trustStatW = Math.round(printW * 0.67);
-  const commAreaX = margin + trustStatW;
-  const commAreaW = printW - trustStatW;
-
-  doc.setFillColor(26, 26, 26);
-  doc.rect(margin, y, trustStatW, trustH, 'F');
-  doc.setFillColor(11, 37, 69);
-  doc.rect(commAreaX, y, commAreaW, trustH, 'F');
-
-  const trustStats = [
-    ['11+ yrs', 'IN BUSINESS'],
-    ['24,000+', 'ORDERS FULFILLED'],
-    ['14,000+', 'LOCATIONS SERVED'],
-    ['1,600+', 'COMMUNITY'],
-  ];
-  const segW = trustStatW / trustStats.length;
-  trustStats.forEach(([num, lbl], i) => {
-    const sx = margin + i * segW + segW / 2;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(246, 196, 0);
-    doc.text(num, sx, y + 5.5, { align: 'center' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(4); doc.setTextColor(170, 170, 170);
-    doc.text(lbl, sx, y + 10, { align: 'center' });
-  });
-
-  // Two QR codes side by side: FB (Priority Support) | WhatsApp (Emergency Support)
-  {
-    const QR_SIZE = 6;
-    const halfW = commAreaW / 2;
-    // Left half — Facebook community
-    const fbCx = commAreaX + halfW / 2;
-    const fbQrX = commAreaX + (halfW - QR_SIZE) / 2;
-    const fbQrY = y + 3.5;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(3.2); doc.setTextColor(255, 255, 255);
-    doc.text('PRIORITY SUPPORT', fbCx, y + 2.2, { align: 'center' });
-    if (fbQrData) {
-      doc.setFillColor(255, 255, 255);
-      doc.rect(fbQrX - 0.8, fbQrY - 0.8, QR_SIZE + 1.6, QR_SIZE + 1.6, 'F');
-      doc.addImage(fbQrData, 'PNG', fbQrX, fbQrY, QR_SIZE, QR_SIZE);
-      doc.link(fbQrX - 1, fbQrY - 1, QR_SIZE + 2, QR_SIZE + 2, { url: 'https://www.facebook.com/share/g/18be5ayTCF/' });
+  // ── TRUST + COMMUNITY STRIP ───────────────────────────────────────────────────
+  if (opts.docType === 'quotation') {
+    // Full 16mm strip with stats + QR codes (quotations only)
+    const trustH = 16;
+    const trustStatW = Math.round(printW * 0.67);
+    const commAreaX = margin + trustStatW;
+    const commAreaW = printW - trustStatW;
+    doc.setFillColor(26, 26, 26);
+    doc.rect(margin, y, trustStatW, trustH, 'F');
+    doc.setFillColor(11, 37, 69);
+    doc.rect(commAreaX, y, commAreaW, trustH, 'F');
+    const trustStats = [
+      ['11+ yrs', 'IN BUSINESS'],
+      ['24,000+', 'ORDERS FULFILLED'],
+      ['14,000+', 'LOCATIONS SERVED'],
+      ['1,600+', 'COMMUNITY'],
+    ];
+    const segW = trustStatW / trustStats.length;
+    trustStats.forEach(([num, lbl], i) => {
+      const sx = margin + i * segW + segW / 2;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(246, 196, 0);
+      doc.text(num, sx, y + 5.5, { align: 'center' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(4); doc.setTextColor(170, 170, 170);
+      doc.text(lbl, sx, y + 10, { align: 'center' });
+    });
+    {
+      const QR_SIZE = 6;
+      const halfW = commAreaW / 2;
+      const fbCx = commAreaX + halfW / 2;
+      const fbQrX = commAreaX + (halfW - QR_SIZE) / 2;
+      const fbQrY = y + 3.5;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(3.2); doc.setTextColor(255, 255, 255);
+      doc.text('PRIORITY SUPPORT', fbCx, y + 2.2, { align: 'center' });
+      if (fbQrData) {
+        doc.setFillColor(255, 255, 255);
+        doc.rect(fbQrX - 0.8, fbQrY - 0.8, QR_SIZE + 1.6, QR_SIZE + 1.6, 'F');
+        doc.addImage(fbQrData, 'PNG', fbQrX, fbQrY, QR_SIZE, QR_SIZE);
+        doc.link(fbQrX - 1, fbQrY - 1, QR_SIZE + 2, QR_SIZE + 2, { url: 'https://www.facebook.com/share/g/18be5ayTCF/' });
+      }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(3.5); doc.setTextColor(255, 255, 255);
+      doc.text('Appliance Reliance', fbCx, fbQrY + QR_SIZE + 2, { align: 'center' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(3); doc.setTextColor(180, 210, 255);
+      doc.text('Facebook Group', fbCx, fbQrY + QR_SIZE + 4, { align: 'center' });
+      doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.2);
+      doc.line(commAreaX + halfW, y + 2, commAreaX + halfW, y + trustH - 2);
+      doc.setLineWidth(0.2);
+      const waCx = commAreaX + halfW + halfW / 2;
+      const waQrX = commAreaX + halfW + (halfW - QR_SIZE) / 2;
+      const waQrY = y + 3.5;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(3.2); doc.setTextColor(255, 255, 255);
+      doc.text('EMERGENCY SUPPORT', waCx, y + 2.2, { align: 'center' });
+      if (waQrData) {
+        doc.setFillColor(255, 255, 255);
+        doc.rect(waQrX - 0.8, waQrY - 0.8, QR_SIZE + 1.6, QR_SIZE + 1.6, 'F');
+        doc.addImage(waQrData, 'PNG', waQrX, waQrY, QR_SIZE, QR_SIZE);
+        doc.link(waQrX - 1, waQrY - 1, QR_SIZE + 2, QR_SIZE + 2, { url: 'https://wa.me/923702578788' });
+      }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(3.5); doc.setTextColor(255, 255, 255);
+      doc.text('+92 370 2578788', waCx, waQrY + QR_SIZE + 2, { align: 'center' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(3); doc.setTextColor(180, 210, 255);
+      doc.text('Emergency Support', waCx, waQrY + QR_SIZE + 4, { align: 'center' });
     }
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(3.5); doc.setTextColor(255, 255, 255);
-    doc.text('Appliance Reliance', fbCx, fbQrY + QR_SIZE + 2, { align: 'center' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(3); doc.setTextColor(180, 210, 255);
-    doc.text('Facebook Group', fbCx, fbQrY + QR_SIZE + 4, { align: 'center' });
-
-    // Divider
-    doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.2);
-    doc.line(commAreaX + halfW, y + 2, commAreaX + halfW, y + trustH - 2);
-    doc.setLineWidth(0.2);
-
-    // Right half — WhatsApp emergency
-    const waCx = commAreaX + halfW + halfW / 2;
-    const waQrX = commAreaX + halfW + (halfW - QR_SIZE) / 2;
-    const waQrY = y + 3.5;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(3.2); doc.setTextColor(255, 255, 255);
-    doc.text('EMERGENCY SUPPORT', waCx, y + 2.2, { align: 'center' });
-    if (waQrData) {
-      doc.setFillColor(255, 255, 255);
-      doc.rect(waQrX - 0.8, waQrY - 0.8, QR_SIZE + 1.6, QR_SIZE + 1.6, 'F');
-      doc.addImage(waQrData, 'PNG', waQrX, waQrY, QR_SIZE, QR_SIZE);
-      doc.link(waQrX - 1, waQrY - 1, QR_SIZE + 2, QR_SIZE + 2, { url: 'https://wa.me/923702578788' });
-    }
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(3.5); doc.setTextColor(255, 255, 255);
-    doc.text('+92 370 2578788', waCx, waQrY + QR_SIZE + 2, { align: 'center' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(3); doc.setTextColor(180, 210, 255);
-    doc.text('Emergency Support', waCx, waQrY + QR_SIZE + 4, { align: 'center' });
+    y += trustH + 2;
+  } else {
+    // Compact 8mm trust bar for invoices and receipts
+    const _trustH2 = 8;
+    doc.setFillColor(26, 26, 26);
+    doc.rect(margin, y, printW, _trustH2, 'F');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(190, 190, 190);
+    doc.text('11+ yrs  ·  24,000+ Orders Fulfilled  ·  14,000+ Locations Served  ·  1,600+ Community', W / 2, y + _trustH2 / 2 + 1.5, { align: 'center' });
+    y += _trustH2 + 2;
   }
-
-  y += trustH + 2;
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
   doc.line(margin, y, W - margin, y);
   doc.setLineWidth(0.2);
@@ -5863,11 +5872,22 @@ async function generateQuotationPdf(opts: {
     'Physical damage: report within 24 hours.',
     'Unboxed goods non-refundable unless warranty.',
     'Payment terms apply as agreed before dispatch.',
-    'Installments require CNIC verification.',
     'Supply Only: liability at point of handover.',
     'Payment proof to +92 370 2578788 (WhatsApp).',
     'Post-install issues: report within 48 hours.',
   ];
+  // Solar-specific terms
+  const _isSolarDoc = opts.lines.some(l => /solar/i.test(l.category || '') || /solar.*system|solar.*package/i.test(l.name || ''));
+  if (_isSolarDoc) {
+    tcItems.push('Solar output estimates are indicative; actual generation varies with weather and shading.');
+    tcItems.push('Panel performance based on ~5 peak sun hours/day (Karachi avg). Shading reduces yield.');
+  }
+  // Installment-specific terms
+  if (opts.saleType === 'installment') {
+    tcItems.push('CNIC copy required within 3 days of advance payment for installment verification.');
+    tcItems.push('Ownership of goods transfers only upon full payment of the installment total.');
+    tcItems.push('Missed installment dates per signed agreement; charges may apply after grace period.');
+  }
   const tcCols = 3;
   const tcPerCol = Math.ceil(tcItems.length / tcCols);
   const colTcW = (printW - (tcCols - 1) * 3) / tcCols;
@@ -5944,54 +5964,102 @@ async function generateInstallmentAdvancePdf(opts: {
   let qrData: string | null = null;
   try { qrData = await loadQrBase64(); } catch { /* skip */ }
 
-  // ── 1. Header band ────────────────────────────────────────────────────────
+  // ── 1. Unified header (matches main invoice) ─────────────────────────────
+  const HEADER_H = 36;
+  const fmtPKPhone = (p: string) => {
+    const d = p.replace(/\D/g, '');
+    if (d.length === 11 && d.startsWith('0')) return '+92 ' + d.slice(1, 4) + ' ' + d.slice(4);
+    if (d.length === 12 && d.startsWith('92')) return '+92 ' + d.slice(2, 5) + ' ' + d.slice(5);
+    return p;
+  };
+  const headerRightX = 130;
   doc.setFillColor(NAVY);
-  doc.rect(0, 0, W, 40, 'F');
+  doc.rect(0, 0, W, HEADER_H, 'F');
+  doc.setFillColor(11, 37, 69);
+  doc.rect(headerRightX, 0, W - headerRightX, HEADER_H, 'F');
+  const _logoH = 25; const _logoY = Math.round((HEADER_H - _logoH) / 2);
   if (logoData) {
-    doc.addImage(logoData, 'PNG', margin, 5, 0, 30);
+    doc.addImage(logoData, 'PNG', margin, _logoY, 0, _logoH);
   } else {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(255, 255, 255);
-    doc.text("Tajalli's", margin, 24);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
+    doc.text("Tajalli's", margin, 20);
   }
-  const textX = margin + 38;
+  const _brandX = margin + 38; const _brandMaxW = headerRightX - _brandX - 3;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(255, 255, 255);
+  doc.text('HOME & COMMERCIAL', _brandX, 15, { maxWidth: _brandMaxW });
+  doc.text('SOLUTIONS', _brandX, 23, { maxWidth: _brandMaxW });
+  doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
+  doc.line(_brandX, 25.5, _brandX + _brandMaxW, 25.5);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
+  doc.text('Ghar Se Tijarat Tak -- Har Zaroorat Ka Hal', _brandX, 30, { maxWidth: _brandMaxW });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(246, 196, 0);
+  doc.text('ADVANCE INVOICE', W - margin, 8, { align: 'right' });
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
-  doc.text("Tajalli's", textX, 13);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(255, 214, 176);
-  doc.text('Home & Commercial Solutions', textX, 19);
-  doc.text('+92 370 2578788  |  tajallis.com.pk', textX, 25);
-  doc.text('L-152 & 153, Sector 11C-1, North Karachi', textX, 31);
-  // Advance invoice label — right-aligned, large and prominent
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(255, 255, 255);
-  doc.text('ADVANCE INVOICE', W - margin, 16, { align: 'right' });
+  doc.text(opts.refNumber, W - margin, 19, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
+  doc.text(dateStr, W - margin, 28, { align: 'right' });
+  doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
+  doc.line(headerRightX, 3, headerRightX, HEADER_H - 3);
+  doc.setLineWidth(0.2);
+  doc.setFillColor(GOLD);
+  doc.rect(0, HEADER_H - 1.2, W, 1.2, 'F');
+  const contactPartsAdv = ['L-152 & 153, Sector 11C-1, North Karachi', '+92 370 2578788', 'support@tajallis.com.pk'];
+  if (opts.showNtn) contactPartsAdv.push('NTN: 42101-3836602-3');
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(196, 213, 236);
+  doc.text(contactPartsAdv.join('  ·  '), margin, HEADER_H - 2.5);
 
-  let y = 46;
+  let y = HEADER_H + 3;
 
-  // ── 2. Info bar ────────────────────────────────────────────────────────────
-  doc.setFillColor(243, 244, 246);
-  doc.rect(margin, y, printW, 10, 'F');
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(80, 80, 80);
-  const colW = printW / 4;
-  doc.text(`Ref: ${opts.refNumber}`, margin + 2, y + 6.5);
-  doc.text(`Date: ${dateStr}`, margin + colW + 2, y + 6.5);
-  doc.text('Advance Due: Today', margin + colW * 2 + 2, y + 6.5);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Supply + Installment', margin + colW * 3 + 2, y + 6.5);
-  y += 14;
-
-  // ── 3. Customer block ──────────────────────────────────────────────────────
-  const extraLinesAdv = [opts.customerEmail, opts.customerAddress, opts.customerCnic ? `CNIC: ${opts.customerCnic}` : ''].filter(Boolean);
-  const custHAdv = 20 + extraLinesAdv.length * 5;
+  // ── 2. Customer + document details (two-column) ───────────────────────────
+  const advCustLW = 112; const advCustRX = margin + advCustLW + 4; const advCustRW = W - margin - advCustRX;
+  const advCustFields: Array<[string, string]> = [
+    ['NAME',    opts.customerName || '—'],
+    ['PHONE',   opts.customerPhone ? fmtPKPhone(opts.customerPhone) : '—'],
+    ...(opts.customerEmail   ? [['EMAIL',   opts.customerEmail]   as [string, string]] : []),
+    ...(opts.customerAddress ? [['ADDRESS', opts.customerAddress] as [string, string]] : []),
+    ...(opts.customerCnic    ? [['CNIC',    opts.customerCnic]    as [string, string]] : []),
+  ];
+  const advCustH = advCustFields.length * 4.8 + 10;
   doc.setFillColor(235, 242, 250);
-  doc.rect(margin, y, printW, custHAdv, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
-  doc.text('BILL TO', margin + 4, y + 6);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(20, 20, 20);
-  doc.text(opts.customerName || '—', margin + 4, y + 13);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(100, 100, 100);
-  let custYAdv = y + 18;
-  if (opts.customerPhone) { doc.text(opts.customerPhone, margin + 4, custYAdv); custYAdv += 5; }
-  for (const line of extraLinesAdv) { doc.text(line, margin + 4, custYAdv); custYAdv += 5; }
-  y += custHAdv + 4;
+  doc.rect(margin, y, advCustLW, advCustH, 'F');
+  doc.setDrawColor(18, 63, 115); doc.setLineWidth(0.5);
+  doc.line(margin, y, margin, y + advCustH);
+  doc.setLineWidth(0.2);
+  doc.setFillColor(NAVY);
+  doc.rect(margin, y, advCustLW, 4, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
+  doc.text('CLIENT', margin + 3, y + 3);
+  let advCY = y + 4 + 4.8;
+  for (const [lbl, val] of advCustFields) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(63, 116, 184);
+    doc.text(lbl, margin + 3, advCY);
+    doc.setFont('helvetica', lbl === 'NAME' ? 'bold' : 'normal');
+    doc.setFontSize(lbl === 'NAME' ? 8 : 7); doc.setTextColor(20, 20, 20);
+    doc.text(String(val), margin + 22, advCY);
+    advCY += 4.8;
+  }
+  doc.setFillColor(245, 247, 250);
+  doc.rect(advCustRX, y, advCustRW, advCustH, 'F');
+  doc.setFillColor(NAVY);
+  doc.rect(advCustRX, y, advCustRW, 4, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
+  doc.text('DOCUMENT DETAILS', advCustRX + 3, y + 3);
+  const advMetaRows: Array<[string, string]> = [
+    ['TYPE',    'Advance Invoice'],
+    ['REF',     opts.refNumber],
+    ['DATE',    dateStr],
+    ['ADVANCE', 'Due on confirmation'],
+    ['PLAN',    `${opts.instMonths}-month installment`],
+  ];
+  let advMY = y + 4 + 4.8;
+  for (const [lbl, val] of advMetaRows) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(63, 116, 184);
+    doc.text(lbl, advCustRX + 3, advMY);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(20, 20, 20);
+    doc.text(String(val), advCustRX + advCustRW - 3, advMY, { align: 'right' });
+    advMY += 4.8;
+  }
+  y += advCustH + 4;
 
   // ── 4. Products table ──────────────────────────────────────────────────────
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
@@ -6033,23 +6101,53 @@ async function generateInstallmentAdvancePdf(opts: {
   // @ts-ignore
   y = (doc as any).lastAutoTable.finalY + 6;
 
-  // ── 5. Installment summary block ───────────────────────────────────────────
-  const sumX = W - margin - 80;
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(80, 80, 80);
-  if (opts.discount > 0) {
-    doc.text('Cash Price', sumX, y);
-    doc.text(PKR(cashPrice), W - margin, y, { align: 'right' });
-    y += 7;
-  }
-  doc.text('Installment Total', sumX, y);
-  doc.text(PKR(opts.instTotalPrice), W - margin, y, { align: 'right' });
-  y += 7;
+  // ── 5. Financing transparency box ─────────────────────────────────────────
+  const financingCharge = opts.instTotalPrice - cashPrice;
+  const remainingBalance = opts.instTotalPrice - opts.instAdvanceAmt;
+  const firstDueStr = opts.instFirstDate ? fmtDate(new Date(opts.instFirstDate)) : '—';
+  const finBoxX = W - margin - 90; const finBoxW = W - margin - finBoxX;
+  const finRows: Array<[string, string, boolean]> = [
+    ['Cash Price',         PKR(cashPrice),              false],
+    ['Financing Charge',   `+ ${PKR(financingCharge)}`, false],
+    ['Installment Total',  PKR(opts.instTotalPrice),    true ],
+    ['Advance Due',        PKR(opts.instAdvanceAmt),    false],
+    ['Remaining Balance',  PKR(remainingBalance),       false],
+  ];
+  const finRowH = 5.5; const finBoxH = finRows.length * finRowH + 11 + 7;
+  doc.setFillColor(235, 242, 250);
+  doc.rect(finBoxX, y, finBoxW, finBoxH, 'F');
+  doc.setDrawColor(18, 63, 115); doc.setLineWidth(0.4);
+  doc.rect(finBoxX, y, finBoxW, finBoxH, 'S');
   doc.setFillColor(NAVY);
-  doc.rect(sumX - 4, y - 1, W - margin - sumX + 4 + margin, 11, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(255, 255, 255);
-  doc.text('Advance Due Now', sumX, y + 7);
-  doc.text(PKR(opts.instAdvanceAmt), W - margin, y + 7, { align: 'right' });
-  y += 17;
+  doc.rect(finBoxX, y, finBoxW, 5, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(255, 255, 255);
+  doc.text('FINANCING BREAKDOWN', finBoxX + 3, y + 3.5);
+  doc.setLineWidth(0.2);
+  let finY = y + 5 + finRowH;
+  for (const [lbl, val, isTot] of finRows) {
+    if (isTot) {
+      doc.setDrawColor(18, 63, 115); doc.setLineWidth(0.3);
+      doc.line(finBoxX + 3, finY - 2.5, finBoxX + finBoxW - 3, finY - 2.5);
+      doc.setLineWidth(0.2);
+    }
+    doc.setFont('helvetica', isTot ? 'bold' : 'normal'); doc.setFontSize(6.5);
+    doc.setTextColor(...(isTot ? [18, 63, 115] as [number,number,number] : [80, 80, 80] as [number,number,number]));
+    doc.text(lbl, finBoxX + 3, finY);
+    doc.setFont('helvetica', isTot ? 'bold' : 'normal'); doc.setFontSize(7);
+    doc.setTextColor(20, 20, 20);
+    doc.text(val, finBoxX + finBoxW - 3, finY, { align: 'right' });
+    if (isTot) {
+      doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
+      doc.line(finBoxX + 3, finY + 1.5, finBoxX + finBoxW - 3, finY + 1.5);
+    }
+    finY += finRowH;
+  }
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(18, 63, 115);
+  doc.text(
+    `${opts.instMonths} × ${PKR(opts.instMonthlyAmt)}/month  ·  1st due: ${firstDueStr}`,
+    finBoxX + finBoxW / 2, y + finBoxH - 3, { align: 'center' }
+  );
+  y += finBoxH + 4;
 
   // ── 6. Installment schedule table ─────────────────────────────────────────
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
@@ -6100,7 +6198,7 @@ async function generateInstallmentAdvancePdf(opts: {
       const statusColor: [number, number, number] = svc.status === 'charged' ? [246, 196, 0] : [22, 163, 74];
       const valueStr = svc.display_value
         ? svc.display_value
-        : svc.status === 'charged' ? PKR(svc.charged_amount) : 'PKR 0';
+        : svc.status === 'charged' ? PKR(svc.charged_amount) : 'Included';
       return [
         { content: svc.service_name, styles: { fontStyle: 'bold' as const } },
         { content: statusLabel, styles: { textColor: statusColor, fontStyle: 'bold' as const, halign: 'center' as const } },
@@ -6160,25 +6258,45 @@ async function generateInstallmentAdvancePdf(opts: {
     y += gtH + 6;
   }
 
-  // ── 7. Bank details ────────────────────────────────────────────────────────
-  const bdH = 28;
-  doc.setFillColor(240, 253, 244);
-  doc.rect(margin, y, printW, bdH, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(22, 101, 52);
-  doc.text('BANK TRANSFER — PAY ADVANCE NOW', margin + 3, y + 6);
+  // ── 7. Bank + QR (unified payment station) ────────────────────────────────
+  const _advBdH = 36;
+  const _advQrColW = 44;
+  const _advBankColW = printW - _advQrColW - 3;
+  const _advQrColX = margin + _advBankColW + 3;
+  doc.setFillColor(235, 252, 240);
+  doc.rect(margin, y, printW, _advBdH, 'F');
+  doc.setFillColor(22, 101, 52);
+  doc.rect(margin, y, 1.5, _advBdH, 'F');
+  doc.setDrawColor(180, 220, 195); doc.setLineWidth(0.3);
+  doc.line(_advQrColX, y + 3, _advQrColX, y + _advBdH - 3);
+  doc.setLineWidth(0.2);
+  const _advBankTx = margin + 4.5;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
+  doc.text('BANK TRANSFER — PAY ADVANCE NOW', _advBankTx, y + 6);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(20, 20, 20);
-  doc.text("TAJALLI'S HOME COLLECTION", margin + 3, y + 13);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(60, 60, 60);
-  doc.text('IBAN: PK33MEZN0001060101874794', margin + 3, y + 19);
-  doc.text('Meezan Bank — F.B Area Branch, KHI', margin + 3, y + 25);
+  doc.text("TAJALLI'S HOME COLLECTION", _advBankTx, y + 13);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(40, 40, 40);
+  doc.text('PK33 MEZN 0001 0601 0187 4794', _advBankTx, y + 20);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(80, 80, 80);
+  doc.text('Meezan Bank — F.B Area Branch', _advBankTx, y + 27);
+  doc.setFont('helvetica', 'italic'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
+  doc.text('Send deposit slip via WhatsApp to confirm order.', _advBankTx, y + 33, { maxWidth: _advBankColW - 8 });
+  const _advQrSz = 22;
+  const _advQrX = _advQrColX + (_advQrColW - _advQrSz) / 2;
+  const _advQrY = y + 4;
   if (qrData) {
-    doc.addImage(qrData, 'JPEG', margin + printW - 21, y + 4, 18, 18);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(4.5); doc.setTextColor(22, 101, 52);
-    doc.text("Tajalli's — Meezan Bank", margin + printW - 12, y + 24, { align: 'center' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(4); doc.setTextColor(80, 80, 80);
-    doc.text('Raast / IBAN', margin + printW - 12, y + 27, { align: 'center' });
+    doc.setFillColor(255, 255, 255);
+    doc.rect(_advQrX - 1.5, _advQrY - 1.5, _advQrSz + 3, _advQrSz + 3, 'F');
+    doc.setDrawColor(22, 101, 52); doc.setLineWidth(0.5);
+    doc.rect(_advQrX - 1.5, _advQrY - 1.5, _advQrSz + 3, _advQrSz + 3, 'S');
+    doc.setLineWidth(0.2);
+    doc.addImage(qrData, 'JPEG', _advQrX, _advQrY, _advQrSz, _advQrSz);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(22, 101, 52);
+    doc.text('SCAN TO PAY', _advQrColX + _advQrColW / 2, _advQrY + _advQrSz + 4.5, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(80, 80, 80);
+    doc.text("Tajalli's — Meezan Bank · Raast / IBAN", _advQrColX + _advQrColW / 2, _advQrY + _advQrSz + 8, { align: 'center', maxWidth: _advQrColW - 2 });
   }
-  y += bdH + 6;
+  y += _advBdH + 6;
 
   // ── 8. CTA ────────────────────────────────────────────────────────────────
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(18, 63, 115);
@@ -6188,7 +6306,7 @@ async function generateInstallmentAdvancePdf(opts: {
   const footerY = 282;
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(150, 150, 150);
   doc.text(
-    'Advance payment confirms your order. Balance due per installment schedule above. Late payment penalty: 1% of outstanding balance per additional day past due date.',
+    'Advance payment confirms your order. Balance due per installment schedule above. Charges may apply after grace period per signed agreement.',
     margin, footerY, { maxWidth: printW }
   );
   doc.setFontSize(7);
@@ -6241,54 +6359,102 @@ async function generateInstallmentPaymentPdf(opts: {
   let fbQrData: string | null = null;
   try { fbQrData = await generateQrDataUrl('https://www.facebook.com/share/g/18be5ayTCF/'); } catch { /* skip */ }
 
-  // ── 1. Header band ────────────────────────────────────────────────────────
+  // ── 1. Unified header (matches main invoice) ─────────────────────────────
+  const HEADER_H_PY = 36;
+  const fmtPKPhone = (p: string) => {
+    const d = p.replace(/\D/g, '');
+    if (d.length === 11 && d.startsWith('0')) return '+92 ' + d.slice(1, 4) + ' ' + d.slice(4);
+    if (d.length === 12 && d.startsWith('92')) return '+92 ' + d.slice(2, 5) + ' ' + d.slice(5);
+    return p;
+  };
+  const _pyHeaderRX = 130;
   doc.setFillColor(NAVY);
-  doc.rect(0, 0, W, 40, 'F');
+  doc.rect(0, 0, W, HEADER_H_PY, 'F');
+  doc.setFillColor(11, 37, 69);
+  doc.rect(_pyHeaderRX, 0, W - _pyHeaderRX, HEADER_H_PY, 'F');
+  const _pyLogoH = 25; const _pyLogoY = Math.round((HEADER_H_PY - _pyLogoH) / 2);
   if (logoData) {
-    doc.addImage(logoData, 'PNG', margin, 5, 0, 30);
+    doc.addImage(logoData, 'PNG', margin, _pyLogoY, 0, _pyLogoH);
   } else {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(255, 255, 255);
-    doc.text("Tajalli's", margin, 24);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
+    doc.text("Tajalli's", margin, 20);
   }
-  const textX = margin + 38;
+  const _pyBrandX = margin + 38; const _pyBrandMaxW = _pyHeaderRX - _pyBrandX - 3;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(255, 255, 255);
+  doc.text('HOME & COMMERCIAL', _pyBrandX, 15, { maxWidth: _pyBrandMaxW });
+  doc.text('SOLUTIONS', _pyBrandX, 23, { maxWidth: _pyBrandMaxW });
+  doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
+  doc.line(_pyBrandX, 25.5, _pyBrandX + _pyBrandMaxW, 25.5);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
+  doc.text('Ghar Se Tijarat Tak -- Har Zaroorat Ka Hal', _pyBrandX, 30, { maxWidth: _pyBrandMaxW });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(246, 196, 0);
+  doc.text('PAYMENT RECEIPT', W - margin, 8, { align: 'right' });
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
-  doc.text("Tajalli's", textX, 13);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(255, 214, 176);
-  doc.text('Home & Commercial Solutions', textX, 19);
-  doc.text('+92 370 2578788  |  tajallis.com.pk', textX, 25);
-  doc.text('L-152 & 153, Sector 11C-1, North Karachi', textX, 31);
-  // Installment invoice label — right-aligned, large and prominent
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(255, 255, 255);
-  doc.text('INSTALLMENT INVOICE', W - margin, 16, { align: 'right' });
+  doc.text(opts.refNumber, W - margin, 19, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
+  doc.text(dateStr, W - margin, 28, { align: 'right' });
+  doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
+  doc.line(_pyHeaderRX, 3, _pyHeaderRX, HEADER_H_PY - 3);
+  doc.setLineWidth(0.2);
+  doc.setFillColor(GOLD);
+  doc.rect(0, HEADER_H_PY - 1.2, W, 1.2, 'F');
+  const _pyContactParts = ['L-152 & 153, Sector 11C-1, North Karachi', '+92 370 2578788', 'support@tajallis.com.pk'];
+  if (opts.showNtn) _pyContactParts.push('NTN: 42101-3836602-3');
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(196, 213, 236);
+  doc.text(_pyContactParts.join('  ·  '), margin, HEADER_H_PY - 2.5);
 
-  let y = 46;
+  let y = HEADER_H_PY + 3;
 
-  // ── 2. Info bar ────────────────────────────────────────────────────────────
-  doc.setFillColor(243, 244, 246);
-  doc.rect(margin, y, printW, 10, 'F');
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(80, 80, 80);
-  const colW = printW / 4;
-  doc.text(`Ref: ${opts.refNumber}`, margin + 2, y + 6.5);
-  doc.text(`Date: ${dateStr}`, margin + colW + 2, y + 6.5);
-  doc.text(`Due: ${dueDateStr}`, margin + colW * 2 + 2, y + 6.5);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`PAYMENT ${opts.paymentNumber} / ${opts.instMonths}`, margin + colW * 3 + 2, y + 6.5);
-  y += 14;
-
-  // ── 3. Customer block ──────────────────────────────────────────────────────
-  const extraLinesPay = [opts.customerEmail, opts.customerAddress, opts.customerCnic ? `CNIC: ${opts.customerCnic}` : ''].filter(Boolean);
-  const custHPay = 20 + extraLinesPay.length * 5;
+  // ── 2. Customer + document details (two-column) ───────────────────────────
+  const _pyCustLW = 112; const _pyCustRX = margin + _pyCustLW + 4; const _pyCustRW = W - margin - _pyCustRX;
+  const _pyCustFields: Array<[string, string]> = [
+    ['NAME',    opts.customerName || '—'],
+    ['PHONE',   opts.customerPhone ? fmtPKPhone(opts.customerPhone) : '—'],
+    ...(opts.customerEmail   ? [['EMAIL',   opts.customerEmail]   as [string, string]] : []),
+    ...(opts.customerAddress ? [['ADDRESS', opts.customerAddress] as [string, string]] : []),
+    ...(opts.customerCnic    ? [['CNIC',    opts.customerCnic]    as [string, string]] : []),
+  ];
+  const _pyCustH = _pyCustFields.length * 4.8 + 10;
   doc.setFillColor(235, 242, 250);
-  doc.rect(margin, y, printW, custHPay, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
-  doc.text('BILL TO', margin + 4, y + 6);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(20, 20, 20);
-  doc.text(opts.customerName || '—', margin + 4, y + 13);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(100, 100, 100);
-  let custYPay = y + 18;
-  if (opts.customerPhone) { doc.text(opts.customerPhone, margin + 4, custYPay); custYPay += 5; }
-  for (const line of extraLinesPay) { doc.text(line, margin + 4, custYPay); custYPay += 5; }
-  y += custHPay + 4;
+  doc.rect(margin, y, _pyCustLW, _pyCustH, 'F');
+  doc.setDrawColor(18, 63, 115); doc.setLineWidth(0.5);
+  doc.line(margin, y, margin, y + _pyCustH);
+  doc.setLineWidth(0.2);
+  doc.setFillColor(NAVY);
+  doc.rect(margin, y, _pyCustLW, 4, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
+  doc.text('CLIENT', margin + 3, y + 3);
+  let _pyCY = y + 4 + 4.8;
+  for (const [lbl, val] of _pyCustFields) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(63, 116, 184);
+    doc.text(lbl, margin + 3, _pyCY);
+    doc.setFont('helvetica', lbl === 'NAME' ? 'bold' : 'normal');
+    doc.setFontSize(lbl === 'NAME' ? 8 : 7); doc.setTextColor(20, 20, 20);
+    doc.text(String(val), margin + 22, _pyCY);
+    _pyCY += 4.8;
+  }
+  doc.setFillColor(245, 247, 250);
+  doc.rect(_pyCustRX, y, _pyCustRW, _pyCustH, 'F');
+  doc.setFillColor(NAVY);
+  doc.rect(_pyCustRX, y, _pyCustRW, 4, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
+  doc.text('DOCUMENT DETAILS', _pyCustRX + 3, y + 3);
+  const _pyMetaRows: Array<[string, string]> = [
+    ['TYPE',    'Payment Receipt'],
+    ['REF',     opts.refNumber],
+    ['DATE',    dateStr],
+    ['PAYMENT', `${opts.paymentNumber} of ${opts.instMonths}`],
+    ['DUE',     dueDateStr],
+  ];
+  let _pyMY = y + 4 + 4.8;
+  for (const [lbl, val] of _pyMetaRows) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(63, 116, 184);
+    doc.text(lbl, _pyCustRX + 3, _pyMY);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(20, 20, 20);
+    doc.text(String(val), _pyCustRX + _pyCustRW - 3, _pyMY, { align: 'right' });
+    _pyMY += 4.8;
+  }
+  y += _pyCustH + 4;
 
   // ── 4. Payment highlight box ───────────────────────────────────────────────
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
@@ -6403,60 +6569,53 @@ async function generateInstallmentPaymentPdf(opts: {
     y = (doc as any).lastAutoTable.finalY + 6;
   }
 
-  // ── 6c. Community strip ────────────────────────────────────────────────────
-  const commH = 18;
-  const trustStatW = Math.round(printW * 0.74);
-  const commAreaX = margin + trustStatW;
-  const commAreaW = printW - trustStatW;
-  doc.setFillColor(11, 37, 69);
-  doc.rect(margin, y, trustStatW, commH, 'F');
-  doc.setFillColor(11, 37, 69);
-  doc.rect(commAreaX, y, commAreaW, commH, 'F');
-  const payTrustStats = [['11+ yrs', 'IN BUSINESS'], ['24,000+', 'ORDERS FULFILLED'], ['14,000+', 'HOUSEHOLDS SERVED'], ['1,600+', 'COMMUNITY']];
-  const paySegW = trustStatW / payTrustStats.length;
-  payTrustStats.forEach(([num, lbl], i) => {
-    const sx = margin + i * paySegW + paySegW / 2;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(246, 196, 0);
-    doc.text(num, sx, y + 6, { align: 'center' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(4); doc.setTextColor(170, 170, 170);
-    doc.text(lbl, sx, y + 11, { align: 'center' });
-  });
-  if (fbQrData) {
-    const FB_QR = 10;
-    const cx = commAreaX + commAreaW / 2;
-    const fbQrX = commAreaX + (commAreaW - FB_QR) / 2;
-    const fbQrY = y + 4;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(4); doc.setTextColor(255, 255, 255);
-    doc.text('JOIN OUR FB GROUP', cx, y + 2.5, { align: 'center' });
-    doc.setFillColor(255, 255, 255);
-    doc.rect(fbQrX - 1, fbQrY - 1, FB_QR + 2, FB_QR + 2, 'F');
-    doc.addImage(fbQrData, 'PNG', fbQrX, fbQrY, FB_QR, FB_QR);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(4); doc.setTextColor(255, 255, 255);
-    doc.text('Appliance Reliance', cx, fbQrY + FB_QR + 2.5, { align: 'center' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(3.5); doc.setTextColor(180, 210, 255);
-    doc.text('Facebook Group', cx, fbQrY + FB_QR + 4.5, { align: 'center' });
-  }
-  y += commH + 6;
+  // ── 6c. Trust bar (compact) ────────────────────────────────────────────────
+  const _pyTrustH = 8;
+  doc.setFillColor(26, 26, 26);
+  doc.rect(margin, y, printW, _pyTrustH, 'F');
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(190, 190, 190);
+  doc.text('11+ yrs  ·  24,000+ Orders Fulfilled  ·  14,000+ Locations Served  ·  1,600+ Community', W / 2, y + _pyTrustH / 2 + 1.5, { align: 'center' });
+  y += _pyTrustH + 6;
 
-  // ── 7. Bank details ────────────────────────────────────────────────────────
-  const bdH = 28;
-  doc.setFillColor(240, 253, 244);
-  doc.rect(margin, y, printW, bdH, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(22, 101, 52);
-  doc.text('BANK TRANSFER', margin + 3, y + 6);
+  // ── 7. Bank + QR (unified payment station) ────────────────────────────────
+  const _pyBdH = 36;
+  const _pyQrColW = 44;
+  const _pyBankColW = printW - _pyQrColW - 3;
+  const _pyQrColX = margin + _pyBankColW + 3;
+  doc.setFillColor(235, 252, 240);
+  doc.rect(margin, y, printW, _pyBdH, 'F');
+  doc.setFillColor(22, 101, 52);
+  doc.rect(margin, y, 1.5, _pyBdH, 'F');
+  doc.setDrawColor(180, 220, 195); doc.setLineWidth(0.3);
+  doc.line(_pyQrColX, y + 3, _pyQrColX, y + _pyBdH - 3);
+  doc.setLineWidth(0.2);
+  const _pyBankTx = margin + 4.5;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
+  doc.text('BANK TRANSFER — RAAST / IBAN', _pyBankTx, y + 6);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(20, 20, 20);
-  doc.text("TAJALLI'S HOME COLLECTION", margin + 3, y + 13);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(60, 60, 60);
-  doc.text('IBAN: PK33MEZN0001060101874794', margin + 3, y + 19);
-  doc.text('Meezan Bank — F.B Area Branch, KHI', margin + 3, y + 25);
+  doc.text("TAJALLI'S HOME COLLECTION", _pyBankTx, y + 13);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(40, 40, 40);
+  doc.text('PK33 MEZN 0001 0601 0187 4794', _pyBankTx, y + 20);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(80, 80, 80);
+  doc.text('Meezan Bank — F.B Area Branch', _pyBankTx, y + 27);
+  doc.setFont('helvetica', 'italic'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
+  doc.text('Send payment proof via WhatsApp to confirm.', _pyBankTx, y + 33, { maxWidth: _pyBankColW - 8 });
+  const _pyQrSz = 22;
+  const _pyQrX = _pyQrColX + (_pyQrColW - _pyQrSz) / 2;
+  const _pyQrY = y + 4;
   if (qrData) {
-    doc.addImage(qrData, 'JPEG', margin + printW - 21, y + 4, 18, 18);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(4.5); doc.setTextColor(22, 101, 52);
-    doc.text("Tajalli's — Meezan Bank", margin + printW - 12, y + 24, { align: 'center' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(4); doc.setTextColor(80, 80, 80);
-    doc.text('Raast / IBAN', margin + printW - 12, y + 27, { align: 'center' });
+    doc.setFillColor(255, 255, 255);
+    doc.rect(_pyQrX - 1.5, _pyQrY - 1.5, _pyQrSz + 3, _pyQrSz + 3, 'F');
+    doc.setDrawColor(22, 101, 52); doc.setLineWidth(0.5);
+    doc.rect(_pyQrX - 1.5, _pyQrY - 1.5, _pyQrSz + 3, _pyQrSz + 3, 'S');
+    doc.setLineWidth(0.2);
+    doc.addImage(qrData, 'JPEG', _pyQrX, _pyQrY, _pyQrSz, _pyQrSz);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(22, 101, 52);
+    doc.text('SCAN TO PAY', _pyQrColX + _pyQrColW / 2, _pyQrY + _pyQrSz + 4.5, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(80, 80, 80);
+    doc.text("Tajalli's — Meezan Bank · Raast / IBAN", _pyQrColX + _pyQrColW / 2, _pyQrY + _pyQrSz + 8, { align: 'center', maxWidth: _pyQrColW - 2 });
   }
-  y += bdH + 6;
+  y += _pyBdH + 6;
 
   // ── 8. CTA ────────────────────────────────────────────────────────────────
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(18, 63, 115);
@@ -6466,7 +6625,7 @@ async function generateInstallmentPaymentPdf(opts: {
   const footerY = 282;
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(150, 150, 150);
   doc.text(
-    'Late payment penalty: 1% of outstanding balance per additional day past due date. All products carry official brand warranty.',
+    'Balance due per installment schedule. Charges may apply after grace period per signed agreement. All products carry official brand warranty.',
     margin, footerY, { maxWidth: printW }
   );
   doc.setFontSize(7);
@@ -6493,6 +6652,7 @@ async function generateServiceReceiptPdf(opts: {
   discountMode: 'percentage' | 'fixed';
   discountType: string;
   discountReason: string;
+  paymentStatus?: string;
   notes: string;
   preparedBy: string;
   showNtn?: boolean;
@@ -6526,11 +6686,15 @@ async function generateServiceReceiptPdf(opts: {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
     doc.text("Tajalli's", margin, 20);
   }
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(255, 255, 255);
-  doc.text('HOME & COMMERCIAL', margin + 38, 14);
-  doc.text('SOLUTIONS', margin + 38, 23);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(200, 215, 235);
-  doc.text('Ghar Se Tijarat Tak — Har Zaroorat Ka Hal', margin + 38, 30);
+  const _srBrandX = margin + 38; const _srBrandMaxW = (W - 62) - _srBrandX - 3;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(255, 255, 255);
+  doc.text('HOME & COMMERCIAL', _srBrandX, 15, { maxWidth: _srBrandMaxW });
+  doc.text('SOLUTIONS', _srBrandX, 23, { maxWidth: _srBrandMaxW });
+  doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
+  doc.line(_srBrandX, 25.5, _srBrandX + _srBrandMaxW, 25.5);
+  doc.setLineWidth(0.2);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
+  doc.text('Ghar Se Tijarat Tak -- Har Zaroorat Ka Hal', _srBrandX, 30, { maxWidth: _srBrandMaxW });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(200, 215, 235);
   doc.text('SERVICE RECEIPT', W - margin, 9, { align: 'right' });
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
@@ -6740,11 +6904,22 @@ async function generateServiceReceiptPdf(opts: {
       ? `${opts.discountType} Discount (fixed)`
       : `${opts.discountType} Discount (${opts.discount}%)`;
     pricingRows.push([lbl, `- ${PKR(discountAmt)}`]);
-    if (opts.discountReason) pricingRows.push(['Reason', opts.discountReason]);
   }
 
+  // Payment status label for TOTAL DUE box
+  const _srPmtStatus = opts.paymentStatus;
+  const _srPmtLabel = _srPmtStatus === 'paid'    ? 'PAID IN FULL'
+                    : _srPmtStatus === 'partial'  ? 'PARTIAL PAYMENT'
+                    : _srPmtStatus === 'overdue'  ? 'OVERDUE'
+                    : _srPmtStatus === 'pending'  ? 'BALANCE DUE'
+                    : null;
+  const _srPmtColor: [number,number,number] =
+    _srPmtStatus === 'paid'   ? [22, 163, 74]  :
+    _srPmtStatus === 'partial'? [202, 138, 4]  :
+    _srPmtStatus === 'overdue'? [185, 28, 28]  : [100, 100, 100];
+
   const pricingRowH = 5;
-  const pricingH = pricingRows.length * pricingRowH + 18;
+  const pricingH = pricingRows.length * pricingRowH + 18 + (_srPmtLabel ? 8 : 0);
   doc.setFillColor(250, 250, 250);
   doc.rect(totalsRightX, y, W - margin - totalsRightX, pricingH, 'F');
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
@@ -6761,6 +6936,12 @@ async function generateServiceReceiptPdf(opts: {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
   doc.text('TOTAL DUE', totalsRightX + 3, pry + 7);
   doc.text(PKR(grandTotal), W - margin - 3, pry + 7, { align: 'right' });
+  if (_srPmtLabel) {
+    pry += 11;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5);
+    doc.setTextColor(..._srPmtColor);
+    doc.text(_srPmtLabel, totalsRightX + 3, pry + 5);
+  }
   y += pricingH + 4;
 
   // ── Notes ─────────────────────────────────────────────────────────────────
@@ -6785,27 +6966,50 @@ async function generateServiceReceiptPdf(opts: {
     y += 14;
   }
 
-  // ── Bank transfer ─────────────────────────────────────────────────────────
+  // ── Bank + QR (unified payment station — matches main invoice style) ─────────
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
   doc.line(margin, y, W - margin, y);
   doc.setLineWidth(0.2);
   y += 3;
-  const bdH = 28;
-  doc.setFillColor(240, 253, 244);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(NAVY);
+  doc.text('BANK TRANSFER', margin, y);
+  y += 3.5;
+  const bdH = 36;
+  const _srQrColW = 44;
+  const _srBankColW = printW - _srQrColW - 3;
+  const _srQrColX = margin + _srBankColW + 3;
+  doc.setFillColor(235, 252, 240);
   doc.rect(margin, y, printW, bdH, 'F');
+  doc.setFillColor(22, 101, 52);
+  doc.rect(margin, y, 1.5, bdH, 'F');
+  doc.setDrawColor(180, 220, 195); doc.setLineWidth(0.3);
+  doc.line(_srQrColX, y + 3, _srQrColX, y + bdH - 3);
+  doc.setLineWidth(0.2);
+  const _srBankTx = margin + 4.5;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
-  doc.text('BANK TRANSFER — RAAST / IBAN', margin + 3, y + 6);
+  doc.text('BANK TRANSFER — RAAST / IBAN', _srBankTx, y + 6);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(20, 20, 20);
-  doc.text("TAJALLI'S HOME COLLECTION", margin + 3, y + 13);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(60, 60, 60);
-  doc.text('IBAN: PK33MEZN0001060101874794', margin + 3, y + 19);
-  doc.text('Meezan Bank — F.B Area Branch, KHI', margin + 3, y + 25);
+  doc.text("TAJALLI'S HOME COLLECTION", _srBankTx, y + 13);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(40, 40, 40);
+  doc.text('PK33 MEZN 0001 0601 0187 4794', _srBankTx, y + 20);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(80, 80, 80);
+  doc.text('Meezan Bank — F.B Area Branch', _srBankTx, y + 27);
+  doc.setFont('helvetica', 'italic'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
+  doc.text('Send payment proof via WhatsApp to confirm.', _srBankTx, y + 33, { maxWidth: _srBankColW - 8 });
+  const _srQrSz = 22;
+  const _srQrX = _srQrColX + (_srQrColW - _srQrSz) / 2;
+  const _srQrY = y + 4;
   if (qrData) {
-    doc.addImage(qrData, 'JPEG', margin + printW - 21, y + 4, 18, 18);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(4.5); doc.setTextColor(22, 101, 52);
-    doc.text("Tajalli's — Meezan Bank", margin + printW - 12, y + 24, { align: 'center' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(4); doc.setTextColor(80, 80, 80);
-    doc.text('Raast / IBAN', margin + printW - 12, y + 27, { align: 'center' });
+    doc.setFillColor(255, 255, 255);
+    doc.rect(_srQrX - 1.5, _srQrY - 1.5, _srQrSz + 3, _srQrSz + 3, 'F');
+    doc.setDrawColor(22, 101, 52); doc.setLineWidth(0.5);
+    doc.rect(_srQrX - 1.5, _srQrY - 1.5, _srQrSz + 3, _srQrSz + 3, 'S');
+    doc.setLineWidth(0.2);
+    doc.addImage(qrData, 'JPEG', _srQrX, _srQrY, _srQrSz, _srQrSz);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(22, 101, 52);
+    doc.text('SCAN TO PAY', _srQrColX + _srQrColW / 2, _srQrY + _srQrSz + 4.5, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(80, 80, 80);
+    doc.text("Tajalli's — Meezan Bank · Raast / IBAN", _srQrColX + _srQrColW / 2, _srQrY + _srQrSz + 8, { align: 'center', maxWidth: _srQrColW - 2 });
   }
   y += bdH + 4;
 
@@ -8006,6 +8210,7 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
           discountMode: discountIsFixed ? 'fixed' : 'percentage',
           discountType: row.discount_type ?? '',
           discountReason: row.discount_reason ?? '',
+          paymentStatus: row.payment_status ?? undefined,
           notes: srNotes,
           preparedBy: '',
           showNtn: true,
@@ -9198,6 +9403,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           discountMode,
           discountType,
           discountReason,
+          paymentStatus: undefined,
           notes: invoiceNotes,
           preparedBy,
           showNtn,
