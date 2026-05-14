@@ -4357,7 +4357,7 @@ interface PackageComponent {
   group: 'core' | 'generation' | 'infrastructure' | 'service';
 }
 
-async function updateInvoiceInSupabase(invoiceId: string, payload: InvoiceLogPayload): Promise<boolean> {
+async function updateInvoiceInSupabase(invoiceId: string, payload: InvoiceLogPayload): Promise<{ ok: boolean; errMsg?: string }> {
   try {
     const { error: invErr } = await supabase
       .from('invoices')
@@ -4382,16 +4382,16 @@ async function updateInvoiceInSupabase(invoiceId: string, payload: InvoiceLogPay
         inst_advance_amt:    payload.instAdvanceAmt || null,
         inst_months:         payload.instMonths || null,
         inst_monthly_amt:    payload.instMonthlyAmt || null,
-        inst_first_date:     payload.instFirstDate || null,
         custom_charges_json: payload.customCharges?.length ? payload.customCharges : null,
         guarantor_name:      payload.guarantorName || null,
         guarantor_phone:     payload.guarantorPhone || null,
         guarantor_cnic:      payload.guarantorCnic || null,
+        inst_first_date:     payload.instFirstDate || null,
         notes:               payload.notes || null,
         prepared_by:         payload.preparedBy || null,
       })
       .eq('id', invoiceId);
-    if (invErr) { console.warn('[invoice-update] header failed:', invErr.message); return false; }
+    if (invErr) { console.warn('[invoice-update] header failed:', invErr.message); return { ok: false, errMsg: invErr.message }; }
 
     // Replace lines
     await supabase.from('invoice_lines').delete().eq('invoice_id', invoiceId);
@@ -4435,10 +4435,10 @@ async function updateInvoiceInSupabase(invoiceId: string, payload: InvoiceLogPay
       const { error: svcErr } = await supabase.from('invoice_services').insert(serviceRows);
       if (svcErr) console.warn('[invoice-update] services failed:', svcErr.message);
     }
-    return true;
-  } catch (e) {
+    return { ok: true };
+  } catch (e: any) {
     console.warn('[invoice-update] unexpected:', e);
-    return false;
+    return { ok: false, errMsg: String(e?.message ?? e) };
   }
 }
 
@@ -9160,10 +9160,10 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
     if (!editingInvoiceId) return;
     setSavingEdits(true);
     try {
-      const ok = await updateInvoiceInSupabase(editingInvoiceId, buildCurrentLogPayload());
-      setToastMsg(ok ? 'Changes saved ✓' : 'Save failed — check console for details');
-    } catch {
-      setToastMsg('Save failed — unexpected error');
+      const { ok, errMsg } = await updateInvoiceInSupabase(editingInvoiceId, buildCurrentLogPayload());
+      setToastMsg(ok ? 'Changes saved ✓' : `Save failed: ${errMsg ?? 'unknown error'}`);
+    } catch (e: any) {
+      setToastMsg(`Save failed: ${e?.message ?? 'unexpected error'}`);
     } finally {
       setSavingEdits(false);
     }
