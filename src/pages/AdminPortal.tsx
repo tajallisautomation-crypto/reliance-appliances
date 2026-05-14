@@ -5485,32 +5485,37 @@ async function generateQuotationPdf(opts: {
       const totalPanelKw = panelCount > 0 && panelWatts > 0
         ? Math.round(panelCount * panelWatts / 100) / 10
         : 0;
-      const monthlyGen = Math.round(systemKw * 5 * 30);
+      // 90% system efficiency applied to panel output
+      const monthlyGen = Math.round(systemKw * 5 * 30 * 0.9);
       const billSaving = Math.round(monthlyGen * UNIT_RATE_PKR);
+      // Usable battery = 75% of installed capacity (depth of discharge)
+      const usableBatteryKwh = totalBatteryKwh > 0
+        ? Math.round(totalBatteryKwh * 0.75 * 10) / 10
+        : 0;
 
       const lRows: string[] = [];
-      if (inverterKw > 0)   lRows.push(`Inverter capacity:  ${inverterKw} kW AC`);
+      if (inverterKw > 0) lRows.push(`Inverter capacity:  ${inverterKw} kW AC`);
       if (totalBatteryKwh > 0) {
         if (standaloneBatteryKwh > 0 && batteryKwh > 0) {
-          lRows.push(`Battery (base):  ${batteryKwh} kWh (LiFePO4)`);
+          lRows.push(`Battery (base):  ${batteryKwh} kWh`);
           lRows.push(`Battery (additional):  ${standaloneBatteryKwh} kWh`);
-          lRows.push(`Total storage:  ${totalBatteryKwh} kWh installed`);
+          lRows.push(`Total installed:  ${totalBatteryKwh} kWh · Usable: ${usableBatteryKwh} kWh`);
         } else {
-          lRows.push(`Battery storage:  ${totalBatteryKwh} kWh (LiFePO4)`);
+          lRows.push(`Battery storage:  ${totalBatteryKwh} kWh installed · ${usableBatteryKwh} kWh usable`);
         }
       }
       if (totalPanelKw > 0) lRows.push(`Panel array:  ${panelCount}× ${panelWatts}W = ${totalPanelKw} kWp DC`);
       lRows.push(`Max usable load:  ~${Math.round(systemKw * 0.95 * 10) / 10} kW`);
 
       const rRows: string[] = [];
-      rRows.push(`Est. monthly output:  ~${monthlyGen} kWh`);
+      rRows.push(`Est. monthly output:  ~${monthlyGen} kWh (90% eff.)`);
       rRows.push(`KE bill offset:  ~${PKR(billSaving)}/month`);
-      if (totalBatteryKwh > 0) rRows.push(`Night backup:  ~${totalBatteryKwh} kWh stored`);
+      if (usableBatteryKwh > 0) rRows.push(`Night backup:  ~${usableBatteryKwh} kWh usable (75% DoD)`);
       if (totalEffKwh3 > 0) {
         const pct = Math.min(100, Math.round(monthlyGen / totalEffKwh3 * 100));
         rRows.push(`Load coverage:  ~${pct}% of ${totalEffKwh3} kWh/mo appliance load`);
       }
-      rRows.push(`Basis: 5 peak sun hrs/day · Karachi avg.`);
+      rRows.push(`Basis: 5 peak sun hrs/day · Karachi avg · 90% sys. eff.`);
 
       const dataRows3 = Math.max(lRows.length, rRows.length);
       const subHdrH3 = 5.5;
