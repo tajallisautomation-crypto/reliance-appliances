@@ -4821,11 +4821,14 @@ async function generateQuotationPdf(opts: {
   const _qtAdvAmt2 = opts.advanceAmtFixed && opts.advanceAmtFixed > 0
     ? opts.advanceAmtFixed
     : Math.ceil(Math.round(grandTotal * opts.advancePct / 100) / 100) * 100;
-  const _qtBalDue = Math.max(0, grandTotal - (opts.amountPaid ?? (opts.advancePaid ? _qtAdvAmt2 : 0)));
+  // Resolve effective payment state: paymentStatus field takes precedence
+  const _effPaid    = opts.paymentStatus === 'paid';
+  const _effPartial = opts.paymentStatus === 'partial' || (opts.advancePaid && !_effPaid);
+  const _effAmtPaid = _effPaid ? grandTotal
+    : (opts.amountPaid ?? (_effPartial ? _qtAdvAmt2 : 0));
+  const _qtBalDue = Math.max(0, grandTotal - _effAmtPaid);
   const _qtPmtStatus = opts.paymentStatus
-    ?? (opts.advancePaid && _qtBalDue <= 0 ? 'paid'
-      : opts.advancePaid ? 'partial'
-      : 'pending');
+    ?? (_effPaid ? 'paid' : _effPartial && _qtBalDue <= 0 ? 'paid' : _effPartial ? 'partial' : 'pending');
   const _qtPmtLabel = _qtPmtStatus === 'paid' ? 'PAID IN FULL'
     : _qtPmtStatus === 'partial' ? 'PARTIAL'
     : _qtPmtStatus === 'overdue' ? 'OVERDUE'
@@ -5228,7 +5231,11 @@ async function generateQuotationPdf(opts: {
     const _gtAdvAmt = opts.advanceAmtFixed && opts.advanceAmtFixed > 0
       ? opts.advanceAmtFixed
       : Math.ceil(Math.round(grandTotal * opts.advancePct / 100) / 100) * 100;
-    const _amtActuallyPaid = opts.amountPaid ?? (opts.advancePaid ? _gtAdvAmt : 0);
+    // paymentStatus overrides advancePaid: 'paid' = fully collected; 'partial' = advance received
+    const _gtEffPaid    = opts.paymentStatus === 'paid';
+    const _gtEffPartial = opts.paymentStatus === 'partial' || (opts.advancePaid && !_gtEffPaid);
+    const _amtActuallyPaid = _gtEffPaid ? grandTotal
+      : (opts.amountPaid ?? (_gtEffPartial ? _gtAdvAmt : 0));
     const _isFullyPaid = _amtActuallyPaid >= grandTotal && grandTotal > 0;
     const _balOnDelivery = Math.max(0, grandTotal - _amtActuallyPaid);
     // Only show second row when some payment has been made (to convey payment state)
@@ -5570,10 +5577,11 @@ async function generateQuotationPdf(opts: {
         ? advisory3.paragraphs
         : ['Ask us for an energy-saving assessment and solar proposal tailored to your property type.'];
       // Use actual text wrapping for accurate height estimation (doc is already instantiated)
-      doc.setFontSize(5.5);
-      const advBodyH3 = 5 + advParas3.reduce((s, p) => {
+      // 12 = sub-header (4mm) + gap before first line (4mm) + bottom margin (4mm)
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5);
+      const advBodyH3 = 12 + advParas3.reduce((s, p) => {
         const wrappedLines = doc.splitTextToSize(p, rightW3);
-        return s + wrappedLines.length * rowH3 + 1.5;
+        return s + wrappedLines.length * rowH3 + 2;
       }, 0);
       const bodyH3 = Math.max(14, Math.max(energyBodyH3, advBodyH3));
       const sectionH3 = hdrH3 + bodyH3;
@@ -5669,12 +5677,9 @@ async function generateQuotationPdf(opts: {
       let ay3 = sy3 + 8;
       for (const para of advParas3) {
         const wrapped = doc.splitTextToSize(para, rightW3);
-        const available = Math.max(1, Math.floor((y + sectionH3 - ay3 - 2) / rowH3));
-        const toShow = wrapped.slice(0, available);
         doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(40, 40, 40);
-        doc.text(toShow, rightX3, ay3, { lineHeightFactor: 1.4 });
-        ay3 += toShow.length * rowH3 + 2;
-        if (ay3 >= y + sectionH3 - 2) break;
+        doc.text(wrapped, rightX3, ay3, { lineHeightFactor: 1.4 });
+        ay3 += wrapped.length * rowH3 + 2;
       }
 
       y += sectionH3 + 2;
@@ -5761,8 +5766,11 @@ async function generateQuotationPdf(opts: {
     ? opts.advanceAmtFixed
     : Math.ceil(Math.round(grandTotal * opts.advancePct / 100) / 100) * 100;
   const balanceAmt = grandTotal - advanceAmt;
-  // When fully paid, skip the payment/bank station
-  const _paidSoFar = opts.amountPaid ?? (opts.advancePaid ? advanceAmt : 0);
+  // paymentStatus takes priority over advancePaid flag
+  const _pbEffPaid    = opts.paymentStatus === 'paid';
+  const _pbEffPartial = opts.paymentStatus === 'partial' || (opts.advancePaid && !_pbEffPaid);
+  const _paidSoFar = _pbEffPaid ? grandTotal
+    : (opts.amountPaid ?? (_pbEffPartial ? advanceAmt : 0));
   const _isFullyPaidDoc = _paidSoFar >= grandTotal && grandTotal > 0;
   if (!_isFullyPaidDoc) {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(NAVY);
@@ -6072,6 +6080,8 @@ async function generateInstallmentAdvancePdf(opts: {
   showNtn?: boolean;
   isApartmentClient?: boolean;
   customerType?: 'house' | 'apartment' | 'commercial';
+  paymentStatus?: string;
+  preparedBy?: string;
 }): Promise<Blob> {
   const NAVY  = '#123F73';
   const DNAV  = '#0B2545';
@@ -6175,15 +6185,18 @@ async function generateInstallmentAdvancePdf(opts: {
   doc.rect(advCustRX, y, advCustRW, 4, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
   doc.text('DOCUMENT DETAILS', advCustRX + 3, y + 3);
+  // installment 'paid' = advance collected; monthly balance still outstanding
+  const _advIsPaid = opts.paymentStatus === 'paid' || opts.paymentStatus === 'partial';
   const _advBalDue = opts.instTotalPrice - opts.instAdvanceAmt;
   const advMetaRows: Array<[string, string]> = [
-    ['TYPE',        'Advance Invoice'],
-    ['REF',         opts.refNumber],
-    ['DATE',        dateStr],
-    ['ADVANCE DUE', PKR(opts.instAdvanceAmt)],
-    ['BALANCE',     PKR(_advBalDue)],
-    ['STATUS',      'PENDING ADVANCE'],
-    ['PLAN',        `${opts.instMonths}-month installment`],
+    ['TYPE',           'Advance Invoice'],
+    ['REF',            opts.refNumber],
+    ['DATE',           dateStr],
+    ...((opts.preparedBy || _advIsPaid) ? [['PREPARED BY', opts.preparedBy || 'System'] as [string, string]] : []),
+    ['ADVANCE',        PKR(opts.instAdvanceAmt)],
+    ['MONTHLY BALANCE',PKR(_advBalDue)],
+    ['STATUS',         _advIsPaid ? 'ADVANCE RECEIVED' : 'PENDING ADVANCE'],
+    ['PLAN',           `${opts.instMonths}-month installment`],
   ];
   let advMY = y + 4 + 4.8;
   for (const [lbl, val] of advMetaRows) {
@@ -8561,6 +8574,8 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
           instMonths: row.inst_months ?? 0,
           instMonthlyAmt: row.inst_monthly_amt ?? 0,
           instFirstDate: row.inst_first_date ?? new Date().toISOString().slice(0, 10),
+          paymentStatus: row.payment_status ?? undefined,
+          preparedBy: row.prepared_by ?? '',
           showNtn: true,
         });
         filename = `${(row.customer_name || 'Customer').replace(/[/\\:*?"<>|]/g, '').trim()} - ${row.ref_number}.pdf`;
@@ -8604,7 +8619,7 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
           discountReason: row.discount_reason ?? '',
           paymentStatus: row.payment_status ?? undefined,
           notes: srNotes,
-          preparedBy: '',
+          preparedBy: row.prepared_by ?? '',
           showNtn: true,
         });
         filename = `${(row.customer_name || 'Customer').replace(/[/\\:*?"<>|]/g, '').trim()} - ${row.ref_number}.pdf`;
@@ -8623,6 +8638,10 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
               charged_amount: s.charged_amount,
             }))
           : REPRINT_DEFAULT_SERVICES;
+        // Derive advancePaid from DB payment_status:
+        // cash 'paid' = full amount collected; installment 'paid' = advance collected
+        const _rpPmtStatus = row.payment_status ?? 'pending';
+        const _rpAdvancePaid = _rpPmtStatus === 'paid' || _rpPmtStatus === 'partial';
         blob = await generateQuotationPdf({
           customerName: row.customer_name ?? '',
           customerPhone: (row.customer_phone ?? '').replace(/\D/g, ''),
@@ -8641,14 +8660,15 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
           docType,
           saleType: (row.sale_type ?? 'cash') as 'cash' | 'installment',
           refNumber: row.ref_number,
-          preparedBy: '',
+          preparedBy: row.prepared_by ?? '',
           stockStatus: 'Reprint copy',
           validityHours: 72,
           installationType: row.service_level === 'supply_install' ? 'installation-included' : 'supply-only',
           installationLines: [],
           advancePct: row.advance_pct ?? 50,
           balanceNote: 'delivery',
-          advancePaid: false,
+          advancePaid: _rpAdvancePaid,
+          paymentStatus: _rpPmtStatus,
           deliveryEta: '',
           showNtn: true,
           customCharges,
