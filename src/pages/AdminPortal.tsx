@@ -9596,7 +9596,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
     setCustomerType((row.customer_type ?? 'house') as 'house' | 'apartment' | 'commercial');
     setCustomerArea(row.customer_area ?? '');
     setDocType((row.doc_type ?? 'invoice') as typeof docType);
-    setSaleType((row.sale_type ?? 'cash') as 'cash' | 'installment');
+    setSaleType((row.sale_type ?? (row.doc_type === 'installment-invoice' ? 'installment' : 'cash')) as 'cash' | 'installment');
     setServiceLevel((row.service_level ?? 'supply_only') as 'supply_only' | 'supply_install' | 'full_service');
     setDiscountType(row.discount_type ?? 'Promotional');
     setDiscountReason(row.discount_reason ?? '');
@@ -10034,10 +10034,10 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       services, discount: discountMode === 'fixed' ? discountFixed : discount, discountType,
       discountMode,
       grandTotal: docType === 'service_receipt' ? srGrandTotal : effectiveTotal, serviceTotal, advancePct,
-      instTotalPrice: saleType === 'installment' ? instTotalPrice : 0,
-      instAdvanceAmt: saleType === 'installment' ? instAdvanceAmt : 0,
-      instMonths: saleType === 'installment' ? instMonths : 0,
-      instMonthlyAmt: saleType === 'installment' ? instMonthlyAmt : 0,
+      instTotalPrice: (saleType === 'installment' || docType === 'installment-invoice') ? instTotalPrice : 0,
+      instAdvanceAmt: (saleType === 'installment' || docType === 'installment-invoice') ? instAdvanceAmt : 0,
+      instMonths: (saleType === 'installment' || docType === 'installment-invoice') ? instMonths : 0,
+      instMonthlyAmt: (saleType === 'installment' || docType === 'installment-invoice') ? instMonthlyAmt : 0,
       instFirstDate,
       customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
       guarantorName, guarantorPhone, guarantorCnic, preparedBy,
