@@ -4771,8 +4771,8 @@ async function generateQuotationPdf(opts: {
   const rightX = margin + leftW + colGap;
   const leftAutoMarginRight = W - (margin + leftW); // autoTable right margin for left column
 
-  // ── ① HEADER STRIP (36mm) ─────────────────────────────────────────────────────
-  const HEADER_H = 36;
+  // ── ① HEADER STRIP (31mm) ─────────────────────────────────────────────────────
+  const HEADER_H = 31;
   const badgeLabel =
     opts.docType === 'service_receipt'             ? 'SERVICE RECEIPT'  :
     opts.docType === 'installment_payment_receipt' ? 'PAYMENT RECEIPT'  :
@@ -4787,35 +4787,29 @@ async function generateQuotationPdf(opts: {
   doc.rect(rightX, 0, W - rightX, HEADER_H, 'F');
 
   // Logo — vertically centered in header
-  const _logoH = 25;
-  const _logoY = Math.round((HEADER_H - _logoH) / 2); // center vertically
+  const _logoH = 20;
+  const _logoY = Math.round((HEADER_H - _logoH) / 2);
   if (logoData) {
     doc.addImage(logoData, 'PNG', margin, _logoY, 0, _logoH);
   } else {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
-    doc.text("Tajalli's", margin, 20);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
+    doc.text("Tajalli's", margin, 17);
   }
 
-  // Brand — pushed down to align with logo text region
-  const _brandX = margin + 38;
+  // Brand text — compact two-line
+  const _brandX = margin + 32;
   const _brandMaxW = rightX - _brandX - 3;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(255, 255, 255);
-  doc.text('HOME & COMMERCIAL', _brandX, 15, { maxWidth: _brandMaxW });
-  doc.text('SOLUTIONS', _brandX, 23, { maxWidth: _brandMaxW });
-  // Thin white rule beneath brand
-  doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
-  doc.line(_brandX, 25.5, _brandX + _brandMaxW, 25.5);
-  // Tagline below rule
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
-  doc.text('Ghar Se Tijarat Tak -- Har Zaroorat Ka Hal', _brandX, 30, { maxWidth: _brandMaxW });
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
+  doc.text('HOME & COMMERCIAL', _brandX, 12, { maxWidth: _brandMaxW });
+  doc.text('SOLUTIONS', _brandX, 20, { maxWidth: _brandMaxW });
 
   // Right meta zone: doc-type label (tiny, muted) → REF (large, dominant) → date (small)
   doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
-  doc.text(badgeLabel, W - margin, 8, { align: 'right' });
+  doc.text(badgeLabel, W - margin, 7, { align: 'right' });
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
-  doc.text(opts.refNumber, W - margin, 19, { align: 'right' });
+  doc.text(opts.refNumber, W - margin, 17, { align: 'right' });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
-  doc.text(dateStr, W - margin, 28, { align: 'right' });
+  doc.text(dateStr, W - margin, 24, { align: 'right' });
 
   // Vertical separator — aligns with right column left edge
   doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
@@ -5231,7 +5225,7 @@ async function generateQuotationPdf(opts: {
         { content: 'CLAIM VIA', styles: { fillColor: [220,231,242] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 4.5, halign: 'right' as const, cellPadding: { top: 1, bottom: 1, left: 1, right: 3 } } },
       ]],
       body: wtyBody,
-      columnStyles: { 0: { cellWidth: 18 }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 22 }, 3: { cellWidth: 10 } },
+      columnStyles: { 0: { cellWidth: 18 }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 18 }, 3: { cellWidth: 16 } },
       bodyStyles: { fontSize: 4.5, textColor: [40,40,40] as [number,number,number], lineColor: [229,231,235] as [number,number,number], lineWidth: 0.15, cellPadding: { top: 1, bottom: 1, left: 3, right: 2 } },
       alternateRowStyles: { fillColor: [248,250,252] as [number,number,number] },
       styles: { overflow: 'linebreak' },
@@ -5671,11 +5665,11 @@ async function generateQuotationPdf(opts: {
         : 'ENERGY OVERVIEW';
 
       // Background + NAVY header
-      doc.setFillColor(255, 253, 234);
+      doc.setFillColor(255, 248, 215);
       doc.rect(margin, y, printW, sectionH3, 'F');
       doc.setFillColor(214, 168, 0);
       doc.rect(margin, y, 3, hdrH3, 'F');
-      doc.setFillColor(255, 248, 220);
+      doc.setFillColor(255, 244, 200);
       doc.rect(margin + 3, y, printW - 3, hdrH3, 'F');
       doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
       doc.text(sectionTitle, margin + 6, y + 3.8);
@@ -5883,7 +5877,7 @@ async function generateQuotationPdf(opts: {
   doc.setFillColor(243, 244, 246);
   doc.rect(margin, y, payColW, payBankH, 'F');
   // Bank + QR share a single unified green payment station background
-  doc.setFillColor(235, 252, 240);
+  doc.setFillColor(243, 246, 250);
   doc.rect(bankColX, y, bankColW + qrColW + 3, payBankH, 'F');
   doc.setFillColor(243, 244, 246);
   doc.rect(margin, y, payColW, payBankH, 'F');
@@ -5891,7 +5885,7 @@ async function generateQuotationPdf(opts: {
   doc.setFillColor(22, 101, 52);
   doc.rect(bankColX, y, 1.5, payBankH, 'F');
   // Vertical divider between bank and QR
-  doc.setDrawColor(180, 220, 195); doc.setLineWidth(0.3);
+  doc.setDrawColor(201, 214, 226); doc.setLineWidth(0.3);
   doc.line(qrColX, y + 3, qrColX, y + payBankH - 3);
   doc.setLineWidth(0.2);
 
@@ -6209,7 +6203,7 @@ async function generateInstallmentAdvancePdf(opts: {
   try { waQrDataAdv = await generateQrDataUrl('https://wa.me/923702578788'); } catch { /* skip */ }
 
   // ── 1. Unified header (matches main invoice) ─────────────────────────────
-  const HEADER_H = 36;
+  const HEADER_H = 31;
   const fmtPKPhone = (p: string) => {
     const d = p.replace(/\D/g, '');
     if (d.length === 11 && d.startsWith('0')) return '+92 ' + d.slice(1, 4) + ' ' + d.slice(4);
@@ -6221,27 +6215,23 @@ async function generateInstallmentAdvancePdf(opts: {
   doc.rect(0, 0, W, HEADER_H, 'F');
   doc.setFillColor(11, 37, 69);
   doc.rect(headerRightX, 0, W - headerRightX, HEADER_H, 'F');
-  const _logoH = 25; const _logoY = Math.round((HEADER_H - _logoH) / 2);
+  const _logoH = 20; const _logoY = Math.round((HEADER_H - _logoH) / 2);
   if (logoData) {
     doc.addImage(logoData, 'PNG', margin, _logoY, 0, _logoH);
   } else {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
-    doc.text("Tajalli's", margin, 20);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
+    doc.text("Tajalli's", margin, 17);
   }
-  const _brandX = margin + 38; const _brandMaxW = headerRightX - _brandX - 3;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(255, 255, 255);
-  doc.text('HOME & COMMERCIAL', _brandX, 15, { maxWidth: _brandMaxW });
-  doc.text('SOLUTIONS', _brandX, 23, { maxWidth: _brandMaxW });
-  doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
-  doc.line(_brandX, 25.5, _brandX + _brandMaxW, 25.5);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
-  doc.text('Ghar Se Tijarat Tak -- Har Zaroorat Ka Hal', _brandX, 30, { maxWidth: _brandMaxW });
+  const _brandX = margin + 32; const _brandMaxW = headerRightX - _brandX - 3;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
+  doc.text('HOME & COMMERCIAL', _brandX, 12, { maxWidth: _brandMaxW });
+  doc.text('SOLUTIONS', _brandX, 20, { maxWidth: _brandMaxW });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
-  doc.text('ADVANCE INVOICE', W - margin, 8, { align: 'right' });
+  doc.text('ADVANCE INVOICE', W - margin, 7, { align: 'right' });
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
-  doc.text(opts.refNumber, W - margin, 19, { align: 'right' });
+  doc.text(opts.refNumber, W - margin, 17, { align: 'right' });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
-  doc.text(dateStr, W - margin, 28, { align: 'right' });
+  doc.text(dateStr, W - margin, 24, { align: 'right' });
   doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
   doc.line(headerRightX, 3, headerRightX, HEADER_H - 3);
   doc.setLineWidth(0.2);
@@ -6580,11 +6570,11 @@ async function generateInstallmentAdvancePdf(opts: {
         : _advAdvisory.color === 'green' ? 'ENERGY CONSUMPTION & SOLAR ADVISORY'
         : 'ENERGY OVERVIEW')
       : 'ENERGY OVERVIEW';
-    doc.setFillColor(255, 253, 234);
+    doc.setFillColor(255, 248, 215);
     doc.rect(margin, y, printW, _advSecH, 'F');
     doc.setFillColor(214, 168, 0);
     doc.rect(margin, y, 3, _advHdrH, 'F');
-    doc.setFillColor(255, 248, 220);
+    doc.setFillColor(255, 244, 200);
     doc.rect(margin + 3, y, printW - 3, _advHdrH, 'F');
     doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
     doc.text(_advTitle, margin + 6, y + 3.8);
@@ -6663,11 +6653,11 @@ async function generateInstallmentAdvancePdf(opts: {
   const _advQrColW = 44;
   const _advBankColW = printW - _advQrColW - 3;
   const _advQrColX = margin + _advBankColW + 3;
-  doc.setFillColor(235, 252, 240);
+  doc.setFillColor(243, 246, 250);
   doc.rect(margin, y, printW, _advBdH, 'F');
   doc.setFillColor(22, 101, 52);
   doc.rect(margin, y, 1.5, _advBdH, 'F');
-  doc.setDrawColor(180, 220, 195); doc.setLineWidth(0.3);
+  doc.setDrawColor(201, 214, 226); doc.setLineWidth(0.3);
   doc.line(_advQrColX, y + 3, _advQrColX, y + _advBdH - 3);
   doc.setLineWidth(0.2);
   const _advBankTx = margin + 4.5;
@@ -6814,7 +6804,7 @@ async function generateInstallmentPaymentPdf(opts: {
   try { waQrData = await generateQrDataUrl('https://wa.me/923702578788'); } catch { /* skip */ }
 
   // ── 1. Unified header (matches main invoice) ─────────────────────────────
-  const HEADER_H_PY = 36;
+  const HEADER_H_PY = 31;
   const fmtPKPhone = (p: string) => {
     const d = p.replace(/\D/g, '');
     if (d.length === 11 && d.startsWith('0')) return '+92 ' + d.slice(1, 4) + ' ' + d.slice(4);
@@ -6826,27 +6816,23 @@ async function generateInstallmentPaymentPdf(opts: {
   doc.rect(0, 0, W, HEADER_H_PY, 'F');
   doc.setFillColor(11, 37, 69);
   doc.rect(_pyHeaderRX, 0, W - _pyHeaderRX, HEADER_H_PY, 'F');
-  const _pyLogoH = 25; const _pyLogoY = Math.round((HEADER_H_PY - _pyLogoH) / 2);
+  const _pyLogoH = 20; const _pyLogoY = Math.round((HEADER_H_PY - _pyLogoH) / 2);
   if (logoData) {
     doc.addImage(logoData, 'PNG', margin, _pyLogoY, 0, _pyLogoH);
   } else {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
-    doc.text("Tajalli's", margin, 20);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
+    doc.text("Tajalli's", margin, 17);
   }
-  const _pyBrandX = margin + 38; const _pyBrandMaxW = _pyHeaderRX - _pyBrandX - 3;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(255, 255, 255);
-  doc.text('HOME & COMMERCIAL', _pyBrandX, 15, { maxWidth: _pyBrandMaxW });
-  doc.text('SOLUTIONS', _pyBrandX, 23, { maxWidth: _pyBrandMaxW });
-  doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
-  doc.line(_pyBrandX, 25.5, _pyBrandX + _pyBrandMaxW, 25.5);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
-  doc.text('Ghar Se Tijarat Tak -- Har Zaroorat Ka Hal', _pyBrandX, 30, { maxWidth: _pyBrandMaxW });
+  const _pyBrandX = margin + 32; const _pyBrandMaxW = _pyHeaderRX - _pyBrandX - 3;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
+  doc.text('HOME & COMMERCIAL', _pyBrandX, 12, { maxWidth: _pyBrandMaxW });
+  doc.text('SOLUTIONS', _pyBrandX, 20, { maxWidth: _pyBrandMaxW });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
-  doc.text('PAYMENT RECEIPT', W - margin, 8, { align: 'right' });
+  doc.text('PAYMENT RECEIPT', W - margin, 7, { align: 'right' });
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
-  doc.text(opts.refNumber, W - margin, 19, { align: 'right' });
+  doc.text(opts.refNumber, W - margin, 17, { align: 'right' });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
-  doc.text(dateStr, W - margin, 28, { align: 'right' });
+  doc.text(dateStr, W - margin, 24, { align: 'right' });
   doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
   doc.line(_pyHeaderRX, 3, _pyHeaderRX, HEADER_H_PY - 3);
   doc.setLineWidth(0.2);
@@ -7088,11 +7074,11 @@ async function generateInstallmentPaymentPdf(opts: {
   const _pyQrColW = 44;
   const _pyBankColW = printW - _pyQrColW - 3;
   const _pyQrColX = margin + _pyBankColW + 3;
-  doc.setFillColor(235, 252, 240);
+  doc.setFillColor(243, 246, 250);
   doc.rect(margin, y, printW, _pyBdH, 'F');
   doc.setFillColor(22, 101, 52);
   doc.rect(margin, y, 1.5, _pyBdH, 'F');
-  doc.setDrawColor(180, 220, 195); doc.setLineWidth(0.3);
+  doc.setDrawColor(201, 214, 226); doc.setLineWidth(0.3);
   doc.line(_pyQrColX, y + 3, _pyQrColX, y + _pyBdH - 3);
   doc.setLineWidth(0.2);
   const _pyBankTx = margin + 4.5;
@@ -7189,39 +7175,36 @@ async function generateServiceReceiptPdf(opts: {
   try { qrData = await loadQrBase64(); } catch { /* skip */ }
 
   // ── Header ───────────────────────────────────────────────────────────────
-  const HEADER_H = 38;
+  const HEADER_H = 32;
   doc.setFillColor(NAVY);
   doc.rect(0, 0, W, HEADER_H, 'F');
   doc.setFillColor(DNAV);
   doc.rect(W - 62, 0, 62, HEADER_H, 'F');
   if (logoData) {
-    doc.addImage(logoData, 'PNG', margin, 4, 0, 28);
+    doc.addImage(logoData, 'PNG', margin, 3, 0, 24);
   } else {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
-    doc.text("Tajalli's", margin, 20);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
+    doc.text("Tajalli's", margin, 17);
   }
-  const _srBrandX = margin + 38; const _srBrandMaxW = (W - 62) - _srBrandX - 3;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(255, 255, 255);
-  doc.text('HOME & COMMERCIAL', _srBrandX, 15, { maxWidth: _srBrandMaxW });
-  doc.text('SOLUTIONS', _srBrandX, 23, { maxWidth: _srBrandMaxW });
-  doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
-  doc.line(_srBrandX, 25.5, _srBrandX + _srBrandMaxW, 25.5);
-  doc.setLineWidth(0.2);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
-  doc.text('Ghar Se Tijarat Tak -- Har Zaroorat Ka Hal', _srBrandX, 30, { maxWidth: _srBrandMaxW });
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(200, 215, 235);
-  doc.text('SERVICE RECEIPT', W - margin, 9, { align: 'right' });
+  const _srBrandX = margin + 32; const _srBrandMaxW = (W - 62) - _srBrandX - 3;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
+  doc.text('HOME & COMMERCIAL', _srBrandX, 12, { maxWidth: _srBrandMaxW });
+  doc.text('SOLUTIONS', _srBrandX, 20, { maxWidth: _srBrandMaxW });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
+  doc.text('SERVICE RECEIPT', W - margin, 7, { align: 'right' });
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
-  doc.text(opts.refNumber, W - margin, 21, { align: 'right' });
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(200, 215, 235);
-  doc.text(dateStr, W - margin, 30, { align: 'right' });
+  doc.text(opts.refNumber, W - margin, 17, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
+  doc.text(dateStr, W - margin, 24, { align: 'right' });
   doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
   doc.line(W - 64, 3, W - 64, HEADER_H - 3);
   doc.setLineWidth(0.2);
+  doc.setFillColor(GOLD);
+  doc.rect(0, HEADER_H - 1.2, W, 1.2, 'F');
   const contactParts = ['L-152 & 153, Sector 11C-1, North Karachi', '+92 370 2578788', 'support@tajallis.com.pk'];
   if (opts.showNtn) contactParts.push('NTN: 42101-3836602-3');
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(200, 215, 235);
-  doc.text(contactParts.join('  ·  '), margin, HEADER_H - 2);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(196, 213, 236);
+  doc.text(contactParts.join('  ·  '), margin, HEADER_H - 2.5);
 
   let y = HEADER_H + 4;
 
@@ -7527,6 +7510,68 @@ async function generateServiceReceiptPdf(opts: {
     y += 14;
   }
 
+  // ── Service Summary card (fills whitespace on simple receipts) ───────────────
+  {
+    const _summaryHdrH = 5;
+    const _summaryColW = Math.round(printW * 0.48);
+    const _summaryColR = margin + _summaryColW + 4;
+    const _summaryRW   = printW - _summaryColW - 4;
+    const _workDesc = opts.jobLines.filter(l => l.type === 'work').map(l => l.description).slice(0, 3).join('  ·  ');
+    const _summaryRows: Array<[string, string]> = [
+      ['Date', dateStr],
+      ...(opts.preparedBy ? [['Technician', opts.preparedBy] as [string,string]] : []),
+      ...(opts.deviceBrand || opts.deviceModel ? [['Device', [opts.deviceBrand, opts.deviceModel].filter(Boolean).join(' ')] as [string,string]] : []),
+      ...(_workDesc ? [['Work Done', _workDesc] as [string,string]] : []),
+      ...((opts.warrantyDays ?? 0) > 0 ? [['Warranty', `${opts.warrantyDays} days on workmanship`] as [string,string]] : []),
+    ];
+    const _supportItems: Array<[string, string]> = [
+      ['Phone / WhatsApp', '+92 370 2578788'],
+      ['Email', 'support@tajallis.com.pk'],
+      ['Web', 'tajallis.com.pk'],
+    ];
+    const _cardRowH = 4.8;
+    const _leftRows = _summaryRows.length;
+    const _rightRows = _supportItems.length;
+    const _cardH = Math.max(_leftRows, _rightRows) * _cardRowH + _summaryHdrH + 6;
+    doc.setFillColor(243, 246, 250);
+    doc.rect(margin, y, printW, _cardH, 'F');
+    // Gold left strip + header
+    doc.setFillColor(214, 168, 0);
+    doc.rect(margin, y, 3, _summaryHdrH, 'F');
+    doc.setFillColor(243, 246, 250);
+    doc.rect(margin + 3, y, _summaryColW - 3, _summaryHdrH, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
+    doc.text('SERVICE SUMMARY', margin + 6, y + 3.5);
+    // Blue strip + header for support col
+    doc.setFillColor(220, 231, 242);
+    doc.rect(_summaryColR, y, _summaryRW, _summaryHdrH, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
+    doc.text('AFTER-SALES SUPPORT', _summaryColR + 3, y + 3.5);
+    // Vertical divider
+    doc.setDrawColor(201, 214, 226); doc.setLineWidth(0.3);
+    doc.line(_summaryColR - 1, y + _summaryHdrH + 2, _summaryColR - 1, y + _cardH - 2);
+    doc.setLineWidth(0.2);
+    // Left col rows
+    let _sy = y + _summaryHdrH + _cardRowH;
+    for (const [lbl, val] of _summaryRows) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(107, 114, 128);
+      doc.text(lbl, margin + 4, _sy);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(31, 41, 51);
+      doc.text(val, margin + 30, _sy, { maxWidth: _summaryColW - 32 });
+      _sy += _cardRowH;
+    }
+    // Right col rows
+    let _ry = y + _summaryHdrH + _cardRowH;
+    for (const [lbl, val] of _supportItems) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(107, 114, 128);
+      doc.text(lbl, _summaryColR + 3, _ry);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
+      doc.text(val, _summaryColR + 3, _ry + 3.5);
+      _ry += _cardRowH + 3;
+    }
+    y += _cardH + 4;
+  }
+
   // ── Bank + QR (hidden when fully paid) ───────────────────────────────────────
   const _srFullyPaid = opts.paymentStatus === 'paid';
   if (!_srFullyPaid) {
@@ -7541,11 +7586,11 @@ async function generateServiceReceiptPdf(opts: {
   const _srQrColW = 44;
   const _srBankColW = printW - _srQrColW - 3;
   const _srQrColX = margin + _srBankColW + 3;
-  doc.setFillColor(235, 252, 240);
+  doc.setFillColor(243, 246, 250);
   doc.rect(margin, y, printW, bdH, 'F');
   doc.setFillColor(22, 101, 52);
   doc.rect(margin, y, 1.5, bdH, 'F');
-  doc.setDrawColor(180, 220, 195); doc.setLineWidth(0.3);
+  doc.setDrawColor(201, 214, 226); doc.setLineWidth(0.3);
   doc.line(_srQrColX, y + 3, _srQrColX, y + bdH - 3);
   doc.setLineWidth(0.2);
   const _srBankTx = margin + 4.5;
