@@ -4219,6 +4219,7 @@ interface InvoiceLogPayload {
   advanceFixedAmt?:    number;
   balanceNote?:        string;
   cashPaySchedule?:    Array<{ date: string; amount: number; note: string }>;
+  instScheduleJson?:   Array<{ no: number; label: string; dueDate: string; amount: number }>;
 }
 
 async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<string | null> {
@@ -4282,6 +4283,7 @@ async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<string 
       advance_fixed_amt:    payload.advanceFixedAmt || null,
       balance_note:         payload.balanceNote || null,
       cash_pay_schedule_json: payload.cashPaySchedule?.length ? payload.cashPaySchedule : null,
+      inst_schedule_json:   payload.instScheduleJson?.length ? payload.instScheduleJson : null,
     }).eq('id', inv.id);
 
     // ── invoice_lines ──────────────────────────────────────────────────────
@@ -4452,6 +4454,7 @@ async function updateInvoiceInSupabase(invoiceId: string, payload: InvoiceLogPay
       advance_fixed_amt:      payload.advanceFixedAmt || null,
       balance_note:           payload.balanceNote || null,
       cash_pay_schedule_json: payload.cashPaySchedule?.length ? payload.cashPaySchedule : null,
+      inst_schedule_json:     payload.instScheduleJson?.length ? payload.instScheduleJson : null,
     }).eq('id', invoiceId);
     if (extErr) console.warn('[invoice-update] extended fields failed:', extErr.message);
 
@@ -4708,6 +4711,7 @@ async function generateQuotationPdf(opts: {
   instMonths?: number;
   instMonthlyAmt?: number;
   instFirstDate?: string;
+  instScheduleRows?: Array<{ no: number; label: string; dueDate: string; amount: number }>;
   invoiceDate?: string;
   paymentStatus?: string;
   amountPaid?: number;
@@ -5789,16 +5793,26 @@ async function generateQuotationPdf(opts: {
     const altStyles = { fillColor: [250,250,250] as [number,number,number] };
     const colStyles = { 0: { cellWidth: 7 }, 2: { cellWidth: 26, halign: 'right' as const }, 3: { cellWidth: 24 } };
 
+    const customRows = opts.instScheduleRows ?? [];
+    const useCustom = customRows.length > 0;
+    const advRowSrc = useCustom ? customRows.find(r => r.no === 0) : null;
     const advRow: any[] = [
       { content: '0', styles: { fillColor: [246,196,0] as [number,number,number], textColor: [20,20,20] as [number,number,number], fontStyle: 'bold' as const } },
-      { content: 'Advance', styles: { fillColor: [246,196,0] as [number,number,number], textColor: [20,20,20] as [number,number,number], fontStyle: 'bold' as const } },
-      { content: PKR(opts.instAdvanceAmt ?? 0), styles: { fillColor: [246,196,0] as [number,number,number], textColor: [20,20,20] as [number,number,number], fontStyle: 'bold' as const, halign: 'right' as const } },
-      { content: 'On confirm', styles: { fillColor: [246,196,0] as [number,number,number], textColor: [20,20,20] as [number,number,number], fontStyle: 'bold' as const } },
+      { content: advRowSrc?.label ?? 'Advance', styles: { fillColor: [246,196,0] as [number,number,number], textColor: [20,20,20] as [number,number,number], fontStyle: 'bold' as const } },
+      { content: PKR(advRowSrc?.amount ?? opts.instAdvanceAmt ?? 0), styles: { fillColor: [246,196,0] as [number,number,number], textColor: [20,20,20] as [number,number,number], fontStyle: 'bold' as const, halign: 'right' as const } },
+      { content: advRowSrc?.dueDate ? fmtDI(new Date(advRowSrc.dueDate)) : 'On confirm', styles: { fillColor: [246,196,0] as [number,number,number], textColor: [20,20,20] as [number,number,number], fontStyle: 'bold' as const } },
     ];
     const instRows2: any[][] = [];
-    for (let i = 1; i <= instMonths; i++) {
-      const d = new Date(opts.instFirstDate); d.setMonth(d.getMonth() + (i - 1));
-      instRows2.push([String(i), `Month ${i}`, PKR(opts.instMonthlyAmt ?? 0), fmtDI(d)]);
+    if (useCustom) {
+      for (const r of customRows.filter(r => r.no !== 0)) {
+        const dateStr = r.dueDate ? fmtDI(new Date(r.dueDate)) : '—';
+        instRows2.push([String(r.no), r.label, PKR(r.amount), dateStr]);
+      }
+    } else {
+      for (let i = 1; i <= instMonths; i++) {
+        const d = new Date(opts.instFirstDate); d.setMonth(d.getMonth() + (i - 1));
+        instRows2.push([String(i), `Month ${i}`, PKR(opts.instMonthlyAmt ?? 0), fmtDI(d)]);
+      }
     }
     const totalRow2: any[] = [
       { content: '', styles: { fillColor: [248,248,248] as [number,number,number] } },
@@ -5807,7 +5821,8 @@ async function generateQuotationPdf(opts: {
       { content: '', styles: { fillColor: [248,248,248] as [number,number,number] } },
     ];
 
-    const half = Math.ceil(instMonths / 2);
+    const displayCount = useCustom ? customRows.filter(r => r.no !== 0).length : instMonths;
+    const half = Math.ceil(displayCount / 2);
     const leftSched = [advRow, ...instRows2.slice(0, half)];
     const rightSched = [...instRows2.slice(half), totalRow2];
 
@@ -6164,6 +6179,7 @@ async function generateInstallmentAdvancePdf(opts: {
   instMonths: number;
   instMonthlyAmt: number;
   instFirstDate: string;
+  instScheduleRows?: Array<{ no: number; label: string; dueDate: string; amount: number }>;
   showNtn?: boolean;
   isApartmentClient?: boolean;
   customerType?: 'house' | 'apartment' | 'commercial';
@@ -6409,16 +6425,23 @@ async function generateInstallmentAdvancePdf(opts: {
   y += 5;
 
   const schedBody: any[] = [];
+  const advSched = opts.instScheduleRows?.find(r => r.no === 0);
   schedBody.push([
     { content: '0', styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold' } },
-    { content: 'Advance Payment', styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold' } },
-    { content: PKR(opts.instAdvanceAmt), styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold', halign: 'right' as const } },
-    { content: 'Upon Confirmation', styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold' } },
+    { content: advSched?.label ?? 'Advance Payment', styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold' } },
+    { content: PKR(advSched?.amount ?? opts.instAdvanceAmt), styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold', halign: 'right' as const } },
+    { content: advSched?.dueDate ? fmtDate(new Date(advSched.dueDate)) : 'Upon Confirmation', styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold' } },
   ]);
-  for (let i = 1; i <= opts.instMonths; i++) {
-    const d = new Date(opts.instFirstDate);
-    d.setMonth(d.getMonth() + (i - 1));
-    schedBody.push([String(i), `Installment ${i}`, PKR(opts.instMonthlyAmt), fmtDate(d)]);
+  if (opts.instScheduleRows && opts.instScheduleRows.length > 0) {
+    for (const r of opts.instScheduleRows.filter(r => r.no !== 0)) {
+      schedBody.push([String(r.no), r.label, PKR(r.amount), r.dueDate ? fmtDate(new Date(r.dueDate)) : '—']);
+    }
+  } else {
+    for (let i = 1; i <= opts.instMonths; i++) {
+      const d = new Date(opts.instFirstDate);
+      d.setMonth(d.getMonth() + (i - 1));
+      schedBody.push([String(i), `Installment ${i}`, PKR(opts.instMonthlyAmt), fmtDate(d)]);
+    }
   }
   schedBody.push([
     { content: '', styles: { fillColor: [248, 248, 248] } },
@@ -6757,6 +6780,7 @@ async function generateInstallmentPaymentPdf(opts: {
   instMonths: number;
   instMonthlyAmt: number;
   instFirstDate: string;
+  instScheduleRows?: Array<{ no: number; label: string; dueDate: string; amount: number }>;
   paymentNumber: number;
   customCharges?: Array<{ name: string; amount: number }>;
   showNtn?: boolean;
@@ -6950,20 +6974,25 @@ async function generateInstallmentPaymentPdf(opts: {
   y += 5;
 
   const schedBody: any[] = [];
-  schedBody.push(['0', 'Advance Payment', PKR(opts.instAdvanceAmt), 'Upon Confirmation']);
-  for (let i = 1; i <= opts.instMonths; i++) {
-    const d = new Date(opts.instFirstDate);
-    d.setMonth(d.getMonth() + (i - 1));
-    const dStr = fmtDate(d);
-    if (i === opts.paymentNumber) {
+  const advSchedPay = opts.instScheduleRows?.find(r => r.no === 0);
+  schedBody.push(['0', advSchedPay?.label ?? 'Advance Payment', PKR(advSchedPay?.amount ?? opts.instAdvanceAmt), advSchedPay?.dueDate ? fmtDate(new Date(advSchedPay.dueDate)) : 'Upon Confirmation']);
+  const payRows = opts.instScheduleRows && opts.instScheduleRows.length > 0
+    ? opts.instScheduleRows.filter(r => r.no !== 0)
+    : Array.from({ length: opts.instMonths }, (_, i) => {
+        const d = new Date(opts.instFirstDate); d.setMonth(d.getMonth() + i);
+        return { no: i + 1, label: `Installment ${i + 1}`, dueDate: d.toISOString().slice(0, 10), amount: opts.instMonthlyAmt };
+      });
+  for (const r of payRows) {
+    const dStr = r.dueDate ? fmtDate(new Date(r.dueDate)) : '\u2014';
+    if (r.no === opts.paymentNumber) {
       schedBody.push([
-        { content: String(i), styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold' } },
-        { content: `Installment ${i}  \u2190 THIS PAYMENT`, styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold' } },
-        { content: PKR(opts.instMonthlyAmt), styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold', halign: 'right' as const } },
+        { content: String(r.no), styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold' } },
+        { content: `${r.label}  \u2190 THIS PAYMENT`, styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold' } },
+        { content: PKR(r.amount), styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold', halign: 'right' as const } },
         { content: dStr, styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold' } },
       ]);
     } else {
-      schedBody.push([String(i), `Installment ${i}`, PKR(opts.instMonthlyAmt), dStr]);
+      schedBody.push([String(r.no), r.label, PKR(r.amount), dStr]);
     }
   }
   schedBody.push([
@@ -7645,7 +7674,7 @@ function CustomerCrmTab() {
 
   async function fetchInvoices() {
     setLoading(true);
-    const BASE_COLS = 'id,ref_number,doc_type,customer_name,customer_phone,customer_email,customer_address,customer_cnic,customer_area,sale_type,service_level,discount_reason,subtotal,discount_pct,discount_type,discount_mode,grand_total,advance_pct,payment_status,created_at,inst_total_price,inst_advance_amt,inst_months,inst_monthly_amt,inst_first_date,custom_charges_json,guarantor_name,guarantor_phone,guarantor_cnic,notes,is_existing_customer,stock_status,show_ntn,delivery_eta,validity_hours,advance_mode,advance_fixed_amt,balance_note,cash_pay_schedule_json';
+    const BASE_COLS = 'id,ref_number,doc_type,customer_name,customer_phone,customer_email,customer_address,customer_cnic,customer_area,sale_type,service_level,discount_reason,subtotal,discount_pct,discount_type,discount_mode,grand_total,advance_pct,payment_status,created_at,inst_total_price,inst_advance_amt,inst_months,inst_monthly_amt,inst_first_date,custom_charges_json,guarantor_name,guarantor_phone,guarantor_cnic,notes,is_existing_customer,stock_status,show_ntn,delivery_eta,validity_hours,advance_mode,advance_fixed_amt,balance_note,cash_pay_schedule_json,inst_schedule_json';
     const { data, error } = await supabase
       .from('invoices')
       .select(BASE_COLS + ',prepared_by')
@@ -8298,6 +8327,7 @@ type InvoiceRow = {
   advance_fixed_amt: number | null;
   balance_note: string | null;
   cash_pay_schedule_json: Array<{ date: string; amount: number; note: string }> | null;
+  inst_schedule_json: Array<{ no: number; label: string; dueDate: string; amount: number }> | null;
   invoice_lines?: Array<{
     name: string;
     model: string | null;
@@ -8793,6 +8823,7 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
           instMonths: row.inst_months ?? 0,
           instMonthlyAmt: row.inst_monthly_amt ?? 0,
           instFirstDate: row.inst_first_date ?? new Date().toISOString().slice(0, 10),
+          instScheduleRows: Array.isArray(row.inst_schedule_json) ? row.inst_schedule_json : undefined,
           paymentNumber,
           customCharges,
           showNtn: true,
@@ -8827,6 +8858,7 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
           instMonths: row.inst_months ?? 0,
           instMonthlyAmt: row.inst_monthly_amt ?? 0,
           instFirstDate: row.inst_first_date ?? new Date().toISOString().slice(0, 10),
+          instScheduleRows: Array.isArray(row.inst_schedule_json) ? row.inst_schedule_json : undefined,
           paymentStatus: row.payment_status ?? undefined,
           preparedBy: row.prepared_by ?? '',
           showNtn: true,
@@ -8930,6 +8962,7 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
           instMonths: row.inst_months ?? undefined,
           instMonthlyAmt: row.inst_monthly_amt ?? undefined,
           instFirstDate: row.inst_first_date ?? undefined,
+          instScheduleRows: Array.isArray(row.inst_schedule_json) ? row.inst_schedule_json : undefined,
           instTeaserMonthly: grandTotal > 0 ? Math.round(grandTotal * 1.25 / 12) : undefined,
           instTeaserMonths: 12,
           invoiceDate: row.created_at,
@@ -9288,6 +9321,17 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
   });
   const [instPaymentNumber, setInstPaymentNumber] = useState(1);
   const [instMismatchNote, setInstMismatchNote]   = useState('');
+  interface InstScheduleRow { id: string; no: number; label: string; dueDate: string; amount: number; }
+  const [customInstSchedule, setCustomInstSchedule] = useState<InstScheduleRow[]>([]);
+  function buildDefaultInstSchedule(advAmt: number, months: number, monthlyAmt: number, firstDate: string): InstScheduleRow[] {
+    const rows: InstScheduleRow[] = [];
+    rows.push({ id: crypto.randomUUID(), no: 0, label: 'Advance', dueDate: '', amount: advAmt });
+    for (let i = 1; i <= months; i++) {
+      const d = new Date(firstDate); d.setMonth(d.getMonth() + (i - 1));
+      rows.push({ id: crypto.randomUUID(), no: i, label: `Installment ${i}`, dueDate: d.toISOString().slice(0, 10), amount: monthlyAmt });
+    }
+    return rows;
+  }
   const [instAdvPdfState, setInstAdvPdfState]   = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
   const [instPayPdfState, setInstPayPdfState]   = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
 
@@ -9626,6 +9670,11 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
     setInstMonths(row.inst_months ?? 0);
     setInstMonthlyAmt(row.inst_monthly_amt ?? 0);
     setInstFirstDate(row.inst_first_date ?? '');
+    if (Array.isArray(row.inst_schedule_json) && row.inst_schedule_json.length > 0) {
+      setCustomInstSchedule(row.inst_schedule_json.map(r => ({ ...r, id: crypto.randomUUID() })));
+    } else {
+      setCustomInstSchedule([]);
+    }
     if (Array.isArray(row.custom_charges_json)) {
       setCustomCharges(row.custom_charges_json.map(c => ({ ...c, id: crypto.randomUUID() })));
     } else {
@@ -10056,6 +10105,9 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       cashPaySchedule: cashPaySchedule.length > 0
         ? cashPaySchedule.map(({ date, amount, note }) => ({ date, amount, note }))
         : undefined,
+      instScheduleJson: customInstSchedule.length > 0
+        ? customInstSchedule.map(({ no, label, dueDate, amount }) => ({ no, label, dueDate, amount }))
+        : undefined,
       notes: (() => {
         if (docType !== 'service_receipt') return invoiceNotes;
         const devicePart = [srDeviceBrand, srDeviceModel].filter(Boolean).join(' ');
@@ -10160,6 +10212,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           instMonths: saleType === 'installment' ? instMonths : undefined,
           instMonthlyAmt: saleType === 'installment' ? instMonthlyAmt : undefined,
           instFirstDate: saleType === 'installment' ? instFirstDate : undefined,
+          instScheduleRows: saleType === 'installment' && customInstSchedule.length > 0 ? customInstSchedule.map(({ no, label, dueDate, amount }) => ({ no, label, dueDate, amount })) : undefined,
           instTeaserMonthly: saleType !== 'installment' && grandTotal > 0 ? Math.round(grandTotal * 1.25 / 12) : undefined,
           instTeaserMonths: 12,
         });
@@ -10196,6 +10249,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
         customerEmail, customerAddress, customerCnic,
         lines, discount: discountMode === 'fixed' ? discountFixed : discount, refNumber,
         instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, showNtn,
+        instScheduleRows: customInstSchedule.length > 0 ? customInstSchedule.map(({ no, label, dueDate, amount }) => ({ no, label, dueDate, amount })) : undefined,
         isApartmentClient: customerType === 'apartment',
         customerType,
         services,
@@ -10233,6 +10287,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
         customerEmail, customerAddress, customerCnic,
         lines, discount, refNumber,
         instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate,
+        instScheduleRows: customInstSchedule.length > 0 ? customInstSchedule.map(({ no, label, dueDate, amount }) => ({ no, label, dueDate, amount })) : undefined,
         paymentNumber: instPaymentNumber, showNtn,
         customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
       });
@@ -10873,6 +10928,103 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                   </div>
                 );
               })()}
+              {/* ── Editable Payment Schedule ── */}
+              <div className="pt-1 border-t border-gray-100 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Payment Schedule</p>
+                  <div className="flex gap-1.5">
+                    {customInstSchedule.length === 0 && instMonths > 0 && (
+                      <button
+                        onClick={() => setCustomInstSchedule(buildDefaultInstSchedule(instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate))}
+                        className="px-2 py-1 text-[10px] font-semibold bg-brand-500 hover:bg-brand-600 text-white rounded-lg">
+                        Generate Schedule
+                      </button>
+                    )}
+                    {customInstSchedule.length > 0 && (
+                      <>
+                        <button
+                          onClick={() => setCustomInstSchedule(prev => [...prev, { id: crypto.randomUUID(), no: prev.length, label: `Installment ${prev.length}`, dueDate: '', amount: 0 }])}
+                          className="px-2 py-1 text-[10px] font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg">
+                          + Row
+                        </button>
+                        <button
+                          onClick={() => setCustomInstSchedule(buildDefaultInstSchedule(instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate))}
+                          className="px-2 py-1 text-[10px] font-semibold bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg">
+                          Reset
+                        </button>
+                        <button
+                          onClick={() => setCustomInstSchedule([])}
+                          className="px-2 py-1 text-[10px] font-semibold bg-red-100 hover:bg-red-200 text-red-600 rounded-lg">
+                          Clear
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+                {customInstSchedule.length > 0 ? (
+                  <div className="rounded-xl border border-gray-200 overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-gray-50 text-[10px] font-bold text-gray-500 uppercase">
+                          <th className="px-2 py-1.5 text-left w-6">#</th>
+                          <th className="px-2 py-1.5 text-left">Label</th>
+                          <th className="px-2 py-1.5 text-left">Due Date</th>
+                          <th className="px-2 py-1.5 text-right">Amount (PKR)</th>
+                          <th className="px-1 py-1.5 w-6"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {customInstSchedule.map((row, idx) => (
+                          <tr key={row.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="px-2 py-1 text-gray-400 font-mono text-[10px]">{row.no}</td>
+                            <td className="px-1 py-1">
+                              <input
+                                value={row.label}
+                                onChange={e => setCustomInstSchedule(prev => prev.map(r => r.id === row.id ? { ...r, label: e.target.value } : r))}
+                                className="w-full border border-gray-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400"
+                              />
+                            </td>
+                            <td className="px-1 py-1">
+                              <input
+                                type="date"
+                                value={row.dueDate}
+                                onChange={e => setCustomInstSchedule(prev => prev.map(r => r.id === row.id ? { ...r, dueDate: e.target.value } : r))}
+                                className="w-full border border-gray-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400"
+                              />
+                            </td>
+                            <td className="px-1 py-1">
+                              <input
+                                type="number"
+                                min={0}
+                                value={row.amount || ''}
+                                onChange={e => setCustomInstSchedule(prev => prev.map(r => r.id === row.id ? { ...r, amount: Math.max(0, Number(e.target.value) || 0) } : r))}
+                                className="w-full border border-gray-200 rounded px-1.5 py-0.5 text-xs text-right focus:outline-none focus:ring-1 focus:ring-brand-400"
+                              />
+                            </td>
+                            <td className="px-1 py-1 text-center">
+                              <button
+                                onClick={() => setCustomInstSchedule(prev => prev.filter(r => r.id !== row.id))}
+                                className="text-red-400 hover:text-red-600 font-bold leading-none">×</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="bg-gray-100 font-bold text-gray-700">
+                          <td colSpan={3} className="px-2 py-1.5 text-xs">Total</td>
+                          <td className="px-2 py-1.5 text-xs text-right">
+                            PKR {customInstSchedule.reduce((s, r) => s + r.amount, 0).toLocaleString('en-PK')}
+                          </td>
+                          <td></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-gray-400 italic">No custom schedule — PDF will auto-generate from months/advance/monthly above.</p>
+                )}
+              </div>
+
               {/* Payment invoice selector */}
               <div className="pt-1 border-t border-gray-100 space-y-2">
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Payment Invoice</p>
