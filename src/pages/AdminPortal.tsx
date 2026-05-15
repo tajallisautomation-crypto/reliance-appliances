@@ -4806,7 +4806,7 @@ async function generateQuotationPdf(opts: {
   doc.text('Ghar Se Tijarat Tak -- Har Zaroorat Ka Hal', _brandX, 30, { maxWidth: _brandMaxW });
 
   // Right meta zone: doc-type label (tiny, muted) → REF (large, dominant) → date (small)
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(246, 196, 0);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
   doc.text(badgeLabel, W - margin, 8, { align: 'right' });
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
   doc.text(opts.refNumber, W - margin, 19, { align: 'right' });
@@ -4858,21 +4858,21 @@ async function generateQuotationPdf(opts: {
   });
   const custBlockH = custRows.reduce((s, r) => s + r.rowH, 0) + 9;
 
-  doc.setFillColor(235, 242, 250);
+  doc.setFillColor(243, 246, 250);
   doc.rect(margin, leftY, leftW, custBlockH, 'F');
-  doc.setDrawColor(18, 63, 115); doc.setLineWidth(0.5);
+  doc.setDrawColor(201, 214, 226); doc.setLineWidth(0.5);
   doc.line(margin, leftY, margin, leftY + custBlockH);
   doc.setLineWidth(0.2);
-  doc.setFillColor(246, 196, 0);
+  doc.setFillColor(214, 168, 0);
   doc.rect(margin, leftY, 3, 4, 'F');
-  doc.setFillColor(220, 232, 248);
+  doc.setFillColor(243, 246, 250);
   doc.rect(margin + 3, leftY, leftW - 3, 4, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
   doc.text('CLIENT', margin + 6, leftY + 3);
 
   let cy = leftY + 4 + custRowH;
   for (const { lbl, vl, rowH, isName } of custRows) {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(63, 116, 184);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(107, 114, 128);
     doc.text(lbl, margin + 3, cy);
     doc.setFont('helvetica', isName ? 'bold' : 'normal');
     doc.setFontSize(isName ? 8 : 7); doc.setTextColor(isName ? 20 : 30, 20, 20);
@@ -4910,18 +4910,30 @@ async function generateQuotationPdf(opts: {
   const metaBlockH = metaFields.length * 3.7 + 6;
   doc.setFillColor(243, 244, 246);
   doc.rect(rightX, rightY, rightW, metaBlockH, 'F');
-  doc.setFillColor(246, 196, 0);
+  doc.setFillColor(214, 168, 0);
   doc.rect(rightX, rightY, 3, 4, 'F');
-  doc.setFillColor(220, 232, 248);
+  doc.setFillColor(243, 246, 250);
   doc.rect(rightX + 3, rightY, rightW - 3, 4, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
   doc.text('INVOICE DETAILS', rightX + 6, rightY + 3);
 
   let my = rightY + 4 + 3.7;
   for (const [lbl, val] of metaFields) {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(63, 116, 184);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(107, 114, 128);
     doc.text(lbl, rightX + 3, my);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(30, 30, 30);
+    let _metaValColor: [number,number,number] = [31, 41, 51];
+    let _metaValBold = false;
+    if (lbl === 'STATUS') {
+      _metaValBold = true;
+      if (val === 'PAID IN FULL')   _metaValColor = [22, 134, 90];
+      else if (val === 'PARTIAL')   _metaValColor = [214, 168, 0];
+      else if (val === 'OVERDUE')   _metaValColor = [220, 38, 38];
+      else                          _metaValColor = [107, 114, 128];
+    } else if (lbl === 'BALANCE DUE') {
+      _metaValColor = _qtBalDue === 0 ? [22, 134, 90] : [18, 63, 115];
+      _metaValBold = true;
+    }
+    doc.setFont('helvetica', _metaValBold ? 'bold' : 'normal'); doc.setFontSize(7); doc.setTextColor(..._metaValColor);
     const vl = doc.splitTextToSize(val, rightW - 26);
     doc.text(vl, rightX + 22, my);
     my += 3.7;
@@ -5021,7 +5033,7 @@ async function generateQuotationPdf(opts: {
   for (const cat of categoryOrder) {
     itemsBody.push([{
       content: ((categoryDisplayName[cat] || cat).replace(/^\d+\.?\d*\s*(?:ton|kw|kva)\s+/i, '').trim() || cat).toUpperCase(), colSpan: 5,
-      styles: { fillColor: [215, 228, 244], textColor: [11, 37, 69], fontStyle: 'bold', fontSize: 6, cellPadding: { top: 1.0, bottom: 1.0, left: 2 } },
+      styles: { fillColor: [220, 231, 242], textColor: [11, 37, 69], fontStyle: 'bold', fontSize: 6, cellPadding: { top: 1.0, bottom: 1.0, left: 2 } },
     }]);
     for (const line of grouped[cat]) {
       const displayName = line.displayPrefix ? `${line.displayPrefix}${line.name}` : line.name;
@@ -5037,7 +5049,7 @@ async function generateQuotationPdf(opts: {
         if (line.model) hdrParts.push(line.model);
         if (line.packageNote) hdrParts.push(line.packageNote);
         itemsBody.push([
-          { content: hdrParts.join('\n'), styles: { fontStyle: 'bold' as const, textColor: [20, 20, 20] as [number,number,number], fillColor: [255, 252, 245] as [number,number,number] } },
+          { content: hdrParts.join('\n'), styles: { fontStyle: 'bold' as const, textColor: [31, 41, 51] as [number,number,number], fillColor: [255, 252, 245] as [number,number,number] } },
           { content: '', styles: { fillColor: [255, 252, 245] as [number,number,number] } },
           { content: String(line.qty), styles: { fontStyle: 'bold' as const, fillColor: [255, 252, 245] as [number,number,number] } },
           { content: 'Package', styles: { fontStyle: 'italic' as const, textColor: [140, 80, 20] as [number,number,number], fillColor: [255, 252, 245] as [number,number,number] } },
@@ -5055,8 +5067,8 @@ async function generateQuotationPdf(opts: {
           itemsBody.push([{
             content: GRP_LABELS[grp], colSpan: 5,
             styles: {
-              fillColor: [228, 238, 252] as [number,number,number],
-              textColor: [63, 89, 128] as [number,number,number],
+              fillColor: [220, 231, 242] as [number,number,number],
+              textColor: [107, 114, 128] as [number,number,number],
               fontStyle: 'bold' as const, fontSize: 4.5,
               cellPadding: { top: 0.4, bottom: 0.4, left: 10, right: 2 },
             },
@@ -5133,7 +5145,7 @@ async function generateQuotationPdf(opts: {
   if (opts.installationLines.length > 0) {
     itemsBody.push([{
       content: 'INSTALLATION', colSpan: 5,
-      styles: { fillColor: [215, 228, 244], textColor: [11, 37, 69], fontStyle: 'bold', fontSize: 6.5, cellPadding: { top: 1.5, bottom: 1.5, left: 2 } },
+      styles: { fillColor: [220, 231, 242], textColor: [11, 37, 69], fontStyle: 'bold', fontSize: 6.5, cellPadding: { top: 1.5, bottom: 1.5, left: 2 } },
     }]);
     for (const inst of opts.installationLines) {
       itemsBody.push([inst.name, '', '1', PKR(inst.amount), PKR(inst.amount)]);
@@ -5145,7 +5157,7 @@ async function generateQuotationPdf(opts: {
   if ((opts.customCharges ?? []).length > 0) {
     itemsBody.push([{
       content: 'ADDITIONAL CHARGES', colSpan: 5,
-      styles: { fillColor: [215, 228, 244] as [number,number,number], textColor: [11, 37, 69] as [number,number,number], fontStyle: 'bold' as const, fontSize: 6.5, cellPadding: { top: 1.5, bottom: 1.5, left: 2 } },
+      styles: { fillColor: [220, 231, 242] as [number,number,number], textColor: [11, 37, 69] as [number,number,number], fontStyle: 'bold' as const, fontSize: 6.5, cellPadding: { top: 1.5, bottom: 1.5, left: 2 } },
     }]);
     for (const cc of opts.customCharges!) {
       itemsBody.push([cc.name, '', '1', PKR(cc.amount), PKR(cc.amount)]);
@@ -5156,25 +5168,25 @@ async function generateQuotationPdf(opts: {
     startY: leftY,
     margin: { left: margin, right: leftAutoMarginRight },
     head: [
-      [{ content: 'ITEMS', colSpan: 5, styles: { fillColor: [235,242,250] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontSize: 7, fontStyle: 'bold' as const, cellPadding: { top: 2.5, bottom: 2.5, left: 3 } } }],
+      [{ content: 'ITEMS', colSpan: 5, styles: { fillColor: [220,231,242] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontSize: 7, fontStyle: 'bold' as const, cellPadding: { top: 2.5, bottom: 2.5, left: 3 } } }],
       [
-        { content: 'PRODUCT', styles: { fillColor: [215,228,244] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'left' as const, cellPadding: { top: 1.5, bottom: 1.5, left: 3, right: 1 } } },
-        { content: 'SPECS',   styles: { fillColor: [215,228,244] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } } },
-        { content: 'QTY',     styles: { fillColor: [215,228,244] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'right' as const, cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } } },
-        { content: 'UNIT',    styles: { fillColor: [215,228,244] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'right' as const, cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } } },
-        { content: 'TOTAL',   styles: { fillColor: [215,228,244] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'right' as const, cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 3 } } },
+        { content: 'PRODUCT', styles: { fillColor: [220,231,242] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'left' as const, cellPadding: { top: 1.5, bottom: 1.5, left: 3, right: 1 } } },
+        { content: 'SPECS',   styles: { fillColor: [220,231,242] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } } },
+        { content: 'QTY',     styles: { fillColor: [220,231,242] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'right' as const, cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } } },
+        { content: 'UNIT',    styles: { fillColor: [220,231,242] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'right' as const, cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } } },
+        { content: 'TOTAL',   styles: { fillColor: [220,231,242] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'right' as const, cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 3 } } },
       ],
     ],
     body: itemsBody,
     columnStyles: {
       0: { cellWidth: 42 },
-      1: { cellWidth: 26, fontSize: 5, textColor: [80, 80, 80] as [number, number, number] },
+      1: { cellWidth: 26, fontSize: 5, textColor: [107, 114, 128] as [number, number, number] },
       2: { cellWidth: 8, halign: 'right' },
       3: { cellWidth: 18, halign: 'right' },
       4: { cellWidth: 18, halign: 'right', fontStyle: 'bold' },
     },
-    headStyles: { fillColor: [235, 242, 250] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 6 },
-    bodyStyles: { fontSize: 6, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
+    headStyles: { fillColor: [220, 231, 242] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 6 },
+    bodyStyles: { fontSize: 6, textColor: [31, 41, 51], lineColor: [229, 231, 235], lineWidth: 0.15 },
     alternateRowStyles: { fillColor: [250, 250, 250] },
     styles: { overflow: 'linebreak', cellPadding: cellPad },
   });
@@ -5200,19 +5212,19 @@ async function generateQuotationPdf(opts: {
     const wtyBody = warrantyEntries.map(we => [
       { content: we.model || we.name, styles: { fontStyle: 'bold' as const, fontSize: 4.8, textColor: [25, 25, 25] as [number,number,number] } },
       { content: we.coverage, styles: { fontSize: 4.5, textColor: [60, 60, 60] as [number,number,number] } },
-      { content: _inferProvider(we.name), styles: { fontSize: 4.5, textColor: [80, 80, 80] as [number,number,number] } },
+      { content: _inferProvider(we.name), styles: { fontSize: 4.5, textColor: [107, 114, 128] as [number,number,number] } },
       { content: "Tajalli's", styles: { fontSize: 4.5, textColor: [22, 101, 52] as [number,number,number], fontStyle: 'bold' as const } },
     ]);
     autoTable(doc, {
       startY: rightY,
       margin: { left: rightX, right: margin },
       head: [[
-        { content: 'WARRANTY COVERAGE', colSpan: 4, styles: { fillColor: [235,242,250] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, cellPadding: { top: 1.5, bottom: 1.5, left: 3, right: 2 } } },
+        { content: 'WARRANTY COVERAGE', colSpan: 4, styles: { fillColor: [220,231,242] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, cellPadding: { top: 1.5, bottom: 1.5, left: 3, right: 2 } } },
       ], [
-        { content: 'ITEM', styles: { fillColor: [215,228,244] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 4.5, cellPadding: { top: 1, bottom: 1, left: 3, right: 1 } } },
-        { content: 'COVERAGE', styles: { fillColor: [215,228,244] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 4.5 } },
-        { content: 'PROVIDER', styles: { fillColor: [215,228,244] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 4.5 } },
-        { content: 'CLAIM VIA', styles: { fillColor: [215,228,244] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 4.5, halign: 'right' as const, cellPadding: { top: 1, bottom: 1, left: 1, right: 3 } } },
+        { content: 'ITEM', styles: { fillColor: [220,231,242] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 4.5, cellPadding: { top: 1, bottom: 1, left: 3, right: 1 } } },
+        { content: 'COVERAGE', styles: { fillColor: [220,231,242] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 4.5 } },
+        { content: 'PROVIDER', styles: { fillColor: [220,231,242] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 4.5 } },
+        { content: 'CLAIM VIA', styles: { fillColor: [220,231,242] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 4.5, halign: 'right' as const, cellPadding: { top: 1, bottom: 1, left: 1, right: 3 } } },
       ]],
       body: wtyBody,
       columnStyles: { 0: { cellWidth: 18 }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 22 }, 3: { cellWidth: 10 } },
@@ -5235,25 +5247,25 @@ async function generateQuotationPdf(opts: {
         doc.line(rightX, rightY + 1, rightX + rightW, rightY + 1);
         doc.setLineWidth(0.2);
         rightY += 4;
-        doc.setFillColor(235, 242, 250);
+        doc.setFillColor(243, 246, 250);
         doc.rect(rightX, rightY, rightW, instBoxH, 'F');
-        doc.setFillColor(246, 196, 0);
+        doc.setFillColor(214, 168, 0);
         doc.rect(rightX, rightY, 3, 4, 'F');
-        doc.setFillColor(220, 232, 248);
+        doc.setFillColor(243, 246, 250);
         doc.rect(rightX + 3, rightY, rightW - 3, 4, 'F');
-        doc.setDrawColor(18, 63, 115); doc.setLineWidth(0.4);
+        doc.setDrawColor(201, 214, 226); doc.setLineWidth(0.4);
         doc.line(rightX, rightY, rightX, rightY + instBoxH);
         doc.setLineWidth(0.2);
         doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
         doc.text('12-MONTH FINANCING OPTION', rightX + 6, rightY + 3);
-        doc.setFont('helvetica', 'italic'); doc.setFontSize(4.5); doc.setTextColor(100, 120, 150);
+        doc.setFont('helvetica', 'italic'); doc.setFontSize(4.5); doc.setTextColor(107, 114, 128);
         doc.text('Alternate financing · includes financing charge', rightX + 6, rightY + 6.5, { maxWidth: rightW - 8 });
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(63, 116, 184);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(107, 114, 128);
         doc.text('Financing Total', rightX + 3, rightY + 11);
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(30, 30, 30);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(31, 41, 51);
         doc.text(PKR(_p12.total), rightX + rightW - 3, rightY + 11, { align: 'right' });
         const advPct = Math.round(_p12.advancePct * 100);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(80, 100, 130);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(107, 114, 128);
         doc.text(`${advPct}% adv ${PKR(_p12.advance)}  ·  ${PKR(_p12.monthly)}/mo × ${_p12.monthlyPayments}`, rightX + 3, rightY + 14.5, { maxWidth: rightW - 5 });
         rightY += instBoxH + 2;
       }
@@ -5298,9 +5310,9 @@ async function generateQuotationPdf(opts: {
     doc.rect(rightX, rightY, rightW, pricingH, 'F');
     doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
     doc.rect(rightX, rightY, rightW, pricingH, 'S');
-    doc.setFillColor(246, 196, 0);
+    doc.setFillColor(214, 168, 0);
     doc.rect(rightX, rightY, 3, 4, 'F');
-    doc.setFillColor(220, 232, 248);
+    doc.setFillColor(243, 246, 250);
     doc.rect(rightX + 3, rightY, rightW - 3, 4, 'F');
     doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
     doc.text('PRICING', rightX + 6, rightY + 3);
@@ -5310,7 +5322,7 @@ async function generateQuotationPdf(opts: {
       const isDiscount = val.startsWith('- ');
       doc.setFont('helvetica', isDiscount ? 'bold' : 'normal');
       doc.setFontSize(7);
-      doc.setTextColor(...(isDiscount ? [22, 163, 74] as [number,number,number] : [80, 80, 80] as [number,number,number]));
+      doc.setTextColor(...(isDiscount ? [22, 134, 90] as [number,number,number] : [107, 114, 128] as [number,number,number]));
       doc.text(lbl, rightX + 3, pry);
       doc.text(val, rightX + rightW - 3, pry, { align: 'right' });
       pry += pricingRowH;
@@ -5329,7 +5341,7 @@ async function generateQuotationPdf(opts: {
     if (_needsSecondRow) {
       const _hasPartialAdvance = !_isFullyPaid && _amtActuallyPaid > 0 && _amtActuallyPaid < grandTotal;
       const _balStatusLabel = _isFullyPaid ? 'PAID IN FULL' : _hasPartialAdvance ? 'BALANCE DUE' : 'AMOUNT DUE';
-      const _balStatusColor: [number,number,number] = _isFullyPaid ? [134, 239, 172] : _hasPartialAdvance ? [246, 196, 0] : [252, 165, 165];
+      const _balStatusColor: [number,number,number] = _isFullyPaid ? [134, 239, 172] : _hasPartialAdvance ? [214, 168, 0] : [255, 255, 255];
       const _balStatusAmt = _isFullyPaid ? grandTotal : _balOnDelivery;
       doc.setDrawColor(45, 85, 140); doc.setLineWidth(0.25);
       doc.line(rightX + 2, pry + 8.5, rightX + rightW - 2, pry + 8.5);
@@ -5371,16 +5383,16 @@ async function generateQuotationPdf(opts: {
         && /install/i.test(svc.service_name) && svc.status === 'not_selected';
       const effStatus = override ? 'included' : svc.status;
       const statusLabel = effStatus === 'included' ? 'INCL' : 'BILLED';
-      const statusColor: [number, number, number] = effStatus === 'included' ? [22, 163, 74] : [18, 63, 115];
+      const statusColor: [number, number, number] = effStatus === 'included' ? [22, 134, 90] : [18, 63, 115];
       const amtLabel = effStatus === 'included' ? 'Included' : PKR(svc.charged_amount);
       if (_showMktRate) {
         const mktLabel = svc.visible_value > 0 ? PKR(svc.visible_value) : '—';
         return [
           { content: svc.service_name, styles: { fontStyle: 'bold' as const } },
-          { content: mktLabel, styles: { textColor: [120, 120, 120] as [number,number,number], halign: 'right' as const } },
+          { content: mktLabel, styles: { textColor: [107, 114, 128] as [number,number,number], halign: 'right' as const } },
           { content: statusLabel, styles: { textColor: statusColor, fontStyle: 'bold' as const, halign: 'center' as const } },
           { content: amtLabel, styles: { fontStyle: 'bold' as const,
-            textColor: effStatus === 'included' ? [22, 163, 74] as [number,number,number] : [40,40,40] as [number,number,number],
+            textColor: effStatus === 'included' ? [22, 134, 90] as [number,number,number] : [40,40,40] as [number,number,number],
             halign: 'right' as const } },
         ];
       }
@@ -5388,20 +5400,20 @@ async function generateQuotationPdf(opts: {
         { content: svc.service_name, styles: { fontStyle: 'bold' as const } },
         { content: statusLabel, styles: { textColor: statusColor, fontStyle: 'bold' as const, halign: 'center' as const } },
         { content: amtLabel, styles: { fontStyle: 'bold' as const,
-          textColor: effStatus === 'included' ? [22, 163, 74] as [number,number,number] : [40,40,40] as [number,number,number],
+          textColor: effStatus === 'included' ? [22, 134, 90] as [number,number,number] : [40,40,40] as [number,number,number],
           halign: 'right' as const } },
       ];
     });
     const _svcColSpan = _showMktRate ? 4 : 3;
     const _svcSubHead = _showMktRate ? [
-      { content: 'SERVICE',     styles: { fillColor: [215,228,244] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'left' as const,   cellPadding: { top: 1.5, bottom: 1.5, left: 3, right: 1 } } },
-      { content: 'MARKET RATE', styles: { fillColor: [215,228,244] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'right' as const,  cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } } },
-      { content: 'STATUS',      styles: { fillColor: [215,228,244] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'center' as const, cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } } },
-      { content: 'AMOUNT',      styles: { fillColor: [215,228,244] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'right' as const,  cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 3 } } },
+      { content: 'SERVICE',     styles: { fillColor: [220,231,242] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'left' as const,   cellPadding: { top: 1.5, bottom: 1.5, left: 3, right: 1 } } },
+      { content: 'MARKET RATE', styles: { fillColor: [220,231,242] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'right' as const,  cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } } },
+      { content: 'STATUS',      styles: { fillColor: [220,231,242] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'center' as const, cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } } },
+      { content: 'AMOUNT',      styles: { fillColor: [220,231,242] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'right' as const,  cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 3 } } },
     ] : [
-      { content: 'SERVICE',     styles: { fillColor: [215,228,244] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'left' as const,   cellPadding: { top: 1.5, bottom: 1.5, left: 3, right: 1 } } },
-      { content: 'STATUS',      styles: { fillColor: [215,228,244] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'center' as const, cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } } },
-      { content: 'AMOUNT',      styles: { fillColor: [215,228,244] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'right' as const,  cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 3 } } },
+      { content: 'SERVICE',     styles: { fillColor: [220,231,242] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'left' as const,   cellPadding: { top: 1.5, bottom: 1.5, left: 3, right: 1 } } },
+      { content: 'STATUS',      styles: { fillColor: [220,231,242] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'center' as const, cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 1 } } },
+      { content: 'AMOUNT',      styles: { fillColor: [220,231,242] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, halign: 'right' as const,  cellPadding: { top: 1.5, bottom: 1.5, left: 1, right: 3 } } },
     ];
     const _svcColStyles: Record<number, object> = _showMktRate
       ? { 0: { cellWidth: 'auto' }, 1: { cellWidth: 24, halign: 'right' }, 2: { cellWidth: 14, halign: 'center' }, 3: { cellWidth: 22, halign: 'right' } }
@@ -5410,13 +5422,13 @@ async function generateQuotationPdf(opts: {
       startY: leftY,
       margin: { left: margin, right: leftAutoMarginRight },
       head: [
-        [{ content: 'SERVICES', colSpan: _svcColSpan, styles: { fillColor: [235,242,250] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontSize: 7, fontStyle: 'bold' as const, cellPadding: { top: 2.5, bottom: 2.5, left: 3 } } }],
+        [{ content: 'SERVICES', colSpan: _svcColSpan, styles: { fillColor: [220,231,242] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontSize: 7, fontStyle: 'bold' as const, cellPadding: { top: 2.5, bottom: 2.5, left: 3 } } }],
         _svcSubHead,
       ],
       body: activeSvcBody,
       columnStyles: _svcColStyles,
-      headStyles: { fillColor: [235, 242, 250] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 6 },
-      bodyStyles: { fontSize: 6, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
+      headStyles: { fillColor: [220, 231, 242] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 6 },
+      bodyStyles: { fontSize: 6, textColor: [31, 41, 51], lineColor: [229, 231, 235], lineWidth: 0.15 },
       alternateRowStyles: { fillColor: [250, 250, 250] },
       styles: { overflow: 'linebreak', cellPadding: cellPad },
     });
@@ -5430,18 +5442,18 @@ async function generateQuotationPdf(opts: {
     doc.rect(margin, leftY, leftW, suggBoxH, 'F');
     doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
     doc.rect(margin, leftY, leftW, suggBoxH, 'S');
-    doc.setFillColor(246, 196, 0);
+    doc.setFillColor(214, 168, 0);
     doc.rect(margin, leftY, 3, 4, 'F');
-    doc.setFillColor(220, 232, 248);
+    doc.setFillColor(243, 246, 250);
     doc.rect(margin + 3, leftY, leftW - 3, 4, 'F');
     doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
     doc.text('AVAILABLE ADD-ONS', margin + 6, leftY + 3);
-    doc.setFont('helvetica', 'italic'); doc.setFontSize(4.5); doc.setTextColor(100, 120, 150);
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(4.5); doc.setTextColor(107, 114, 128);
     doc.text('Not included in grand total', margin + leftW - 3, leftY + 3, { align: 'right' });
     let sy = leftY + 4 + 3.0;
     for (const svc of optionalServices) {
       const priceStr = svc.display_value ?? (svc.visible_value > 0 ? PKR(svc.visible_value) : 'Contact us');
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(80, 80, 80);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(107, 114, 128);
       doc.text(`· ${svc.service_name}`, margin + 3, sy);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(18, 63, 115);
       doc.text(priceStr, margin + leftW - 3, sy, { align: 'right' });
@@ -5581,13 +5593,13 @@ async function generateQuotationPdf(opts: {
       // Background + NAVY header
       doc.setFillColor(240, 247, 255);
       doc.rect(margin, y, printW, sectionH3, 'F');
-      doc.setFillColor(246, 196, 0);
+      doc.setFillColor(214, 168, 0);
       doc.rect(margin, y, 3, hdrH3, 'F');
-      doc.setFillColor(220, 232, 248);
+      doc.setFillColor(243, 246, 250);
       doc.rect(margin + 3, y, printW - 3, hdrH3, 'F');
       doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
       doc.text('SOLAR SYSTEM OVERVIEW', margin + 6, y + 3.8);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(100, 120, 150);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(107, 114, 128);
       doc.text(`${systemKw} kW System`, W - margin, y + 3.8, { align: 'right' });
 
       const sy3 = y + hdrH3;
@@ -5604,13 +5616,13 @@ async function generateQuotationPdf(opts: {
 
       let lY3 = sy3 + subHdrH3 + 1;
       for (const r of lRows) {
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(30, 30, 30);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(31, 41, 51);
         doc.text(`· ${r}`, margin + 3, lY3);
         lY3 += rowH3;
       }
       let rY3 = sy3 + subHdrH3 + 1;
       for (const r of rRows) {
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(30, 30, 30);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(31, 41, 51);
         doc.text(`· ${r}`, rightX3, rY3, { maxWidth: rightW3 });
         rY3 += rowH3;
       }
@@ -5657,14 +5669,14 @@ async function generateQuotationPdf(opts: {
       // Background + NAVY header
       doc.setFillColor(255, 253, 234);
       doc.rect(margin, y, printW, sectionH3, 'F');
-      doc.setFillColor(246, 196, 0);
+      doc.setFillColor(214, 168, 0);
       doc.rect(margin, y, 3, hdrH3, 'F');
       doc.setFillColor(255, 248, 220);
       doc.rect(margin + 3, y, printW - 3, hdrH3, 'F');
       doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
       doc.text(sectionTitle, margin + 6, y + 3.8);
       if (totalEffKwh3 > 0) {
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(100, 120, 150);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(107, 114, 128);
         doc.text(`${totalEffKwh3} kWh/mo`, W - margin, y + 3.8, { align: 'right' });
       }
 
@@ -5741,7 +5753,7 @@ async function generateQuotationPdf(opts: {
       let ay3 = sy3 + 7;
       for (const para of advParas3) {
         const wrapped = doc.splitTextToSize(para, rightW3);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(40, 40, 40);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(31, 41, 51);
         doc.text(wrapped, rightX3, ay3, { lineHeightFactor: 1.35 });
         ay3 += wrapped.length * rowH3 + 1.5;
       }
@@ -5762,9 +5774,9 @@ async function generateQuotationPdf(opts: {
     const fmtDI = (d: Date) => d.toLocaleDateString('en-PK', { month: 'short', day: 'numeric', year: 'numeric' });
 
     // Full-width header — gold stripe + light tint + navy text
-    doc.setFillColor(246, 196, 0);
+    doc.setFillColor(214, 168, 0);
     doc.rect(margin, y, 3, 5.5, 'F');
-    doc.setFillColor(220, 232, 248);
+    doc.setFillColor(243, 246, 250);
     doc.rect(margin + 3, y, printW - 3, 5.5, 'F');
     doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
     doc.text('INSTALLMENT SCHEDULE', W / 2, y + 3.8, { align: 'center' });
@@ -5772,7 +5784,7 @@ async function generateQuotationPdf(opts: {
 
     const schedColW = (printW - 3) / 2;
     const cPad = { top: 0.5, bottom: 0.5, left: 1.5, right: 1.5 };
-    const hStyles = { fillColor: [215, 228, 244] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, cellPadding: { top: 1, bottom: 1, left: 1.5, right: 1.5 } };
+    const hStyles = { fillColor: [220, 231, 242] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 5.5, cellPadding: { top: 1, bottom: 1, left: 1.5, right: 1.5 } };
     const bStyles = { fontSize: 5.5, textColor: [40,40,40] as [number,number,number], lineColor: [229,231,235] as [number,number,number], lineWidth: 0.15 as number, cellPadding: cPad };
     const altStyles = { fillColor: [250,250,250] as [number,number,number] };
     const colStyles = { 0: { cellWidth: 7 }, 2: { cellWidth: 26, halign: 'right' as const }, 3: { cellWidth: 24 } };
@@ -5818,7 +5830,7 @@ async function generateQuotationPdf(opts: {
     // @ts-ignore
     y = Math.max(leftSchedFinalY, (doc as any).lastAutoTable.finalY) + 2;
 
-    doc.setFont('helvetica', 'italic'); doc.setFontSize(5.5); doc.setTextColor(80, 100, 130);
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(5.5); doc.setTextColor(107, 114, 128);
     doc.text('Late payment: 1% per day past due. Post-dated cheques required.', margin, y);
     y += 4;
   }
@@ -5869,15 +5881,15 @@ async function generateQuotationPdf(opts: {
   doc.setLineWidth(0.2);
 
   // Payment col
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(80, 80, 80);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(107, 114, 128);
   doc.text(opts.saleType === 'installment' ? 'INSTALLMENT PLAN' : hasCashSchedule ? 'PAYMENT SCHEDULE' : 'CASH PAYMENT', margin + 3, y + 6);
   let ppy = y + 12;
   if (hasCashSchedule) {
     // Render deferred payment schedule rows
     for (const slot of opts.cashPaySchedule!) {
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(120, 120, 120);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(107, 114, 128);
       doc.text(slot.note || slot.date, margin + 3, ppy);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(30, 30, 30);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(31, 41, 51);
       doc.text(PKR(slot.amount), margin + payColW - 3, ppy, { align: 'right' });
       doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(150, 150, 150);
       if (slot.note) doc.text(slot.date, margin + 3, ppy + 3);
@@ -5920,10 +5932,10 @@ async function generateQuotationPdf(opts: {
     for (const [lbl, val] of payRows) {
       const isOpt = lbl === 'Installment';
       doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5);
-      doc.setTextColor(...(isOpt ? [18, 63, 115] as [number, number, number] : [120, 120, 120] as [number, number, number]));
+      doc.setTextColor(...(isOpt ? [18, 63, 115] as [number, number, number] : [107, 114, 128] as [number, number, number]));
       doc.text(lbl, margin + 3, ppy);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
-      doc.setTextColor(...(isOpt ? [11, 37, 69] as [number, number, number] : [30, 30, 30] as [number, number, number]));
+      doc.setTextColor(...(isOpt ? [11, 37, 69] as [number, number, number] : [31, 41, 51] as [number, number, number]));
       doc.text(val, margin + payColW - 3, ppy, { align: 'right' });
       ppy += 5.0;
     }
@@ -5939,11 +5951,11 @@ async function generateQuotationPdf(opts: {
   const _bankTx = bankColX + 4.5;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
   doc.text('BANK TRANSFER — RAAST / IBAN', _bankTx, y + 6);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(20, 20, 20);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(31, 41, 51);
   doc.text("TAJALLI'S HOME COLLECTION", _bankTx, y + 12);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(40, 40, 40);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(31, 41, 51);
   doc.text('PK33 MEZN 0001 0601 0187 4794', _bankTx, y + 18);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(80, 80, 80);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(107, 114, 128);
   doc.text('Meezan Bank — F.B Area Branch', _bankTx, y + 24);
   if (!opts.advancePaid) {
     doc.setFont('helvetica', 'italic'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
@@ -5963,7 +5975,7 @@ async function generateQuotationPdf(opts: {
     doc.addImage(qrData, 'JPEG', qr1X, qrY, QR_S, QR_S);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(22, 101, 52);
     doc.text('SCAN TO PAY', qrColX + qrColW / 2, qrY + QR_S + 4.5, { align: 'center' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(80, 80, 80);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(107, 114, 128);
     doc.text("Tajalli's — Meezan Bank · Raast / IBAN", qrColX + qrColW / 2, qrY + QR_S + 8, { align: 'center', maxWidth: qrColW - 2 });
   }
   y += payBankH + 2;
@@ -5993,7 +6005,7 @@ async function generateQuotationPdf(opts: {
     const segW = trustStatW / trustStats.length;
     trustStats.forEach(([num, lbl], i) => {
       const sx = margin + i * segW + segW / 2;
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(246, 196, 0);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(214, 168, 0);
       doc.text(num, sx, y + 5.5, { align: 'center' });
       doc.setFont('helvetica', 'normal'); doc.setFontSize(4); doc.setTextColor(170, 170, 170);
       doc.text(lbl, sx, y + 10, { align: 'center' });
@@ -6110,9 +6122,9 @@ async function generateQuotationPdf(opts: {
   for (let i = 0; i < tcItems.length; i++) {
     const col = Math.floor(i / tcPerCol);
     const tx = margin + 3 + col * (colTcW + 3);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(120, 120, 120);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(107, 114, 128);
     doc.text(`${i + 1}.`, tx, tcColY[col]);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(80, 80, 80);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(107, 114, 128);
     const wrapped = doc.splitTextToSize(tcItems[i], colTcW - 5);
     doc.text(wrapped, tx + 4, tcColY[col], { lineHeightFactor: 1.3 });
     tcColY[col] += wrapped.length * tcRowH + 0.8;
@@ -6208,7 +6220,7 @@ async function generateInstallmentAdvancePdf(opts: {
   doc.line(_brandX, 25.5, _brandX + _brandMaxW, 25.5);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
   doc.text('Ghar Se Tijarat Tak -- Har Zaroorat Ka Hal', _brandX, 30, { maxWidth: _brandMaxW });
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(246, 196, 0);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
   doc.text('ADVANCE INVOICE', W - margin, 8, { align: 'right' });
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
   doc.text(opts.refNumber, W - margin, 19, { align: 'right' });
@@ -6236,31 +6248,31 @@ async function generateInstallmentAdvancePdf(opts: {
     ...(opts.customerCnic    ? [['CNIC',    opts.customerCnic]    as [string, string]] : []),
   ];
   const advCustH = advCustFields.length * 4.8 + 10;
-  doc.setFillColor(235, 242, 250);
+  doc.setFillColor(243, 246, 250);
   doc.rect(margin, y, advCustLW, advCustH, 'F');
-  doc.setDrawColor(18, 63, 115); doc.setLineWidth(0.5);
+  doc.setDrawColor(201, 214, 226); doc.setLineWidth(0.5);
   doc.line(margin, y, margin, y + advCustH);
   doc.setLineWidth(0.2);
-  doc.setFillColor(246, 196, 0);
+  doc.setFillColor(214, 168, 0);
   doc.rect(margin, y, 3, 4, 'F');
-  doc.setFillColor(220, 232, 248);
+  doc.setFillColor(243, 246, 250);
   doc.rect(margin + 3, y, advCustLW - 3, 4, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
   doc.text('CLIENT', margin + 6, y + 3);
   let advCY = y + 4 + 4.8;
   for (const [lbl, val] of advCustFields) {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(63, 116, 184);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(107, 114, 128);
     doc.text(lbl, margin + 3, advCY);
     doc.setFont('helvetica', lbl === 'NAME' ? 'bold' : 'normal');
-    doc.setFontSize(lbl === 'NAME' ? 8 : 7); doc.setTextColor(20, 20, 20);
+    doc.setFontSize(lbl === 'NAME' ? 8 : 7); doc.setTextColor(31, 41, 51);
     doc.text(String(val), margin + 22, advCY);
     advCY += 4.8;
   }
-  doc.setFillColor(245, 247, 250);
+  doc.setFillColor(243, 246, 250);
   doc.rect(advCustRX, y, advCustRW, advCustH, 'F');
-  doc.setFillColor(246, 196, 0);
+  doc.setFillColor(214, 168, 0);
   doc.rect(advCustRX, y, 3, 4, 'F');
-  doc.setFillColor(220, 232, 248);
+  doc.setFillColor(243, 246, 250);
   doc.rect(advCustRX + 3, y, advCustRW - 3, 4, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
   doc.text('DOCUMENT DETAILS', advCustRX + 6, y + 3);
@@ -6279,9 +6291,17 @@ async function generateInstallmentAdvancePdf(opts: {
   ];
   let advMY = y + 4 + 4.8;
   for (const [lbl, val] of advMetaRows) {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(63, 116, 184);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(107, 114, 128);
     doc.text(lbl, advCustRX + 3, advMY);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(20, 20, 20);
+    let _advValColor: [number,number,number] = [31, 41, 51];
+    let _advValBold = false;
+    if (lbl === 'STATUS') {
+      _advValBold = true;
+      _advValColor = _advIsPaid ? [214, 168, 0] : [107, 114, 128];
+    } else if (lbl === 'ADVANCE PAID') {
+      _advValBold = true; _advValColor = [22, 134, 90];
+    }
+    doc.setFont('helvetica', _advValBold ? 'bold' : 'normal'); doc.setFontSize(7); doc.setTextColor(..._advValColor);
     doc.text(String(val), advCustRX + advCustRW - 3, advMY, { align: 'right' });
     advMY += 4.8;
   }
@@ -6307,7 +6327,7 @@ async function generateInstallmentAdvancePdf(opts: {
   const tableBody: any[] = [];
   for (const cat of categoryOrder) {
     const catLines = grouped[cat];
-    tableBody.push([{ content: cat.toUpperCase(), colSpan: 6, styles: { fillColor: [215, 228, 244], textColor: [11, 37, 69], fontStyle: 'bold', fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 } } }]);
+    tableBody.push([{ content: cat.toUpperCase(), colSpan: 6, styles: { fillColor: [220, 231, 242], textColor: [11, 37, 69], fontStyle: 'bold', fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 } } }]);
     for (const line of catLines) {
       tableBody.push([
         line.model ? `${line.name}\n${line.model}` : line.name,
@@ -6321,8 +6341,8 @@ async function generateInstallmentAdvancePdf(opts: {
     head: [['Item / Description', 'Key Spec', 'Warranty', 'Qty', 'Unit Price', 'Total']],
     body: tableBody,
     columnStyles: { 0: { cellWidth: 65 }, 1: { cellWidth: 28 }, 2: { cellWidth: 22 }, 3: { cellWidth: 10, halign: 'right' }, 4: { cellWidth: 26, halign: 'right' }, 5: { cellWidth: 23, halign: 'right', fontStyle: 'bold' } },
-    headStyles: { fillColor: [235, 242, 250] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7.5 },
-    bodyStyles: { fontSize: 7.5, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.2 },
+    headStyles: { fillColor: [220, 231, 242] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7.5 },
+    bodyStyles: { fontSize: 7.5, textColor: [31, 41, 51], lineColor: [229, 231, 235], lineWidth: 0.2 },
     alternateRowStyles: { fillColor: [250, 250, 250] },
     styles: { overflow: 'linebreak', cellPadding: 2.5 },
   });
@@ -6342,13 +6362,13 @@ async function generateInstallmentAdvancePdf(opts: {
     ['Remaining Balance',  PKR(remainingBalance),       false],
   ];
   const finRowH = 5.5; const finBoxH = finRows.length * finRowH + 11 + 7;
-  doc.setFillColor(235, 242, 250);
+  doc.setFillColor(243, 246, 250);
   doc.rect(finBoxX, y, finBoxW, finBoxH, 'F');
-  doc.setDrawColor(18, 63, 115); doc.setLineWidth(0.4);
+  doc.setDrawColor(201, 214, 226); doc.setLineWidth(0.4);
   doc.rect(finBoxX, y, finBoxW, finBoxH, 'S');
-  doc.setFillColor(246, 196, 0);
+  doc.setFillColor(214, 168, 0);
   doc.rect(finBoxX, y, 3, 5, 'F');
-  doc.setFillColor(220, 232, 248);
+  doc.setFillColor(243, 246, 250);
   doc.rect(finBoxX + 3, y, finBoxW - 3, 5, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(18, 63, 115);
   doc.text('FINANCING BREAKDOWN', finBoxX + 6, y + 3.5);
@@ -6356,15 +6376,15 @@ async function generateInstallmentAdvancePdf(opts: {
   let finY = y + 5 + finRowH;
   for (const [lbl, val, isTot] of finRows) {
     if (isTot) {
-      doc.setDrawColor(18, 63, 115); doc.setLineWidth(0.3);
+      doc.setDrawColor(201, 214, 226); doc.setLineWidth(0.3);
       doc.line(finBoxX + 3, finY - 2.5, finBoxX + finBoxW - 3, finY - 2.5);
       doc.setLineWidth(0.2);
     }
     doc.setFont('helvetica', isTot ? 'bold' : 'normal'); doc.setFontSize(6.5);
-    doc.setTextColor(...(isTot ? [18, 63, 115] as [number,number,number] : [80, 80, 80] as [number,number,number]));
+    doc.setTextColor(...(isTot ? [18, 63, 115] as [number,number,number] : [107, 114, 128] as [number,number,number]));
     doc.text(lbl, finBoxX + 3, finY);
     doc.setFont('helvetica', isTot ? 'bold' : 'normal'); doc.setFontSize(7);
-    doc.setTextColor(20, 20, 20);
+    doc.setTextColor(31, 41, 51);
     doc.text(val, finBoxX + finBoxW - 3, finY, { align: 'right' });
     if (isTot) {
       doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
@@ -6384,16 +6404,16 @@ async function generateInstallmentAdvancePdf(opts: {
   doc.line(margin, y - 1, W - margin, y - 1);
   doc.setLineWidth(0.2);
   y += 2;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(40, 40, 40);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(31, 41, 51);
   doc.text('INSTALLMENT SCHEDULE', margin, y + 1);
   y += 5;
 
   const schedBody: any[] = [];
   schedBody.push([
-    { content: '0', styles: { fillColor: [246, 196, 0], textColor: [20, 20, 20], fontStyle: 'bold' } },
-    { content: 'Advance Payment', styles: { fillColor: [246, 196, 0], textColor: [20, 20, 20], fontStyle: 'bold' } },
-    { content: PKR(opts.instAdvanceAmt), styles: { fillColor: [246, 196, 0], textColor: [20, 20, 20], fontStyle: 'bold', halign: 'right' as const } },
-    { content: 'Upon Confirmation', styles: { fillColor: [246, 196, 0], textColor: [20, 20, 20], fontStyle: 'bold' } },
+    { content: '0', styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold' } },
+    { content: 'Advance Payment', styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold' } },
+    { content: PKR(opts.instAdvanceAmt), styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold', halign: 'right' as const } },
+    { content: 'Upon Confirmation', styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold' } },
   ]);
   for (let i = 1; i <= opts.instMonths; i++) {
     const d = new Date(opts.instFirstDate);
@@ -6402,8 +6422,8 @@ async function generateInstallmentAdvancePdf(opts: {
   }
   schedBody.push([
     { content: '', styles: { fillColor: [248, 248, 248] } },
-    { content: 'TOTAL', styles: { fillColor: [248, 248, 248], fontStyle: 'bold', textColor: [40, 40, 40] } },
-    { content: PKR(opts.instTotalPrice), styles: { fillColor: [248, 248, 248], fontStyle: 'bold', halign: 'right' as const, textColor: [40, 40, 40] } },
+    { content: 'TOTAL', styles: { fillColor: [248, 248, 248], fontStyle: 'bold', textColor: [31, 41, 51] } },
+    { content: PKR(opts.instTotalPrice), styles: { fillColor: [248, 248, 248], fontStyle: 'bold', halign: 'right' as const, textColor: [31, 41, 51] } },
     { content: '', styles: { fillColor: [248, 248, 248] } },
   ]);
 
@@ -6412,8 +6432,8 @@ async function generateInstallmentAdvancePdf(opts: {
     head: [['#', 'Description', 'Amount', 'Due Date']],
     body: schedBody,
     columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 80 }, 2: { cellWidth: 40, halign: 'right' }, 3: { cellWidth: 42 } },
-    headStyles: { fillColor: [215, 228, 244] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7.5 },
-    bodyStyles: { fontSize: 7.5, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.2 },
+    headStyles: { fillColor: [220, 231, 242] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7.5 },
+    bodyStyles: { fontSize: 7.5, textColor: [31, 41, 51], lineColor: [229, 231, 235], lineWidth: 0.2 },
     styles: { overflow: 'linebreak', cellPadding: 2.5 },
   });
   // @ts-ignore
@@ -6425,7 +6445,7 @@ async function generateInstallmentAdvancePdf(opts: {
   if (chargedAdvServices.length > 0 || includedAdvServices.length > 0) {
     const svcBodyAdv = [...chargedAdvServices, ...includedAdvServices].map(svc => {
       const statusLabel = svc.status === 'charged' ? 'BILLED' : 'INCL';
-      const statusColor: [number, number, number] = svc.status === 'charged' ? [18, 63, 115] : [22, 163, 74];
+      const statusColor: [number, number, number] = svc.status === 'charged' ? [18, 63, 115] : [22, 134, 90];
       const valueStr = svc.display_value
         ? svc.display_value
         : svc.status === 'charged' ? PKR(svc.charged_amount) : 'Included';
@@ -6440,8 +6460,8 @@ async function generateInstallmentAdvancePdf(opts: {
       head: [['SERVICE', 'STATUS', 'AMOUNT']],
       body: svcBodyAdv,
       columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 18, halign: 'center' as const }, 2: { cellWidth: 35, halign: 'right' as const } },
-      headStyles: { fillColor: [235, 242, 250] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7 },
-      bodyStyles: { fontSize: 7, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
+      headStyles: { fillColor: [220, 231, 242] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7 },
+      bodyStyles: { fontSize: 7, textColor: [31, 41, 51], lineColor: [229, 231, 235], lineWidth: 0.15 },
       styles: { overflow: 'linebreak', cellPadding: 1.5 },
     });
     // @ts-ignore
@@ -6459,8 +6479,8 @@ async function generateInstallmentAdvancePdf(opts: {
       head: [['ADDITIONAL CHARGE', 'AMOUNT']],
       body: ccBodyAdv,
       columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 35, halign: 'right' as const } },
-      headStyles: { fillColor: [235, 242, 250] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7 },
-      bodyStyles: { fontSize: 7, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
+      headStyles: { fillColor: [220, 231, 242] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7 },
+      bodyStyles: { fontSize: 7, textColor: [31, 41, 51], lineColor: [229, 231, 235], lineWidth: 0.15 },
       styles: { overflow: 'linebreak', cellPadding: 1.5 },
     });
     // @ts-ignore
@@ -6470,16 +6490,16 @@ async function generateInstallmentAdvancePdf(opts: {
   // ── 6d. Guarantor block ────────────────────────────────────────────────────
   if (opts.guarantorName?.trim() || opts.guarantorCnic?.trim()) {
     const gtH = 22;
-    doc.setFillColor(235, 242, 250);
+    doc.setFillColor(243, 246, 250);
     doc.rect(margin, y, printW, gtH, 'F');
-    doc.setDrawColor(18, 63, 115); doc.setLineWidth(0.8);
+    doc.setDrawColor(201, 214, 226); doc.setLineWidth(0.8);
     doc.line(margin, y, margin, y + gtH);
     doc.setLineWidth(0.2);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(18, 63, 115);
     doc.text('GUARANTOR', margin + 4, y + 6);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(20, 20, 20);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(31, 41, 51);
     doc.text(opts.guarantorName || '—', margin + 4, y + 13);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(80, 80, 80);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(107, 114, 128);
     const gtParts = [
       ...(opts.guarantorPhone ? [opts.guarantorPhone] : []),
       ...(opts.guarantorCnic ? [`CNIC: ${opts.guarantorCnic}`] : []),
@@ -6539,14 +6559,14 @@ async function generateInstallmentAdvancePdf(opts: {
       : 'ENERGY OVERVIEW';
     doc.setFillColor(255, 253, 234);
     doc.rect(margin, y, printW, _advSecH, 'F');
-    doc.setFillColor(246, 196, 0);
+    doc.setFillColor(214, 168, 0);
     doc.rect(margin, y, 3, _advHdrH, 'F');
     doc.setFillColor(255, 248, 220);
     doc.rect(margin + 3, y, printW - 3, _advHdrH, 'F');
     doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
     doc.text(_advTitle, margin + 6, y + 3.8);
     if (_advTotalKwh > 0) {
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(100, 120, 150);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(107, 114, 128);
       doc.text(`${_advTotalKwh} kWh/mo`, W - margin, y + 3.8, { align: 'right' });
     }
     const _advSy = y + _advHdrH;
@@ -6607,7 +6627,7 @@ async function generateInstallmentAdvancePdf(opts: {
       const wrapped = doc.splitTextToSize(para, _advRW);
       const available = Math.max(1, Math.floor((y + _advSecH - _advAy - 2) / _advRowH));
       const toShow = wrapped.slice(0, available);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(40, 40, 40);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(31, 41, 51);
       doc.text(toShow, _advRX, _advAy, { lineHeightFactor: 1.4 });
       _advAy += toShow.length * _advRowH + 2;
       if (_advAy >= y + _advSecH - 2) break;
@@ -6630,11 +6650,11 @@ async function generateInstallmentAdvancePdf(opts: {
   const _advBankTx = margin + 4.5;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
   doc.text('BANK TRANSFER — PAY ADVANCE NOW', _advBankTx, y + 6);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(20, 20, 20);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(31, 41, 51);
   doc.text("TAJALLI'S HOME COLLECTION", _advBankTx, y + 13);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(40, 40, 40);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(31, 41, 51);
   doc.text('PK33 MEZN 0001 0601 0187 4794', _advBankTx, y + 20);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(80, 80, 80);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(107, 114, 128);
   doc.text('Meezan Bank — F.B Area Branch', _advBankTx, y + 27);
   doc.setFont('helvetica', 'italic'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
   doc.text('Send deposit slip via WhatsApp to confirm order.', _advBankTx, y + 33, { maxWidth: _advBankColW - 8 });
@@ -6650,7 +6670,7 @@ async function generateInstallmentAdvancePdf(opts: {
     doc.addImage(qrData, 'JPEG', _advQrX, _advQrY, _advQrSz, _advQrSz);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(22, 101, 52);
     doc.text('SCAN TO PAY', _advQrColX + _advQrColW / 2, _advQrY + _advQrSz + 4.5, { align: 'center' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(80, 80, 80);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(107, 114, 128);
     doc.text("Tajalli's — Meezan Bank · Raast / IBAN", _advQrColX + _advQrColW / 2, _advQrY + _advQrSz + 8, { align: 'center', maxWidth: _advQrColW - 2 });
   }
   y += _advBdH + 6;
@@ -6669,7 +6689,7 @@ async function generateInstallmentAdvancePdf(opts: {
     const _advSegW = _advTrustStatW / _advStats.length;
     _advStats.forEach(([num, lbl], i) => {
       const sx = margin + i * _advSegW + _advSegW / 2;
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(246, 196, 0);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(214, 168, 0);
       doc.text(num, sx, y + 5.5, { align: 'center' });
       doc.setFont('helvetica', 'normal'); doc.setFontSize(4); doc.setTextColor(170, 170, 170);
       doc.text(lbl, sx, y + 10, { align: 'center' });
@@ -6797,7 +6817,7 @@ async function generateInstallmentPaymentPdf(opts: {
   doc.line(_pyBrandX, 25.5, _pyBrandX + _pyBrandMaxW, 25.5);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
   doc.text('Ghar Se Tijarat Tak -- Har Zaroorat Ka Hal', _pyBrandX, 30, { maxWidth: _pyBrandMaxW });
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(246, 196, 0);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
   doc.text('PAYMENT RECEIPT', W - margin, 8, { align: 'right' });
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
   doc.text(opts.refNumber, W - margin, 19, { align: 'right' });
@@ -6825,31 +6845,31 @@ async function generateInstallmentPaymentPdf(opts: {
     ...(opts.customerCnic    ? [['CNIC',    opts.customerCnic]    as [string, string]] : []),
   ];
   const _pyCustH = _pyCustFields.length * 4.8 + 10;
-  doc.setFillColor(235, 242, 250);
+  doc.setFillColor(243, 246, 250);
   doc.rect(margin, y, _pyCustLW, _pyCustH, 'F');
-  doc.setDrawColor(18, 63, 115); doc.setLineWidth(0.5);
+  doc.setDrawColor(201, 214, 226); doc.setLineWidth(0.5);
   doc.line(margin, y, margin, y + _pyCustH);
   doc.setLineWidth(0.2);
-  doc.setFillColor(246, 196, 0);
+  doc.setFillColor(214, 168, 0);
   doc.rect(margin, y, 3, 4, 'F');
-  doc.setFillColor(220, 232, 248);
+  doc.setFillColor(243, 246, 250);
   doc.rect(margin + 3, y, _pyCustLW - 3, 4, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
   doc.text('CLIENT', margin + 6, y + 3);
   let _pyCY = y + 4 + 4.8;
   for (const [lbl, val] of _pyCustFields) {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(63, 116, 184);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(107, 114, 128);
     doc.text(lbl, margin + 3, _pyCY);
     doc.setFont('helvetica', lbl === 'NAME' ? 'bold' : 'normal');
-    doc.setFontSize(lbl === 'NAME' ? 8 : 7); doc.setTextColor(20, 20, 20);
+    doc.setFontSize(lbl === 'NAME' ? 8 : 7); doc.setTextColor(31, 41, 51);
     doc.text(String(val), margin + 22, _pyCY);
     _pyCY += 4.8;
   }
-  doc.setFillColor(245, 247, 250);
+  doc.setFillColor(243, 246, 250);
   doc.rect(_pyCustRX, y, _pyCustRW, _pyCustH, 'F');
-  doc.setFillColor(246, 196, 0);
+  doc.setFillColor(214, 168, 0);
   doc.rect(_pyCustRX, y, 3, 4, 'F');
-  doc.setFillColor(220, 232, 248);
+  doc.setFillColor(243, 246, 250);
   doc.rect(_pyCustRX + 3, y, _pyCustRW - 3, 4, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
   doc.text('DOCUMENT DETAILS', _pyCustRX + 6, y + 3);
@@ -6862,9 +6882,9 @@ async function generateInstallmentPaymentPdf(opts: {
   ];
   let _pyMY = y + 4 + 4.8;
   for (const [lbl, val] of _pyMetaRows) {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(63, 116, 184);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(107, 114, 128);
     doc.text(lbl, _pyCustRX + 3, _pyMY);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(20, 20, 20);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(31, 41, 51);
     doc.text(String(val), _pyCustRX + _pyCustRW - 3, _pyMY, { align: 'right' });
     _pyMY += 4.8;
   }
@@ -6877,19 +6897,19 @@ async function generateInstallmentPaymentPdf(opts: {
   const phH = 28;
   doc.setFillColor(240, 245, 255);
   doc.rect(margin, y, printW, phH, 'F');
-  doc.setDrawColor(246, 196, 0); doc.setLineWidth(1);
+  doc.setDrawColor(214, 168, 0); doc.setLineWidth(1);
   doc.line(margin, y, margin, y + phH);
   doc.setLineWidth(0.2);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(18, 63, 115);
   doc.text(`INSTALLMENT ${opts.paymentNumber} OF ${opts.instMonths}`, margin + 5, y + 7);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(20, 20, 20);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(31, 41, 51);
   doc.text(PKR(opts.instMonthlyAmt), margin + 5, y + 18);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(100, 100, 100);
   doc.text(`Due: ${dueDateStr}`, margin + 5, y + 25);
   if (outstanding > 0) {
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(100, 100, 100);
     doc.text('Outstanding after this payment:', W - margin - 62, y + 13);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(40, 40, 40);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(31, 41, 51);
     doc.text(PKR(outstanding), W - margin - 62, y + 22);
   } else {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(22, 101, 52);
@@ -6898,7 +6918,7 @@ async function generateInstallmentPaymentPdf(opts: {
   y += phH + 8;
 
   // ── 5. Products reference table ────────────────────────────────────────────
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(120, 120, 120);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(107, 114, 128);
   doc.text('ITEMS PURCHASED (REFERENCE)', margin, y);
   y += 4;
   const refBody: any[] = [];
@@ -6913,8 +6933,8 @@ async function generateInstallmentPaymentPdf(opts: {
     head: [['Item', 'Spec', 'Qty', 'Total']],
     body: refBody,
     columnStyles: { 0: { cellWidth: 85 }, 1: { cellWidth: 50 }, 2: { cellWidth: 12, halign: 'right' }, 3: { cellWidth: 27, halign: 'right' } },
-    headStyles: { fillColor: [235, 242, 250] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7 },
-    bodyStyles: { fontSize: 7, textColor: [80, 80, 80], lineColor: [229, 231, 235], lineWidth: 0.2 },
+    headStyles: { fillColor: [220, 231, 242] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7 },
+    bodyStyles: { fontSize: 7, textColor: [107, 114, 128], lineColor: [229, 231, 235], lineWidth: 0.2 },
     styles: { overflow: 'linebreak', cellPadding: 2 },
   });
   // @ts-ignore
@@ -6925,7 +6945,7 @@ async function generateInstallmentPaymentPdf(opts: {
   doc.line(margin, y - 1, W - margin, y - 1);
   doc.setLineWidth(0.2);
   y += 2;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(40, 40, 40);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(31, 41, 51);
   doc.text('INSTALLMENT SCHEDULE', margin, y + 1);
   y += 5;
 
@@ -6937,10 +6957,10 @@ async function generateInstallmentPaymentPdf(opts: {
     const dStr = fmtDate(d);
     if (i === opts.paymentNumber) {
       schedBody.push([
-        { content: String(i), styles: { fillColor: [246, 196, 0], textColor: [20, 20, 20], fontStyle: 'bold' } },
-        { content: `Installment ${i}  \u2190 THIS PAYMENT`, styles: { fillColor: [246, 196, 0], textColor: [20, 20, 20], fontStyle: 'bold' } },
-        { content: PKR(opts.instMonthlyAmt), styles: { fillColor: [246, 196, 0], textColor: [20, 20, 20], fontStyle: 'bold', halign: 'right' as const } },
-        { content: dStr, styles: { fillColor: [246, 196, 0], textColor: [20, 20, 20], fontStyle: 'bold' } },
+        { content: String(i), styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold' } },
+        { content: `Installment ${i}  \u2190 THIS PAYMENT`, styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold' } },
+        { content: PKR(opts.instMonthlyAmt), styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold', halign: 'right' as const } },
+        { content: dStr, styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold' } },
       ]);
     } else {
       schedBody.push([String(i), `Installment ${i}`, PKR(opts.instMonthlyAmt), dStr]);
@@ -6948,8 +6968,8 @@ async function generateInstallmentPaymentPdf(opts: {
   }
   schedBody.push([
     { content: '', styles: { fillColor: [248, 248, 248] } },
-    { content: 'TOTAL', styles: { fillColor: [248, 248, 248], fontStyle: 'bold', textColor: [40, 40, 40] } },
-    { content: PKR(opts.instTotalPrice), styles: { fillColor: [248, 248, 248], fontStyle: 'bold', halign: 'right' as const, textColor: [40, 40, 40] } },
+    { content: 'TOTAL', styles: { fillColor: [248, 248, 248], fontStyle: 'bold', textColor: [31, 41, 51] } },
+    { content: PKR(opts.instTotalPrice), styles: { fillColor: [248, 248, 248], fontStyle: 'bold', halign: 'right' as const, textColor: [31, 41, 51] } },
     { content: '', styles: { fillColor: [248, 248, 248] } },
   ]);
   autoTable(doc, {
@@ -6957,8 +6977,8 @@ async function generateInstallmentPaymentPdf(opts: {
     head: [['#', 'Description', 'Amount', 'Due Date']],
     body: schedBody,
     columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 80 }, 2: { cellWidth: 40, halign: 'right' }, 3: { cellWidth: 42 } },
-    headStyles: { fillColor: [215, 228, 244] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7.5 },
-    bodyStyles: { fontSize: 7.5, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.2 },
+    headStyles: { fillColor: [220, 231, 242] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7.5 },
+    bodyStyles: { fontSize: 7.5, textColor: [31, 41, 51], lineColor: [229, 231, 235], lineWidth: 0.2 },
     styles: { overflow: 'linebreak', cellPadding: 2.5 },
   });
   // @ts-ignore
@@ -6975,8 +6995,8 @@ async function generateInstallmentPaymentPdf(opts: {
       head: [['ADDITIONAL CHARGE', 'AMOUNT']],
       body: ccBody,
       columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 35, halign: 'right' as const } },
-      headStyles: { fillColor: [235, 242, 250] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7 },
-      bodyStyles: { fontSize: 7, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
+      headStyles: { fillColor: [220, 231, 242] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7 },
+      bodyStyles: { fontSize: 7, textColor: [31, 41, 51], lineColor: [229, 231, 235], lineWidth: 0.15 },
       styles: { overflow: 'linebreak', cellPadding: 1.5 },
     });
     // @ts-ignore
@@ -6997,7 +7017,7 @@ async function generateInstallmentPaymentPdf(opts: {
     const _pySegW = _pyTrustStatW / _pyStats.length;
     _pyStats.forEach(([num, lbl], i) => {
       const sx = margin + i * _pySegW + _pySegW / 2;
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(246, 196, 0);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(214, 168, 0);
       doc.text(num, sx, y + 5.5, { align: 'center' });
       doc.setFont('helvetica', 'normal'); doc.setFontSize(4); doc.setTextColor(170, 170, 170);
       doc.text(lbl, sx, y + 10, { align: 'center' });
@@ -7049,11 +7069,11 @@ async function generateInstallmentPaymentPdf(opts: {
   const _pyBankTx = margin + 4.5;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
   doc.text('BANK TRANSFER — RAAST / IBAN', _pyBankTx, y + 6);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(20, 20, 20);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(31, 41, 51);
   doc.text("TAJALLI'S HOME COLLECTION", _pyBankTx, y + 13);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(40, 40, 40);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(31, 41, 51);
   doc.text('PK33 MEZN 0001 0601 0187 4794', _pyBankTx, y + 20);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(80, 80, 80);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(107, 114, 128);
   doc.text('Meezan Bank — F.B Area Branch', _pyBankTx, y + 27);
   doc.setFont('helvetica', 'italic'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
   doc.text('Send payment proof via WhatsApp to confirm.', _pyBankTx, y + 33, { maxWidth: _pyBankColW - 8 });
@@ -7069,7 +7089,7 @@ async function generateInstallmentPaymentPdf(opts: {
     doc.addImage(qrData, 'JPEG', _pyQrX, _pyQrY, _pyQrSz, _pyQrSz);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(22, 101, 52);
     doc.text('SCAN TO PAY', _pyQrColX + _pyQrColW / 2, _pyQrY + _pyQrSz + 4.5, { align: 'center' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(80, 80, 80);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(107, 114, 128);
     doc.text("Tajalli's — Meezan Bank · Raast / IBAN", _pyQrColX + _pyQrColW / 2, _pyQrY + _pyQrSz + 8, { align: 'center', maxWidth: _pyQrColW - 2 });
   }
   y += _pyBdH + 6;
@@ -7200,22 +7220,22 @@ async function generateServiceReceiptPdf(opts: {
   const custRowH = 4.5;
   const _srHdrH = 4;
   const custBlockH = custFields.length * custRowH + 5 + _srHdrH;
-  doc.setFillColor(235, 242, 250);
+  doc.setFillColor(243, 246, 250);
   doc.rect(margin, y, leftW, custBlockH, 'F');
-  doc.setDrawColor(18, 63, 115); doc.setLineWidth(0.5);
+  doc.setDrawColor(201, 214, 226); doc.setLineWidth(0.5);
   doc.line(margin, y, margin, y + custBlockH);
   doc.setLineWidth(0.2);
-  doc.setFillColor(246, 196, 0);
+  doc.setFillColor(214, 168, 0);
   doc.rect(margin, y, 3, _srHdrH, 'F');
-  doc.setFillColor(220, 232, 248);
+  doc.setFillColor(243, 246, 250);
   doc.rect(margin + 3, y, leftW - 3, _srHdrH, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
   doc.text('CLIENT', margin + 6, y + 3);
   let cy = y + _srHdrH + custRowH;
   for (const [lbl, val] of custFields) {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(63, 116, 184);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(107, 114, 128);
     doc.text(lbl, margin + 3, cy);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(30, 30, 30);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(31, 41, 51);
     doc.text(val, margin + 22, cy);
     cy += custRowH;
   }
@@ -7237,17 +7257,29 @@ async function generateServiceReceiptPdf(opts: {
   const metaBlockH = metaRows.length * 4.5 + 5 + _srHdrH;
   doc.setFillColor(243, 244, 246);
   doc.rect(rightX, y, rightW, metaBlockH, 'F');
-  doc.setFillColor(246, 196, 0);
+  doc.setFillColor(214, 168, 0);
   doc.rect(rightX, y, 3, _srHdrH, 'F');
-  doc.setFillColor(220, 232, 248);
+  doc.setFillColor(243, 246, 250);
   doc.rect(rightX + 3, y, rightW - 3, _srHdrH, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
   doc.text('RECEIPT DETAILS', rightX + 6, y + 3);
   let my = y + _srHdrH + 4.5;
   for (const [lbl, val] of metaRows) {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(120, 120, 120);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(107, 114, 128);
     doc.text(lbl, rightX + 3, my);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(30, 30, 30);
+    let _srValColor: [number,number,number] = [31, 41, 51];
+    let _srValBold = false;
+    if (lbl === 'STATUS') {
+      _srValBold = true;
+      if (val === 'PAID IN FULL')   _srValColor = [22, 134, 90];
+      else if (val === 'PARTIAL')   _srValColor = [214, 168, 0];
+      else if (val === 'OVERDUE')   _srValColor = [220, 38, 38];
+      else                          _srValColor = [107, 114, 128];
+    } else if (lbl === 'BALANCE DUE') {
+      _srValColor = _srBalDue2 === 0 ? [22, 134, 90] : [18, 63, 115];
+      _srValBold = true;
+    }
+    doc.setFont('helvetica', _srValBold ? 'bold' : 'normal'); doc.setFontSize(7); doc.setTextColor(..._srValColor);
     doc.text(val, rightX + 22, my);
     my += 4.5;
   }
@@ -7261,22 +7293,22 @@ async function generateServiceReceiptPdf(opts: {
     if (opts.faultDesc) devFields.push(['FAULT REPORTED', opts.faultDesc]);
     const devRowH = 4.5;
     const devBlockH = devFields.length * devRowH + 5 + _srHdrH;
-    doc.setFillColor(235, 242, 250);
+    doc.setFillColor(243, 246, 250);
     doc.rect(margin, y, printW, devBlockH, 'F');
-    doc.setDrawColor(18, 63, 115); doc.setLineWidth(0.5);
+    doc.setDrawColor(201, 214, 226); doc.setLineWidth(0.5);
     doc.line(margin, y, margin, y + devBlockH);
     doc.setLineWidth(0.2);
-    doc.setFillColor(246, 196, 0);
+    doc.setFillColor(214, 168, 0);
     doc.rect(margin, y, 3, _srHdrH, 'F');
-    doc.setFillColor(220, 232, 248);
+    doc.setFillColor(243, 246, 250);
     doc.rect(margin + 3, y, printW - 3, _srHdrH, 'F');
     doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
     doc.text('DEVICE / EQUIPMENT', margin + 6, y + 3);
     let dy = y + _srHdrH + devRowH;
     for (const [lbl, val] of devFields) {
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(63, 116, 184);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(107, 114, 128);
       doc.text(lbl, margin + 3, dy);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(30, 30, 30);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(31, 41, 51);
       doc.text(val, margin + 36, dy);
       dy += devRowH;
     }
@@ -7305,7 +7337,7 @@ async function generateServiceReceiptPdf(opts: {
       { content: PKR(l.qty * l.unitPrice), styles: { fontStyle: 'bold' as const, halign: 'right' as const } },
     ]);
     _workBody.push([
-      { content: 'LABOUR SUBTOTAL', colSpan: 3, styles: { fillColor: [243,244,246] as [number,number,number], fontStyle: 'bold' as const, fontSize: 6, textColor: [80,80,80] as [number,number,number], halign: 'right' as const } },
+      { content: 'LABOUR SUBTOTAL', colSpan: 3, styles: { fillColor: [243,244,246] as [number,number,number], fontStyle: 'bold' as const, fontSize: 6, textColor: [107,114,128] as [number,number,number], halign: 'right' as const } },
       { content: PKR(_srWorkSubtotal), styles: { fillColor: [243,244,246] as [number,number,number], fontStyle: 'bold' as const, fontSize: 7, textColor: [18,63,115] as [number,number,number], halign: 'right' as const } },
     ]);
     autoTable(doc, {
@@ -7313,7 +7345,7 @@ async function generateServiceReceiptPdf(opts: {
       head: [['DESCRIPTION', 'QTY', 'RATE', 'AMOUNT']],
       body: _workBody,
       columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 12, halign: 'center' as const }, 2: { cellWidth: 28, halign: 'right' as const }, 3: { cellWidth: 28, halign: 'right' as const } },
-      headStyles: { fillColor: [235, 242, 250] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7 },
+      headStyles: { fillColor: [220, 231, 242] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7 },
       bodyStyles: { fontSize: 7, textColor: [40,40,40], lineColor: [229,231,235], lineWidth: 0.15 },
       alternateRowStyles: { fillColor: [250,250,250] },
       styles: { overflow: 'linebreak', cellPadding: 1.2 },
@@ -7333,7 +7365,7 @@ async function generateServiceReceiptPdf(opts: {
       { content: PKR(l.qty * l.unitPrice), styles: { fontStyle: 'bold' as const, halign: 'right' as const } },
     ]);
     _partsBody.push([
-      { content: 'PARTS SUBTOTAL', colSpan: 3, styles: { fillColor: [243,244,246] as [number,number,number], fontStyle: 'bold' as const, fontSize: 6, textColor: [80,80,80] as [number,number,number], halign: 'right' as const } },
+      { content: 'PARTS SUBTOTAL', colSpan: 3, styles: { fillColor: [243,244,246] as [number,number,number], fontStyle: 'bold' as const, fontSize: 6, textColor: [107,114,128] as [number,number,number], halign: 'right' as const } },
       { content: PKR(_srPartsSubtotal), styles: { fillColor: [243,244,246] as [number,number,number], fontStyle: 'bold' as const, fontSize: 7, textColor: [18,63,115] as [number,number,number], halign: 'right' as const } },
     ]);
     autoTable(doc, {
@@ -7341,7 +7373,7 @@ async function generateServiceReceiptPdf(opts: {
       head: [['PART DESCRIPTION', 'QTY', 'UNIT PRICE', 'AMOUNT']],
       body: _partsBody,
       columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 12, halign: 'center' as const }, 2: { cellWidth: 28, halign: 'right' as const }, 3: { cellWidth: 28, halign: 'right' as const } },
-      headStyles: { fillColor: [235, 242, 250] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7 },
+      headStyles: { fillColor: [220, 231, 242] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7 },
       bodyStyles: { fontSize: 7, textColor: [40,40,40], lineColor: [229,231,235], lineWidth: 0.15 },
       alternateRowStyles: { fillColor: [250,250,250] },
       styles: { overflow: 'linebreak', cellPadding: 1.2 },
@@ -7359,7 +7391,7 @@ async function generateServiceReceiptPdf(opts: {
       { content: PKR(c.amount), styles: { fontStyle: 'bold' as const, halign: 'right' as const } },
     ]);
     _ccBody.push([
-      { content: 'CHARGES SUBTOTAL', styles: { fillColor: [243,244,246] as [number,number,number], fontStyle: 'bold' as const, fontSize: 6, textColor: [80,80,80] as [number,number,number] } },
+      { content: 'CHARGES SUBTOTAL', styles: { fillColor: [243,244,246] as [number,number,number], fontStyle: 'bold' as const, fontSize: 6, textColor: [107,114,128] as [number,number,number] } },
       { content: PKR(_srCustomSubtotal), styles: { fillColor: [243,244,246] as [number,number,number], fontStyle: 'bold' as const, fontSize: 7, textColor: [18,63,115] as [number,number,number], halign: 'right' as const } },
     ]);
     autoTable(doc, {
@@ -7367,8 +7399,8 @@ async function generateServiceReceiptPdf(opts: {
       head: [['CHARGE DESCRIPTION', 'AMOUNT']],
       body: _ccBody,
       columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 30, halign: 'right' as const } },
-      headStyles: { fillColor: [235, 242, 250] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7 },
-      bodyStyles: { fontSize: 7, textColor: [40, 40, 40], lineColor: [229, 231, 235], lineWidth: 0.15 },
+      headStyles: { fillColor: [220, 231, 242] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7 },
+      bodyStyles: { fontSize: 7, textColor: [31, 41, 51], lineColor: [229, 231, 235], lineWidth: 0.15 },
       styles: { overflow: 'linebreak', cellPadding: 1.2 },
     });
     y = (doc as any).lastAutoTable.finalY + 4;
@@ -7414,7 +7446,7 @@ async function generateServiceReceiptPdf(opts: {
                     : _srPmtStatus === 'pending'  ? 'BALANCE DUE'
                     : null;
   const _srPmtColor: [number,number,number] =
-    _srPmtStatus === 'paid'   ? [22, 163, 74]  :
+    _srPmtStatus === 'paid'   ? [22, 134, 90]  :
     _srPmtStatus === 'partial'? [202, 138, 4]  :
     _srPmtStatus === 'overdue'? [185, 28, 28]  : [100, 100, 100];
 
@@ -7426,7 +7458,7 @@ async function generateServiceReceiptPdf(opts: {
   doc.rect(totalsRightX, y, W - margin - totalsRightX, pricingH, 'S');
   let pry = y + 5;
   for (const [lbl, val] of pricingRows) {
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(80, 80, 80);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(107, 114, 128);
     doc.text(lbl, totalsRightX + 3, pry);
     doc.text(val, W - margin - 3, pry, { align: 'right' });
     pry += pricingRowH;
@@ -7449,7 +7481,7 @@ async function generateServiceReceiptPdf(opts: {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(NAVY);
     doc.text('NOTES', margin, y);
     y += 3;
-    doc.setFillColor(235, 242, 250);
+    doc.setFillColor(243, 246, 250);
     doc.rect(margin, y, printW, 14, 'F');
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(60, 60, 60);
     const noteLines = doc.splitTextToSize(opts.notes, printW - 6);
@@ -7490,11 +7522,11 @@ async function generateServiceReceiptPdf(opts: {
   const _srBankTx = margin + 4.5;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
   doc.text('BANK TRANSFER — RAAST / IBAN', _srBankTx, y + 6);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(20, 20, 20);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(31, 41, 51);
   doc.text("TAJALLI'S HOME COLLECTION", _srBankTx, y + 13);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(40, 40, 40);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(31, 41, 51);
   doc.text('PK33 MEZN 0001 0601 0187 4794', _srBankTx, y + 20);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(80, 80, 80);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(107, 114, 128);
   doc.text('Meezan Bank — F.B Area Branch', _srBankTx, y + 27);
   doc.setFont('helvetica', 'italic'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
   doc.text('Send payment proof via WhatsApp to confirm.', _srBankTx, y + 33, { maxWidth: _srBankColW - 8 });
@@ -7510,7 +7542,7 @@ async function generateServiceReceiptPdf(opts: {
     doc.addImage(qrData, 'JPEG', _srQrX, _srQrY, _srQrSz, _srQrSz);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(22, 101, 52);
     doc.text('SCAN TO PAY', _srQrColX + _srQrColW / 2, _srQrY + _srQrSz + 4.5, { align: 'center' });
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(80, 80, 80);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5); doc.setTextColor(107, 114, 128);
     doc.text("Tajalli's — Meezan Bank · Raast / IBAN", _srQrColX + _srQrColW / 2, _srQrY + _srQrSz + 8, { align: 'center', maxWidth: _srQrColW - 2 });
   }
   y += bdH + 4;
@@ -7520,7 +7552,7 @@ async function generateServiceReceiptPdf(opts: {
   const footerY = 285;
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.3);
   doc.line(margin, footerY, W - margin, footerY);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(120, 120, 120);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(107, 114, 128);
   doc.text(`${opts.refNumber}  ·  SERVICE RECEIPT  ·  PAGE 1 OF 1`, margin, footerY + 5);
   doc.text('tajallis.com.pk  ·  support@tajallis.com.pk  ·  +92 370 2578788', W - margin, footerY + 5, { align: 'right' });
 
@@ -11856,11 +11888,11 @@ function generateSolarPdf(lead: SolarLead, opts: {
   doc.roundedRect(margin, y, W - margin * 2, 28, 3, 3, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  doc.setTextColor(80, 80, 80);
+  doc.setTextColor(107, 114, 128);
   doc.text('PREPARED FOR', margin + 5, y + 7);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(12);
-  doc.setTextColor(20, 20, 20);
+  doc.setTextColor(31, 41, 51);
   doc.text(lead.name, margin + 5, y + 15);
   doc.setFontSize(9);
   doc.setTextColor(100, 100, 100);
@@ -11869,11 +11901,11 @@ function generateSolarPdf(lead: SolarLead, opts: {
   const dateStr = new Date().toLocaleDateString('en-PK', { day: '2-digit', month: 'long', year: 'numeric' });
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  doc.setTextColor(80, 80, 80);
+  doc.setTextColor(107, 114, 128);
   doc.text('DATE', W - margin - 30, y + 7);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.setTextColor(20, 20, 20);
+  doc.setTextColor(31, 41, 51);
   doc.text(dateStr, W - margin - 30, y + 15);
   doc.text('Valid 7 days', W - margin - 30, y + 22, { align: 'right' });
 
@@ -11882,7 +11914,7 @@ function generateSolarPdf(lead: SolarLead, opts: {
   // ── System Summary ──
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.setTextColor(20, 20, 20);
+  doc.setTextColor(31, 41, 51);
   doc.text('System Configuration', margin, y);
   y += 6;
   doc.setDrawColor(251, 146, 60);
@@ -11907,7 +11939,7 @@ function generateSolarPdf(lead: SolarLead, opts: {
     doc.setTextColor(100, 100, 100);
     doc.text(k, margin, y);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(20, 20, 20);
+    doc.setTextColor(31, 41, 51);
     doc.text(v, margin + 55, y);
     y += 7;
   });
@@ -11917,7 +11949,7 @@ function generateSolarPdf(lead: SolarLead, opts: {
   // ── Pricing Table ──
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.setTextColor(20, 20, 20);
+  doc.setTextColor(31, 41, 51);
   doc.text('Price Breakdown', margin, y);
   y += 6;
   doc.setDrawColor(251, 146, 60);
@@ -11957,7 +11989,7 @@ function generateSolarPdf(lead: SolarLead, opts: {
       doc.setFillColor(248, 248, 248);
       doc.rect(margin, y - 4, W - margin * 2, 8, 'F');
     }
-    doc.setTextColor(20, 20, 20);
+    doc.setTextColor(31, 41, 51);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
     doc.text(item.desc, margin + 3, y + 1);
@@ -11981,11 +12013,11 @@ function generateSolarPdf(lead: SolarLead, opts: {
   // ── ROI ──
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
-  doc.setTextColor(20, 20, 20);
+  doc.setTextColor(31, 41, 51);
   doc.text('Estimated ROI (Karachi planning average — actual savings vary by usage)', margin, y);
   y += 5;
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(80, 80, 80);
+  doc.setTextColor(107, 114, 128);
   const breakEven = lead.est_savings > 0 ? (subtotal / lead.est_savings).toFixed(1) : '—';
   doc.text(`Est. Monthly Saving: PKR ${lead.est_savings.toLocaleString()}   |   Payback: ~${breakEven} months   |   25-Year Panel Warranty`, margin, y);
   y += 12;
@@ -11993,7 +12025,7 @@ function generateSolarPdf(lead: SolarLead, opts: {
   // ── Footer ──
   doc.setFillColor(15, 15, 15);
   doc.rect(0, 275, W, 22, 'F');
-  doc.setTextColor(120, 120, 120);
+  doc.setTextColor(107, 114, 128);
   doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
   doc.text("This proposal is valid for 7 days. Prices are subject to market variation. Tajalli's — Karachi.", margin, 284);
