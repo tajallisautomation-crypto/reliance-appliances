@@ -4582,16 +4582,24 @@ const DEFAULT_PACKAGE_COMPONENTS: Record<string, PackageComponent[]> = {
 };
 
 async function loadLogoWhite(): Promise<string> {
-  const svgText = await fetch('/tajallis-logo-white.svg').then(r => r.text());
+  let svgText = await fetch('/tajallis-logo-white.svg').then(r => r.text());
+  // Crop to just icon + Tajalli's + Home & Commercial Solutions.
+  // Remove gold divider, "From Homes to Corporates" and Urdu tagline — not appropriate for invoices.
+  svgText = svgText
+    .replace(/<line[^>]*y1="275"[^>]*\/>/g, '')
+    .replace(/<text[^>]*>From Homes to Corporates<\/text>/g, '')
+    .replace(/<text[^>]*direction="rtl"[^>]*>[\s\S]*?<\/text>/g, '')
+    // Crop viewBox to y=268 (bottom of "Home & Commercial Solutions" glyphs)
+    .replace(/viewBox="0 0 500 335"/, 'viewBox="0 0 500 268"');
   const blob = new Blob([svgText], { type: 'image/svg+xml' });
   const url = URL.createObjectURL(blob);
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      canvas.width = 500; canvas.height = 335;
+      canvas.width = 500; canvas.height = 268;
       const ctx = canvas.getContext('2d')!;
-      ctx.drawImage(img, 0, 0);
+      ctx.drawImage(img, 0, 0, 500, 268);
       URL.revokeObjectURL(url);
       resolve(canvas.toDataURL('image/png'));
     };
@@ -4786,22 +4794,16 @@ async function generateQuotationPdf(opts: {
   doc.setFillColor(11, 37, 69);
   doc.rect(rightX, 0, W - rightX, HEADER_H, 'F');
 
-  // Logo — vertically centered in header
-  const _logoH = 20;
+  // Logo — fills left zone of header; logo SVG already contains brand text
+  const _logoH = 27;
+  const _logoW = Math.round(_logoH * 500 / 268); // preserve aspect ratio
   const _logoY = Math.round((HEADER_H - _logoH) / 2);
   if (logoData) {
-    doc.addImage(logoData, 'PNG', margin, _logoY, 0, _logoH);
+    doc.addImage(logoData, 'PNG', margin, _logoY, _logoW, _logoH);
   } else {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
     doc.text("Tajalli's", margin, 17);
   }
-
-  // Brand text — compact two-line
-  const _brandX = margin + 32;
-  const _brandMaxW = rightX - _brandX - 3;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
-  doc.text('HOME & COMMERCIAL', _brandX, 12, { maxWidth: _brandMaxW });
-  doc.text('SOLUTIONS', _brandX, 20, { maxWidth: _brandMaxW });
 
   // Right meta zone: doc-type label (tiny, muted) → REF (large, dominant) → date (small)
   doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
@@ -5295,7 +5297,7 @@ async function generateQuotationPdf(opts: {
       : Math.ceil(Math.round(grandTotal * opts.advancePct / 100) / 100) * 100;
     // paymentStatus overrides advancePaid: 'paid' = fully collected; 'partial' = advance received
     const _gtEffPaid    = opts.paymentStatus === 'paid';
-    const _gtEffPartial = opts.paymentStatus === 'partial' || (opts.advancePaid && !_gtEffPaid);
+    const _gtEffPartial = opts.paymentStatus === 'partial' || opts.paymentStatus === 'advance_paid' || (opts.advancePaid && !_gtEffPaid);
     const _amtActuallyPaid = _gtEffPaid ? grandTotal
       : (opts.amountPaid ?? (_gtEffPartial ? _gtAdvAmt : 0));
     const _isFullyPaid = _amtActuallyPaid >= grandTotal && grandTotal > 0;
@@ -5961,7 +5963,7 @@ async function generateQuotationPdf(opts: {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
   doc.text('BANK TRANSFER — RAAST / IBAN', _bankTx, y + 6);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(31, 41, 51);
-  doc.text("TAJALLI'S HOME COLLECTION", _bankTx, y + 12);
+  doc.text("TAJALLI'S HOME & COMMERCIAL SOLUTIONS", _bankTx, y + 12);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(31, 41, 51);
   doc.text('PK33 MEZN 0001 0601 0187 4794', _bankTx, y + 18);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(107, 114, 128);
@@ -6215,17 +6217,14 @@ async function generateInstallmentAdvancePdf(opts: {
   doc.rect(0, 0, W, HEADER_H, 'F');
   doc.setFillColor(11, 37, 69);
   doc.rect(headerRightX, 0, W - headerRightX, HEADER_H, 'F');
-  const _logoH = 20; const _logoY = Math.round((HEADER_H - _logoH) / 2);
+  const _logoH = 27; const _logoW = Math.round(_logoH * 500 / 268);
+  const _logoY = Math.round((HEADER_H - _logoH) / 2);
   if (logoData) {
-    doc.addImage(logoData, 'PNG', margin, _logoY, 0, _logoH);
+    doc.addImage(logoData, 'PNG', margin, _logoY, _logoW, _logoH);
   } else {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
     doc.text("Tajalli's", margin, 17);
   }
-  const _brandX = margin + 32; const _brandMaxW = headerRightX - _brandX - 3;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
-  doc.text('HOME & COMMERCIAL', _brandX, 12, { maxWidth: _brandMaxW });
-  doc.text('SOLUTIONS', _brandX, 20, { maxWidth: _brandMaxW });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
   doc.text('ADVANCE INVOICE', W - margin, 7, { align: 'right' });
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
@@ -6283,7 +6282,7 @@ async function generateInstallmentAdvancePdf(opts: {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
   doc.text('DOCUMENT DETAILS', advCustRX + 6, y + 3);
   // installment 'paid' = advance collected; monthly balance still outstanding
-  const _advIsPaid = opts.paymentStatus === 'paid' || opts.paymentStatus === 'partial';
+  const _advIsPaid = opts.paymentStatus === 'paid' || opts.paymentStatus === 'partial' || opts.paymentStatus === 'advance_paid';
   const _advBalDue = opts.instTotalPrice - opts.instAdvanceAmt;
   const advMetaRows: Array<[string, string]> = [
     ['TYPE',           'Advance Invoice'],
@@ -6364,7 +6363,7 @@ async function generateInstallmentAdvancePdf(opts: {
     ['Cash Price',         PKR(cashPrice),              false],
     ['Financing Charge',   `+ ${PKR(financingCharge)}`, false],
     ['Installment Total',  PKR(opts.instTotalPrice),    true ],
-    ['Advance Due',        PKR(opts.instAdvanceAmt),    false],
+    [_advIsPaid ? 'Advance Paid' : 'Advance Due', PKR(opts.instAdvanceAmt), false],
     ['Remaining Balance',  PKR(remainingBalance),       false],
   ];
   const finRowH = 5.5; const finBoxH = finRows.length * finRowH + 11 + 7;
@@ -6386,11 +6385,12 @@ async function generateInstallmentAdvancePdf(opts: {
       doc.line(finBoxX + 3, finY - 2.5, finBoxX + finBoxW - 3, finY - 2.5);
       doc.setLineWidth(0.2);
     }
-    doc.setFont('helvetica', isTot ? 'bold' : 'normal'); doc.setFontSize(6.5);
-    doc.setTextColor(...(isTot ? [18, 63, 115] as [number,number,number] : [107, 114, 128] as [number,number,number]));
+    const isAdvPaid = lbl === 'Advance Paid';
+    doc.setFont('helvetica', (isTot || isAdvPaid) ? 'bold' : 'normal'); doc.setFontSize(6.5);
+    doc.setTextColor(...(isTot ? [18, 63, 115] as [number,number,number] : isAdvPaid ? [22, 134, 90] as [number,number,number] : [107, 114, 128] as [number,number,number]));
     doc.text(lbl, finBoxX + 3, finY);
-    doc.setFont('helvetica', isTot ? 'bold' : 'normal'); doc.setFontSize(7);
-    doc.setTextColor(31, 41, 51);
+    doc.setFont('helvetica', (isTot || isAdvPaid) ? 'bold' : 'normal'); doc.setFontSize(7);
+    doc.setTextColor(...(isAdvPaid ? [22, 134, 90] as [number,number,number] : [31, 41, 51] as [number,number,number]));
     doc.text(val, finBoxX + finBoxW - 3, finY, { align: 'right' });
     if (isTot) {
       doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
@@ -6423,7 +6423,7 @@ async function generateInstallmentAdvancePdf(opts: {
   const balance = opts.instTotalPrice - advAmt;
   const summaryBody = [[
     { content: 'CONTRACT TOTAL\n' + PKR(opts.instTotalPrice), styles: { fillColor: [18, 63, 115] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' as const, halign: 'center' as const, fontSize: 7.5, cellPadding: 3.5 } },
-    { content: 'ADVANCE PAYMENT\n' + PKR(advAmt), styles: { fillColor: [214, 168, 0] as [number,number,number], textColor: [31, 41, 51] as [number,number,number], fontStyle: 'bold' as const, halign: 'center' as const, fontSize: 7.5, cellPadding: 3.5 } },
+    { content: (_advIsPaid ? 'ADVANCE PAID ✓' : 'ADVANCE DUE') + '\n' + PKR(advAmt), styles: { fillColor: _advIsPaid ? [22, 134, 90] as [number,number,number] : [214, 168, 0] as [number,number,number], textColor: _advIsPaid ? [255,255,255] as [number,number,number] : [31, 41, 51] as [number,number,number], fontStyle: 'bold' as const, halign: 'center' as const, fontSize: 7.5, cellPadding: 3.5 } },
     { content: `BALANCE (${monthlyRows.length} PAYMENTS)\n` + PKR(balance), styles: { fillColor: [240, 245, 252] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold' as const, halign: 'center' as const, fontSize: 7.5, cellPadding: 3.5 } },
   ]];
   autoTable(doc, {
@@ -6706,7 +6706,7 @@ async function generateInstallmentAdvancePdf(opts: {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
   doc.text('BANK TRANSFER — PAY ADVANCE NOW', _advBankTx, y + 6);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(31, 41, 51);
-  doc.text("TAJALLI'S HOME COLLECTION", _advBankTx, y + 13);
+  doc.text("TAJALLI'S HOME & COMMERCIAL SOLUTIONS", _advBankTx, y + 13);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(31, 41, 51);
   doc.text('PK33 MEZN 0001 0601 0187 4794', _advBankTx, y + 20);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(107, 114, 128);
@@ -6858,17 +6858,14 @@ async function generateInstallmentPaymentPdf(opts: {
   doc.rect(0, 0, W, HEADER_H_PY, 'F');
   doc.setFillColor(11, 37, 69);
   doc.rect(_pyHeaderRX, 0, W - _pyHeaderRX, HEADER_H_PY, 'F');
-  const _pyLogoH = 20; const _pyLogoY = Math.round((HEADER_H_PY - _pyLogoH) / 2);
+  const _pyLogoH = 27; const _pyLogoW = Math.round(_pyLogoH * 500 / 268);
+  const _pyLogoY = Math.round((HEADER_H_PY - _pyLogoH) / 2);
   if (logoData) {
-    doc.addImage(logoData, 'PNG', margin, _pyLogoY, 0, _pyLogoH);
+    doc.addImage(logoData, 'PNG', margin, _pyLogoY, _pyLogoW, _pyLogoH);
   } else {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
     doc.text("Tajalli's", margin, 17);
   }
-  const _pyBrandX = margin + 32; const _pyBrandMaxW = _pyHeaderRX - _pyBrandX - 3;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
-  doc.text('HOME & COMMERCIAL', _pyBrandX, 12, { maxWidth: _pyBrandMaxW });
-  doc.text('SOLUTIONS', _pyBrandX, 20, { maxWidth: _pyBrandMaxW });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
   doc.text('PAYMENT RECEIPT', W - margin, 7, { align: 'right' });
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
@@ -7127,7 +7124,7 @@ async function generateInstallmentPaymentPdf(opts: {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
   doc.text('BANK TRANSFER — RAAST / IBAN', _pyBankTx, y + 6);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(31, 41, 51);
-  doc.text("TAJALLI'S HOME COLLECTION", _pyBankTx, y + 13);
+  doc.text("TAJALLI'S HOME & COMMERCIAL SOLUTIONS", _pyBankTx, y + 13);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(31, 41, 51);
   doc.text('PK33 MEZN 0001 0601 0187 4794', _pyBankTx, y + 20);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(107, 114, 128);
@@ -7223,15 +7220,12 @@ async function generateServiceReceiptPdf(opts: {
   doc.setFillColor(DNAV);
   doc.rect(W - 62, 0, 62, HEADER_H, 'F');
   if (logoData) {
-    doc.addImage(logoData, 'PNG', margin, 3, 0, 24);
+    const _srLogoH = 28; const _srLogoW = Math.round(_srLogoH * 500 / 268);
+    doc.addImage(logoData, 'PNG', margin, 2, _srLogoW, _srLogoH);
   } else {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
     doc.text("Tajalli's", margin, 17);
   }
-  const _srBrandX = margin + 32; const _srBrandMaxW = (W - 62) - _srBrandX - 3;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
-  doc.text('HOME & COMMERCIAL', _srBrandX, 12, { maxWidth: _srBrandMaxW });
-  doc.text('SOLUTIONS', _srBrandX, 20, { maxWidth: _srBrandMaxW });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
   doc.text('SERVICE RECEIPT', W - margin, 7, { align: 'right' });
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
@@ -7494,10 +7488,10 @@ async function generateServiceReceiptPdf(opts: {
 
   // Payment status label for TOTAL DUE box
   const _srPmtStatus = opts.paymentStatus;
-  const _srPmtLabel = _srPmtStatus === 'paid'    ? 'PAID IN FULL'
-                    : _srPmtStatus === 'partial'  ? 'PARTIAL PAYMENT'
-                    : _srPmtStatus === 'overdue'  ? 'OVERDUE'
-                    : _srPmtStatus === 'pending'  ? 'BALANCE DUE'
+  const _srPmtLabel = _srPmtStatus === 'paid'    ? 'Payment Status: Paid in Full'
+                    : _srPmtStatus === 'partial'  ? 'Payment Status: Partial Payment Received'
+                    : _srPmtStatus === 'overdue'  ? 'Payment Status: Overdue'
+                    : _srPmtStatus === 'pending'  ? 'Balance Due'
                     : null;
   const _srPmtColor: [number,number,number] =
     _srPmtStatus === 'paid'   ? [22, 134, 90]  :
@@ -7520,7 +7514,7 @@ async function generateServiceReceiptPdf(opts: {
   doc.setFillColor(NAVY);
   doc.rect(totalsRightX, pry - 1, W - margin - totalsRightX, 11, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
-  doc.text('TOTAL DUE', totalsRightX + 3, pry + 7);
+  doc.text('TOTAL AMOUNT', totalsRightX + 3, pry + 7);
   doc.text(PKR(grandTotal), W - margin - 3, pry + 7, { align: 'right' });
   if (_srPmtLabel) {
     pry += 11;
@@ -7639,7 +7633,7 @@ async function generateServiceReceiptPdf(opts: {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
   doc.text('BANK TRANSFER — RAAST / IBAN', _srBankTx, y + 6);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(31, 41, 51);
-  doc.text("TAJALLI'S HOME COLLECTION", _srBankTx, y + 13);
+  doc.text("TAJALLI'S HOME & COMMERCIAL SOLUTIONS", _srBankTx, y + 13);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(31, 41, 51);
   doc.text('PK33 MEZN 0001 0601 0187 4794', _srBankTx, y + 20);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(107, 114, 128);
