@@ -4221,7 +4221,7 @@ interface InvoiceLogPayload {
   cashPaySchedule?:    Array<{ date: string; amount: number; note: string }>;
 }
 
-async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<void> {
+async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<string | null> {
   try {
     const subtotal = payload.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
     const saleType = (payload.docType === 'installment-invoice' || payload.docType === 'installment_payment_receipt')
@@ -4269,7 +4269,7 @@ async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<void> {
 
     if (invErr || !inv) {
       console.warn('[invoice-log] Failed to log invoice header:', invErr?.message);
-      return;
+      return null;
     }
 
     // ── Extended fields — added by recent migrations; silently skipped if not run yet ──
@@ -4355,22 +4355,37 @@ async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<void> {
 
     // ── installment_schedules ──────────────────────────────────────────────
     if (payload.docType === 'installment-invoice' && payload.instMonths > 0 && payload.instFirstDate) {
-      const scheduleRows = Array.from({ length: payload.instMonths }, (_, i) => {
-        const due = new Date(payload.instFirstDate);
-        due.setMonth(due.getMonth() + i);
-        return {
-          invoice_id:     inv.id,
-          installment_no: i + 1,
-          due_date:       due.toISOString().slice(0, 10),
-          amount_due:     payload.instMonthlyAmt,
-          status:         'pending',
-        };
-      });
+      const advancePaid = payload.paymentStatus === 'advance_paid' || payload.paymentStatus === 'paid';
+      const advSlot = {
+        invoice_id:     inv.id,
+        installment_no: 0,
+        due_date:       new Date().toISOString().slice(0, 10),
+        amount_due:     payload.instAdvanceAmt ?? 0,
+        amount_paid:    advancePaid ? (payload.instAdvanceAmt ?? 0) : 0,
+        status:         advancePaid ? 'paid' : 'pending',
+        paid_date:      advancePaid ? new Date().toISOString().slice(0, 10) : null,
+      };
+      const scheduleRows = [
+        advSlot,
+        ...Array.from({ length: payload.instMonths }, (_, i) => {
+          const due = new Date(payload.instFirstDate!);
+          due.setMonth(due.getMonth() + i);
+          return {
+            invoice_id:     inv.id,
+            installment_no: i + 1,
+            due_date:       due.toISOString().slice(0, 10),
+            amount_due:     payload.instMonthlyAmt,
+            status:         'pending',
+          };
+        }),
+      ];
       const { error: schedErr } = await supabase.from('installment_schedules').insert(scheduleRows);
       if (schedErr) console.warn('[invoice-log] Failed to log installment schedule:', schedErr.message);
     }
+    return inv.id;
   } catch (e) {
     console.warn('[invoice-log] Unexpected error:', e);
+    return null;
   }
 }
 
@@ -4864,7 +4879,7 @@ async function generateQuotationPdf(opts: {
     doc.text(vl, margin + 22, cy);
     cy += rowH;
   }
-  leftY += custBlockH + 2;
+  leftY += custBlockH + 1;
 
   // ── ROW 1 RIGHT: Invoice Meta ─────────────────────────────────────────────────
   const _qtAdvAmt2 = opts.advanceAmtFixed && opts.advanceAmtFixed > 0
@@ -4892,7 +4907,7 @@ async function generateQuotationPdf(opts: {
     ['BALANCE DUE', PKR(_qtBalDue)],
   ];
 
-  const metaBlockH = metaFields.length * 4.0 + 8;
+  const metaBlockH = metaFields.length * 3.7 + 6;
   doc.setFillColor(243, 244, 246);
   doc.rect(rightX, rightY, rightW, metaBlockH, 'F');
   doc.setFillColor(246, 196, 0);
@@ -4902,16 +4917,16 @@ async function generateQuotationPdf(opts: {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
   doc.text('INVOICE DETAILS', rightX + 6, rightY + 3);
 
-  let my = rightY + 4 + 4.0;
+  let my = rightY + 4 + 3.7;
   for (const [lbl, val] of metaFields) {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(63, 116, 184);
     doc.text(lbl, rightX + 3, my);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(30, 30, 30);
     const vl = doc.splitTextToSize(val, rightW - 26);
     doc.text(vl, rightX + 22, my);
-    my += 4.0;
+    my += 3.7;
   }
-  rightY += metaBlockH + 2;
+  rightY += metaBlockH + 1;
 
   // sync row 1
   leftY = Math.max(leftY, rightY);
@@ -5200,7 +5215,7 @@ async function generateQuotationPdf(opts: {
         { content: 'CLAIM VIA', styles: { fillColor: [215,228,244] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 4.5, halign: 'right' as const, cellPadding: { top: 1, bottom: 1, left: 1, right: 3 } } },
       ]],
       body: wtyBody,
-      columnStyles: { 0: { cellWidth: 22 }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 11 }, 3: { cellWidth: 12 } },
+      columnStyles: { 0: { cellWidth: 18 }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 22 }, 3: { cellWidth: 10 } },
       bodyStyles: { fontSize: 4.5, textColor: [40,40,40] as [number,number,number], lineColor: [229,231,235] as [number,number,number], lineWidth: 0.15, cellPadding: { top: 1, bottom: 1, left: 3, right: 2 } },
       alternateRowStyles: { fillColor: [248,250,252] as [number,number,number] },
       styles: { overflow: 'linebreak' },
@@ -5624,14 +5639,13 @@ async function generateQuotationPdf(opts: {
       const advParas3 = advisory3
         ? advisory3.paragraphs
         : ['Ask us for an energy-saving assessment and solar proposal tailored to your property type.'];
-      // Use actual text wrapping for accurate height estimation (doc is already instantiated)
-      // 12 = sub-header (4mm) + gap before first line (4mm) + bottom margin (4mm)
+      // Measure actual wrapped heights so the box fits tightly around content
       doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5);
-      const advBodyH3 = 12 + advParas3.reduce((s, p) => {
+      const advBodyH3 = 9 + advParas3.reduce((s, p) => {
         const wrappedLines = doc.splitTextToSize(p, rightW3);
-        return s + wrappedLines.length * rowH3 + 2;
+        return s + wrappedLines.length * rowH3 + 1.5;
       }, 0);
-      const bodyH3 = Math.max(14, Math.max(energyBodyH3, advBodyH3));
+      const bodyH3 = Math.max(6, Math.max(energyBodyH3, advBodyH3));
       const sectionH3 = hdrH3 + bodyH3;
 
       const sectionTitle = advisory3
@@ -5724,12 +5738,12 @@ async function generateQuotationPdf(opts: {
       doc.setTextColor(...(advisory3 ? advSubColor : [70, 70, 70] as [number, number, number]));
       doc.text(advSubTitle, rightX3, sy3 + 4);
 
-      let ay3 = sy3 + 8;
+      let ay3 = sy3 + 7;
       for (const para of advParas3) {
         const wrapped = doc.splitTextToSize(para, rightW3);
         doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(40, 40, 40);
-        doc.text(wrapped, rightX3, ay3, { lineHeightFactor: 1.4 });
-        ay3 += wrapped.length * rowH3 + 2;
+        doc.text(wrapped, rightX3, ay3, { lineHeightFactor: 1.35 });
+        ay3 += wrapped.length * rowH3 + 1.5;
       }
 
       y += sectionH3 + 2;
@@ -6078,21 +6092,30 @@ async function generateQuotationPdf(opts: {
   const tcPerCol = Math.ceil(tcItems.length / tcCols);
   const colTcW = (printW - (tcCols - 1) * 3) / tcCols;
   const tcRowH = 2.8;
-  const tcBgH = tcPerCol * tcRowH + 5;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(NAVY);
-  doc.text('TERMS & CONDITIONS', margin, y);
-  const tcBodyY = y + 3.5;
-  doc.setFillColor(249, 249, 249);
-  doc.rect(margin, tcBodyY, printW, tcBgH, 'F');
+  // Compute actual per-item line counts to prevent overflow
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5);
+  const tcItemLines = tcItems.map(item => doc.splitTextToSize(item, colTcW - 5).length);
+  const tcColHeights: number[] = Array(tcCols).fill(0);
   for (let i = 0; i < tcItems.length; i++) {
     const col = Math.floor(i / tcPerCol);
-    const row = i % tcPerCol;
+    tcColHeights[col] += tcItemLines[i] * tcRowH + 0.8;
+  }
+  const tcBgH = Math.max(...tcColHeights) + 5;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(NAVY);
+  doc.text('TERMS & CONDITIONS', margin, y);
+  const tcBodyY = y + 2;
+  doc.setFillColor(249, 249, 249);
+  doc.rect(margin, tcBodyY, printW, tcBgH, 'F');
+  const tcColY: number[] = Array(tcCols).fill(tcBodyY + 2.5);
+  for (let i = 0; i < tcItems.length; i++) {
+    const col = Math.floor(i / tcPerCol);
     const tx = margin + 3 + col * (colTcW + 3);
-    const tcy = tcBodyY + 3.5 + row * tcRowH;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(5); doc.setTextColor(120, 120, 120);
-    doc.text(`${i + 1}.`, tx, tcy);
+    doc.text(`${i + 1}.`, tx, tcColY[col]);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(80, 80, 80);
-    doc.text(tcItems[i], tx + 4, tcy, { maxWidth: colTcW - 5 });
+    const wrapped = doc.splitTextToSize(tcItems[i], colTcW - 5);
+    doc.text(wrapped, tx + 4, tcColY[col], { lineHeightFactor: 1.3 });
+    tcColY[col] += wrapped.length * tcRowH + 0.8;
   }
 
 
@@ -8300,16 +8323,20 @@ type LedgerRow = {
 };
 
 function InstallmentLedgerTab() {
-  const [rows, setRows]           = useState<LedgerRow[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState('');
-  const [search, setSearch]       = useState('');
-  const [expanded, setExpanded]   = useState<string | null>(null);
-  const [saving, setSaving]       = useState<string | null>(null);
-  const [editSlot, setEditSlot]   = useState<{ invoiceId: string; slot: InstallmentSlot } | null>(null);
-  const [payDate, setPayDate]     = useState('');
-  const [payMethod, setPayMethod] = useState<string>('cash');
-  const [payRef, setPayRef]       = useState('');
+  const [rows, setRows]               = useState<LedgerRow[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState('');
+  const [search, setSearch]           = useState('');
+  const [expanded, setExpanded]       = useState<string | null>(null);
+  const [saving, setSaving]           = useState<string | null>(null);
+  const [editSlot, setEditSlot]       = useState<{ invoiceId: string; slot: InstallmentSlot; mode: 'pay' | 'edit' } | null>(null);
+  const [payDate, setPayDate]         = useState('');
+  const [payMethod, setPayMethod]     = useState<string>('cash');
+  const [payRef, setPayRef]           = useState('');
+  const [editDueDate, setEditDueDate] = useState('');
+  const [editAmtDue, setEditAmtDue]   = useState('');
+  const [editAmtPaid, setEditAmtPaid] = useState('');
+  const [editStatus, setEditStatus]   = useState<'pending' | 'paid' | 'overdue'>('pending');
 
   const PKR = (n: number) => `PKR ${Math.round(n).toLocaleString('en-PK')}`;
 
@@ -8361,6 +8388,26 @@ function InstallmentLedgerTab() {
     if (!err) load();
   }
 
+  async function saveSlotEdit(slotId: string) {
+    setSaving(slotId);
+    const isPaid = editStatus === 'paid';
+    const { error: err } = await supabase
+      .from('installment_schedules')
+      .update({
+        due_date:     editDueDate || undefined,
+        amount_due:   editAmtDue !== '' ? Number(editAmtDue) : undefined,
+        amount_paid:  editAmtPaid !== '' ? Number(editAmtPaid) : undefined,
+        status:       editStatus,
+        paid_date:    isPaid ? (payDate || new Date().toISOString().slice(0, 10)) : null,
+        payment_method: isPaid ? payMethod : null,
+        receipt_ref:  isPaid ? (payRef || null) : null,
+      })
+      .eq('id', slotId);
+    setSaving(null);
+    setEditSlot(null);
+    if (!err) load();
+  }
+
   async function markOverdue(slotId: string) {
     setSaving(slotId);
     await supabase.from('installment_schedules').update({ status: 'overdue' }).eq('id', slotId);
@@ -8373,6 +8420,17 @@ function InstallmentLedgerTab() {
     await supabase.from('installment_schedules').update({ status: 'pending', amount_paid: 0, paid_date: null, payment_method: null, receipt_ref: null }).eq('id', slotId);
     setSaving(null);
     load();
+  }
+
+  function startEdit(invoiceId: string, slot: InstallmentSlot) {
+    setEditSlot({ invoiceId, slot, mode: 'edit' });
+    setEditDueDate(slot.due_date);
+    setEditAmtDue(String(slot.amount_due));
+    setEditAmtPaid(String(slot.amount_paid));
+    setEditStatus(slot.status);
+    setPayDate(slot.paid_date || new Date().toISOString().slice(0, 10));
+    setPayMethod(slot.payment_method || 'cash');
+    setPayRef(slot.receipt_ref || '');
   }
 
   const filtered = rows.filter(r => {
@@ -8393,7 +8451,7 @@ function InstallmentLedgerTab() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-lg font-black text-gray-900">Installment Ledger</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Track installment sales and log payments</p>
+          <p className="text-xs text-gray-400 mt-0.5">Track installment sales and log payments · click any row to edit date, amount, or status</p>
         </div>
         <div className="flex gap-2">
           <input
@@ -8452,7 +8510,6 @@ function InstallmentLedgerTab() {
 
             {isOpen && (
               <div className="px-5 pb-5 border-t border-gray-100 space-y-3 pt-4">
-                {/* Progress bar */}
                 {row.inst_total_price && row.inst_total_price > 0 && (
                   <div>
                     <div className="flex justify-between text-xs text-gray-500 mb-1">
@@ -8470,7 +8527,8 @@ function InstallmentLedgerTab() {
                     <tr className="text-gray-400 border-b border-gray-100">
                       <th className="text-left py-1.5 font-semibold">#</th>
                       <th className="text-left py-1.5 font-semibold">Due Date</th>
-                      <th className="text-right py-1.5 font-semibold">Amount</th>
+                      <th className="text-right py-1.5 font-semibold">Amount Due</th>
+                      <th className="text-right py-1.5 font-semibold">Paid</th>
                       <th className="text-center py-1.5 font-semibold">Status</th>
                       <th className="text-right py-1.5 font-semibold">Actions</th>
                     </tr>
@@ -8478,9 +8536,10 @@ function InstallmentLedgerTab() {
                   <tbody>
                     {row.slots.map(slot => (
                       <tr key={slot.id} className="border-b border-gray-50 last:border-0">
-                        <td className="py-2 text-gray-500">{slot.installment_no === 0 ? 'Adv' : slot.installment_no}</td>
+                        <td className="py-2 text-gray-500 font-medium">{slot.installment_no === 0 ? 'Adv' : slot.installment_no}</td>
                         <td className="py-2 text-gray-700">{slot.due_date}</td>
                         <td className="py-2 text-right font-semibold text-gray-900">{PKR(slot.amount_due)}</td>
+                        <td className="py-2 text-right text-gray-500">{slot.amount_paid > 0 ? PKR(slot.amount_paid) : '—'}</td>
                         <td className="py-2 text-center">
                           <span className={`px-2 py-0.5 rounded-full font-semibold text-[10px] ${STATUS_COLORS[slot.status] ?? 'bg-gray-100 text-gray-600'}`}>
                             {slot.status}
@@ -8492,25 +8551,32 @@ function InstallmentLedgerTab() {
                         <td className="py-2 text-right">
                           {saving === slot.id ? (
                             <span className="text-gray-400 text-[10px]">saving…</span>
-                          ) : slot.status !== 'paid' ? (
+                          ) : (
                             <div className="flex gap-1 justify-end">
-                              <button
-                                onClick={() => { setEditSlot({ invoiceId: row.id, slot }); setPayDate(new Date().toISOString().slice(0, 10)); setPayMethod('cash'); setPayRef(''); }}
-                                className="px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold transition-colors">
-                                ✓ Paid
-                              </button>
-                              {slot.status !== 'overdue' && (
+                              {slot.status !== 'paid' && (
+                                <button
+                                  onClick={() => { setEditSlot({ invoiceId: row.id, slot, mode: 'pay' }); setPayDate(new Date().toISOString().slice(0, 10)); setPayMethod('cash'); setPayRef(''); }}
+                                  className="px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold transition-colors text-[10px]">
+                                  ✓ Paid
+                                </button>
+                              )}
+                              {slot.status !== 'paid' && slot.status !== 'overdue' && (
                                 <button onClick={() => markOverdue(slot.id)}
-                                  className="px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-semibold transition-colors">
+                                  className="px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-semibold transition-colors text-[10px]">
                                   Overdue
                                 </button>
                               )}
+                              <button onClick={() => startEdit(row.id, slot)}
+                                className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold transition-colors text-[10px]">
+                                Edit
+                              </button>
+                              {slot.status === 'paid' && (
+                                <button onClick={() => revertPending(slot.id)}
+                                  className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-[10px] font-semibold transition-colors">
+                                  Revert
+                                </button>
+                              )}
                             </div>
-                          ) : (
-                            <button onClick={() => revertPending(slot.id)}
-                              className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-[10px] font-semibold transition-colors">
-                              Revert
-                            </button>
                           )}
                         </td>
                       </tr>
@@ -8518,11 +8584,11 @@ function InstallmentLedgerTab() {
                   </tbody>
                 </table>
 
-                {/* Pay modal inline */}
-                {editSlot?.invoiceId === row.id && (
+                {/* Mark Paid panel */}
+                {editSlot?.invoiceId === row.id && editSlot.mode === 'pay' && (
                   <div className="bg-green-50 rounded-xl p-4 border border-green-200 space-y-3">
                     <p className="text-xs font-bold text-gray-700">
-                      Mark installment #{editSlot.slot.installment_no === 0 ? 'Advance' : editSlot.slot.installment_no} as paid — {PKR(editSlot.slot.amount_due)}
+                      Mark {editSlot.slot.installment_no === 0 ? 'Advance' : `Installment #${editSlot.slot.installment_no}`} as paid — {PKR(editSlot.slot.amount_due)}
                     </p>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
@@ -8548,6 +8614,76 @@ function InstallmentLedgerTab() {
                       <button onClick={() => markPaid(row.id, editSlot.slot)}
                         className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-xl text-sm transition-colors">
                         Confirm Payment
+                      </button>
+                      <button onClick={() => setEditSlot(null)}
+                        className="px-4 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold py-2 rounded-xl text-sm transition-colors">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Full edit panel */}
+                {editSlot?.invoiceId === row.id && editSlot.mode === 'edit' && (
+                  <div className="bg-blue-50 rounded-xl p-4 border border-blue-200 space-y-3">
+                    <p className="text-xs font-bold text-gray-700">
+                      Edit {editSlot.slot.installment_no === 0 ? 'Advance' : `Installment #${editSlot.slot.installment_no}`}
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 block mb-1">Due Date</label>
+                        <input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)}
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 block mb-1">Status</label>
+                        <select value={editStatus} onChange={e => setEditStatus(e.target.value as 'pending' | 'paid' | 'overdue')}
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                          <option value="pending">Pending</option>
+                          <option value="paid">Paid</option>
+                          <option value="overdue">Overdue</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 block mb-1">Amount Due (PKR)</label>
+                        <input type="number" value={editAmtDue} onChange={e => setEditAmtDue(e.target.value)}
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-500 block mb-1">Amount Paid (PKR)</label>
+                        <input type="number" value={editAmtPaid} onChange={e => setEditAmtPaid(e.target.value)}
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                      </div>
+                    </div>
+                    {editStatus === 'paid' && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-500 block mb-1">Payment Date</label>
+                          <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)}
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-gray-500 block mb-1">Method</label>
+                          <select value={payMethod} onChange={e => setPayMethod(e.target.value)}
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                            <option value="cash">Cash</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="cheque">Cheque</option>
+                            <option value="online">Online</option>
+                          </select>
+                        </div>
+                        <div className="col-span-2">
+                          <label className="text-[10px] font-bold text-gray-500 block mb-1">Reference</label>
+                          <input value={payRef} onChange={e => setPayRef(e.target.value)}
+                            placeholder="Receipt / reference number (optional)"
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <button onClick={() => saveSlotEdit(editSlot.slot.id)}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-xl text-sm transition-colors">
+                        Save Changes
                       </button>
                       <button onClick={() => setEditSlot(null)}
                         className="px-4 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold py-2 rounded-xl text-sm transition-colors">
@@ -9119,6 +9255,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
     return d.toISOString().slice(0, 10);
   });
   const [instPaymentNumber, setInstPaymentNumber] = useState(1);
+  const [instMismatchNote, setInstMismatchNote]   = useState('');
   const [instAdvPdfState, setInstAdvPdfState]   = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
   const [instPayPdfState, setInstPayPdfState]   = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
 
@@ -10039,25 +10176,12 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       const a = document.createElement('a');
       a.href = url; a.download = `${(customerName || 'Customer').replace(/[/\\:*?"<>|]/g, '').trim()} - ${refNumber}.pdf`; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
-      const advPayload: InvoiceLogPayload = {
-        refNumber, docType: 'installment-invoice',
-        customerName, customerPhone: customerPhone.replace(/\D/g, ''),
-        customerEmail, customerAddress, customerCnic,
-        customerType, serviceLevel, discountReason,
-        lines, services, discount: discountMode === 'fixed' ? discountFixed : discount, discountType,
-        grandTotal: effectiveTotal, serviceTotal, advancePct: 0,
-        instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate,
-        customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
-        guarantorName, guarantorPhone, guarantorCnic,
-        notes: invoiceNotes, preparedBy,
-        customerArea,
-        paymentStatus: advancePaid ? 'advance_paid' : 'pending',
-        discountMode,
-      };
+      const advPayload = buildCurrentLogPayload();
       if (editingInvoiceId) {
         updateInvoiceInSupabase(editingInvoiceId, advPayload);
       } else {
-        logInvoiceToSupabase(advPayload);
+        const newId = await logInvoiceToSupabase(advPayload);
+        if (newId) setEditingInvoiceId(newId);
       }
       setInstAdvPdfState('success');
       setTimeout(() => setInstAdvPdfState('idle'), 3000);
@@ -10689,18 +10813,34 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
               </div>
               {/* Plan summary + mismatch warning */}
-              {(instTotalPrice > 0 || instAdvanceAmt > 0 || instMonthlyAmt > 0) && (
-                <div className={`rounded-xl px-3 py-2 text-xs font-medium ${
-                  instAdvanceAmt + instMonths * instMonthlyAmt === instTotalPrice
-                    ? 'bg-brand-50 text-brand-700'
-                    : 'bg-red-50 text-red-700'
-                }`}>
-                  PKR {instAdvanceAmt.toLocaleString('en-PK')} advance + {instMonths} × PKR {instMonthlyAmt.toLocaleString('en-PK')} = PKR {(instAdvanceAmt + instMonths * instMonthlyAmt).toLocaleString('en-PK')}
-                  {instAdvanceAmt + instMonths * instMonthlyAmt !== instTotalPrice && instTotalPrice > 0 && (
-                    <span className="ml-1">≠ total PKR {instTotalPrice.toLocaleString('en-PK')} — please reconcile</span>
-                  )}
-                </div>
-              )}
+              {(instTotalPrice > 0 || instAdvanceAmt > 0 || instMonthlyAmt > 0) && (() => {
+                const computed = instAdvanceAmt + instMonths * instMonthlyAmt;
+                const isMismatch = instTotalPrice > 0 && computed !== instTotalPrice;
+                const isAcknowledged = isMismatch && instMismatchNote.trim().length > 0;
+                return (
+                  <div className="space-y-1.5">
+                    <div className={`rounded-xl px-3 py-2 text-xs font-medium ${
+                      !isMismatch ? 'bg-brand-50 text-brand-700' :
+                      isAcknowledged ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
+                    }`}>
+                      PKR {instAdvanceAmt.toLocaleString('en-PK')} advance + {instMonths} × PKR {instMonthlyAmt.toLocaleString('en-PK')} = PKR {computed.toLocaleString('en-PK')}
+                      {isMismatch && (
+                        <span className="ml-1">≠ total PKR {instTotalPrice.toLocaleString('en-PK')}
+                          {isAcknowledged ? ' · acknowledged' : ' — enter a reason below to proceed'}
+                        </span>
+                      )}
+                    </div>
+                    {isMismatch && (
+                      <input
+                        value={instMismatchNote}
+                        onChange={e => setInstMismatchNote(e.target.value)}
+                        placeholder="Reason for custom amounts (e.g. partial advance, negotiated plan)…"
+                        className="w-full border border-amber-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-400 bg-amber-50 placeholder-amber-400"
+                      />
+                    )}
+                  </div>
+                );
+              })()}
               {/* Payment invoice selector */}
               <div className="pt-1 border-t border-gray-100 space-y-2">
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Payment Invoice</p>
@@ -11600,6 +11740,23 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               : <>📄 Payment Invoice #{instPaymentNumber}</>}
           </button>
 
+          {!editingInvoiceId && lines.length > 0 && (
+            <button
+              onClick={async () => {
+                if (!preparedBy.trim()) { alert('Please enter a name in the "Prepared By" field before saving.'); return; }
+                setSavingEdits(true);
+                try {
+                  const newId = await logInvoiceToSupabase(buildCurrentLogPayload());
+                  if (newId) { setEditingInvoiceId(newId); setToastMsg('Invoice saved ✓'); }
+                  else setToastMsg('Save failed — check console');
+                } catch (e: any) { setToastMsg(`Save failed: ${e?.message ?? 'error'}`); }
+                finally { setSavingEdits(false); }
+              }}
+              disabled={savingEdits}
+              className="flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60 transition-colors whitespace-nowrap">
+              {savingEdits ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <>💾 Save Invoice</>}
+            </button>
+          )}
           {editingInvoiceId && (
             <button
               onClick={saveEditsNow}
