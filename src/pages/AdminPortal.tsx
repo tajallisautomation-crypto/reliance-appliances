@@ -4205,8 +4205,20 @@ interface InvoiceLogPayload {
   instMonths:      number;
   instMonthlyAmt:  number;
   instFirstDate:   string;
-  notes?:          string;
-  preparedBy?:     string;
+  notes?:              string;
+  preparedBy?:         string;
+  customerArea?:       string;
+  paymentStatus?:      string;
+  discountMode?:       'percentage' | 'fixed';
+  isExistingCustomer?: boolean | null;
+  stockStatus?:        string;
+  showNtn?:            boolean;
+  deliveryEta?:        string;
+  validityHours?:      number;
+  advanceMode?:        'pct' | 'fixed';
+  advanceFixedAmt?:    number;
+  balanceNote?:        string;
+  cashPaySchedule?:    Array<{ date: string; amount: number; note: string }>;
 }
 
 async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<void> {
@@ -4215,6 +4227,7 @@ async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<void> {
     const saleType = (payload.docType === 'installment-invoice' || payload.docType === 'installment_payment_receipt')
       ? 'installment' : 'cash';
 
+    // ── Core insert — only columns guaranteed to exist in DB ─────────────────
     const { data: inv, error: invErr } = await supabase
       .from('invoices')
       .insert({
@@ -4235,17 +4248,21 @@ async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<void> {
         discount_reason:     payload.discountReason || null,
         grand_total:         payload.grandTotal,
         advance_pct:         payload.advancePct,
+        customer_area:       payload.customerArea || null,
         inst_total_price:    payload.instTotalPrice || null,
         inst_advance_amt:    payload.instAdvanceAmt || null,
         inst_months:         payload.instMonths || null,
         inst_monthly_amt:    payload.instMonthlyAmt || null,
-        payment_status:      'pending',
+        inst_first_date:     payload.instFirstDate || null,
+        payment_status:      payload.paymentStatus ?? 'pending',
         custom_charges_json: payload.customCharges?.length ? payload.customCharges : null,
         guarantor_name:      payload.guarantorName || null,
         guarantor_phone:     payload.guarantorPhone || null,
         guarantor_cnic:      payload.guarantorCnic || null,
         notes:               payload.notes || null,
         prepared_by:         payload.preparedBy || null,
+        is_existing_customer: payload.isExistingCustomer ?? null,
+        discount_mode:       payload.discountMode ?? 'percentage',
       })
       .select('id')
       .single();
@@ -4254,6 +4271,18 @@ async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<void> {
       console.warn('[invoice-log] Failed to log invoice header:', invErr?.message);
       return;
     }
+
+    // ── Extended fields — added by recent migrations; silently skipped if not run yet ──
+    await supabase.from('invoices').update({
+      stock_status:         payload.stockStatus || null,
+      show_ntn:             payload.showNtn ?? false,
+      delivery_eta:         payload.deliveryEta || null,
+      validity_hours:       payload.validityHours ?? 48,
+      advance_mode:         payload.advanceMode ?? 'pct',
+      advance_fixed_amt:    payload.advanceFixedAmt || null,
+      balance_note:         payload.balanceNote || null,
+      cash_pay_schedule_json: payload.cashPaySchedule?.length ? payload.cashPaySchedule : null,
+    }).eq('id', inv.id);
 
     // ── invoice_lines ──────────────────────────────────────────────────────
     const lineRows = payload.lines.map(l => ({
@@ -4359,6 +4388,7 @@ interface PackageComponent {
 
 async function updateInvoiceInSupabase(invoiceId: string, payload: InvoiceLogPayload): Promise<{ ok: boolean; errMsg?: string }> {
   try {
+    // ── Core update — only columns guaranteed to exist in DB ─────────────────
     const { error: invErr } = await supabase
       .from('invoices')
       .update({
@@ -4378,20 +4408,37 @@ async function updateInvoiceInSupabase(invoiceId: string, payload: InvoiceLogPay
         grand_total:         payload.grandTotal,
         service_total:       payload.serviceTotal,
         advance_pct:         payload.advancePct,
+        customer_area:        payload.customerArea || null,
+        is_existing_customer: payload.isExistingCustomer ?? null,
         inst_total_price:    payload.instTotalPrice || null,
         inst_advance_amt:    payload.instAdvanceAmt || null,
         inst_months:         payload.instMonths || null,
         inst_monthly_amt:    payload.instMonthlyAmt || null,
+        inst_first_date:     payload.instFirstDate || null,
+        payment_status:      payload.paymentStatus ?? 'pending',
         custom_charges_json: payload.customCharges?.length ? payload.customCharges : null,
         guarantor_name:      payload.guarantorName || null,
         guarantor_phone:     payload.guarantorPhone || null,
         guarantor_cnic:      payload.guarantorCnic || null,
-        inst_first_date:     payload.instFirstDate || null,
         notes:               payload.notes || null,
         prepared_by:         payload.preparedBy || null,
       })
       .eq('id', invoiceId);
     if (invErr) { console.warn('[invoice-update] header failed:', invErr.message); return { ok: false, errMsg: invErr.message }; }
+
+    // ── Extended fields (newer migrations) ────────────────────────────────────
+    const { error: extErr } = await supabase.from('invoices').update({
+      discount_mode:          payload.discountMode ?? 'percentage',
+      stock_status:           payload.stockStatus || null,
+      show_ntn:               payload.showNtn ?? false,
+      delivery_eta:           payload.deliveryEta || null,
+      validity_hours:         payload.validityHours ?? 48,
+      advance_mode:           payload.advanceMode ?? 'pct',
+      advance_fixed_amt:      payload.advanceFixedAmt || null,
+      balance_note:           payload.balanceNote || null,
+      cash_pay_schedule_json: payload.cashPaySchedule?.length ? payload.cashPaySchedule : null,
+    }).eq('id', invoiceId);
+    if (extErr) console.warn('[invoice-update] extended fields failed:', extErr.message);
 
     // Replace lines
     await supabase.from('invoice_lines').delete().eq('invoice_id', invoiceId);
@@ -5128,6 +5175,7 @@ async function generateQuotationPdf(opts: {
       if (/\bwiring|\bcabling|\bprotection|\bearth|\bmcb|\bbreaker|\bfuse/i.test(n)) return "Tajalli's / Installer";
       if (/\bframe|\bmounting|\bstructure|\bfabricat|\broof.*mount|\bmount.*roof/i.test(n)) return "Tajalli's / Fabricator";
       if (/workmanship/i.test(nm)) return "Tajalli's";
+      if (/\bnexus\b|\byorker\b|\belektra\b/i.test(n)) return 'Crown';
       return _wtyBrands.find(b => nm.toLowerCase().includes(b.toLowerCase())) ?? 'Manufacturer';
     };
     const wtyBody = warrantyEntries.map(we => [
@@ -5148,7 +5196,7 @@ async function generateQuotationPdf(opts: {
         { content: 'CLAIM VIA', styles: { fillColor: [30,65,112] as [number,number,number], textColor: [185,210,245] as [number,number,number], fontStyle: 'bold' as const, fontSize: 4.5, halign: 'right' as const, cellPadding: { top: 1, bottom: 1, left: 1, right: 3 } } },
       ]],
       body: wtyBody,
-      columnStyles: { 0: { cellWidth: 16 }, 1: { cellWidth: 18 }, 2: { cellWidth: 14 }, 3: { cellWidth: 'auto' } },
+      columnStyles: { 0: { cellWidth: 22 }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 11 }, 3: { cellWidth: 12 } },
       bodyStyles: { fontSize: 4.5, textColor: [40,40,40] as [number,number,number], lineColor: [229,231,235] as [number,number,number], lineWidth: 0.15, cellPadding: { top: 1, bottom: 1, left: 3, right: 2 } },
       alternateRowStyles: { fillColor: [248,250,252] as [number,number,number] },
       styles: { overflow: 'linebreak' },
@@ -5187,23 +5235,6 @@ async function generateQuotationPdf(opts: {
         doc.setFont('helvetica', 'normal'); doc.setFontSize(5); doc.setTextColor(80, 100, 130);
         doc.text(`${advPct}% adv ${PKR(_p12.advance)}  ·  ${PKR(_p12.monthly)}/mo × ${_p12.monthlyPayments}`, rightX + 3, rightY + 14.5, { maxWidth: rightW - 5 });
         rightY += instBoxH + 2;
-      }
-    } else {
-      // Cash invoice: financing not selected — show compact label
-      const _nfBoxH = 7;
-      if (rightY + 4 + _nfBoxH <= RIGHT_CAP) {
-        doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.3);
-        doc.line(rightX, rightY + 1, rightX + rightW, rightY + 1);
-        doc.setLineWidth(0.2);
-        rightY += 4;
-        doc.setFillColor(248, 248, 248);
-        doc.rect(rightX, rightY, rightW, _nfBoxH, 'F');
-        doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
-        doc.line(rightX, rightY, rightX, rightY + _nfBoxH);
-        doc.setLineWidth(0.2);
-        doc.setFont('helvetica', 'italic'); doc.setFontSize(5); doc.setTextColor(160, 160, 160);
-        doc.text('Alternative Financing Option — Not Selected', rightX + 3, rightY + 4.5, { maxWidth: rightW - 5 });
-        rightY += _nfBoxH + 2;
       }
     }
   }
@@ -5281,7 +5312,7 @@ async function generateQuotationPdf(opts: {
       doc.line(rightX + 2, pry + 8.5, rightX + rightW - 2, pry + 8.5);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(..._balStatusColor);
       doc.text(_balStatusLabel, rightX + 3, pry + 13);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(..._balStatusColor);
       doc.text(PKR(_balStatusAmt), rightX + rightW - 3, pry + 13, { align: 'right' });
     }
 
@@ -6198,7 +6229,7 @@ async function generateInstallmentAdvancePdf(opts: {
     ['REF',            opts.refNumber],
     ['DATE',           dateStr],
     ...((opts.preparedBy || _advIsPaid) ? [['PREPARED BY', opts.preparedBy || 'System'] as [string, string]] : []),
-    ['ADVANCE',        PKR(opts.instAdvanceAmt)],
+    [_advIsPaid ? 'ADVANCE PAID' : 'ADVANCE DUE', PKR(opts.instAdvanceAmt)],
     ['MONTHLY BALANCE',PKR(_advBalDue)],
     ['STATUS',         _advIsPaid ? 'ADVANCE RECEIVED' : 'PENDING ADVANCE'],
     ['PLAN',           `${opts.instMonths}-month installment`],
@@ -7520,7 +7551,7 @@ function CustomerCrmTab() {
 
   async function fetchInvoices() {
     setLoading(true);
-    const BASE_COLS = 'id,ref_number,doc_type,customer_name,customer_phone,customer_email,customer_address,customer_cnic,customer_area,sale_type,service_level,discount_reason,subtotal,discount_pct,discount_type,grand_total,advance_pct,payment_status,created_at,inst_total_price,inst_advance_amt,inst_months,inst_monthly_amt,inst_first_date,custom_charges_json,guarantor_name,guarantor_phone,guarantor_cnic,notes';
+    const BASE_COLS = 'id,ref_number,doc_type,customer_name,customer_phone,customer_email,customer_address,customer_cnic,customer_area,sale_type,service_level,discount_reason,subtotal,discount_pct,discount_type,discount_mode,grand_total,advance_pct,payment_status,created_at,inst_total_price,inst_advance_amt,inst_months,inst_monthly_amt,inst_first_date,custom_charges_json,guarantor_name,guarantor_phone,guarantor_cnic,notes,is_existing_customer,stock_status,show_ntn,delivery_eta,validity_hours,advance_mode,advance_fixed_amt,balance_note,cash_pay_schedule_json';
     const { data, error } = await supabase
       .from('invoices')
       .select(BASE_COLS + ',prepared_by')
@@ -8163,6 +8194,16 @@ type InvoiceRow = {
   guarantor_cnic: string | null;
   notes: string | null;
   prepared_by: string | null;
+  discount_mode: string | null;
+  is_existing_customer: boolean | null;
+  stock_status: string | null;
+  show_ntn: boolean | null;
+  delivery_eta: string | null;
+  validity_hours: number | null;
+  advance_mode: string | null;
+  advance_fixed_amt: number | null;
+  balance_note: string | null;
+  cash_pay_schedule_json: Array<{ date: string; amount: number; note: string }> | null;
   invoice_lines?: Array<{
     name: string;
     model: string | null;
@@ -8524,7 +8565,7 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
         packageComponents: l.key_specs_json?.packageComponents ?? [],
       }));
       const customCharges = row.custom_charges_json ?? [];
-      const discountIsFixed = (row.discount_pct ?? 0) > 100;
+      const discountIsFixed = row.discount_mode === 'fixed' || (row.discount_pct ?? 0) > 100;
       let blob: Blob;
       let filename: string;
 
@@ -8655,7 +8696,7 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
           customerCnic: row.customer_cnic ?? '',
           customerType: (row.customer_type ?? 'house') as 'house' | 'apartment' | 'commercial',
           customerArea: row.customer_area ?? '',
-          isExistingCustomer: null,
+          isExistingCustomer: row.is_existing_customer ?? null,
           lines,
           services,
           discount: row.discount_pct ?? 0,
@@ -8667,15 +8708,15 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
           refNumber: row.ref_number,
           preparedBy: row.prepared_by ?? '',
           stockStatus: 'Reprint copy',
-          validityHours: 72,
-          installationType: row.service_level === 'supply_install' ? 'installation-included' : 'supply-only',
+          validityHours: row.validity_hours ?? 72,
+          installationType: row.service_level === 'supply_install' || row.service_level === 'full_service' ? 'installation-included' : 'supply-only',
           installationLines: [],
           advancePct: row.advance_pct ?? 50,
-          balanceNote: 'delivery',
+          balanceNote: row.balance_note ?? 'delivery',
           advancePaid: _rpAdvancePaid,
           paymentStatus: _rpPmtStatus,
-          deliveryEta: '',
-          showNtn: true,
+          deliveryEta: row.delivery_eta ?? '',
+          showNtn: row.show_ntn ?? true,
           customCharges,
           instTotalPrice: row.inst_total_price ?? undefined,
           instAdvanceAmt: row.inst_advance_amt ?? undefined,
@@ -9188,7 +9229,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
     const t = setTimeout(async () => {
       const { data } = await supabase
         .from('invoices')
-        .select('customer_name,customer_phone,customer_email,customer_address,customer_cnic,customer_area,customer_type')
+        .select('customer_name,customer_phone,customer_email,customer_address,customer_cnic,customer_area,customer_type,is_existing_customer')
         .ilike('customer_phone', `%${digits.slice(-7)}%`)
         .order('created_at', { ascending: false })
         .limit(1);
@@ -9202,7 +9243,12 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
         } else {
           setPhoneNameConflict(null);
         }
-        // Only suggest autofill if at least name is present and different from current
+        // Phone matched a previous invoice — silently set area and existing-customer flag
+        // without requiring any user action (these don't need a confirmation click)
+        if (r.customer_area) setCustomerArea(ca => ca || r.customer_area!);
+        if (r.customer_type) setCustomerType(r.customer_type as 'house' | 'apartment' | 'commercial');
+        setIsExistingCustomer(true);
+        // Only suggest autofill banner if name is present and different from current
         if (foundName && foundName !== enteredName) {
           setAutofillCandidate({
             name: foundName,
@@ -9347,16 +9393,26 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
     setDiscountType(row.discount_type ?? 'Promotional');
     setDiscountReason(row.discount_reason ?? '');
     const dp = row.discount_pct ?? 0;
-    if (dp > 100) { setDiscountMode('fixed'); setDiscountFixed(dp); setDiscountFixedRaw(String(dp)); setDiscount(0); setDiscountRaw('0'); }
+    const dm = row.discount_mode ?? (dp > 100 ? 'fixed' : 'percentage');
+    if (dm === 'fixed') { setDiscountMode('fixed'); setDiscountFixed(dp); setDiscountFixedRaw(String(dp)); setDiscount(0); setDiscountRaw('0'); }
     else { setDiscountMode('percentage'); setDiscount(dp); setDiscountRaw(String(dp)); setDiscountFixed(0); setDiscountFixedRaw('0'); }
     setAdvancePct(row.advance_pct ?? 70);
     setAdvancePaid(row.payment_status === 'paid' || row.payment_status === 'advance_paid');
-    setAdvanceMode('pct');
-    setAdvanceFixedAmt(0);
+    setAdvanceMode((row.advance_mode ?? 'pct') as 'pct' | 'fixed');
+    setAdvanceFixedAmt(row.advance_fixed_amt ?? 0);
     setPreparedBy(row.prepared_by ?? '');
-    setStockStatus('Reprint copy');
+    setStockStatus(row.stock_status ?? 'In stock · confirm before payment');
+    setShowNtn(row.show_ntn ?? false);
+    setDeliveryEta(row.delivery_eta ?? '24–48h after payment');
+    setValidityHours((row.validity_hours ?? 48) as 24 | 48 | 72 | 168);
+    setIsExistingCustomer(row.is_existing_customer ?? null);
+    setBalanceNote(row.balance_note ?? 'delivery');
+    if (Array.isArray(row.cash_pay_schedule_json)) {
+      setCashPaySchedule(row.cash_pay_schedule_json.map(c => ({ ...c, id: crypto.randomUUID() })));
+    } else {
+      setCashPaySchedule([]);
+    }
     localStorage.removeItem('tajallis-invoice-draft');
-    setCashPaySchedule([]);
     setInstTotalPrice(row.inst_total_price ?? 0);
     setInstAdvanceAmt(row.inst_advance_amt ?? 0);
     setInstMonths(row.inst_months ?? 0);
@@ -9768,6 +9824,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           }))
         : lines,
       services, discount: discountMode === 'fixed' ? discountFixed : discount, discountType,
+      discountMode,
       grandTotal: docType === 'service_receipt' ? srGrandTotal : effectiveTotal, serviceTotal, advancePct,
       instTotalPrice: saleType === 'installment' ? instTotalPrice : 0,
       instAdvanceAmt: saleType === 'installment' ? instAdvanceAmt : 0,
@@ -9776,6 +9833,21 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       instFirstDate,
       customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
       guarantorName, guarantorPhone, guarantorCnic, preparedBy,
+      customerArea,
+      paymentStatus: advancePaid
+        ? (saleType === 'installment' ? 'advance_paid' : 'paid')
+        : 'pending',
+      isExistingCustomer,
+      stockStatus,
+      showNtn,
+      deliveryEta,
+      validityHours,
+      advanceMode,
+      advanceFixedAmt: advanceMode === 'fixed' ? advanceFixedAmt : undefined,
+      balanceNote,
+      cashPaySchedule: cashPaySchedule.length > 0
+        ? cashPaySchedule.map(({ date, amount, note }) => ({ date, amount, note }))
+        : undefined,
       notes: (() => {
         if (docType !== 'service_receipt') return invoiceNotes;
         const devicePart = [srDeviceBrand, srDeviceModel].filter(Boolean).join(' ');
@@ -9914,14 +9986,14 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       const blob = await generateInstallmentAdvancePdf({
         customerName, customerPhone: customerPhone.replace(/\D/g, ''),
         customerEmail, customerAddress, customerCnic,
-        lines, discount, refNumber,
+        lines, discount: discountMode === 'fixed' ? discountFixed : discount, refNumber,
         instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, showNtn,
         isApartmentClient: customerType === 'apartment',
         customerType,
         services,
         customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
         guarantorName, guarantorPhone, guarantorCnic,
-        discountMode,
+        discountMode, preparedBy,
       });
       clearTimeout(timeout);
       const url = URL.createObjectURL(blob);
@@ -9938,7 +10010,10 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
         instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate,
         customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
         guarantorName, guarantorPhone, guarantorCnic,
-        notes: invoiceNotes,
+        notes: invoiceNotes, preparedBy,
+        customerArea,
+        paymentStatus: advancePaid ? 'advance_paid' : 'pending',
+        discountMode,
       };
       if (editingInvoiceId) {
         updateInvoiceInSupabase(editingInvoiceId, advPayload);
@@ -9977,9 +10052,15 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
         customerName, customerPhone: customerPhone.replace(/\D/g, ''),
         customerEmail, customerAddress, customerCnic,
         customerType, serviceLevel, discountReason,
-        lines, services, discount, discountType,
+        lines, services,
+        discount: discountMode === 'fixed' ? discountFixed : discount, discountType, discountMode,
         grandTotal, serviceTotal, advancePct: 0,
         instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate,
+        customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
+        guarantorName, guarantorPhone, guarantorCnic,
+        notes: invoiceNotes, preparedBy,
+        customerArea,
+        paymentStatus: 'partial',
       });
       setInstPayPdfState('success');
       setTimeout(() => setInstPayPdfState('idle'), 3000);
@@ -10127,6 +10208,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                   if (autofillCandidate.cnic)    setCustomerCnic(autofillCandidate.cnic);
                   if (autofillCandidate.area)    setCustomerArea(autofillCandidate.area);
                   setCustomerType(autofillCandidate.customerType);
+                  setIsExistingCustomer(true);
                   setAutofillCandidate(null);
                 }}
                 className="px-3 py-1 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-lg transition-colors shrink-0">
