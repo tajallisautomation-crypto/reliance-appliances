@@ -6409,48 +6409,90 @@ async function generateInstallmentAdvancePdf(opts: {
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
   doc.line(margin, y - 1, W - margin, y - 1);
   doc.setLineWidth(0.2);
-  y += 2;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(31, 41, 51);
-  doc.text('INSTALLMENT SCHEDULE', margin, y + 1);
-  y += 5;
+  y += 3;
 
-  const schedBody: any[] = [];
+  // ── Table 1: Summary strip ─────────────────────────────────────────────────
   const advSched = opts.instScheduleRows?.find(r => r.no === 0);
-  schedBody.push([
-    { content: '0', styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold' } },
-    { content: advSched?.label ?? 'Advance Payment', styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold' } },
-    { content: PKR(advSched?.amount ?? opts.instAdvanceAmt), styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold', halign: 'right' as const } },
-    { content: advSched?.dueDate ? fmtDate(new Date(advSched.dueDate)) : 'Upon Confirmation', styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold' } },
-  ]);
-  if (opts.instScheduleRows && opts.instScheduleRows.length > 0) {
-    for (const r of opts.instScheduleRows.filter(r => r.no !== 0)) {
-      schedBody.push([String(r.no), r.label, PKR(r.amount), r.dueDate ? fmtDate(new Date(r.dueDate)) : '—']);
-    }
-  } else {
-    for (let i = 1; i <= opts.instMonths; i++) {
-      const d = new Date(opts.instFirstDate);
-      d.setMonth(d.getMonth() + (i - 1));
-      schedBody.push([String(i), `Installment ${i}`, PKR(opts.instMonthlyAmt), fmtDate(d)]);
-    }
-  }
-  schedBody.push([
-    { content: '', styles: { fillColor: [248, 248, 248] } },
-    { content: 'TOTAL', styles: { fillColor: [248, 248, 248], fontStyle: 'bold', textColor: [31, 41, 51] } },
-    { content: PKR(opts.instTotalPrice), styles: { fillColor: [248, 248, 248], fontStyle: 'bold', halign: 'right' as const, textColor: [31, 41, 51] } },
-    { content: '', styles: { fillColor: [248, 248, 248] } },
-  ]);
-
+  const advAmt = advSched?.amount ?? opts.instAdvanceAmt;
+  const monthlyRows = opts.instScheduleRows
+    ? opts.instScheduleRows.filter(r => r.no !== 0)
+    : Array.from({ length: opts.instMonths }, (_, i) => ({
+        no: i + 1, label: `Installment ${i + 1}`, amount: opts.instMonthlyAmt,
+        dueDate: (() => { const d = new Date(opts.instFirstDate); d.setMonth(d.getMonth() + i); return d.toISOString().slice(0, 10); })(),
+      }));
+  const balance = opts.instTotalPrice - advAmt;
+  const summaryBody = [[
+    { content: 'CONTRACT TOTAL\n' + PKR(opts.instTotalPrice), styles: { fillColor: [18, 63, 115] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' as const, halign: 'center' as const, fontSize: 7.5, cellPadding: 3.5 } },
+    { content: 'ADVANCE PAYMENT\n' + PKR(advAmt), styles: { fillColor: [214, 168, 0] as [number,number,number], textColor: [31, 41, 51] as [number,number,number], fontStyle: 'bold' as const, halign: 'center' as const, fontSize: 7.5, cellPadding: 3.5 } },
+    { content: `BALANCE (${monthlyRows.length} PAYMENTS)\n` + PKR(balance), styles: { fillColor: [240, 245, 252] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold' as const, halign: 'center' as const, fontSize: 7.5, cellPadding: 3.5 } },
+  ]];
   autoTable(doc, {
     startY: y, margin: { left: margin, right: margin },
-    head: [['#', 'Description', 'Amount', 'Due Date']],
-    body: schedBody,
-    columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 80 }, 2: { cellWidth: 40, halign: 'right' }, 3: { cellWidth: 42 } },
-    headStyles: { fillColor: [220, 231, 242] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7.5 },
-    bodyStyles: { fontSize: 7.5, textColor: [31, 41, 51], lineColor: [229, 231, 235], lineWidth: 0.2 },
-    styles: { overflow: 'linebreak', cellPadding: 2.5 },
+    body: summaryBody,
+    columnStyles: { 0: { cellWidth: 'auto' as const }, 1: { cellWidth: 'auto' as const }, 2: { cellWidth: 'auto' as const } },
+    styles: { overflow: 'linebreak', lineColor: [229, 231, 235] as [number,number,number], lineWidth: 0.2 },
   });
   // @ts-ignore
-  y = (doc as any).lastAutoTable.finalY + 8;
+  y = (doc as any).lastAutoTable.finalY + 4;
+
+  // ── Tables 2 & 3: Payment schedule — 2 column split ───────────────────────
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(100, 116, 139);
+  doc.text('PAYMENT SCHEDULE', margin, y + 2);
+  y += 5;
+
+  const schedColW2 = (printW - 3) / 2;
+  const cPadS = { top: 1.5, bottom: 1.5, left: 2, right: 2 };
+  const hStylesS = { fillColor: [220, 231, 242] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold' as const, fontSize: 6, cellPadding: { top: 1.2, bottom: 1.2, left: 2, right: 2 } };
+  const bStylesS = { fontSize: 6, textColor: [40,40,40] as [number,number,number], lineColor: [229,231,235] as [number,number,number], lineWidth: 0.15 as number, cellPadding: cPadS };
+  const altS = { fillColor: [250,250,250] as [number,number,number] };
+  const colS = { 0: { cellWidth: 7 }, 2: { cellWidth: 26, halign: 'right' as const }, 3: { cellWidth: 22 } };
+
+  const advRow2: any[] = [
+    { content: '0', styles: { fillColor: [246,196,0] as [number,number,number], textColor: [20,20,20] as [number,number,number], fontStyle: 'bold' as const } },
+    { content: advSched?.label ?? 'Advance', styles: { fillColor: [246,196,0] as [number,number,number], textColor: [20,20,20] as [number,number,number], fontStyle: 'bold' as const } },
+    { content: PKR(advAmt), styles: { fillColor: [246,196,0] as [number,number,number], textColor: [20,20,20] as [number,number,number], fontStyle: 'bold' as const, halign: 'right' as const } },
+    { content: advSched?.dueDate ? fmtDate(new Date(advSched.dueDate)) : 'On confirm', styles: { fillColor: [246,196,0] as [number,number,number], textColor: [20,20,20] as [number,number,number], fontStyle: 'bold' as const } },
+  ];
+  const monthlyTableRows: any[][] = monthlyRows.map(r => [
+    String(r.no), r.label, PKR(r.amount), r.dueDate ? fmtDate(new Date(r.dueDate)) : '—',
+  ]);
+  const totalRow3: any[] = [
+    { content: '', styles: { fillColor: [248,248,248] as [number,number,number] } },
+    { content: 'TOTAL', styles: { fillColor: [248,248,248] as [number,number,number], fontStyle: 'bold' as const, textColor: [40,40,40] as [number,number,number] } },
+    { content: PKR(opts.instTotalPrice), styles: { fillColor: [248,248,248] as [number,number,number], fontStyle: 'bold' as const, halign: 'right' as const, textColor: [40,40,40] as [number,number,number] } },
+    { content: '', styles: { fillColor: [248,248,248] as [number,number,number] } },
+  ];
+
+  const half2 = Math.ceil(monthlyRows.length / 2);
+  const leftSched2 = [advRow2, ...monthlyTableRows.slice(0, half2)];
+  const rightSched2 = [...monthlyTableRows.slice(half2), totalRow3];
+
+  autoTable(doc, {
+    startY: y, margin: { left: margin, right: margin + schedColW2 + 3 },
+    head: [['#', 'DESCRIPTION', 'AMOUNT', 'DATE']],
+    body: leftSched2,
+    headStyles: hStylesS, bodyStyles: bStylesS, alternateRowStyles: altS,
+    columnStyles: colS, styles: { overflow: 'linebreak' },
+    didDrawPage: () => {},
+  });
+  const leftFinalY2 = (doc as any).lastAutoTable.finalY;
+
+  autoTable(doc, {
+    startY: y, margin: { left: margin + schedColW2 + 3, right: margin },
+    head: [['#', 'DESCRIPTION', 'AMOUNT', 'DATE']],
+    body: rightSched2,
+    headStyles: hStylesS, bodyStyles: bStylesS, alternateRowStyles: altS,
+    columnStyles: colS, styles: { overflow: 'linebreak' },
+    didDrawPage: () => {},
+  });
+  const rightFinalY2 = (doc as any).lastAutoTable.finalY;
+
+  // Vertical divider between the two columns
+  const colDivX = margin + schedColW2 + 1.5;
+  doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.3);
+  doc.line(colDivX, y - 4, colDivX, Math.max(leftFinalY2, rightFinalY2));
+
+  y = Math.max(leftFinalY2, rightFinalY2) + 8;
 
   // ── 6b. Services ──────────────────────────────────────────────────────────
   const chargedAdvServices = (opts.services ?? []).filter(s => s.status === 'charged');
@@ -9534,19 +9576,10 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
         const r = data[0];
         const foundName = (r.customer_name ?? '').trim();
         const enteredName = customerName.trim();
-        // Detect name conflict: same phone, different non-empty name already entered
+        setIsExistingCustomer(true);
+        // Name conflict: phone seen before with a different non-empty name already typed
         if (foundName && enteredName && foundName.toLowerCase() !== enteredName.toLowerCase()) {
           setPhoneNameConflict(foundName);
-        } else {
-          setPhoneNameConflict(null);
-        }
-        // Phone matched a previous invoice — silently set area and existing-customer flag
-        // without requiring any user action (these don't need a confirmation click)
-        if (r.customer_area) setCustomerArea(ca => ca || r.customer_area!);
-        if (r.customer_type) setCustomerType(r.customer_type as 'house' | 'apartment' | 'commercial');
-        setIsExistingCustomer(true);
-        // Only suggest autofill banner if name is present and different from current
-        if (foundName && foundName !== enteredName) {
           setAutofillCandidate({
             name: foundName,
             email: r.customer_email ?? '',
@@ -9556,7 +9589,15 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
             customerType: (r.customer_type ?? 'house') as 'house' | 'apartment' | 'commercial',
           });
         } else {
+          // Auto-fill all empty fields immediately — no button click required
+          setPhoneNameConflict(null);
           setAutofillCandidate(null);
+          if (foundName && !enteredName) setCustomerName(foundName);
+          if (r.customer_email)   setCustomerEmail(ce => ce || r.customer_email!);
+          if (r.customer_address) setCustomerAddress(ca => ca || r.customer_address!);
+          if (r.customer_cnic)    setCustomerCnic(cc => cc || r.customer_cnic!);
+          if (r.customer_area)    setCustomerArea(ca => ca || r.customer_area!);
+          if (r.customer_type)    setCustomerType(r.customer_type as 'house' | 'apartment' | 'commercial');
         }
       } else {
         setAutofillCandidate(null);
@@ -10357,6 +10398,14 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
         customerArea,
         paymentStatus: 'partial',
       });
+      // Auto-save parent invoice edits
+      const parentPayload = buildCurrentLogPayload();
+      if (editingInvoiceId) {
+        updateInvoiceInSupabase(editingInvoiceId, parentPayload);
+      } else {
+        const newId = await logInvoiceToSupabase(parentPayload);
+        if (newId) setEditingInvoiceId(newId);
+      }
       setInstPayPdfState('success');
       setTimeout(() => setInstPayPdfState('idle'), 3000);
     } catch {
@@ -10493,8 +10542,8 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
             )}
           </div>
           {autofillCandidate && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-brand-50 border border-brand-200 rounded-xl text-xs">
-              <span className="text-gray-600 flex-1 truncate">Returning customer: <strong>{autofillCandidate.name}</strong></span>
+            <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-300 rounded-xl text-xs">
+              <span className="text-amber-700 flex-1 truncate">Name conflict — saved as <strong>{autofillCandidate.name}</strong>. Override all fields?</span>
               <button
                 onClick={() => {
                   setCustomerName(autofillCandidate.name);
@@ -10504,12 +10553,13 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                   if (autofillCandidate.area)    setCustomerArea(autofillCandidate.area);
                   setCustomerType(autofillCandidate.customerType);
                   setIsExistingCustomer(true);
+                  setPhoneNameConflict(null);
                   setAutofillCandidate(null);
                 }}
-                className="px-3 py-1 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-lg transition-colors shrink-0">
-                Autofill
+                className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg transition-colors shrink-0">
+                Use saved
               </button>
-              <button onClick={() => setAutofillCandidate(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
+              <button onClick={() => { setAutofillCandidate(null); setPhoneNameConflict(null); }} className="text-amber-400 hover:text-amber-600 transition-colors">
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
