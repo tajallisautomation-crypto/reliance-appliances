@@ -4583,29 +4583,45 @@ const DEFAULT_PACKAGE_COMPONENTS: Record<string, PackageComponent[]> = {
 
 async function loadLogoWhite(): Promise<string> {
   let svgText = await fetch('/tajallis-logo-white.svg').then(r => r.text());
-  // Crop to just icon + Tajalli's + Home & Commercial Solutions.
-  // Remove gold divider, "From Homes to Corporates" and Urdu tagline — not appropriate for invoices.
+  // Strip all text elements and divider line — icon only; brand text is added programmatically.
   svgText = svgText
+    .replace(/<text[\s\S]*?<\/text>/g, '')
     .replace(/<line[^>]*y1="275"[^>]*\/>/g, '')
-    .replace(/<text[^>]*>From Homes to Corporates<\/text>/g, '')
-    .replace(/<text[^>]*direction="rtl"[^>]*>[\s\S]*?<\/text>/g, '')
-    // Crop viewBox to y=268 (bottom of "Home & Commercial Solutions" glyphs)
-    .replace(/viewBox="0 0 500 335"/, 'viewBox="0 0 500 268"');
+    .replace(/viewBox="0 0 500 335"/, 'viewBox="170 0 165 165"');
   const blob = new Blob([svgText], { type: 'image/svg+xml' });
   const url = URL.createObjectURL(blob);
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      canvas.width = 500; canvas.height = 268;
+      canvas.width = 165; canvas.height = 165;
       const ctx = canvas.getContext('2d')!;
-      ctx.drawImage(img, 0, 0, 500, 268);
+      ctx.drawImage(img, 0, 0, 165, 165);
       URL.revokeObjectURL(url);
       resolve(canvas.toDataURL('image/png'));
     };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('logo load failed')); };
     img.src = url;
   });
+}
+
+function renderUrduHeaderImage(widthMm: number): string | null {
+  try {
+    const text = 'گھر سے کاروبار تک، ہر ضرورت کا قابلِ اعتماد حل';
+    const w = Math.round(widthMm * 8);
+    const h = 56;
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.font = '28px "Noto Nastaliq Urdu","Jameel Noori Nastaleeq","Urdu Typesetting","Arial Unicode MS",serif';
+    ctx.fillStyle = 'rgba(196,213,236,0.85)';
+    ctx.direction = 'rtl';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(text, w - 4, 44);
+    return canvas.toDataURL('image/png');
+  } catch { return null; }
 }
 
 async function loadQrBase64(): Promise<string> {
@@ -4780,24 +4796,20 @@ async function generateQuotationPdf(opts: {
   const leftAutoMarginRight = W - (margin + leftW); // autoTable right margin for left column
 
   // ── ① HEADER STRIP (31mm) ─────────────────────────────────────────────────────
-  const HEADER_H = 31;
+  const HEADER_H = 38;
   const badgeLabel =
     opts.docType === 'service_receipt'             ? 'SERVICE RECEIPT'  :
     opts.docType === 'installment_payment_receipt' ? 'PAYMENT RECEIPT'  :
     opts.docType === 'invoice'                     ? 'INVOICE'          : 'QUOTATION';
 
-  // Main navy band
   doc.setFillColor(NAVY);
   doc.rect(0, 0, W, HEADER_H, 'F');
-
-  // Right meta zone — aligned with right column (rightX) for visual consistency with body layout
   doc.setFillColor(11, 37, 69);
   doc.rect(rightX, 0, W - rightX, HEADER_H, 'F');
 
-  // Logo — fills left zone of header; logo SVG already contains brand text
-  const _logoH = 27;
-  const _logoW = Math.round(_logoH * 500 / 268); // preserve aspect ratio
-  const _logoY = Math.round((HEADER_H - _logoH) / 2);
+  // Icon (square, brand text added below programmatically)
+  const _logoH = 26; const _logoW = 26;
+  const _logoY = 4;
   if (logoData) {
     doc.addImage(logoData, 'PNG', margin, _logoY, _logoW, _logoH);
   } else {
@@ -4805,24 +4817,31 @@ async function generateQuotationPdf(opts: {
     doc.text("Tajalli's", margin, 17);
   }
 
-  // Right meta zone: doc-type label (tiny, muted) → REF (large, dominant) → date (small)
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
-  doc.text(badgeLabel, W - margin, 7, { align: 'right' });
+  // Brand text block — right of icon
+  const _brandX = margin + _logoW + 4;
+  const _brandTop = _logoY;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
-  doc.text(opts.refNumber, W - margin, 17, { align: 'right' });
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
-  doc.text(dateStr, W - margin, 24, { align: 'right' });
+  doc.text("Tajalli’s", _brandX, _brandTop + 8);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(246, 196, 0);
+  doc.text('Home & Commercial Solutions', _brandX, _brandTop + 15);
+  doc.setFont('helvetica', 'italic'); doc.setFontSize(5); doc.setTextColor(196, 213, 236);
+  doc.text('From Homes to Businesses, Solutions That Power Life.', _brandX, _brandTop + 21);
+  const _urduImg = renderUrduHeaderImage(rightX - _brandX - 4);
+  if (_urduImg) doc.addImage(_urduImg, 'PNG', _brandX, _brandTop + 23, rightX - _brandX - 4, 7);
 
-  // Vertical separator — aligns with right column left edge
+  // Right zone: doc-type label → REF → date
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
+  doc.text(badgeLabel, W - margin, 10, { align: 'right' });
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
+  doc.text(opts.refNumber, W - margin, 21, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
+  doc.text(dateStr, W - margin, 29, { align: 'right' });
+
   doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
   doc.line(rightX, 3, rightX, HEADER_H - 3);
   doc.setLineWidth(0.2);
-
-  // Gold accent stripe at bottom of header (mirrors brand navbar gold stripe)
   doc.setFillColor(GOLD);
   doc.rect(0, HEADER_H - 1.2, W, 1.2, 'F');
-
-  // Contact strip — full width just above gold stripe
   doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(196, 213, 236);
   const contactParts = ['L-152 & 153, Sector 11C-1, North Karachi', '+92 370 2578788', 'support@tajallis.com.pk'];
   if (opts.showNtn) contactParts.push('NTN: 42101-3836602-3');
@@ -6204,8 +6223,8 @@ async function generateInstallmentAdvancePdf(opts: {
   let waQrDataAdv: string | null = null;
   try { waQrDataAdv = await generateQrDataUrl('https://wa.me/923702578788'); } catch { /* skip */ }
 
-  // ── 1. Unified header (matches main invoice) ─────────────────────────────
-  const HEADER_H = 31;
+  // ── 1. Unified header ────────────────────────────────────────────────────
+  const HEADER_H = 38;
   const fmtPKPhone = (p: string) => {
     const d = p.replace(/\D/g, '');
     if (d.length === 11 && d.startsWith('0')) return '+92 ' + d.slice(1, 4) + ' ' + d.slice(4);
@@ -6217,20 +6236,29 @@ async function generateInstallmentAdvancePdf(opts: {
   doc.rect(0, 0, W, HEADER_H, 'F');
   doc.setFillColor(11, 37, 69);
   doc.rect(headerRightX, 0, W - headerRightX, HEADER_H, 'F');
-  const _logoH = 27; const _logoW = Math.round(_logoH * 500 / 268);
-  const _logoY = Math.round((HEADER_H - _logoH) / 2);
+
   if (logoData) {
-    doc.addImage(logoData, 'PNG', margin, _logoY, _logoW, _logoH);
+    doc.addImage(logoData, 'PNG', margin, 4, 26, 26);
   } else {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
     doc.text("Tajalli's", margin, 17);
   }
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
-  doc.text('ADVANCE INVOICE', W - margin, 7, { align: 'right' });
+  const _advBrandX = margin + 26 + 4;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
-  doc.text(opts.refNumber, W - margin, 17, { align: 'right' });
+  doc.text("Tajalli's", _advBrandX, 12);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(246, 196, 0);
+  doc.text('Home & Commercial Solutions', _advBrandX, 19);
+  doc.setFont('helvetica', 'italic'); doc.setFontSize(5); doc.setTextColor(196, 213, 236);
+  doc.text('From Homes to Businesses, Solutions That Power Life.', _advBrandX, 25);
+  const _advUrduImg = renderUrduHeaderImage(headerRightX - _advBrandX - 4);
+  if (_advUrduImg) doc.addImage(_advUrduImg, 'PNG', _advBrandX, 27, headerRightX - _advBrandX - 4, 7);
+
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
+  doc.text('ADVANCE INVOICE', W - margin, 10, { align: 'right' });
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
+  doc.text(opts.refNumber, W - margin, 21, { align: 'right' });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
-  doc.text(dateStr, W - margin, 24, { align: 'right' });
+  doc.text(dateStr, W - margin, 29, { align: 'right' });
   doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
   doc.line(headerRightX, 3, headerRightX, HEADER_H - 3);
   doc.setLineWidth(0.2);
@@ -6354,31 +6382,82 @@ async function generateInstallmentAdvancePdf(opts: {
   // @ts-ignore
   y = (doc as any).lastAutoTable.finalY + 6;
 
-  // ── 5. Financing transparency box ─────────────────────────────────────────
+  // ── 5. Side-by-side: Services/Charges (left) + Financing breakdown (right) ──
+  const _finBoxX = W - margin - 90; const _finBoxW = 90;
+  // Left column right margin: 4mm gap before financing box
+  const _svcRightMgn = W - (_finBoxX - 4); // = 112mm from right edge
+  const chargedAdvServices = (opts.services ?? []).filter(s => s.status === 'charged');
+  const includedAdvServices = (opts.services ?? []).filter(s => s.status === 'included');
+  const _hasAnyServices = chargedAdvServices.length > 0 || includedAdvServices.length > 0;
+  const _hasAnyCC = (opts.customCharges ?? []).length > 0;
+  const _secStartY = y;
+  let _svcEndY = y;
+
+  if (_hasAnyServices) {
+    const svcBodyAdv = [...chargedAdvServices, ...includedAdvServices].map(svc => {
+      const sl = svc.status === 'charged' ? 'BILLED' : 'INCL';
+      const sc: [number,number,number] = svc.status === 'charged' ? [18,63,115] : [22,134,90];
+      const sv = svc.display_value ? svc.display_value : svc.status === 'charged' ? PKR(svc.charged_amount) : 'Included';
+      return [
+        { content: svc.service_name, styles: { fontStyle: 'bold' as const } },
+        { content: sl, styles: { textColor: sc, fontStyle: 'bold' as const, halign: 'center' as const } },
+        { content: sv, styles: { halign: 'right' as const } },
+      ];
+    });
+    autoTable(doc, {
+      startY: y, margin: { left: margin, right: _svcRightMgn },
+      head: [['SERVICE', 'STATUS', 'AMOUNT']],
+      body: svcBodyAdv,
+      columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 15, halign: 'center' as const }, 2: { cellWidth: 25, halign: 'right' as const } },
+      headStyles: { fillColor: [220,231,242] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold', fontSize: 6.5 },
+      bodyStyles: { fontSize: 6.5, textColor: [31,41,51], lineColor: [229,231,235], lineWidth: 0.15 },
+      styles: { overflow: 'linebreak', cellPadding: 1.5 },
+    });
+    _svcEndY = (doc as any).lastAutoTable.finalY;
+  }
+
+  if (_hasAnyCC) {
+    const ccBodyAdv = opts.customCharges!.map(c => [
+      { content: c.name, styles: { fontStyle: 'bold' as const } },
+      { content: PKR(c.amount), styles: { halign: 'right' as const, fontStyle: 'bold' as const } },
+    ]);
+    autoTable(doc, {
+      startY: _svcEndY + (_hasAnyServices ? 3 : 0), margin: { left: margin, right: _svcRightMgn },
+      head: [['ADDITIONAL CHARGE', 'AMOUNT']],
+      body: ccBodyAdv,
+      columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 25, halign: 'right' as const } },
+      headStyles: { fillColor: [220,231,242] as [number,number,number], textColor: [18,63,115] as [number,number,number], fontStyle: 'bold', fontSize: 6.5 },
+      bodyStyles: { fontSize: 6.5, textColor: [31,41,51], lineColor: [229,231,235], lineWidth: 0.15 },
+      styles: { overflow: 'linebreak', cellPadding: 1.5 },
+    });
+    _svcEndY = (doc as any).lastAutoTable.finalY;
+  }
+
+  // Financing breakdown — right column, same start y as services
   const financingCharge = opts.instTotalPrice - cashPrice;
   const remainingBalance = opts.instTotalPrice - opts.instAdvanceAmt;
   const firstDueStr = opts.instFirstDate ? fmtDate(new Date(opts.instFirstDate)) : '—';
-  const finBoxX = W - margin - 90; const finBoxW = W - margin - finBoxX;
+  const finBoxX = _finBoxX; const finBoxW = _finBoxW;
   const finRows: Array<[string, string, boolean]> = [
-    ['Cash Price',         PKR(cashPrice),              false],
-    ['Financing Charge',   `+ ${PKR(financingCharge)}`, false],
-    ['Installment Total',  PKR(opts.instTotalPrice),    true ],
+    ['Cash Price',        PKR(cashPrice),              false],
+    ['Financing Charge',  `+ ${PKR(financingCharge)}`, false],
+    ['Installment Total', PKR(opts.instTotalPrice),    true ],
     [_advIsPaid ? 'Advance Paid' : 'Advance Due', PKR(opts.instAdvanceAmt), false],
-    ['Remaining Balance',  PKR(remainingBalance),       false],
+    ['Remaining Balance', PKR(remainingBalance),       false],
   ];
   const finRowH = 5.5; const finBoxH = finRows.length * finRowH + 11 + 7;
   doc.setFillColor(243, 246, 250);
-  doc.rect(finBoxX, y, finBoxW, finBoxH, 'F');
+  doc.rect(finBoxX, _secStartY, finBoxW, finBoxH, 'F');
   doc.setDrawColor(201, 214, 226); doc.setLineWidth(0.4);
-  doc.rect(finBoxX, y, finBoxW, finBoxH, 'S');
+  doc.rect(finBoxX, _secStartY, finBoxW, finBoxH, 'S');
   doc.setFillColor(214, 168, 0);
-  doc.rect(finBoxX, y, 3, 5, 'F');
+  doc.rect(finBoxX, _secStartY, 3, 5, 'F');
   doc.setFillColor(243, 246, 250);
-  doc.rect(finBoxX + 3, y, finBoxW - 3, 5, 'F');
+  doc.rect(finBoxX + 3, _secStartY, finBoxW - 3, 5, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(18, 63, 115);
-  doc.text('FINANCING BREAKDOWN', finBoxX + 6, y + 3.5);
+  doc.text('FINANCING BREAKDOWN', finBoxX + 6, _secStartY + 3.5);
   doc.setLineWidth(0.2);
-  let finY = y + 5 + finRowH;
+  let finY = _secStartY + 5 + finRowH;
   for (const [lbl, val, isTot] of finRows) {
     if (isTot) {
       doc.setDrawColor(201, 214, 226); doc.setLineWidth(0.3);
@@ -6387,10 +6466,10 @@ async function generateInstallmentAdvancePdf(opts: {
     }
     const isAdvPaid = lbl === 'Advance Paid';
     doc.setFont('helvetica', (isTot || isAdvPaid) ? 'bold' : 'normal'); doc.setFontSize(6.5);
-    doc.setTextColor(...(isTot ? [18, 63, 115] as [number,number,number] : isAdvPaid ? [22, 134, 90] as [number,number,number] : [107, 114, 128] as [number,number,number]));
+    doc.setTextColor(...(isTot ? [18,63,115] as [number,number,number] : isAdvPaid ? [22,134,90] as [number,number,number] : [107,114,128] as [number,number,number]));
     doc.text(lbl, finBoxX + 3, finY);
     doc.setFont('helvetica', (isTot || isAdvPaid) ? 'bold' : 'normal'); doc.setFontSize(7);
-    doc.setTextColor(...(isAdvPaid ? [22, 134, 90] as [number,number,number] : [31, 41, 51] as [number,number,number]));
+    doc.setTextColor(...(isAdvPaid ? [22,134,90] as [number,number,number] : [31,41,51] as [number,number,number]));
     doc.text(val, finBoxX + finBoxW - 3, finY, { align: 'right' });
     if (isTot) {
       doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
@@ -6400,10 +6479,10 @@ async function generateInstallmentAdvancePdf(opts: {
   }
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(18, 63, 115);
   doc.text(
-    `${opts.instMonths} × ${PKR(opts.instMonthlyAmt)}/month  ·  1st due: ${firstDueStr}`,
-    finBoxX + finBoxW / 2, y + finBoxH - 3, { align: 'center' }
+    `${opts.instMonths}x ${PKR(opts.instMonthlyAmt)}/mo  -  1st due: ${firstDueStr}`,
+    finBoxX + finBoxW / 2, _secStartY + finBoxH - 3, { align: 'center' }
   );
-  y += finBoxH + 4;
+  y = Math.max(_svcEndY, _secStartY + finBoxH) + 4;
 
   // ── 6. Installment schedule table ─────────────────────────────────────────
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.4);
@@ -6423,7 +6502,7 @@ async function generateInstallmentAdvancePdf(opts: {
   const balance = opts.instTotalPrice - advAmt;
   const summaryBody = [[
     { content: 'CONTRACT TOTAL\n' + PKR(opts.instTotalPrice), styles: { fillColor: [18, 63, 115] as [number,number,number], textColor: [255,255,255] as [number,number,number], fontStyle: 'bold' as const, halign: 'center' as const, fontSize: 7.5, cellPadding: 3.5 } },
-    { content: (_advIsPaid ? 'ADVANCE PAID ✓' : 'ADVANCE DUE') + '\n' + PKR(advAmt), styles: { fillColor: _advIsPaid ? [22, 134, 90] as [number,number,number] : [214, 168, 0] as [number,number,number], textColor: _advIsPaid ? [255,255,255] as [number,number,number] : [31, 41, 51] as [number,number,number], fontStyle: 'bold' as const, halign: 'center' as const, fontSize: 7.5, cellPadding: 3.5 } },
+    { content: (_advIsPaid ? 'ADVANCE PAID' : 'ADVANCE DUE') + '\n' + PKR(advAmt), styles: { fillColor: _advIsPaid ? [22, 134, 90] as [number,number,number] : [214, 168, 0] as [number,number,number], textColor: _advIsPaid ? [255,255,255] as [number,number,number] : [31, 41, 51] as [number,number,number], fontStyle: 'bold' as const, halign: 'center' as const, fontSize: 7.5, cellPadding: 3.5 } },
     { content: `BALANCE (${monthlyRows.length} PAYMENTS)\n` + PKR(balance), styles: { fillColor: [240, 245, 252] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold' as const, halign: 'center' as const, fontSize: 7.5, cellPadding: 3.5 } },
   ]];
   autoTable(doc, {
@@ -6447,11 +6526,14 @@ async function generateInstallmentAdvancePdf(opts: {
   const altS = { fillColor: [250,250,250] as [number,number,number] };
   const colS = { 0: { cellWidth: 7 }, 2: { cellWidth: 26, halign: 'right' as const }, 3: { cellWidth: 22 } };
 
+  const _advRowFill: [number,number,number] = _advIsPaid ? [22, 134, 90] : [246, 196, 0];
+  const _advRowText: [number,number,number] = _advIsPaid ? [255, 255, 255] : [20, 20, 20];
+  const _advRowLabel = (advSched?.label ?? 'Advance') + (_advIsPaid ? ' (PAID)' : '');
   const advRow2: any[] = [
-    { content: '0', styles: { fillColor: [246,196,0] as [number,number,number], textColor: [20,20,20] as [number,number,number], fontStyle: 'bold' as const } },
-    { content: advSched?.label ?? 'Advance', styles: { fillColor: [246,196,0] as [number,number,number], textColor: [20,20,20] as [number,number,number], fontStyle: 'bold' as const } },
-    { content: PKR(advAmt), styles: { fillColor: [246,196,0] as [number,number,number], textColor: [20,20,20] as [number,number,number], fontStyle: 'bold' as const, halign: 'right' as const } },
-    { content: advSched?.dueDate ? fmtDate(new Date(advSched.dueDate)) : 'On confirm', styles: { fillColor: [246,196,0] as [number,number,number], textColor: [20,20,20] as [number,number,number], fontStyle: 'bold' as const } },
+    { content: '0', styles: { fillColor: _advRowFill, textColor: _advRowText, fontStyle: 'bold' as const } },
+    { content: _advRowLabel, styles: { fillColor: _advRowFill, textColor: _advRowText, fontStyle: 'bold' as const } },
+    { content: PKR(advAmt), styles: { fillColor: _advRowFill, textColor: _advRowText, fontStyle: 'bold' as const, halign: 'right' as const } },
+    { content: advSched?.dueDate ? fmtDate(new Date(advSched.dueDate)) : 'On confirm', styles: { fillColor: _advRowFill, textColor: _advRowText, fontStyle: 'bold' as const } },
   ];
   const monthlyTableRows: any[][] = monthlyRows.map(r => [
     String(r.no), r.label, PKR(r.amount), r.dueDate ? fmtDate(new Date(r.dueDate)) : '—',
@@ -6493,54 +6575,6 @@ async function generateInstallmentAdvancePdf(opts: {
   doc.line(colDivX, y - 4, colDivX, Math.max(leftFinalY2, rightFinalY2));
 
   y = Math.max(leftFinalY2, rightFinalY2) + 8;
-
-  // ── 6b. Services ──────────────────────────────────────────────────────────
-  const chargedAdvServices = (opts.services ?? []).filter(s => s.status === 'charged');
-  const includedAdvServices = (opts.services ?? []).filter(s => s.status === 'included');
-  if (chargedAdvServices.length > 0 || includedAdvServices.length > 0) {
-    const svcBodyAdv = [...chargedAdvServices, ...includedAdvServices].map(svc => {
-      const statusLabel = svc.status === 'charged' ? 'BILLED' : 'INCL';
-      const statusColor: [number, number, number] = svc.status === 'charged' ? [18, 63, 115] : [22, 134, 90];
-      const valueStr = svc.display_value
-        ? svc.display_value
-        : svc.status === 'charged' ? PKR(svc.charged_amount) : 'Included';
-      return [
-        { content: svc.service_name, styles: { fontStyle: 'bold' as const } },
-        { content: statusLabel, styles: { textColor: statusColor, fontStyle: 'bold' as const, halign: 'center' as const } },
-        { content: valueStr, styles: { halign: 'right' as const } },
-      ];
-    });
-    autoTable(doc, {
-      startY: y, margin: { left: margin, right: margin },
-      head: [['SERVICE', 'STATUS', 'AMOUNT']],
-      body: svcBodyAdv,
-      columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 18, halign: 'center' as const }, 2: { cellWidth: 35, halign: 'right' as const } },
-      headStyles: { fillColor: [220, 231, 242] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7 },
-      bodyStyles: { fontSize: 7, textColor: [31, 41, 51], lineColor: [229, 231, 235], lineWidth: 0.15 },
-      styles: { overflow: 'linebreak', cellPadding: 1.5 },
-    });
-    // @ts-ignore
-    y = (doc as any).lastAutoTable.finalY + 6;
-  }
-
-  // ── 6c. Custom charges ─────────────────────────────────────────────────────
-  if ((opts.customCharges ?? []).length > 0) {
-    const ccBodyAdv = opts.customCharges!.map(c => [
-      { content: c.name, styles: { fontStyle: 'bold' as const } },
-      { content: PKR(c.amount), styles: { halign: 'right' as const, fontStyle: 'bold' as const } },
-    ]);
-    autoTable(doc, {
-      startY: y, margin: { left: margin, right: margin },
-      head: [['ADDITIONAL CHARGE', 'AMOUNT']],
-      body: ccBodyAdv,
-      columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 35, halign: 'right' as const } },
-      headStyles: { fillColor: [220, 231, 242] as [number,number,number], textColor: [18, 63, 115] as [number,number,number], fontStyle: 'bold', fontSize: 7 },
-      bodyStyles: { fontSize: 7, textColor: [31, 41, 51], lineColor: [229, 231, 235], lineWidth: 0.15 },
-      styles: { overflow: 'linebreak', cellPadding: 1.5 },
-    });
-    // @ts-ignore
-    y = (doc as any).lastAutoTable.finalY + 6;
-  }
 
   // ── 6d. Guarantor block ────────────────────────────────────────────────────
   if (opts.guarantorName?.trim() || opts.guarantorCnic?.trim()) {
@@ -6704,15 +6738,17 @@ async function generateInstallmentAdvancePdf(opts: {
   doc.setLineWidth(0.2);
   const _advBankTx = margin + 4.5;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
-  doc.text('BANK TRANSFER — PAY ADVANCE NOW', _advBankTx, y + 6);
+  doc.text(_advIsPaid ? 'BANK TRANSFER — PAYMENT DETAILS' : 'BANK TRANSFER — PAY ADVANCE NOW', _advBankTx, y + 6);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(31, 41, 51);
   doc.text("TAJALLI'S HOME & COMMERCIAL SOLUTIONS", _advBankTx, y + 13);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(31, 41, 51);
   doc.text('PK33 MEZN 0001 0601 0187 4794', _advBankTx, y + 20);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(107, 114, 128);
   doc.text('Meezan Bank — F.B Area Branch', _advBankTx, y + 27);
-  doc.setFont('helvetica', 'italic'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
-  doc.text('Send deposit slip via WhatsApp to confirm order.', _advBankTx, y + 33, { maxWidth: _advBankColW - 8 });
+  if (!_advIsPaid) {
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(6); doc.setTextColor(22, 101, 52);
+    doc.text('Send deposit slip via WhatsApp to confirm order.', _advBankTx, y + 33, { maxWidth: _advBankColW - 8 });
+  }
   const _advQrSz = 22;
   const _advQrX = _advQrColX + (_advQrColW - _advQrSz) / 2;
   const _advQrY = y + 4;
@@ -6781,9 +6817,43 @@ async function generateInstallmentAdvancePdf(opts: {
     y += _advTrustH + 4;
   }
 
-  // ── 8. CTA ────────────────────────────────────────────────────────────────
+  // ── 8. Client Signature ───────────────────────────────────────────────────
+  {
+    const _csH = 24;
+    const _csMid = Math.round(printW / 2) - 4;
+    doc.setFillColor(250, 250, 252);
+    doc.rect(margin, y, printW, _csH, 'F');
+    doc.setDrawColor(201, 214, 226); doc.setLineWidth(0.3);
+    doc.rect(margin, y, printW, _csH, 'S');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(6); doc.setTextColor(107, 114, 128);
+    doc.text('ACKNOWLEDGEMENT & SIGNATURE', margin + 4, y + 4.5);
+    const _csSigY = y + 19;
+    // Left: client
+    doc.setDrawColor(140, 140, 140); doc.setLineWidth(0.3);
+    doc.line(margin + 4, _csSigY, margin + _csMid, _csSigY);
+    if (opts.customerName) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(160, 160, 160);
+      doc.text(opts.customerName, margin + 4, _csSigY - 5, { maxWidth: _csMid - 8 });
+    }
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(4.8); doc.setTextColor(130, 130, 130);
+    doc.text('Client Signature & Date', margin + 4, _csSigY + 3.5);
+    // Right: authorized
+    const _csRX = margin + _csMid + 8;
+    doc.line(_csRX, _csSigY, W - margin - 4, _csSigY);
+    if (opts.preparedBy) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(160, 160, 160);
+      doc.text(opts.preparedBy, _csRX, _csSigY - 5);
+    }
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(4.8); doc.setTextColor(130, 130, 130);
+    doc.text('Authorized Signature & Stamp', _csRX, _csSigY + 3.5);
+    y += _csH + 4;
+  }
+
+  // ── 9. CTA ────────────────────────────────────────────────────────────────
+  if (!_advIsPaid) {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(18, 63, 115);
   doc.text('To confirm order, share deposit slip on WhatsApp: +92 370 2578788', W / 2, y, { align: 'center' });
+  }
 
   // ── 9. Footer ─────────────────────────────────────────────────────────────
   const footerY = 282;
@@ -6816,6 +6886,7 @@ async function generateInstallmentPaymentPdf(opts: {
   paymentNumber: number;
   customCharges?: Array<{ name: string; amount: number }>;
   showNtn?: boolean;
+  paymentStatus?: string;
 }): Promise<Blob> {
   const NAVY  = '#123F73';
   const DNAV  = '#0B2545';
@@ -6845,8 +6916,8 @@ async function generateInstallmentPaymentPdf(opts: {
   let waQrData: string | null = null;
   try { waQrData = await generateQrDataUrl('https://wa.me/923702578788'); } catch { /* skip */ }
 
-  // ── 1. Unified header (matches main invoice) ─────────────────────────────
-  const HEADER_H_PY = 31;
+  // ── 1. Unified header ────────────────────────────────────────────────────
+  const HEADER_H_PY = 38;
   const fmtPKPhone = (p: string) => {
     const d = p.replace(/\D/g, '');
     if (d.length === 11 && d.startsWith('0')) return '+92 ' + d.slice(1, 4) + ' ' + d.slice(4);
@@ -6858,20 +6929,29 @@ async function generateInstallmentPaymentPdf(opts: {
   doc.rect(0, 0, W, HEADER_H_PY, 'F');
   doc.setFillColor(11, 37, 69);
   doc.rect(_pyHeaderRX, 0, W - _pyHeaderRX, HEADER_H_PY, 'F');
-  const _pyLogoH = 27; const _pyLogoW = Math.round(_pyLogoH * 500 / 268);
-  const _pyLogoY = Math.round((HEADER_H_PY - _pyLogoH) / 2);
+
   if (logoData) {
-    doc.addImage(logoData, 'PNG', margin, _pyLogoY, _pyLogoW, _pyLogoH);
+    doc.addImage(logoData, 'PNG', margin, 4, 26, 26);
   } else {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
     doc.text("Tajalli's", margin, 17);
   }
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
-  doc.text('PAYMENT RECEIPT', W - margin, 7, { align: 'right' });
+  const _pyBrandX = margin + 26 + 4;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
-  doc.text(opts.refNumber, W - margin, 17, { align: 'right' });
+  doc.text("Tajalli's", _pyBrandX, 12);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(246, 196, 0);
+  doc.text('Home & Commercial Solutions', _pyBrandX, 19);
+  doc.setFont('helvetica', 'italic'); doc.setFontSize(5); doc.setTextColor(196, 213, 236);
+  doc.text('From Homes to Businesses, Solutions That Power Life.', _pyBrandX, 25);
+  const _pyUrduImg = renderUrduHeaderImage(_pyHeaderRX - _pyBrandX - 4);
+  if (_pyUrduImg) doc.addImage(_pyUrduImg, 'PNG', _pyBrandX, 27, _pyHeaderRX - _pyBrandX - 4, 7);
+
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
+  doc.text('PAYMENT RECEIPT', W - margin, 10, { align: 'right' });
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
+  doc.text(opts.refNumber, W - margin, 21, { align: 'right' });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
-  doc.text(dateStr, W - margin, 24, { align: 'right' });
+  doc.text(dateStr, W - margin, 29, { align: 'right' });
   doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
   doc.line(_pyHeaderRX, 3, _pyHeaderRX, HEADER_H_PY - 3);
   doc.setLineWidth(0.2);
@@ -7000,7 +7080,16 @@ async function generateInstallmentPaymentPdf(opts: {
 
   const schedBody: any[] = [];
   const advSchedPay = opts.instScheduleRows?.find(r => r.no === 0);
-  schedBody.push(['0', advSchedPay?.label ?? 'Advance Payment', PKR(advSchedPay?.amount ?? opts.instAdvanceAmt), advSchedPay?.dueDate ? fmtDate(new Date(advSchedPay.dueDate)) : 'Upon Confirmation']);
+  const _pyAdvIsPaid = opts.paymentStatus === 'paid' || opts.paymentStatus === 'partial' || opts.paymentStatus === 'advance_paid';
+  const _pyAdvFill: [number,number,number] = _pyAdvIsPaid ? [22, 134, 90] : [246, 196, 0];
+  const _pyAdvText: [number,number,number] = _pyAdvIsPaid ? [255, 255, 255] : [20, 20, 20];
+  const _pyAdvLabel = (advSchedPay?.label ?? 'Advance Payment') + (_pyAdvIsPaid ? ' (PAID)' : '');
+  schedBody.push([
+    { content: '0', styles: { fillColor: _pyAdvFill, textColor: _pyAdvText, fontStyle: 'bold' as const } },
+    { content: _pyAdvLabel, styles: { fillColor: _pyAdvFill, textColor: _pyAdvText, fontStyle: 'bold' as const } },
+    { content: PKR(advSchedPay?.amount ?? opts.instAdvanceAmt), styles: { fillColor: _pyAdvFill, textColor: _pyAdvText, fontStyle: 'bold' as const, halign: 'right' as const } },
+    { content: advSchedPay?.dueDate ? fmtDate(new Date(advSchedPay.dueDate)) : 'Upon Confirmation', styles: { fillColor: _pyAdvFill, textColor: _pyAdvText, fontStyle: 'bold' as const } },
+  ]);
   const payRows = opts.instScheduleRows && opts.instScheduleRows.length > 0
     ? opts.instScheduleRows.filter(r => r.no !== 0)
     : Array.from({ length: opts.instMonths }, (_, i) => {
@@ -7011,10 +7100,17 @@ async function generateInstallmentPaymentPdf(opts: {
     const dStr = r.dueDate ? fmtDate(new Date(r.dueDate)) : '\u2014';
     if (r.no === opts.paymentNumber) {
       schedBody.push([
-        { content: String(r.no), styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold' } },
-        { content: `${r.label}  \u2190 THIS PAYMENT`, styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold' } },
-        { content: PKR(r.amount), styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold', halign: 'right' as const } },
-        { content: dStr, styles: { fillColor: [214, 168, 0], textColor: [31, 41, 51], fontStyle: 'bold' } },
+        { content: String(r.no), styles: { fillColor: [214, 168, 0] as [number,number,number], textColor: [20, 20, 20] as [number,number,number], fontStyle: 'bold' as const } },
+        { content: `${r.label}  \u2192 UPCOMING`, styles: { fillColor: [214, 168, 0] as [number,number,number], textColor: [20, 20, 20] as [number,number,number], fontStyle: 'bold' as const } },
+        { content: PKR(r.amount), styles: { fillColor: [214, 168, 0] as [number,number,number], textColor: [20, 20, 20] as [number,number,number], fontStyle: 'bold' as const, halign: 'right' as const } },
+        { content: dStr, styles: { fillColor: [214, 168, 0] as [number,number,number], textColor: [20, 20, 20] as [number,number,number], fontStyle: 'bold' as const } },
+      ]);
+    } else if (r.no < opts.paymentNumber) {
+      schedBody.push([
+        { content: String(r.no), styles: { fillColor: [22, 134, 90] as [number,number,number], textColor: [255, 255, 255] as [number,number,number], fontStyle: 'bold' as const } },
+        { content: `${r.label} (PAID)`, styles: { fillColor: [22, 134, 90] as [number,number,number], textColor: [255, 255, 255] as [number,number,number], fontStyle: 'bold' as const } },
+        { content: PKR(r.amount), styles: { fillColor: [22, 134, 90] as [number,number,number], textColor: [255, 255, 255] as [number,number,number], fontStyle: 'bold' as const, halign: 'right' as const } },
+        { content: dStr, styles: { fillColor: [22, 134, 90] as [number,number,number], textColor: [255, 255, 255] as [number,number,number], fontStyle: 'bold' as const } },
       ]);
     } else {
       schedBody.push([String(r.no), r.label, PKR(r.amount), dStr]);
@@ -7214,26 +7310,37 @@ async function generateServiceReceiptPdf(opts: {
   try { qrData = await loadQrBase64(); } catch { /* skip */ }
 
   // ── Header ───────────────────────────────────────────────────────────────
-  const HEADER_H = 32;
+  const HEADER_H = 38;
+  const _srRightX = W - 62;
   doc.setFillColor(NAVY);
   doc.rect(0, 0, W, HEADER_H, 'F');
-  doc.setFillColor(DNAV);
-  doc.rect(W - 62, 0, 62, HEADER_H, 'F');
+  doc.setFillColor(11, 37, 69);
+  doc.rect(_srRightX, 0, 62, HEADER_H, 'F');
+
   if (logoData) {
-    const _srLogoH = 28; const _srLogoW = Math.round(_srLogoH * 500 / 268);
-    doc.addImage(logoData, 'PNG', margin, 2, _srLogoW, _srLogoH);
+    doc.addImage(logoData, 'PNG', margin, 4, 26, 26);
   } else {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
     doc.text("Tajalli's", margin, 17);
   }
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
-  doc.text('SERVICE RECEIPT', W - margin, 7, { align: 'right' });
+  const _srBrandX = margin + 26 + 4;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
-  doc.text(opts.refNumber, W - margin, 17, { align: 'right' });
+  doc.text("Tajalli's", _srBrandX, 12);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(246, 196, 0);
+  doc.text('Home & Commercial Solutions', _srBrandX, 19);
+  doc.setFont('helvetica', 'italic'); doc.setFontSize(5); doc.setTextColor(196, 213, 236);
+  doc.text('From Homes to Businesses, Solutions That Power Life.', _srBrandX, 25);
+  const _srUrduImg = renderUrduHeaderImage(_srRightX - _srBrandX - 4);
+  if (_srUrduImg) doc.addImage(_srUrduImg, 'PNG', _srBrandX, 27, _srRightX - _srBrandX - 4, 7);
+
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
+  doc.text('SERVICE RECEIPT', W - margin, 10, { align: 'right' });
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
+  doc.text(opts.refNumber, W - margin, 21, { align: 'right' });
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(196, 213, 236);
-  doc.text(dateStr, W - margin, 24, { align: 'right' });
+  doc.text(dateStr, W - margin, 29, { align: 'right' });
   doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.5);
-  doc.line(W - 64, 3, W - 64, HEADER_H - 3);
+  doc.line(_srRightX, 3, _srRightX, HEADER_H - 3);
   doc.setLineWidth(0.2);
   doc.setFillColor(GOLD);
   doc.rect(0, HEADER_H - 1.2, W, 1.2, 'F');
@@ -10336,6 +10443,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
         customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
         guarantorName, guarantorPhone, guarantorCnic,
         discountMode, preparedBy,
+        paymentStatus: advancePaid ? 'advance_paid' : 'pending',
       });
       clearTimeout(timeout);
       const url = URL.createObjectURL(blob);
@@ -10370,6 +10478,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
         instScheduleRows: customInstSchedule.length > 0 ? customInstSchedule.map(({ no, label, dueDate, amount }) => ({ no, label, dueDate, amount })) : undefined,
         paymentNumber: instPaymentNumber, showNtn,
         customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
+        paymentStatus: advancePaid ? 'advance_paid' : 'pending',
       });
       clearTimeout(timeout);
       const url = URL.createObjectURL(blob);
