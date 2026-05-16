@@ -163,9 +163,9 @@ export default function Home() {
                 <Package className="w-3.5 h-3.5" /> Build a Package
               </Link>
 
-              {/* Stat cards — horizontal scroll on mobile, 2×2 grid on sm+ */}
-              <div className="mt-5 md:mt-6 pt-4 md:pt-5 border-t border-brand-100 overflow-x-auto no-scrollbar">
-                <div className="flex sm:grid sm:grid-cols-2 gap-2.5 pb-1 sm:pb-0">
+              {/* Stat cards — 2×2 grid on all screen sizes */}
+              <div className="mt-5 md:mt-6 pt-4 md:pt-5 border-t border-brand-100">
+                <div className="grid grid-cols-2 gap-2.5">
                   {[
                     { Icon: CalendarDays, value: '11+ Years',  label: 'Since 2015 · Karachi',       iconColor: 'text-brand-600',  iconBg: 'bg-brand-50'      },
                     { Icon: Users,        value: '14,400+',   label: 'Homes & Businesses Served',  iconColor: 'text-blue-600',   iconBg: 'bg-blue-50'       },
@@ -173,7 +173,7 @@ export default function Home() {
                     { Icon: Package,      value: '24,000+',   label: 'Orders Fulfilled',           iconColor: 'text-eco-600',    iconBg: 'bg-eco-50'        },
                   ].map(({ Icon, value, label, iconColor, iconBg }) => (
                     <div key={label}
-                      className="flex items-center gap-2.5 bg-white border border-gray-100 shadow-apple rounded-2xl px-3 py-2.5 cursor-default shrink-0 sm:shrink min-w-[140px] sm:min-w-0">
+                      className="flex items-center gap-2.5 bg-white border border-gray-100 shadow-apple rounded-2xl px-3 py-2.5 cursor-default">
                       <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
                         <Icon className={`w-4 h-4 ${iconColor}`} />
                       </div>
