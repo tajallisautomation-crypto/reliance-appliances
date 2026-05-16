@@ -116,7 +116,7 @@ export default function Home() {
       />
 
       {/* ── HERO ─────────────────────────────────────────────────── */}
-      <section className="relative bg-gradient-to-b from-brand-50/50 via-brand-50/20 to-white">
+      <section className="relative bg-gradient-to-b from-brand-50/50 via-brand-50/20 to-white overflow-x-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-10 md:pt-20 md:pb-24">
           <div className="grid md:grid-cols-2 gap-12 lg:gap-20 items-center">
 
@@ -164,8 +164,8 @@ export default function Home() {
               </Link>
 
               {/* Stat cards — horizontal scroll on mobile, 2×2 grid on sm+ */}
-              <div className="mt-5 md:mt-6 pt-4 md:pt-5 border-t border-brand-100 -mx-4 sm:mx-0">
-                <div className="flex sm:grid sm:grid-cols-2 gap-2.5 overflow-x-auto no-scrollbar px-4 sm:px-0 pb-1 sm:pb-0">
+              <div className="mt-5 md:mt-6 pt-4 md:pt-5 border-t border-brand-100 overflow-x-auto no-scrollbar">
+                <div className="flex sm:grid sm:grid-cols-2 gap-2.5 pb-1 sm:pb-0">
                   {[
                     { Icon: CalendarDays, value: '11+ Years',  label: 'Since 2015 · Karachi',       iconColor: 'text-brand-600',  iconBg: 'bg-brand-50'      },
                     { Icon: Users,        value: '14,400+',   label: 'Homes & Businesses Served',  iconColor: 'text-blue-600',   iconBg: 'bg-blue-50'       },
@@ -173,7 +173,7 @@ export default function Home() {
                     { Icon: Package,      value: '24,000+',   label: 'Orders Fulfilled',           iconColor: 'text-eco-600',    iconBg: 'bg-eco-50'        },
                   ].map(({ Icon, value, label, iconColor, iconBg }) => (
                     <div key={label}
-                      className="flex items-center gap-2.5 bg-white border border-gray-100 shadow-apple rounded-2xl px-3 py-2.5 cursor-default shrink-0 sm:shrink min-w-[148px] sm:min-w-0">
+                      className="flex items-center gap-2.5 bg-white border border-gray-100 shadow-apple rounded-2xl px-3 py-2.5 cursor-default shrink-0 sm:shrink min-w-[140px] sm:min-w-0">
                       <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
                         <Icon className={`w-4 h-4 ${iconColor}`} />
                       </div>
@@ -227,22 +227,22 @@ export default function Home() {
 
 
       {/* ── CATEGORY GRID ────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-14 pb-10 sm:pb-16">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-14 pb-10 sm:pb-16 overflow-x-hidden">
         <div className="flex items-baseline justify-between mb-4 sm:mb-6">
           <h2 className="text-xl font-black text-gray-900">Shop by Category</h2>
           <Link to="/products" className="text-sm text-brand-600 font-semibold hover:text-brand-700 flex items-center gap-1">
             All <ChevronRight className="w-3.5 h-3.5" />
           </Link>
         </div>
-        <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-9 gap-3 sm:gap-4">
+        <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-9 gap-2.5 sm:gap-4">
           {HOME_CATEGORIES.map(({ id, name, sub, Icon, color, bg, to }) => (
             <Link key={id} to={to}
-              className="group flex flex-col items-center gap-2 py-5 px-2 rounded-3xl bg-white hover:bg-brand-50 border border-gray-100 hover:border-brand-200 hover:shadow-sm transition-all duration-200 text-center">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${bg} group-hover:scale-110 transition-transform duration-200`}>
-                <Icon className={`w-5.5 h-5.5 ${color}`} />
+              className="group flex flex-col items-center gap-1.5 py-4 sm:py-5 px-1 sm:px-2 rounded-2xl sm:rounded-3xl bg-white hover:bg-brand-50 border border-gray-100 hover:border-brand-200 hover:shadow-sm transition-all duration-200 text-center min-w-0">
+              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0 ${bg} group-hover:scale-110 transition-transform duration-200`}>
+                <Icon className={`w-4.5 h-4.5 sm:w-5.5 sm:h-5.5 ${color}`} />
               </div>
-              <span className="text-[11px] font-bold text-gray-700 group-hover:text-brand-700 leading-tight">{name}</span>
-              <span className="text-[9px] text-gray-400 leading-tight">{sub}</span>
+              <span className="text-[10px] sm:text-[11px] font-bold text-gray-700 group-hover:text-brand-700 leading-tight break-words w-full">{name}</span>
+              <span className="hidden sm:block text-[9px] text-gray-400 leading-tight">{sub}</span>
             </Link>
           ))}
         </div>
