@@ -123,7 +123,7 @@ export default function Home() {
             {/* Left: text */}
             <div>
               {/* Trust badge pill */}
-              <div className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 bg-white border border-brand-100 shadow-sm rounded-full px-4 py-1.5 mb-6">
+              <div className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 bg-white border border-brand-100 shadow-sm rounded-full px-3 py-1 mb-4 md:mb-6">
                 <span className="text-brand-600 text-xs font-bold uppercase tracking-[0.18em]">Karachi</span>
                 <span className="text-brand-300 text-xs">·</span>
                 <span className="text-brand-600 text-xs font-bold uppercase tracking-[0.18em]">Since 2015</span>
@@ -254,6 +254,27 @@ export default function Home() {
       {/* ── OFFER BANNERS ────────────────────────────────────────── */}
       <OfferBannerSlider />
 
+      {/* ── MOBILE EARLY PRODUCTS — shown only on mobile before heavy sections ── */}
+      {!loading && featured.length > 0 && (
+        <section className="sm:hidden max-w-7xl mx-auto px-4 py-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-black text-gray-900">Top Picks</h2>
+            <Link to="/products?featured=true" className="text-sm text-brand-600 font-semibold flex items-center gap-1">
+              All <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {featured.slice(0, 4).map(p => <ProductCard key={p.id} product={p} />)}
+          </div>
+          <div className="text-center mt-4">
+            <Link to="/products"
+              className="inline-flex items-center gap-2 border border-brand-500 text-brand-600 font-semibold text-sm px-5 py-2.5 rounded-2xl hover:bg-brand-50 transition-all">
+              Browse All Products <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </section>
+      )}
+
       {/* ── MYOP PROMO ───────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 md:pt-24 lg:pt-32 pb-10 md:pb-20">
         <div className="relative bg-gray-950 rounded-3xl overflow-hidden">
@@ -303,14 +324,14 @@ export default function Home() {
       {/* ── INSTALLMENT ENGINE ───────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 pb-10 md:pb-16">
         <div className="bg-gray-950 rounded-3xl p-6 md:p-12">
-          <div className="text-center mb-10">
-            <p className="text-gold-400 text-xs font-bold uppercase tracking-widest mb-3">Flexible Installments</p>
-            <h2 className="text-3xl md:text-4xl font-black text-white mb-3">Own it today. Pay your way.</h2>
-            <p className="text-gray-400">No bank account needed · Advance, monthly &amp; total cost shown upfront · No hidden charges.</p>
+          <div className="text-center mb-6 md:mb-10">
+            <p className="text-gold-400 text-xs font-bold uppercase tracking-widest mb-2">Flexible Installments</p>
+            <h2 className="text-2xl md:text-4xl font-black text-white mb-2">Own it today. Pay your way.</h2>
+            <p className="text-gray-400 text-sm">No bank account needed · Advance, monthly &amp; total cost upfront.</p>
           </div>
 
           {/* Plan tabs */}
-          <div className="flex gap-1 bg-gray-800/60 p-1 rounded-2xl mb-8 max-w-md mx-auto">
+          <div className="flex gap-1 bg-gray-800/60 p-1 rounded-2xl mb-5 md:mb-8 max-w-md mx-auto">
             {PLAN_OPTIONS.map(pl => (
               <button key={pl.key} onClick={() => setActivePlan(pl.key)}
                 className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
@@ -438,16 +459,16 @@ export default function Home() {
 
       {/* ── FOR BUSINESSES ───────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
-        <div className="text-center mb-10">
+        <div className="text-center mb-6 md:mb-10">
           <div className="inline-flex items-center gap-2 text-brand-500 text-xs font-bold uppercase tracking-widest mb-2">
             <Building2 className="w-4 h-4" /> Commercial Solutions
           </div>
-          <h2 className="text-2xl md:text-3xl font-black text-gray-900">Solutions for Shops, Salons, Offices &amp; Small Businesses</h2>
-          <p className="text-gray-500 text-base mt-3 max-w-xl mx-auto">
-            From salon backup power to office cooling and restaurant appliances — we build packages for every business need, with installation and after-sales support.
+          <h2 className="text-xl md:text-3xl font-black text-gray-900">Solutions for Shops, Salons, Offices &amp; Small Businesses</h2>
+          <p className="text-gray-500 text-sm md:text-base mt-2 md:mt-3 max-w-xl mx-auto">
+            Backup power, cooling, appliances &amp; solar — packaged with installation and after-sales support.
           </p>
         </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5 mb-6 md:mb-8">
           {[
             { icon: '💇', title: 'Salon Backup Package',          desc: 'UPS, battery & AC for uninterrupted salon operations.',        href: '/build-your-package' },
             { icon: '🏢', title: 'Office Cooling Package',        desc: 'Inverter ACs with professional installation for any office.',   href: '/products?category=air-conditioners' },
@@ -457,13 +478,13 @@ export default function Home() {
             { icon: '☀️', title: 'Solar for Commercial Use',      desc: 'Reduce commercial electricity bills with solar systems.',       href: '/solar' },
           ].map(item => (
             <Link key={item.title} to={item.href}
-              className="group flex gap-4 bg-white border border-gray-100 hover:border-brand-200 hover:shadow-soft rounded-2xl p-5 transition-all">
-              <div className="text-2xl shrink-0 mt-0.5">{item.icon}</div>
+              className="group flex gap-3 sm:gap-4 bg-white border border-gray-100 hover:border-brand-200 hover:shadow-soft rounded-2xl p-3.5 sm:p-5 transition-all">
+              <div className="text-xl sm:text-2xl shrink-0 mt-0.5">{item.icon}</div>
               <div>
-                <div className="font-bold text-gray-800 group-hover:text-brand-700 mb-1">{item.title}</div>
-                <div className="text-sm text-gray-500">{item.desc}</div>
+                <div className="text-sm sm:text-base font-bold text-gray-800 group-hover:text-brand-700 leading-tight mb-0.5 sm:mb-1">{item.title}</div>
+                <div className="hidden sm:block text-sm text-gray-500">{item.desc}</div>
               </div>
-              <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-brand-400 ml-auto shrink-0 self-center" />
+              <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-brand-400 ml-auto shrink-0 self-center" />
             </Link>
           ))}
         </div>
@@ -520,14 +541,14 @@ export default function Home() {
             <div className="text-brand-500 text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1 justify-center"><Zap className="w-4 h-4" /> Free Tools</div>
             <h2 className="text-2xl md:text-3xl font-black text-gray-900">Make Smarter Decisions</h2>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
             {TOOLS.map(t => (
               <Link key={t.title} to={t.href}
-                className="group bg-white rounded-2xl border border-gray-100 hover:border-brand-300 hover:shadow-soft p-6 transition-all">
-                <div className="text-2xl mb-3">{t.icon}</div>
-                <div className="font-bold text-gray-800 mb-1 group-hover:text-brand-700">{t.title}</div>
-                <div className="text-sm text-gray-500 mb-4">{t.desc}</div>
-                <div className="flex items-center gap-1 text-brand-600 text-sm font-semibold">Try it free <ChevronRight className="w-3 h-3" /></div>
+                className="group bg-white rounded-2xl border border-gray-100 hover:border-brand-300 hover:shadow-soft p-4 sm:p-6 transition-all">
+                <div className="text-xl sm:text-2xl mb-2 sm:mb-3">{t.icon}</div>
+                <div className="text-sm sm:text-base font-bold text-gray-800 mb-0.5 sm:mb-1 group-hover:text-brand-700 leading-tight">{t.title}</div>
+                <div className="hidden sm:block text-sm text-gray-500 mb-4">{t.desc}</div>
+                <div className="flex items-center gap-1 text-brand-600 text-xs sm:text-sm font-semibold mt-2">Try free <ChevronRight className="w-3 h-3" /></div>
               </Link>
             ))}
           </div>
@@ -658,9 +679,9 @@ export default function Home() {
           <h2 className="text-2xl md:text-3xl font-black text-gray-900">What Our Customers Say</h2>
           <p className="text-gray-500 text-sm mt-2">Real customers, real jobs, real results — across Karachi.</p>
         </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
           {REVIEWS.map(r => (
-            <div key={r.name} className="bg-white border border-gray-100 rounded-2xl p-5 flex flex-col gap-3 hover:shadow-soft hover:border-brand-100 transition-all">
+            <div key={r.name} className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5 flex flex-col gap-2.5 sm:gap-3 hover:shadow-soft hover:border-brand-100 transition-all">
               <div className="flex gap-0.5">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Star key={i} className="w-3.5 h-3.5 text-gold-500 fill-gold-400" />

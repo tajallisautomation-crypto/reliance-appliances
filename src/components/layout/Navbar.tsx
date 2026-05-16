@@ -103,12 +103,12 @@ export default function Navbar() {
 
   return (
     <>
-      <header className={`sticky top-0 z-30 bg-brand-500/[.97] backdrop-blur-xl transition-shadow duration-200 border-b-2 border-gold-500 ${scrolled ? 'shadow-apple-lg' : ''}`}>
+      <header className={`sticky top-0 z-30 bg-brand-500/[.97] backdrop-blur-xl transition-all duration-200 ${scrolled ? 'border-b border-gold-500/60 shadow-apple-lg' : 'border-b-2 border-gold-500'}`}>
 
         {/* ── Row 1: Logo + Search + Icons ──────────────────────────── */}
         <div className="border-b border-brand-400/30">
           <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-2 sm:gap-4 h-14 sm:h-16">
+            <div className={`flex items-center gap-2 sm:gap-4 transition-all duration-200 ${scrolled ? 'h-11' : 'h-14'} sm:h-16`}>
 
               {/* Logo */}
               <Link to="/" className="flex items-center gap-1.5 sm:gap-2 shrink-0 group" aria-label="Tajalli's — Home page">
@@ -116,10 +116,10 @@ export default function Navbar() {
                   src="/tajallis-logo-icon.svg"
                   alt=""
                   aria-hidden="true"
-                  className="h-7 w-7 sm:h-9 sm:w-9 transition-transform duration-200 group-hover:scale-105 brightness-0 invert"
+                  className={`transition-all duration-200 group-hover:scale-105 brightness-0 invert ${scrolled ? 'h-6 w-6' : 'h-7 w-7'} sm:h-9 sm:w-9`}
                 />
                 <span className="leading-none select-none">
-                  <span className="block font-black text-[18px] text-white tracking-tight leading-none">
+                  <span className={`block font-black text-white tracking-tight leading-none transition-all duration-200 ${scrolled ? 'text-[16px]' : 'text-[18px]'} sm:text-[18px]`}>
                     Tajalli&#8217;s
                   </span>
                   <span className="hidden sm:block text-[9.5px] font-semibold text-brand-200 mt-0.5 tracking-[0.08em] uppercase">

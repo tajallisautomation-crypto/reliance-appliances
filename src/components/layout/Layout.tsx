@@ -19,9 +19,9 @@ export default function Layout({ children }: { children: ReactNode }) {
         target="_blank"
         rel="noreferrer"
         aria-label="Chat on WhatsApp"
-        className="fixed bottom-8 right-8 z-[60] w-14 h-14 rounded-full bg-green-500 hover:bg-green-600 active:bg-green-700 shadow-lg flex items-center justify-center transition-colors"
+        className="fixed bottom-5 right-4 sm:bottom-8 sm:right-8 z-[60] w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-green-500 hover:bg-green-600 active:bg-green-700 shadow-lg flex items-center justify-center transition-colors"
       >
-        <MessageCircle className="w-7 h-7 text-white" />
+        <MessageCircle className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
       </a>
     </div>
   )
