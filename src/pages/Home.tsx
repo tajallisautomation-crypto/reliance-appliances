@@ -135,8 +135,8 @@ export default function Home() {
                 <span className="block text-xl md:text-3xl lg:text-4xl font-bold text-gray-500 mb-1.5 tracking-normal">
                   Appliances, Solar &amp; Backup Solutions
                 </span>
-                <span className="block text-4xl md:text-6xl lg:text-[4.5rem] font-black text-brand-500">
-                  Delivered. Installed.<br className="hidden md:block" />
+                <span className="block text-3xl sm:text-4xl md:text-6xl lg:text-[4.5rem] font-black text-brand-500">
+                  Delivered. Installed.<br />
                   <span className="text-gold-500">Supported.</span>
                 </span>
               </h1>
