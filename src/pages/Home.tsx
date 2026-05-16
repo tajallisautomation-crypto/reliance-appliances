@@ -9,6 +9,28 @@ import {
 import { getProducts, getProductCount, type Product, formatPrice } from '../lib/api'
 import { waSales } from '../lib/whatsapp'
 
+const HERO_TILES = [
+  { Icon: AirVent,   label: 'AC Installation',  area: 'North Karachi',   bg: 'from-blue-50 to-blue-100',    color: 'text-blue-500'  },
+  { Icon: Sun,       label: 'Inverter Setup',   area: 'Gulshan',         bg: 'from-amber-50 to-yellow-100', color: 'text-amber-600' },
+  { Icon: Snowflake, label: 'Freezer Delivery', area: 'F.B. Area',       bg: 'from-cyan-50 to-cyan-100',    color: 'text-cyan-600'  },
+  { Icon: Tv,        label: 'TV Delivery',      area: 'North Nazimabad', bg: 'from-gray-50 to-gray-100',    color: 'text-gray-500'  },
+];
+
+const REVIEWS = [
+  { name: 'M. Tariq',  area: 'Gulshan-e-Iqbal', service: 'Inverter AC on Installments', text: 'AC delivered and installed the same day. Professional team, clean work. Installment plan was fully transparent — no hidden charges.' },
+  { name: 'Fatima K.', area: 'North Karachi',    service: 'Solar Inverter Setup',        text: 'Excellent installation. Team explained everything clearly and followed up after the job. Haven\'t paid a full electricity bill since.' },
+  { name: 'Asad M.',   area: 'Federal B Area',   service: 'Haier Refrigerator',          text: 'Ordered through WhatsApp — delivery was fast, packaging intact, product original. Will definitely buy again.' },
+  { name: 'Sara R.',   area: 'Nazimabad',        service: 'Salon Backup Package',        text: 'UPS and battery for my salon — no more load-shedding problems. Team understood exactly what we needed and set it up perfectly.' },
+  { name: 'Imran A.',  area: 'North Nazimabad',  service: 'AC + Washing Machine Bundle', text: 'Bought two products together, saved on delivery and installation. Everything works perfectly. Tajalli\'s is my go-to now.' },
+  { name: 'Hina Z.',   area: 'Korangi',          service: 'Smart TV Delivery',           text: 'Very smooth from start to finish. Good price, same-day delivery, team even helped with the wall bracket setup.' },
+];
+
+const KARACHI_AREAS = [
+  'North Karachi', 'Federal B Area', 'Gulshan-e-Iqbal', 'Gulistan-e-Johar',
+  'North Nazimabad', 'Nazimabad', 'Landhi', 'DHA', 'Clifton', 'PECHS',
+  'Malir', 'Korangi', 'Saddar', 'Buffer Zone', 'Orangi Town', 'Surjani Town',
+];
+
 // Shop-by-category — 9 stable main categories only. Subcategories live inside filters/BYOP/buying guides.
 const HOME_CATEGORIES = [
   { id: 'air-conditioners',   name: 'Air Conditioners',   sub: 'Inverter, T3, Heat & Cool',        Icon: AirVent,          color: 'text-blue-600',    bg: 'bg-blue-50',          to: '/products?category=air-conditioners'   },
@@ -59,7 +81,6 @@ const TOOLS = [
 
 export default function Home() {
   const [featured,       setFeatured]      = useState<Product[]>([])
-  const [heroProduct,    setHeroProduct]   = useState<Product | null>(null)
   const [loading,        setLoading]       = useState(true)
   const [totalProducts,  setTotalProducts] = useState(0)
   const [activePlan,     setActivePlan]    = useState<'2m'|'3m'|'6m'|'12m'>('3m')
@@ -76,7 +97,6 @@ export default function Home() {
       const preferred = all.filter(p => PREFERRED_BRANDS.includes(p.brand.toLowerCase()))
       const others    = all.filter(p => !PREFERRED_BRANDS.includes(p.brand.toLowerCase()))
       const sorted    = [...preferred, ...others]
-      setHeroProduct(sorted[0] ?? null)
       setFeatured(sorted.slice(0, 8))
       setLoading(false)
     }).catch(() => setLoading(false))
@@ -108,7 +128,7 @@ export default function Home() {
                 <span className="text-brand-300 text-xs">·</span>
                 <span className="text-brand-600 text-xs font-bold uppercase tracking-[0.18em]">Since 2015</span>
                 <span className="text-brand-300 text-xs">·</span>
-                <span className="text-brand-600 text-xs font-bold uppercase tracking-[0.18em] whitespace-nowrap">11 Years of Trust</span>
+                <span className="text-brand-600 text-xs font-bold uppercase tracking-[0.18em] whitespace-nowrap">11+ Years of Trust</span>
               </div>
 
               <h1 className="leading-[1.06] tracking-tight mb-6">
@@ -116,25 +136,25 @@ export default function Home() {
                   Appliances, Solar &amp; Backup Solutions
                 </span>
                 <span className="block text-5xl md:text-6xl lg:text-[4.5rem] font-black text-brand-500">
-                  Delivered, Installed<br className="hidden md:block" />
-                  <span className="text-gold-500">&amp;</span> Supported.
+                  Delivered. Installed.<br className="hidden md:block" />
+                  <span className="text-gold-500">Supported.</span>
                 </span>
               </h1>
               <p className="text-lg text-gray-500 leading-relaxed mb-8 max-w-md">
                 ACs, fridges, washing machines, UPS, batteries and solar systems — cash or installments.
                 Delivery, installation and after-sales support across Karachi.
               </p>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap lg:flex-nowrap gap-2.5">
                 <Link to="/products"
-                  className="inline-flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-7 py-4 rounded-2xl shadow-brand transition-all min-w-[156px]">
+                  className="inline-flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm px-5 py-3 rounded-2xl shadow-brand transition-all">
                   Shop Products <ArrowRight className="w-4 h-4" />
                 </Link>
                 <Link to="/build-your-package"
-                  className="inline-flex items-center justify-center gap-2 bg-gold-500 hover:bg-gold-600 text-white font-bold px-7 py-4 rounded-2xl transition-all min-w-[156px]">
+                  className="inline-flex items-center justify-center gap-2 bg-gold-500 hover:bg-gold-600 text-white font-semibold text-sm px-5 py-3 rounded-2xl transition-all">
                   <Package className="w-4 h-4" /> Build a Package
                 </Link>
                 <a href={waSales()} target="_blank" rel="noreferrer"
-                  className="inline-flex items-center justify-center gap-2 bg-eco-500 hover:bg-eco-600 text-white font-bold px-7 py-4 rounded-2xl transition-all min-w-[156px]">
+                  className="inline-flex items-center justify-center gap-2 bg-eco-500 hover:bg-eco-600 text-white font-semibold text-sm px-5 py-3 rounded-2xl transition-all">
                   <Phone className="w-4 h-4" /> WhatsApp Help
                 </a>
               </div>
@@ -163,19 +183,38 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Right: hero visual */}
+            {/* Right: installation montage — 2×2 grid */}
             <div className="relative hidden md:block">
-              <div className="aspect-square rounded-4xl overflow-hidden bg-gradient-to-br from-brand-50 to-brand-100 shadow-apple-2xl">
-                {heroProduct?.thumbnail ? (
-                  <img
-                    src={heroProduct.thumbnail}
-                    alt={heroProduct.simplified_name || heroProduct.model}
-                    className="w-full h-full object-cover animate-fade-in"
-                    loading="eager"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-brand-50 to-brand-100 animate-pulse" />
-                )}
+              <div className="grid grid-cols-2 gap-3">
+                {galleryStrip.length >= 4
+                  ? galleryStrip.slice(0, 4).map((item, i) => (
+                    <div key={item.id}
+                      className="aspect-square rounded-3xl overflow-hidden bg-gray-100 shadow-apple animate-fade-in"
+                      style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}>
+                      <img src={item.public_url} alt={item.caption}
+                        className="w-full h-full object-cover" loading="eager" />
+                    </div>
+                  ))
+                  : HERO_TILES.map(({ Icon, label, area, bg, color }, i) => (
+                    <div key={label}
+                      className={`aspect-square rounded-3xl bg-gradient-to-br ${bg} shadow-apple flex flex-col items-center justify-center gap-2 animate-fade-in`}
+                      style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}>
+                      <Icon className={`w-10 h-10 ${color}`} />
+                      <p className="text-xs font-bold text-gray-700 text-center leading-tight">{label}</p>
+                      <p className="text-[10px] text-gray-400 text-center">{area}</p>
+                    </div>
+                  ))
+                }
+              </div>
+              {/* Badge overlay */}
+              <div className="absolute -bottom-3 -right-3 bg-white border border-gray-100 shadow-apple-xl rounded-2xl px-4 py-2.5 flex items-center gap-2">
+                <div className="w-8 h-8 bg-brand-50 rounded-xl flex items-center justify-center shrink-0">
+                  <Package className="w-4 h-4 text-brand-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-black text-gray-900 leading-none">24,000+ jobs</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">completed across Karachi</p>
+                </div>
               </div>
             </div>
           </div>
@@ -199,7 +238,7 @@ export default function Home() {
                 <Icon className={`w-5.5 h-5.5 ${color}`} />
               </div>
               <span className="text-[11px] font-bold text-gray-700 group-hover:text-brand-700 leading-tight">{name}</span>
-              <span className="text-[9px] text-gray-400 leading-tight lg:hidden">{sub}</span>
+              <span className="text-[9px] text-gray-400 leading-tight">{sub}</span>
             </Link>
           ))}
         </div>
@@ -220,6 +259,9 @@ export default function Home() {
                 <h2 className="text-3xl md:text-4xl font-black text-white mb-3 leading-tight">Your home, shop or office —<br className="hidden md:block" />fully equipped in one order.</h2>
                 <p className="text-gray-400 text-sm max-w-lg">
                   Mix ACs, fridges, washing machines, UPS, batteries, solar and more. Get bundle savings, installment options, and one coordinated delivery &amp; installation plan.
+                </p>
+                <p className="text-gray-500 text-xs mt-2">
+                  Bundle 3+ items and get automatic package savings, delivery coordination and installment planning — all in one order.
                 </p>
               </div>
               <div className="shrink-0 text-center md:text-right space-y-3">
@@ -255,7 +297,7 @@ export default function Home() {
           <div className="text-center mb-10">
             <p className="text-gold-400 text-xs font-bold uppercase tracking-widest mb-3">Flexible Installments</p>
             <h2 className="text-3xl md:text-4xl font-black text-white mb-3">Own it today. Pay your way.</h2>
-            <p className="text-gray-400">No bank account needed · Advance, monthly &amp; total cost shown clearly before you order.</p>
+            <p className="text-gray-400">No bank account needed · Advance, monthly &amp; total cost shown upfront · No hidden charges.</p>
           </div>
 
           {/* Plan tabs */}
@@ -323,12 +365,15 @@ export default function Home() {
               className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-8 py-3.5 rounded-full transition-colors shadow-brand">
               See All Installment Plans <ArrowRight className="w-4 h-4" />
             </Link>
+            <p className="text-gray-600 text-xs mt-3">
+              Example only · Final plan subject to product and approval · Ask on WhatsApp
+            </p>
           </div>
         </div>
       </section>
 
       {/* ── GREEN CORRIDOR TEASER ─────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="relative bg-gray-950 rounded-3xl overflow-hidden">
           <div className="absolute inset-0 opacity-[0.04]"
             style={{ backgroundImage: 'linear-gradient(#4ade80 1px, transparent 1px), linear-gradient(90deg, #4ade80 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
@@ -509,18 +554,43 @@ export default function Home() {
         </section>
       )}
 
+      {/* ── SERVICE AREAS ────────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="bg-brand-50 rounded-3xl px-8 py-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+            <div>
+              <p className="text-brand-500 text-xs font-bold uppercase tracking-widest mb-1">Delivery &amp; Installation</p>
+              <h2 className="text-xl font-black text-gray-900">Serving Karachi — All Major Areas</h2>
+            </div>
+            <a href={waSales()} target="_blank" rel="noreferrer"
+              className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition-colors shrink-0">
+              <Phone className="w-3.5 h-3.5" /> Check Your Area
+            </a>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {KARACHI_AREAS.map(area => (
+              <span key={area}
+                className="inline-flex items-center bg-white border border-brand-100 text-gray-700 text-xs font-medium px-3.5 py-1.5 rounded-full">
+                {area}
+              </span>
+            ))}
+          </div>
+          <p className="text-gray-400 text-xs mt-4">Not listed? Message us — we cover most of Karachi and surrounding towns.</p>
+        </div>
+      </section>
+
       {/* ── TRUST BAND ───────────────────────────────────────────── */}
       <section className="relative bg-gray-950 overflow-hidden">
         {/* Accent lines */}
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-brand-500/50 to-transparent" />
         <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-18">
           {/* Editorial header — left-aligned, intentional */}
           <div className="mb-16 md:mb-20">
             <p className="text-brand-400 text-xs font-bold uppercase tracking-[0.25em] mb-4">Established 2015 · Karachi</p>
             <h2 className="text-4xl md:text-6xl font-black text-white leading-[1.05] tracking-tight max-w-2xl">
-              11 years.<br />
+              11+ years.<br />
               <span className="text-brand-400">14,400+ homes &amp; businesses.</span><br />
               One standard.
             </h2>
@@ -532,7 +602,7 @@ export default function Home() {
               { value: '14,400+', label: 'Homes & businesses served', detail: 'Karachi-wide, since 2015' },
               { value: '24,000+', label: 'Orders delivered',          detail: 'On time, every time' },
               { value: '75%',     label: 'Repeat customers',          detail: 'Come back. Bring family.' },
-              { value: '11 yrs',  label: 'In business',               detail: 'No shortcuts. No drop in quality.' },
+              { value: '11+ yrs', label: 'In business',               detail: 'No shortcuts. No drop in quality.' },
             ].map((s, i) => (
               <div key={s.label}
                 className={`group py-6 md:py-8 pr-4 md:pr-8 cursor-default transition-all duration-300 hover:bg-white/[0.03] rounded-xl ${i % 2 !== 0 ? 'pl-4 md:pl-8 border-l border-white/10' : ''} ${i >= 2 ? 'border-t border-white/10 md:border-t-0 md:border-l border-white/10' : ''}`}>
@@ -567,6 +637,34 @@ export default function Home() {
               View Installment Plans
             </Link>
           </div>
+        </div>
+      </section>
+
+      {/* ── CUSTOMER REVIEWS ─────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+        <div className="text-center mb-10">
+          <p className="text-brand-500 text-xs font-bold uppercase tracking-widest mb-2">Customer Stories</p>
+          <h2 className="text-2xl md:text-3xl font-black text-gray-900">What Our Customers Say</h2>
+          <p className="text-gray-500 text-sm mt-2">Real customers, real jobs, real results — across Karachi.</p>
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {REVIEWS.map(r => (
+            <div key={r.name} className="bg-white border border-gray-100 rounded-2xl p-5 flex flex-col gap-3 hover:shadow-soft hover:border-brand-100 transition-all">
+              <div className="flex gap-0.5">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star key={i} className="w-3.5 h-3.5 text-gold-500 fill-gold-400" />
+                ))}
+              </div>
+              <p className="text-sm text-gray-700 leading-relaxed flex-1">&ldquo;{r.text}&rdquo;</p>
+              <div className="pt-2 border-t border-gray-50 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-gray-900">{r.name}</p>
+                  <p className="text-[10px] text-gray-400">{r.area}</p>
+                </div>
+                <span className="text-[10px] text-brand-500 font-medium bg-brand-50 px-2 py-0.5 rounded-full">{r.service}</span>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
