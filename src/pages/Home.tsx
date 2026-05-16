@@ -143,10 +143,10 @@ export default function Home() {
               <div className="mt-6 pt-5 border-t border-brand-100">
                 <div className="grid grid-cols-2 gap-2.5">
                   {[
-                    { Icon: CalendarDays, value: '11+ Years',  label: 'Serving Karachi since 2015',    iconColor: 'text-brand-600',  iconBg: 'bg-brand-50'      },
-                    { Icon: Users,        value: '14,400+',   label: 'Homes & Businesses Served',     iconColor: 'text-blue-600',   iconBg: 'bg-blue-50'       },
-                    { Icon: Star,         value: '75%',       label: 'Customers Who Come Back',       iconColor: 'text-gold-600',   iconBg: 'bg-gold-300/25'   },
-                    { Icon: Package,      value: '24,000+',   label: 'Orders Delivered & Fulfilled',  iconColor: 'text-eco-600',    iconBg: 'bg-eco-50'        },
+                    { Icon: CalendarDays, value: '11+ Years',  label: 'Since 2015 · Karachi',       iconColor: 'text-brand-600',  iconBg: 'bg-brand-50'      },
+                    { Icon: Users,        value: '14,400+',   label: 'Homes & Businesses Served',  iconColor: 'text-blue-600',   iconBg: 'bg-blue-50'       },
+                    { Icon: Star,         value: '75%',       label: 'Repeat Customers',           iconColor: 'text-gold-600',   iconBg: 'bg-gold-300/25'   },
+                    { Icon: Package,      value: '24,000+',   label: 'Orders Fulfilled',           iconColor: 'text-eco-600',    iconBg: 'bg-eco-50'        },
                   ].map(({ Icon, value, label, iconColor, iconBg }) => (
                     <div key={label}
                       className="flex items-center gap-3 bg-white border border-gray-100 shadow-apple rounded-2xl px-3.5 py-3 cursor-default">
@@ -155,7 +155,7 @@ export default function Home() {
                       </div>
                       <div>
                         <p className="text-sm font-black text-gray-900 leading-none">{value}</p>
-                        <p className="text-[11px] text-gray-500 font-medium mt-0.5 leading-none">{label}</p>
+                        <p className="text-[10px] text-gray-500 font-medium mt-0.5 leading-snug">{label}</p>
                       </div>
                     </div>
                   ))}
@@ -192,13 +192,14 @@ export default function Home() {
           </Link>
         </div>
         <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-9 gap-3 sm:gap-4">
-          {HOME_CATEGORIES.map(({ id, name, Icon, color, bg, to }) => (
+          {HOME_CATEGORIES.map(({ id, name, sub, Icon, color, bg, to }) => (
             <Link key={id} to={to}
-              className="group flex flex-col items-center gap-2.5 py-5 px-2 rounded-3xl bg-white hover:bg-brand-50 border border-gray-100 hover:border-brand-200 hover:shadow-sm transition-all duration-200 text-center">
-              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${bg} group-hover:scale-110 transition-transform duration-200`}>
-                <Icon className={`w-5 h-5 ${color}`} />
+              className="group flex flex-col items-center gap-2 py-5 px-2 rounded-3xl bg-white hover:bg-brand-50 border border-gray-100 hover:border-brand-200 hover:shadow-sm transition-all duration-200 text-center">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${bg} group-hover:scale-110 transition-transform duration-200`}>
+                <Icon className={`w-5.5 h-5.5 ${color}`} />
               </div>
-              <span className="text-[11px] font-bold text-gray-600 group-hover:text-brand-700 leading-tight">{name}</span>
+              <span className="text-[11px] font-bold text-gray-700 group-hover:text-brand-700 leading-tight">{name}</span>
+              <span className="text-[9px] text-gray-400 leading-tight lg:hidden">{sub}</span>
             </Link>
           ))}
         </div>
@@ -212,20 +213,37 @@ export default function Home() {
         <div className="relative bg-gray-950 rounded-3xl overflow-hidden">
           <div className="absolute inset-0 opacity-[0.03]"
             style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.8) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.8) 1px,transparent 1px)', backgroundSize: '32px 32px' }} />
-          <div className="relative flex flex-col md:flex-row items-center gap-8 px-8 py-10 md:py-12">
-            <div className="flex-1 text-center md:text-left">
-              <p className="text-gold-400 text-xs font-bold uppercase tracking-widest mb-3">Build a Package</p>
-              <h2 className="text-3xl md:text-4xl font-black text-white mb-3 leading-tight">Your home, fully equipped.<br className="hidden md:block" />One order. One deal.</h2>
-              <p className="text-gray-400 text-sm max-w-md">
-                Mix any 3+ appliances — ACs, fridges, washing machines, TVs, solar — and get <strong className="text-white">5% off your entire order</strong> automatically.
-              </p>
+          <div className="relative px-8 py-10 md:py-12">
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-8 mb-8">
+              <div className="flex-1">
+                <p className="text-gold-400 text-xs font-bold uppercase tracking-widest mb-3">Build a Package</p>
+                <h2 className="text-3xl md:text-4xl font-black text-white mb-3 leading-tight">Your home, shop or office —<br className="hidden md:block" />fully equipped in one order.</h2>
+                <p className="text-gray-400 text-sm max-w-lg">
+                  Mix ACs, fridges, washing machines, UPS, batteries, solar and more. Get bundle savings, installment options, and one coordinated delivery &amp; installation plan.
+                </p>
+              </div>
+              <div className="shrink-0 text-center md:text-right space-y-3">
+                <Link to="/build-your-package"
+                  className="flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-8 py-4 rounded-2xl transition-colors shadow-brand">
+                  Start Building <ArrowRight className="w-4 h-4" />
+                </Link>
+                <p className="text-gray-500 text-xs">3+ items · 5% bundle discount</p>
+              </div>
             </div>
-            <div className="shrink-0 text-center md:text-right space-y-3">
-              <Link to="/build-your-package"
-                className="flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-8 py-4 rounded-2xl transition-colors shadow-brand">
-                Start Building <ArrowRight className="w-4 h-4" />
-              </Link>
-              <p className="text-gray-400 text-xs">3+ items required for discount</p>
+            {/* Example packages */}
+            <div className="flex flex-wrap gap-2">
+              {[
+                { icon: '🏠', label: 'New Home Package' },
+                { icon: '💇', label: 'Salon Backup Package' },
+                { icon: '🏢', label: 'Apartment Comfort Package' },
+                { icon: '🏪', label: 'Office Essentials Package' },
+                { icon: '☀️', label: 'Solar-Ready Home Package' },
+              ].map(p => (
+                <Link key={p.label} to="/build-your-package"
+                  className="inline-flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-brand-500 text-gray-300 hover:text-white text-xs font-medium px-4 py-2.5 rounded-full transition-all">
+                  {p.icon} {p.label}
+                </Link>
+              ))}
             </div>
           </div>
         </div>
@@ -237,7 +255,7 @@ export default function Home() {
           <div className="text-center mb-10">
             <p className="text-gold-400 text-xs font-bold uppercase tracking-widest mb-3">Flexible Installments</p>
             <h2 className="text-3xl md:text-4xl font-black text-white mb-3">Own it today. Pay your way.</h2>
-            <p className="text-gray-400">No bank account needed · No credit check · No hidden charges.</p>
+            <p className="text-gray-400">No bank account needed · Advance, monthly &amp; total cost shown clearly before you order.</p>
           </div>
 
           {/* Plan tabs */}
@@ -283,9 +301,19 @@ export default function Home() {
                   </div>
                 )}
               </div>
-              <div className="pt-3 border-t border-gray-100 flex justify-between text-sm">
-                <span className="text-gray-500">Total cost</span>
-                <span className="font-bold text-gray-900">PKR {formatPrice(calc.total)}</span>
+              <div className="space-y-1.5 pt-3 border-t border-gray-100">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Cash price</span>
+                  <span className="font-medium text-gray-600">PKR {formatPrice(samplePrice)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Total installment cost</span>
+                  <span className="font-bold text-gray-900">PKR {formatPrice(calc.total)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-400">Financing charge</span>
+                  <span className="text-orange-500 font-medium">+ PKR {formatPrice(calc.total - samplePrice)}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -316,7 +344,7 @@ export default function Home() {
                 <span className="text-eco-400">A smaller bill.</span>
               </h2>
               <p className="text-gray-400 text-base mb-8 max-w-lg leading-relaxed">
-                The Green Corridor is a curated pathway to a lower-consumption home — inverter ACs, efficient refrigerators, solar systems, and smart appliance combinations. Not just solar. A complete strategy.
+                Green Corridor helps you reduce electricity bills by combining inverter appliances, UPS/battery backup and solar systems into one practical plan for your home or business. Not just solar — a complete strategy.
               </p>
 
               {/* Pathway chips */}
@@ -326,6 +354,7 @@ export default function Home() {
                   { icon: '❄️', label: 'Inverter ACs' },
                   { icon: '🧊', label: 'Inverter Fridges' },
                   { icon: '🔋', label: 'Battery Storage' },
+                  { icon: '🔌', label: 'UPS Backup' },
                   { icon: '💨', label: 'Efficient Fans' },
                   { icon: '🍳', label: 'Efficient Appliances' },
                 ].map(c => (
@@ -350,6 +379,45 @@ export default function Home() {
         </div>
       </section>
 
+
+      {/* ── FOR BUSINESSES ───────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center gap-2 text-brand-500 text-xs font-bold uppercase tracking-widest mb-2">
+            <Building2 className="w-4 h-4" /> Commercial Solutions
+          </div>
+          <h2 className="text-2xl md:text-3xl font-black text-gray-900">Solutions for Shops, Salons, Offices &amp; Small Businesses</h2>
+          <p className="text-gray-500 text-base mt-3 max-w-xl mx-auto">
+            From salon backup power to office cooling and restaurant appliances — we build packages for every business need, with installation and after-sales support.
+          </p>
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+          {[
+            { icon: '💇', title: 'Salon Backup Package',          desc: 'UPS, battery & AC for uninterrupted salon operations.',        href: '/build-your-package' },
+            { icon: '🏢', title: 'Office Cooling Package',        desc: 'Inverter ACs with professional installation for any office.',   href: '/products?category=air-conditioners' },
+            { icon: '🔋', title: 'Shop UPS & Battery Package',    desc: 'Reliable backup power to keep your shop running all day.',      href: '/solar' },
+            { icon: '🍽️', title: 'Restaurant & Kitchen',         desc: 'Commercial fridges, freezers and kitchen equipment.',           href: '/products?category=kitchen-appliances' },
+            { icon: '🏥', title: 'Clinic & Waiting Area Cooling', desc: 'Quiet inverter ACs with fast professional installation.',       href: '/products?category=air-conditioners' },
+            { icon: '☀️', title: 'Solar for Commercial Use',      desc: 'Reduce commercial electricity bills with solar systems.',       href: '/solar' },
+          ].map(item => (
+            <Link key={item.title} to={item.href}
+              className="group flex gap-4 bg-white border border-gray-100 hover:border-brand-200 hover:shadow-soft rounded-2xl p-5 transition-all">
+              <div className="text-2xl shrink-0 mt-0.5">{item.icon}</div>
+              <div>
+                <div className="font-bold text-gray-800 group-hover:text-brand-700 mb-1">{item.title}</div>
+                <div className="text-sm text-gray-500">{item.desc}</div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-brand-400 ml-auto shrink-0 self-center" />
+            </Link>
+          ))}
+        </div>
+        <div className="text-center">
+          <Link to="/build-your-package"
+            className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-8 py-3.5 rounded-2xl transition-colors shadow-brand">
+            Get a Business Quote <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </section>
 
       {/* ── BRANDS ───────────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 py-14">
@@ -400,7 +468,7 @@ export default function Home() {
             {TOOLS.map(t => (
               <Link key={t.title} to={t.href}
                 className="group bg-white rounded-2xl border border-gray-100 hover:border-brand-300 hover:shadow-soft p-6 transition-all">
-                <div className="text-3xl mb-3">{t.icon}</div>
+                <div className="text-2xl mb-3">{t.icon}</div>
                 <div className="font-bold text-gray-800 mb-1 group-hover:text-brand-700">{t.title}</div>
                 <div className="text-sm text-gray-500 mb-4">{t.desc}</div>
                 <div className="flex items-center gap-1 text-brand-600 text-sm font-semibold">Try it free <ChevronRight className="w-3 h-3" /></div>
@@ -453,7 +521,7 @@ export default function Home() {
             <p className="text-brand-400 text-xs font-bold uppercase tracking-[0.25em] mb-4">Established 2015 · Karachi</p>
             <h2 className="text-4xl md:text-6xl font-black text-white leading-[1.05] tracking-tight max-w-2xl">
               11 years.<br />
-              <span className="text-brand-400">14,400 homes.</span><br />
+              <span className="text-brand-400">14,400+ homes &amp; businesses.</span><br />
               One standard.
             </h2>
           </div>
@@ -461,10 +529,10 @@ export default function Home() {
           {/* Metrics — large editorial numbers, horizontal rule treatment */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-0 mb-16">
             {[
-              { value: '14,400+', label: 'Clients served',    detail: 'Karachi-wide, since 2015' },
-              { value: '24,000+', label: 'Orders fulfilled',  detail: 'On time, every time' },
-              { value: '75%',     label: 'Customer Loyalty',  detail: 'Come back. Bring family.' },
-              { value: '11 yrs',  label: 'In business',       detail: 'No shortcuts. No drop in quality.' },
+              { value: '14,400+', label: 'Homes & businesses served', detail: 'Karachi-wide, since 2015' },
+              { value: '24,000+', label: 'Orders delivered',          detail: 'On time, every time' },
+              { value: '75%',     label: 'Repeat customers',          detail: 'Come back. Bring family.' },
+              { value: '11 yrs',  label: 'In business',               detail: 'No shortcuts. No drop in quality.' },
             ].map((s, i) => (
               <div key={s.label}
                 className={`group py-6 md:py-8 pr-4 md:pr-8 cursor-default transition-all duration-300 hover:bg-white/[0.03] rounded-xl ${i % 2 !== 0 ? 'pl-4 md:pl-8 border-l border-white/10' : ''} ${i >= 2 ? 'border-t border-white/10 md:border-t-0 md:border-l border-white/10' : ''}`}>

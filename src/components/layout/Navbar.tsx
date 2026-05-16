@@ -1,16 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ShoppingCart, Menu, X, Phone, User, Leaf, Search, ChevronDown } from 'lucide-react';
+import { ShoppingCart, Menu, X, Phone, User, Leaf, Search, ChevronDown, Building2 } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import CartDrawer from '@/components/cart/CartDrawer';
 import SearchBar from '@/components/SearchBar';
 import { waSales } from '@/lib/whatsapp';
 
-const NAV_LINKS = [
+const NAV_LINKS: { label: string; href: string; eco?: boolean; business?: boolean }[] = [
   { label: 'Products',        href: '/products' },
   { label: 'Build a Package', href: '/build-your-package' },
   { label: 'Installments',    href: '/installments' },
-  { label: 'Solar',           href: '/solar' },
+  { label: 'Solar & Backup',  href: '/solar' },
+  { label: 'For Business',    href: '/build-your-package', business: true },
   { label: 'Green Corridor',  href: '/green-corridor', eco: true },
 ];
 
@@ -39,14 +40,15 @@ const MOBILE_GROUPS: { label: string; links: [string, string][] }[] = [
       ['Products',            '/products'],
       ['Build a Package 🎁', '/build-your-package'],
       ['Installments',        '/installments'],
+      ['For Business 🏢',    '/build-your-package'],
     ],
   },
   {
-    label: 'Solar',
+    label: 'Solar & Backup',
     links: [
-      ['Solar Solutions',  '/solar'],
-      ['Green Corridor',   '/green-corridor'],
-      ['Solar Calculator', '/solar-calculator'],
+      ['Solar & Backup Solutions', '/solar'],
+      ['Green Corridor',           '/green-corridor'],
+      ['Solar Calculator',         '/solar-calculator'],
     ],
   },
   {
@@ -183,7 +185,7 @@ export default function Navbar() {
         <div className="hidden lg:block border-b border-brand-400/20">
           <div className="max-w-7xl mx-auto px-6 lg:px-8">
             <nav className="flex items-center h-10 gap-0.5">
-              {NAV_LINKS.map(({ label, href, eco }) =>
+              {NAV_LINKS.map(({ label, href, eco, business }) =>
                 href === '/products' ? (
                   <div key={href} className="relative h-full flex items-center"
                     onMouseEnter={openProducts}
@@ -218,15 +220,18 @@ export default function Navbar() {
                     )}
                   </div>
                 ) : (
-                  <Link key={href} to={href}
+                  <Link key={label} to={href}
                     className={`inline-btn px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${
                       isActive(href)
                         ? 'bg-brand-600 text-white font-semibold'
                         : eco
                           ? 'text-eco-300 hover:bg-brand-600 hover:text-eco-200'
-                          : 'text-white/80 hover:text-white hover:bg-brand-600'
+                          : business
+                            ? 'text-gold-300 hover:bg-brand-600 hover:text-gold-200'
+                            : 'text-white/80 hover:text-white hover:bg-brand-600'
                     }`}>
                     {eco && <Leaf className="w-3.5 h-3.5" />}
+                    {business && <Building2 className="w-3.5 h-3.5" />}
                     {label}
                   </Link>
                 )
