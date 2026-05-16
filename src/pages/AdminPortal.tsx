@@ -4609,17 +4609,19 @@ function renderUrduHeaderImage(widthMm: number): string | null {
   try {
     const text = 'گھر سے کاروبار تک، ہر ضرورت کا قابلِ اعتماد حل';
     const w = Math.round(widthMm * 8);
-    const h = 56;
+    const h = 32;
     const canvas = document.createElement('canvas');
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
-    ctx.font = '28px "Noto Nastaliq Urdu","Jameel Noori Nastaleeq","Urdu Typesetting","Arial Unicode MS",serif';
+    // 'middle' baseline removes blank space above glyphs; 'left' anchor aligns left edge
+    // with the English lines above it (RTL text still flows right→left within that boundary).
+    ctx.font = '18px "Noto Nastaliq Urdu","Jameel Noori Nastaleeq","Urdu Typesetting","Arial Unicode MS",serif';
     ctx.fillStyle = 'rgba(196,213,236,0.85)';
     ctx.direction = 'rtl';
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'alphabetic';
-    ctx.fillText(text, w - 4, 44);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 4, h / 2);
     return canvas.toDataURL('image/png');
   } catch { return null; }
 }
@@ -4827,7 +4829,7 @@ async function generateQuotationPdf(opts: {
   doc.setFont('helvetica', 'italic'); doc.setFontSize(5); doc.setTextColor(196, 213, 236);
   doc.text('From Homes to Businesses, Solutions That Power Life.', _brandX, _brandTop + 19);
   const _urduImg = renderUrduHeaderImage(rightX - _brandX - 4);
-  if (_urduImg) doc.addImage(_urduImg, 'PNG', _brandX, _brandTop + 20, rightX - _brandX - 4, 6);
+  if (_urduImg) doc.addImage(_urduImg, 'PNG', _brandX, _brandTop + 20, rightX - _brandX - 4, 4);
 
   // Right zone: doc-type label → REF → date
   doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
@@ -6251,7 +6253,7 @@ async function generateInstallmentAdvancePdf(opts: {
   doc.setFont('helvetica', 'italic'); doc.setFontSize(5); doc.setTextColor(196, 213, 236);
   doc.text('From Homes to Businesses, Solutions That Power Life.', _advBrandX, 23);
   const _advUrduImg = renderUrduHeaderImage(headerRightX - _advBrandX - 4);
-  if (_advUrduImg) doc.addImage(_advUrduImg, 'PNG', _advBrandX, 24, headerRightX - _advBrandX - 4, 6);
+  if (_advUrduImg) doc.addImage(_advUrduImg, 'PNG', _advBrandX, 24, headerRightX - _advBrandX - 4, 4);
 
   doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
   doc.text('ADVANCE INVOICE', W - margin, 10, { align: 'right' });
@@ -6280,7 +6282,20 @@ async function generateInstallmentAdvancePdf(opts: {
     ...(opts.customerAddress ? [['ADDRESS', opts.customerAddress] as [string, string]] : []),
     ...(opts.customerCnic    ? [['CNIC',    opts.customerCnic]    as [string, string]] : []),
   ];
-  const advCustH = advCustFields.length * 4.8 + 10;
+  // installment 'paid' = advance collected; monthly balance still outstanding
+  const _advIsPaid = opts.paymentStatus === 'paid' || opts.paymentStatus === 'partial' || opts.paymentStatus === 'advance_paid';
+  const _advBalDue = opts.instTotalPrice - opts.instAdvanceAmt;
+  const advMetaRows: Array<[string, string]> = [
+    ['TYPE',           'Advance Invoice'],
+    ['REF',            opts.refNumber],
+    ['DATE',           dateStr],
+    ...((opts.preparedBy || _advIsPaid) ? [['PREPARED BY', opts.preparedBy || 'System'] as [string, string]] : []),
+    [_advIsPaid ? 'ADVANCE PAID' : 'ADVANCE DUE', PKR(opts.instAdvanceAmt)],
+    ['MONTHLY BALANCE', PKR(_advBalDue)],
+    ['PLAN',            `${opts.instMonths}-month installment`],
+  ];
+  // Box height derived from whichever column has more rows so neither overflows its container.
+  const advCustH = Math.max(advCustFields.length, advMetaRows.length) * 4.8 + 10;
   doc.setFillColor(243, 246, 250);
   doc.rect(margin, y, advCustLW, advCustH, 'F');
   doc.setDrawColor(201, 214, 226); doc.setLineWidth(0.5);
@@ -6298,7 +6313,7 @@ async function generateInstallmentAdvancePdf(opts: {
     doc.text(lbl, margin + 3, advCY);
     doc.setFont('helvetica', lbl === 'NAME' ? 'bold' : 'normal');
     doc.setFontSize(lbl === 'NAME' ? 8 : 7); doc.setTextColor(31, 41, 51);
-    doc.text(String(val), margin + 22, advCY);
+    doc.text(String(val), margin + 22, advCY, { maxWidth: advCustLW - 26 });
     advCY += 4.8;
   }
   doc.setFillColor(243, 246, 250);
@@ -6309,31 +6324,13 @@ async function generateInstallmentAdvancePdf(opts: {
   doc.rect(advCustRX + 3, y, advCustRW - 3, 4, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(18, 63, 115);
   doc.text('DOCUMENT DETAILS', advCustRX + 6, y + 3);
-  // installment 'paid' = advance collected; monthly balance still outstanding
-  const _advIsPaid = opts.paymentStatus === 'paid' || opts.paymentStatus === 'partial' || opts.paymentStatus === 'advance_paid';
-  const _advBalDue = opts.instTotalPrice - opts.instAdvanceAmt;
-  const advMetaRows: Array<[string, string]> = [
-    ['TYPE',           'Advance Invoice'],
-    ['REF',            opts.refNumber],
-    ['DATE',           dateStr],
-    ...((opts.preparedBy || _advIsPaid) ? [['PREPARED BY', opts.preparedBy || 'System'] as [string, string]] : []),
-    [_advIsPaid ? 'ADVANCE PAID' : 'ADVANCE DUE', PKR(opts.instAdvanceAmt)],
-    ['MONTHLY BALANCE',PKR(_advBalDue)],
-    ['STATUS',         _advIsPaid ? 'ADVANCE RECEIVED' : 'PENDING ADVANCE'],
-    ['PLAN',           `${opts.instMonths}-month installment`],
-  ];
   let advMY = y + 4 + 4.8;
   for (const [lbl, val] of advMetaRows) {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5); doc.setTextColor(107, 114, 128);
     doc.text(lbl, advCustRX + 3, advMY);
     let _advValColor: [number,number,number] = [31, 41, 51];
     let _advValBold = false;
-    if (lbl === 'STATUS') {
-      _advValBold = true;
-      _advValColor = _advIsPaid ? [214, 168, 0] : [107, 114, 128];
-    } else if (lbl === 'ADVANCE PAID') {
-      _advValBold = true; _advValColor = [22, 134, 90];
-    }
+    if (lbl === 'ADVANCE PAID') { _advValBold = true; _advValColor = [22, 134, 90]; }
     doc.setFont('helvetica', _advValBold ? 'bold' : 'normal'); doc.setFontSize(7); doc.setTextColor(..._advValColor);
     doc.text(String(val), advCustRX + advCustRW - 3, advMY, { align: 'right' });
     advMY += 4.8;
@@ -6574,10 +6571,19 @@ async function generateInstallmentAdvancePdf(opts: {
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.3);
   doc.line(colDivX, y - 4, colDivX, Math.max(leftFinalY2, rightFinalY2));
 
-  y = Math.max(leftFinalY2, rightFinalY2) + 8;
+  y = Math.max(leftFinalY2, rightFinalY2) + 4;
+
+  // Penalty note
+  doc.setFont('helvetica', 'italic'); doc.setFontSize(5.5); doc.setTextColor(150, 100, 0);
+  doc.text(
+    'Late payment attracts a 1% per month penalty on the outstanding principal as per the signed installment agreement.',
+    margin, y, { maxWidth: printW }
+  );
+  y += 8;
 
   // ── 6d. Guarantor block ────────────────────────────────────────────────────
   if (opts.guarantorName?.trim() || opts.guarantorCnic?.trim()) {
+    if (y + 28 > 275) { doc.addPage(); y = 15; }
     const gtH = 22;
     doc.setFillColor(243, 246, 250);
     doc.rect(margin, y, printW, gtH, 'F');
@@ -6599,6 +6605,7 @@ async function generateInstallmentAdvancePdf(opts: {
 
   // ── 6e. Energy Consumption & UPS/Solar Advisory ───────────────────────────
   {
+    if (y + 45 > 275) { doc.addPage(); y = 15; }
     const _advCatKwh = (kwh: number, cat: string, nm: string): { kwh: number; isEst: boolean } => {
       if (kwh > 0) return { kwh, isEst: false };
       const c = cat.toLowerCase(), n = nm.toLowerCase();
@@ -6725,6 +6732,7 @@ async function generateInstallmentAdvancePdf(opts: {
   }
 
   // ── 7. Bank + QR (unified payment station) ────────────────────────────────
+  if (y + 42 > 275) { doc.addPage(); y = 15; }
   const _advBdH = 36;
   const _advQrColW = 44;
   const _advBankColW = printW - _advQrColW - 3;
@@ -6768,6 +6776,7 @@ async function generateInstallmentAdvancePdf(opts: {
 
   // ── 7b. Trust + community strip (full hero) ───────────────────────────────
   {
+    if (y + 20 > 275) { doc.addPage(); y = 15; }
     const _advTrustH = 16;
     const _advTrustStatW = Math.round(printW * 0.67);
     const _advCommX = margin + _advTrustStatW;
@@ -6819,6 +6828,7 @@ async function generateInstallmentAdvancePdf(opts: {
 
   // ── 8. Client Signature ───────────────────────────────────────────────────
   {
+    if (y + 30 > 275) { doc.addPage(); y = 15; }
     const _csH = 24;
     const _csMid = Math.round(printW / 2) - 4;
     doc.setFillColor(250, 250, 252);
@@ -6947,7 +6957,7 @@ async function generateInstallmentPaymentPdf(opts: {
   doc.setFont('helvetica', 'italic'); doc.setFontSize(5); doc.setTextColor(196, 213, 236);
   doc.text('From Homes to Businesses, Solutions That Power Life.', _pyBrandX, 23);
   const _pyUrduImg = renderUrduHeaderImage(_pyHeaderRX - _pyBrandX - 4);
-  if (_pyUrduImg) doc.addImage(_pyUrduImg, 'PNG', _pyBrandX, 24, _pyHeaderRX - _pyBrandX - 4, 6);
+  if (_pyUrduImg) doc.addImage(_pyUrduImg, 'PNG', _pyBrandX, 24, _pyHeaderRX - _pyBrandX - 4, 4);
 
   doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
   doc.text('PAYMENT RECEIPT', W - margin, 10, { align: 'right' });
@@ -7135,7 +7145,15 @@ async function generateInstallmentPaymentPdf(opts: {
     styles: { overflow: 'linebreak', cellPadding: 2.5 },
   });
   // @ts-ignore
-  y = (doc as any).lastAutoTable.finalY + 8;
+  y = (doc as any).lastAutoTable.finalY + 4;
+
+  // Penalty note
+  doc.setFont('helvetica', 'italic'); doc.setFontSize(5.5); doc.setTextColor(150, 100, 0);
+  doc.text(
+    'Late payment attracts a 1% per month penalty on the outstanding principal as per the signed installment agreement.',
+    margin, y, { maxWidth: printW }
+  );
+  y += 8;
 
   // ── 6b. Custom charges ─────────────────────────────────────────────────────
   if ((opts.customCharges ?? []).length > 0) {
@@ -7158,6 +7176,7 @@ async function generateInstallmentPaymentPdf(opts: {
 
   // ── 6c. Trust + community strip (full hero) ───────────────────────────────
   {
+    if (y + 20 > 275) { doc.addPage(); y = 15; }
     const _pyTrustH = 16;
     const _pyTrustStatW = Math.round(printW * 0.67);
     const _pyCommX = margin + _pyTrustStatW;
@@ -7337,7 +7356,7 @@ async function generateServiceReceiptPdf(opts: {
   doc.setFont('helvetica', 'italic'); doc.setFontSize(5); doc.setTextColor(196, 213, 236);
   doc.text('From Homes to Businesses, Solutions That Power Life.', _srBrandX, 23);
   const _srUrduImg = renderUrduHeaderImage(_srRightX - _srBrandX - 4);
-  if (_srUrduImg) doc.addImage(_srUrduImg, 'PNG', _srBrandX, 24, _srRightX - _srBrandX - 4, 6);
+  if (_srUrduImg) doc.addImage(_srUrduImg, 'PNG', _srBrandX, 24, _srRightX - _srBrandX - 4, 4);
 
   doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
   doc.text('SERVICE RECEIPT', W - margin, 10, { align: 'right' });
