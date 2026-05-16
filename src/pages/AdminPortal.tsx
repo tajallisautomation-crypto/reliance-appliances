@@ -4821,13 +4821,13 @@ async function generateQuotationPdf(opts: {
   const _brandX = margin + _logoW + 4;
   const _brandTop = _logoY;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
-  doc.text("Tajalli’s", _brandX, _brandTop + 8);
+  doc.text("Tajalli's", _brandX, _brandTop + 8);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(246, 196, 0);
-  doc.text('Home & Commercial Solutions', _brandX, _brandTop + 15);
+  doc.text('Home & Commercial Solutions', _brandX, _brandTop + 14);
   doc.setFont('helvetica', 'italic'); doc.setFontSize(5); doc.setTextColor(196, 213, 236);
-  doc.text('From Homes to Businesses, Solutions That Power Life.', _brandX, _brandTop + 21);
+  doc.text('From Homes to Businesses, Solutions That Power Life.', _brandX, _brandTop + 19);
   const _urduImg = renderUrduHeaderImage(rightX - _brandX - 4);
-  if (_urduImg) doc.addImage(_urduImg, 'PNG', _brandX, _brandTop + 23, rightX - _brandX - 4, 7);
+  if (_urduImg) doc.addImage(_urduImg, 'PNG', _brandX, _brandTop + 20, rightX - _brandX - 4, 6);
 
   // Right zone: doc-type label → REF → date
   doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
@@ -6247,11 +6247,11 @@ async function generateInstallmentAdvancePdf(opts: {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
   doc.text("Tajalli's", _advBrandX, 12);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(246, 196, 0);
-  doc.text('Home & Commercial Solutions', _advBrandX, 19);
+  doc.text('Home & Commercial Solutions', _advBrandX, 18);
   doc.setFont('helvetica', 'italic'); doc.setFontSize(5); doc.setTextColor(196, 213, 236);
-  doc.text('From Homes to Businesses, Solutions That Power Life.', _advBrandX, 25);
+  doc.text('From Homes to Businesses, Solutions That Power Life.', _advBrandX, 23);
   const _advUrduImg = renderUrduHeaderImage(headerRightX - _advBrandX - 4);
-  if (_advUrduImg) doc.addImage(_advUrduImg, 'PNG', _advBrandX, 27, headerRightX - _advBrandX - 4, 7);
+  if (_advUrduImg) doc.addImage(_advUrduImg, 'PNG', _advBrandX, 24, headerRightX - _advBrandX - 4, 6);
 
   doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
   doc.text('ADVANCE INVOICE', W - margin, 10, { align: 'right' });
@@ -6851,12 +6851,15 @@ async function generateInstallmentAdvancePdf(opts: {
 
   // ── 9. CTA ────────────────────────────────────────────────────────────────
   if (!_advIsPaid) {
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(18, 63, 115);
-  doc.text('To confirm order, share deposit slip on WhatsApp: +92 370 2578788', W / 2, y, { align: 'center' });
+    y += 3;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(18, 63, 115);
+    doc.text('To confirm order, share deposit slip on WhatsApp: +92 370 2578788', W / 2, y, { align: 'center' });
+    y += 7;
   }
 
-  // ── 9. Footer ─────────────────────────────────────────────────────────────
-  const footerY = 282;
+  // ── 10. Footer ────────────────────────────────────────────────────────────
+  if (y > 268) { doc.addPage(); y = 15; }
+  const footerY = Math.max(y + 4, 274);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(150, 150, 150);
   doc.text(
     'Advance payment confirms your order. Balance due per installment schedule above. Charges may apply after grace period per signed agreement.',
@@ -6940,11 +6943,11 @@ async function generateInstallmentPaymentPdf(opts: {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
   doc.text("Tajalli's", _pyBrandX, 12);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(246, 196, 0);
-  doc.text('Home & Commercial Solutions', _pyBrandX, 19);
+  doc.text('Home & Commercial Solutions', _pyBrandX, 18);
   doc.setFont('helvetica', 'italic'); doc.setFontSize(5); doc.setTextColor(196, 213, 236);
-  doc.text('From Homes to Businesses, Solutions That Power Life.', _pyBrandX, 25);
+  doc.text('From Homes to Businesses, Solutions That Power Life.', _pyBrandX, 23);
   const _pyUrduImg = renderUrduHeaderImage(_pyHeaderRX - _pyBrandX - 4);
-  if (_pyUrduImg) doc.addImage(_pyUrduImg, 'PNG', _pyBrandX, 27, _pyHeaderRX - _pyBrandX - 4, 7);
+  if (_pyUrduImg) doc.addImage(_pyUrduImg, 'PNG', _pyBrandX, 24, _pyHeaderRX - _pyBrandX - 4, 6);
 
   doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
   doc.text('PAYMENT RECEIPT', W - margin, 10, { align: 'right' });
@@ -7245,11 +7248,14 @@ async function generateInstallmentPaymentPdf(opts: {
   y += _pyBdH + 6;
 
   // ── 8. CTA ────────────────────────────────────────────────────────────────
+  y += 3;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(18, 63, 115);
   doc.text('Share payment confirmation on WhatsApp: +92 370 2578788', W / 2, y, { align: 'center' });
+  y += 7;
 
   // ── 9. Footer ─────────────────────────────────────────────────────────────
-  const footerY = 282;
+  if (y > 268) { doc.addPage(); y = 15; }
+  const footerY = Math.max(y + 4, 274);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(150, 150, 150);
   doc.text(
     'Balance due per installment schedule. Charges may apply after grace period per signed agreement. All products carry official brand warranty.',
@@ -7327,11 +7333,11 @@ async function generateServiceReceiptPdf(opts: {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255);
   doc.text("Tajalli's", _srBrandX, 12);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(246, 196, 0);
-  doc.text('Home & Commercial Solutions', _srBrandX, 19);
+  doc.text('Home & Commercial Solutions', _srBrandX, 18);
   doc.setFont('helvetica', 'italic'); doc.setFontSize(5); doc.setTextColor(196, 213, 236);
-  doc.text('From Homes to Businesses, Solutions That Power Life.', _srBrandX, 25);
+  doc.text('From Homes to Businesses, Solutions That Power Life.', _srBrandX, 23);
   const _srUrduImg = renderUrduHeaderImage(_srRightX - _srBrandX - 4);
-  if (_srUrduImg) doc.addImage(_srUrduImg, 'PNG', _srBrandX, 27, _srRightX - _srBrandX - 4, 7);
+  if (_srUrduImg) doc.addImage(_srUrduImg, 'PNG', _srBrandX, 24, _srRightX - _srBrandX - 4, 6);
 
   doc.setFont('helvetica', 'normal'); doc.setFontSize(5.5); doc.setTextColor(214, 168, 0);
   doc.text('SERVICE RECEIPT', W - margin, 10, { align: 'right' });
@@ -7673,9 +7679,10 @@ async function generateServiceReceiptPdf(opts: {
       ['Web', 'tajallis.com.pk'],
     ];
     const _cardRowH = 4.8;
+    const _rightRowH = _cardRowH + 3;
     const _leftRows = _summaryRows.length;
     const _rightRows = _supportItems.length;
-    const _cardH = Math.max(_leftRows, _rightRows) * _cardRowH + _summaryHdrH + 6;
+    const _cardH = Math.max(_leftRows * _cardRowH, _rightRows * _rightRowH) + _summaryHdrH + 6;
     doc.setFillColor(243, 246, 250);
     doc.rect(margin, y, printW, _cardH, 'F');
     // Gold left strip + header

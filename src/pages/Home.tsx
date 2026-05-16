@@ -2,23 +2,24 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight, Calculator, ShieldCheck, Truck, CreditCard, Headphones,
-  ChevronRight, Zap, Leaf, Image,
+  ChevronRight, Zap, Leaf, Image, Phone, Building2,
   AirVent, Refrigerator, Shirt, Tv, Sun, UtensilsCrossed, Droplets, Plug,
   Snowflake, CalendarDays, Users, Star, Package,
 } from 'lucide-react'
 import { getProducts, getProductCount, type Product, formatPrice } from '../lib/api'
+import { waSales } from '../lib/whatsapp'
 
 // Shop-by-category — 9 stable main categories only. Subcategories live inside filters/BYOP/buying guides.
 const HOME_CATEGORIES = [
-  { id: 'air-conditioners',   name: 'Air Conditioners',  Icon: AirVent,          color: 'text-blue-600',    bg: 'bg-blue-50',          to: '/products?category=air-conditioners'   },
-  { id: 'refrigerators',      name: 'Refrigerators',     Icon: Refrigerator,     color: 'text-cyan-700',    bg: 'bg-cyan-50',          to: '/products?category=refrigerators'      },
-  { id: 'washing-machines',   name: 'Washing Machines',  Icon: Shirt,            color: 'text-indigo-600',  bg: 'bg-indigo-50',        to: '/products?category=washing-machines'   },
-  { id: 'freezers',           name: 'Freezers',          Icon: Snowflake,        color: 'text-sky-600',     bg: 'bg-sky-50',           to: '/products?category=freezers'           },
-  { id: 'televisions',        name: 'Televisions',       Icon: Tv,               color: 'text-gray-700',    bg: 'bg-gray-100',         to: '/products?category=televisions'        },
-  { id: 'solar',              name: 'Solar & Energy',    Icon: Sun,              color: 'text-gold-700',    bg: 'bg-gold-300/25',      to: '/solar'                                },
-  { id: 'kitchen-appliances', name: 'Kitchen',           Icon: UtensilsCrossed,  color: 'text-brand-600',   bg: 'bg-brand-50',         to: '/products?category=kitchen-appliances' },
-  { id: 'water-dispensers',   name: 'Water Dispensers',  Icon: Droplets,         color: 'text-teal-700',    bg: 'bg-teal-50',          to: '/products?category=water-dispensers'   },
-  { id: 'small-appliances',   name: 'Small Appliances',  Icon: Plug,             color: 'text-purple-600',  bg: 'bg-purple-50',        to: '/products?category=small-appliances'   },
+  { id: 'air-conditioners',   name: 'Air Conditioners',   sub: 'Inverter, T3, Heat & Cool',        Icon: AirVent,          color: 'text-blue-600',    bg: 'bg-blue-50',          to: '/products?category=air-conditioners'   },
+  { id: 'refrigerators',      name: 'Refrigerators',      sub: 'Inverter, Glass Door, Large Cap.',  Icon: Refrigerator,     color: 'text-cyan-700',    bg: 'bg-cyan-50',          to: '/products?category=refrigerators'      },
+  { id: 'washing-machines',   name: 'Washing Machines',   sub: 'Auto, Semi-Auto, Top Load',         Icon: Shirt,            color: 'text-indigo-600',  bg: 'bg-indigo-50',        to: '/products?category=washing-machines'   },
+  { id: 'freezers',           name: 'Freezers',           sub: 'Single Door, Deep Chest',           Icon: Snowflake,        color: 'text-sky-600',     bg: 'bg-sky-50',           to: '/products?category=freezers'           },
+  { id: 'televisions',        name: 'Televisions',        sub: 'Smart, LED, 4K',                    Icon: Tv,               color: 'text-gray-700',    bg: 'bg-gray-100',         to: '/products?category=televisions'        },
+  { id: 'solar',              name: 'Solar, UPS & Backup',sub: 'Solar, Inverters, Batteries',       Icon: Sun,              color: 'text-gold-700',    bg: 'bg-gold-300/25',      to: '/solar'                                },
+  { id: 'kitchen-appliances', name: 'Kitchen',            sub: 'Microwaves, Air Fryers, Blenders',  Icon: UtensilsCrossed,  color: 'text-brand-600',   bg: 'bg-brand-50',         to: '/products?category=kitchen-appliances' },
+  { id: 'water-dispensers',   name: 'Water Dispensers',   sub: 'Countertop, Floor Standing',        Icon: Droplets,         color: 'text-teal-700',    bg: 'bg-teal-50',          to: '/products?category=water-dispensers'   },
+  { id: 'small-appliances',   name: 'Small Appliances',   sub: 'Fans, Irons, Heaters',              Icon: Plug,             color: 'text-purple-600',  bg: 'bg-purple-50',        to: '/products?category=small-appliances'   },
 ]
 import { calcPlan } from '../lib/plans'
 import ProductCard from '../components/products/ProductCard'
@@ -29,12 +30,12 @@ import SocialProofLoop from '../components/ui/SocialProofLoop'
 
 // Brand list — preferred brands (Haier, Crown, Westpoint) listed first for merchandising visibility
 const BRANDS = [
-  { name: 'Haier',     slug: 'haier',     color: '#e31837', desc: "World's #1 home appliance brand",     featured: true  },
-  { name: 'Crown',     slug: 'crown',     color: '#1a1a2e', desc: 'Premium solar & home solutions',      featured: true  },
-  { name: 'Westpoint', slug: 'westpoint', color: '#2563eb', desc: 'Quality kitchen & home appliances',   featured: true  },
-  { name: 'Dawlance',  slug: 'dawlance',  color: '#003087', desc: "Pakistan's most trusted refrigerators", featured: false },
-  { name: 'Gree',      slug: 'gree',      color: '#00843d', desc: 'Energy-efficient inverter ACs',       featured: false },
-  { name: 'EcoStar',   slug: 'ecostar',   color: '#0070c0', desc: 'Smart TVs & air conditioners',        featured: false },
+  { name: 'Haier',     slug: 'haier',     color: '#e31837', desc: 'ACs, refrigerators, washing machines',         featured: true  },
+  { name: 'Crown',     slug: 'crown',     color: '#1a1a2e', desc: 'Solar inverters, batteries & energy solutions', featured: true  },
+  { name: 'Westpoint', slug: 'westpoint', color: '#2563eb', desc: 'Kitchen & home appliances',                    featured: true  },
+  { name: 'Dawlance',  slug: 'dawlance',  color: '#003087', desc: 'Refrigerators, freezers, kitchen appliances',   featured: false },
+  { name: 'Gree',      slug: 'gree',      color: '#00843d', desc: 'Inverter ACs for Karachi heat',                 featured: false },
+  { name: 'EcoStar',   slug: 'ecostar',   color: '#0070c0', desc: 'Smart TVs & air conditioners',                  featured: false },
 ]
 
 
@@ -46,10 +47,14 @@ const PLAN_OPTIONS = [
 ]
 
 const TOOLS = [
-  { icon: '🔢', title: 'Solar Calculator',    desc: 'Find out exactly what solar system you need.',       href: '/solar-calculator' },
-  { icon: '💡', title: 'Bill Savings Calc',   desc: 'Estimate your solar savings based on your actual load and usage.',href: '/tools' },
-  { icon: '📈', title: 'Payback Calculator',  desc: 'Calculate when your solar investment pays back.',     href: '/tools' },
-  { icon: '⚡', title: 'Net Metering Check',  desc: "Check if you're eligible to sell power to the grid.", href: '/tools' },
+  { icon: '🔢', title: 'Solar Calculator',        desc: 'Find out exactly what solar system you need.',              href: '/solar-calculator' },
+  { icon: '💡', title: 'Bill Savings Calc',       desc: 'Estimate your solar savings based on your actual load.',    href: '/tools' },
+  { icon: '🔋', title: 'UPS & Battery Calc',      desc: 'Calculate backup power needed for your home or shop.',      href: '/tools' },
+  { icon: '❄️', title: 'AC Consumption Calc',     desc: 'Estimate AC electricity usage and monthly running cost.',   href: '/tools' },
+  { icon: '📈', title: 'Payback Calculator',      desc: 'Calculate when your solar investment pays back.',            href: '/tools' },
+  { icon: '💳', title: 'Installment Calculator',  desc: 'See advance, monthly payment and total cost before you buy.',href: '/installments' },
+  { icon: '⚡', title: 'Net Metering Check',      desc: "Check if you're eligible to sell power to the grid.",       href: '/tools' },
+  { icon: '📦', title: 'Package Builder',         desc: 'Mix appliances and get an instant bundle price estimate.',   href: '/build-your-package' },
 ]
 
 export default function Home() {
@@ -108,35 +113,40 @@ export default function Home() {
 
               <h1 className="leading-[1.06] tracking-tight mb-6">
                 <span className="block text-2xl md:text-3xl lg:text-4xl font-bold text-gray-500 mb-2 tracking-normal">
-                  Home Appliances &amp; Solar Solutions
+                  Appliances, Solar &amp; Backup Solutions
                 </span>
                 <span className="block text-5xl md:text-6xl lg:text-[4.5rem] font-black text-brand-500">
-                  All on Installments<span className="text-gold-500">.</span>
+                  Delivered, Installed<br className="hidden md:block" />
+                  <span className="text-gold-500">&amp;</span> Supported.
                 </span>
               </h1>
               <p className="text-lg text-gray-500 leading-relaxed mb-8 max-w-md">
-                Karachi's trusted store for ACs, fridges, washing machines, solar &amp; more — since 2015.
-                Cash or installments. Delivered to your door.
+                ACs, fridges, washing machines, UPS, batteries and solar systems — cash or installments.
+                Delivery, installation and after-sales support across Karachi.
               </p>
               <div className="flex flex-wrap gap-3">
                 <Link to="/products"
-                  className="inline-flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-7 py-4 rounded-2xl shadow-brand transition-all min-w-[168px]">
-                  Shop Now <ArrowRight className="w-4 h-4" />
+                  className="inline-flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-7 py-4 rounded-2xl shadow-brand transition-all min-w-[156px]">
+                  Shop Products <ArrowRight className="w-4 h-4" />
                 </Link>
-                <Link to="/solar"
-                  className="inline-flex items-center justify-center gap-2 bg-eco-500 hover:bg-eco-600 text-white font-bold px-7 py-4 rounded-2xl transition-all min-w-[168px]">
-                  <Zap className="w-4 h-4" /> Solar Solutions
+                <Link to="/build-your-package"
+                  className="inline-flex items-center justify-center gap-2 bg-gold-500 hover:bg-gold-600 text-white font-bold px-7 py-4 rounded-2xl transition-all min-w-[156px]">
+                  <Package className="w-4 h-4" /> Build a Package
                 </Link>
+                <a href={waSales()} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-2 bg-eco-500 hover:bg-eco-600 text-white font-bold px-7 py-4 rounded-2xl transition-all min-w-[156px]">
+                  <Phone className="w-4 h-4" /> WhatsApp Help
+                </a>
               </div>
 
               {/* Stat cards */}
               <div className="mt-6 pt-5 border-t border-brand-100">
                 <div className="grid grid-cols-2 gap-2.5">
                   {[
-                    { Icon: CalendarDays, value: '11 Years',  label: 'Established 2015', iconColor: 'text-brand-600',  iconBg: 'bg-brand-50'      },
-                    { Icon: Users,        value: '14,400+',   label: 'Customer Loyalty', iconColor: 'text-blue-600',   iconBg: 'bg-blue-50'       },
-                    { Icon: Star,         value: '75%',       label: 'Repeat Customers', iconColor: 'text-gold-600',   iconBg: 'bg-gold-300/25'   },
-                    { Icon: Package,      value: '24,000+',   label: 'Orders Fulfilled', iconColor: 'text-eco-600',    iconBg: 'bg-eco-50'        },
+                    { Icon: CalendarDays, value: '11+ Years',  label: 'Serving Karachi since 2015',    iconColor: 'text-brand-600',  iconBg: 'bg-brand-50'      },
+                    { Icon: Users,        value: '14,400+',   label: 'Homes & Businesses Served',     iconColor: 'text-blue-600',   iconBg: 'bg-blue-50'       },
+                    { Icon: Star,         value: '75%',       label: 'Customers Who Come Back',       iconColor: 'text-gold-600',   iconBg: 'bg-gold-300/25'   },
+                    { Icon: Package,      value: '24,000+',   label: 'Orders Delivered & Fulfilled',  iconColor: 'text-eco-600',    iconBg: 'bg-eco-50'        },
                   ].map(({ Icon, value, label, iconColor, iconBg }) => (
                     <div key={label}
                       className="flex items-center gap-3 bg-white border border-gray-100 shadow-apple rounded-2xl px-3.5 py-3 cursor-default">
