@@ -116,7 +116,7 @@ export default function Home() {
       />
 
       {/* ── HERO ─────────────────────────────────────────────────── */}
-      <section className="relative bg-gradient-to-b from-brand-50/50 via-brand-50/20 to-white overflow-x-hidden">
+      <section className="relative bg-gradient-to-b from-brand-50/50 via-brand-50/20 to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-10 md:pt-20 md:pb-24">
           <div className="grid md:grid-cols-2 gap-12 lg:gap-20 items-center">
 
@@ -227,7 +227,7 @@ export default function Home() {
 
 
       {/* ── CATEGORY GRID ────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-14 pb-10 sm:pb-16 overflow-x-hidden">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-14 pb-10 sm:pb-16">
         <div className="flex items-baseline justify-between mb-4 sm:mb-6">
           <h2 className="text-xl font-black text-gray-900">Shop by Category</h2>
           <Link to="/products" className="text-sm text-brand-600 font-semibold hover:text-brand-700 flex items-center gap-1">
@@ -404,7 +404,7 @@ export default function Home() {
             style={{ backgroundImage: 'linear-gradient(#4ade80 1px, transparent 1px), linear-gradient(90deg, #4ade80 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
           <div className="absolute top-1/2 right-0 -translate-y-1/2 w-96 h-96 bg-eco-500/8 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="relative px-8 py-14 md:py-16">
+          <div className="relative px-5 sm:px-8 py-10 sm:py-14 md:py-16">
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 bg-eco-500/15 text-eco-400 px-3.5 py-1.5 rounded-full text-xs font-bold mb-6 uppercase tracking-widest">
                 <Leaf className="w-3.5 h-3.5" /> Tajalli's Green Corridor
@@ -583,7 +583,7 @@ export default function Home() {
 
       {/* ── SERVICE AREAS ────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="bg-brand-50 rounded-3xl px-8 py-8">
+        <div className="bg-brand-50 rounded-3xl px-5 sm:px-8 py-6 sm:py-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
             <div>
               <p className="text-brand-500 text-xs font-bold uppercase tracking-widest mb-1">Delivery &amp; Installation</p>
