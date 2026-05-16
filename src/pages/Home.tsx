@@ -234,20 +234,17 @@ export default function Home() {
             All <ChevronRight className="w-3.5 h-3.5" />
           </Link>
         </div>
-        {/* Mobile: horizontal scroll; sm+: grid */}
-        <div className="-mx-4 sm:mx-0 overflow-x-auto no-scrollbar sm:overflow-visible">
-          <div className="flex sm:grid sm:grid-cols-3 lg:grid-cols-9 gap-3 sm:gap-4 px-4 sm:px-0 pb-2 sm:pb-0">
-            {HOME_CATEGORIES.map(({ id, name, sub, Icon, color, bg, to }) => (
-              <Link key={id} to={to}
-                className="group flex flex-col items-center gap-1.5 sm:gap-2 py-4 sm:py-5 px-3 sm:px-2 rounded-3xl bg-white hover:bg-brand-50 border border-gray-100 hover:border-brand-200 hover:shadow-sm transition-all duration-200 text-center shrink-0 sm:shrink w-[88px] sm:w-auto">
-                <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shrink-0 ${bg} group-hover:scale-110 transition-transform duration-200`}>
-                  <Icon className={`w-5 h-5 sm:w-5.5 sm:h-5.5 ${color}`} />
-                </div>
-                <span className="text-[10px] sm:text-[11px] font-bold text-gray-700 group-hover:text-brand-700 leading-tight">{name}</span>
-                <span className="hidden sm:block text-[9px] text-gray-400 leading-tight">{sub}</span>
-              </Link>
-            ))}
-          </div>
+        <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-9 gap-3 sm:gap-4">
+          {HOME_CATEGORIES.map(({ id, name, sub, Icon, color, bg, to }) => (
+            <Link key={id} to={to}
+              className="group flex flex-col items-center gap-2 py-5 px-2 rounded-3xl bg-white hover:bg-brand-50 border border-gray-100 hover:border-brand-200 hover:shadow-sm transition-all duration-200 text-center">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${bg} group-hover:scale-110 transition-transform duration-200`}>
+                <Icon className={`w-5.5 h-5.5 ${color}`} />
+              </div>
+              <span className="text-[11px] font-bold text-gray-700 group-hover:text-brand-700 leading-tight">{name}</span>
+              <span className="text-[9px] text-gray-400 leading-tight">{sub}</span>
+            </Link>
+          ))}
         </div>
       </section>
 
@@ -276,7 +273,7 @@ export default function Home() {
       )}
 
       {/* ── MYOP PROMO ───────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 md:pt-24 lg:pt-32 pb-10 md:pb-20">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 md:pt-32 pb-20">
         <div className="relative bg-gray-950 rounded-3xl overflow-hidden">
           <div className="absolute inset-0 opacity-[0.03]"
             style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.8) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.8) 1px,transparent 1px)', backgroundSize: '32px 32px' }} />
@@ -300,22 +297,20 @@ export default function Home() {
                 <p className="text-gray-500 text-xs">3+ items · 5% bundle discount</p>
               </div>
             </div>
-            {/* Example packages — horizontal scroll on mobile */}
-            <div className="-mx-8 sm:mx-0 overflow-x-auto no-scrollbar">
-              <div className="flex gap-2 px-8 sm:px-0 pb-1 sm:pb-0 flex-nowrap">
-                {[
-                  { icon: '🏠', label: 'New Home Package' },
-                  { icon: '💇', label: 'Salon Backup Package' },
-                  { icon: '🏢', label: 'Apartment Comfort Package' },
-                  { icon: '🏪', label: 'Office Essentials Package' },
-                  { icon: '☀️', label: 'Solar-Ready Home Package' },
-                ].map(p => (
-                  <Link key={p.label} to="/build-your-package"
-                    className="inline-flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-brand-500 text-gray-300 hover:text-white text-xs font-medium px-4 py-2.5 rounded-full transition-all shrink-0">
-                    {p.icon} {p.label}
-                  </Link>
-                ))}
-              </div>
+            {/* Example packages */}
+            <div className="flex flex-wrap gap-2">
+              {[
+                { icon: '🏠', label: 'New Home Package' },
+                { icon: '💇', label: 'Salon Backup Package' },
+                { icon: '🏢', label: 'Apartment Comfort Package' },
+                { icon: '🏪', label: 'Office Essentials Package' },
+                { icon: '☀️', label: 'Solar-Ready Home Package' },
+              ].map(p => (
+                <Link key={p.label} to="/build-your-package"
+                  className="inline-flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-brand-500 text-gray-300 hover:text-white text-xs font-medium px-4 py-2.5 rounded-full transition-all">
+                  {p.icon} {p.label}
+                </Link>
+              ))}
             </div>
           </div>
         </div>
