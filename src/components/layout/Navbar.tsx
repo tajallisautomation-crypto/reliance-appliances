@@ -149,12 +149,12 @@ export default function Navbar() {
                 </button>
 
                 <a href={waSales()} target="_blank" rel="noreferrer" aria-label="WhatsApp"
-                  className="hidden sm:flex w-9 h-9 items-center justify-center rounded-full text-eco-400 hover:bg-brand-600 transition-colors">
+                  className="flex w-9 h-9 items-center justify-center rounded-full text-eco-400 hover:bg-brand-600 transition-colors">
                   <Phone className="h-4 w-4" />
                 </a>
 
                 <Link to="/portal" aria-label="My Account"
-                  className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-brand-600 text-white/80 hover:text-white transition-colors">
+                  className="hidden sm:flex w-9 h-9 items-center justify-center rounded-full hover:bg-brand-600 text-white/80 hover:text-white transition-colors">
                   <User className="h-4 w-4" />
                 </Link>
 

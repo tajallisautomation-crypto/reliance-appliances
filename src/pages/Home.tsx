@@ -117,7 +117,7 @@ export default function Home() {
 
       {/* ── HERO ─────────────────────────────────────────────────── */}
       <section className="relative bg-gradient-to-b from-brand-50/50 via-brand-50/20 to-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-16 md:pt-20 md:pb-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-10 md:pt-20 md:pb-24">
           <div className="grid md:grid-cols-2 gap-12 lg:gap-20 items-center">
 
             {/* Left: text */}
@@ -131,16 +131,16 @@ export default function Home() {
                 <span className="text-brand-600 text-xs font-bold uppercase tracking-[0.18em] whitespace-nowrap">11+ Years of Trust</span>
               </div>
 
-              <h1 className="leading-[1.06] tracking-tight mb-6">
-                <span className="block text-2xl md:text-3xl lg:text-4xl font-bold text-gray-500 mb-2 tracking-normal">
+              <h1 className="leading-[1.06] tracking-tight mb-4 md:mb-6">
+                <span className="block text-xl md:text-3xl lg:text-4xl font-bold text-gray-500 mb-1.5 tracking-normal">
                   Appliances, Solar &amp; Backup Solutions
                 </span>
-                <span className="block text-5xl md:text-6xl lg:text-[4.5rem] font-black text-brand-500">
+                <span className="block text-4xl md:text-6xl lg:text-[4.5rem] font-black text-brand-500">
                   Delivered. Installed.<br className="hidden md:block" />
                   <span className="text-gold-500">Supported.</span>
                 </span>
               </h1>
-              <p className="text-lg text-gray-500 leading-relaxed mb-8 max-w-md">
+              <p className="text-base md:text-lg text-gray-500 leading-relaxed mb-5 md:mb-8 max-w-md">
                 ACs, fridges, washing machines, UPS, batteries and solar systems — cash or installments.
                 Delivery, installation and after-sales support across Karachi.
               </p>
@@ -149,19 +149,23 @@ export default function Home() {
                   className="inline-flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm px-5 py-3 rounded-2xl shadow-brand transition-all">
                   Shop Products <ArrowRight className="w-4 h-4" />
                 </Link>
-                <Link to="/build-your-package"
-                  className="inline-flex items-center justify-center gap-2 bg-gold-500 hover:bg-gold-600 text-white font-semibold text-sm px-5 py-3 rounded-2xl transition-all">
-                  <Package className="w-4 h-4" /> Build a Package
-                </Link>
                 <a href={waSales()} target="_blank" rel="noreferrer"
                   className="inline-flex items-center justify-center gap-2 bg-eco-500 hover:bg-eco-600 text-white font-semibold text-sm px-5 py-3 rounded-2xl transition-all">
                   <Phone className="w-4 h-4" /> WhatsApp Help
                 </a>
+                <Link to="/build-your-package"
+                  className="hidden sm:inline-flex items-center justify-center gap-2 bg-gold-500 hover:bg-gold-600 text-white font-semibold text-sm px-5 py-3 rounded-2xl transition-all">
+                  <Package className="w-4 h-4" /> Build a Package
+                </Link>
               </div>
+              <Link to="/build-your-package"
+                className="sm:hidden inline-flex items-center gap-1.5 text-gold-600 text-sm font-semibold mt-2 hover:text-gold-700">
+                <Package className="w-3.5 h-3.5" /> Build a Package
+              </Link>
 
-              {/* Stat cards */}
-              <div className="mt-6 pt-5 border-t border-brand-100">
-                <div className="grid grid-cols-2 gap-2.5">
+              {/* Stat cards — horizontal scroll on mobile, 2×2 grid on sm+ */}
+              <div className="mt-5 md:mt-6 pt-4 md:pt-5 border-t border-brand-100 -mx-4 sm:mx-0">
+                <div className="flex sm:grid sm:grid-cols-2 gap-2.5 overflow-x-auto no-scrollbar px-4 sm:px-0 pb-1 sm:pb-0">
                   {[
                     { Icon: CalendarDays, value: '11+ Years',  label: 'Since 2015 · Karachi',       iconColor: 'text-brand-600',  iconBg: 'bg-brand-50'      },
                     { Icon: Users,        value: '14,400+',   label: 'Homes & Businesses Served',  iconColor: 'text-blue-600',   iconBg: 'bg-blue-50'       },
@@ -169,9 +173,9 @@ export default function Home() {
                     { Icon: Package,      value: '24,000+',   label: 'Orders Fulfilled',           iconColor: 'text-eco-600',    iconBg: 'bg-eco-50'        },
                   ].map(({ Icon, value, label, iconColor, iconBg }) => (
                     <div key={label}
-                      className="flex items-center gap-3 bg-white border border-gray-100 shadow-apple rounded-2xl px-3.5 py-3 cursor-default">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
-                        <Icon className={`w-4.5 h-4.5 ${iconColor}`} />
+                      className="flex items-center gap-2.5 bg-white border border-gray-100 shadow-apple rounded-2xl px-3 py-2.5 cursor-default shrink-0 sm:shrink min-w-[148px] sm:min-w-0">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
+                        <Icon className={`w-4 h-4 ${iconColor}`} />
                       </div>
                       <div>
                         <p className="text-sm font-black text-gray-900 leading-none">{value}</p>
@@ -223,24 +227,27 @@ export default function Home() {
 
 
       {/* ── CATEGORY GRID ────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-16">
-        <div className="flex items-baseline justify-between mb-6">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-14 pb-10 sm:pb-16">
+        <div className="flex items-baseline justify-between mb-4 sm:mb-6">
           <h2 className="text-xl font-black text-gray-900">Shop by Category</h2>
           <Link to="/products" className="text-sm text-brand-600 font-semibold hover:text-brand-700 flex items-center gap-1">
-            All products <ChevronRight className="w-3.5 h-3.5" />
+            All <ChevronRight className="w-3.5 h-3.5" />
           </Link>
         </div>
-        <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-9 gap-3 sm:gap-4">
-          {HOME_CATEGORIES.map(({ id, name, sub, Icon, color, bg, to }) => (
-            <Link key={id} to={to}
-              className="group flex flex-col items-center gap-2 py-5 px-2 rounded-3xl bg-white hover:bg-brand-50 border border-gray-100 hover:border-brand-200 hover:shadow-sm transition-all duration-200 text-center">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${bg} group-hover:scale-110 transition-transform duration-200`}>
-                <Icon className={`w-5.5 h-5.5 ${color}`} />
-              </div>
-              <span className="text-[11px] font-bold text-gray-700 group-hover:text-brand-700 leading-tight">{name}</span>
-              <span className="text-[9px] text-gray-400 leading-tight">{sub}</span>
-            </Link>
-          ))}
+        {/* Mobile: horizontal scroll; sm+: grid */}
+        <div className="-mx-4 sm:mx-0 overflow-x-auto no-scrollbar sm:overflow-visible">
+          <div className="flex sm:grid sm:grid-cols-3 lg:grid-cols-9 gap-3 sm:gap-4 px-4 sm:px-0 pb-2 sm:pb-0">
+            {HOME_CATEGORIES.map(({ id, name, sub, Icon, color, bg, to }) => (
+              <Link key={id} to={to}
+                className="group flex flex-col items-center gap-1.5 sm:gap-2 py-4 sm:py-5 px-3 sm:px-2 rounded-3xl bg-white hover:bg-brand-50 border border-gray-100 hover:border-brand-200 hover:shadow-sm transition-all duration-200 text-center shrink-0 sm:shrink w-[88px] sm:w-auto">
+                <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shrink-0 ${bg} group-hover:scale-110 transition-transform duration-200`}>
+                  <Icon className={`w-5 h-5 sm:w-5.5 sm:h-5.5 ${color}`} />
+                </div>
+                <span className="text-[10px] sm:text-[11px] font-bold text-gray-700 group-hover:text-brand-700 leading-tight">{name}</span>
+                <span className="hidden sm:block text-[9px] text-gray-400 leading-tight">{sub}</span>
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -248,12 +255,12 @@ export default function Home() {
       <OfferBannerSlider />
 
       {/* ── MYOP PROMO ───────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 md:pt-32 pb-20">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 md:pt-24 lg:pt-32 pb-10 md:pb-20">
         <div className="relative bg-gray-950 rounded-3xl overflow-hidden">
           <div className="absolute inset-0 opacity-[0.03]"
             style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.8) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.8) 1px,transparent 1px)', backgroundSize: '32px 32px' }} />
-          <div className="relative px-8 py-10 md:py-12">
-            <div className="flex flex-col md:flex-row items-start md:items-center gap-8 mb-8">
+          <div className="relative px-5 sm:px-8 py-7 md:py-12">
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-6 md:gap-8 mb-6 md:mb-8">
               <div className="flex-1">
                 <p className="text-gold-400 text-xs font-bold uppercase tracking-widest mb-3">Build a Package</p>
                 <h2 className="text-3xl md:text-4xl font-black text-white mb-3 leading-tight">Your home, shop or office —<br className="hidden md:block" />fully equipped in one order.</h2>
@@ -272,28 +279,30 @@ export default function Home() {
                 <p className="text-gray-500 text-xs">3+ items · 5% bundle discount</p>
               </div>
             </div>
-            {/* Example packages */}
-            <div className="flex flex-wrap gap-2">
-              {[
-                { icon: '🏠', label: 'New Home Package' },
-                { icon: '💇', label: 'Salon Backup Package' },
-                { icon: '🏢', label: 'Apartment Comfort Package' },
-                { icon: '🏪', label: 'Office Essentials Package' },
-                { icon: '☀️', label: 'Solar-Ready Home Package' },
-              ].map(p => (
-                <Link key={p.label} to="/build-your-package"
-                  className="inline-flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-brand-500 text-gray-300 hover:text-white text-xs font-medium px-4 py-2.5 rounded-full transition-all">
-                  {p.icon} {p.label}
-                </Link>
-              ))}
+            {/* Example packages — horizontal scroll on mobile */}
+            <div className="-mx-8 sm:mx-0 overflow-x-auto no-scrollbar">
+              <div className="flex gap-2 px-8 sm:px-0 pb-1 sm:pb-0 flex-nowrap">
+                {[
+                  { icon: '🏠', label: 'New Home Package' },
+                  { icon: '💇', label: 'Salon Backup Package' },
+                  { icon: '🏢', label: 'Apartment Comfort Package' },
+                  { icon: '🏪', label: 'Office Essentials Package' },
+                  { icon: '☀️', label: 'Solar-Ready Home Package' },
+                ].map(p => (
+                  <Link key={p.label} to="/build-your-package"
+                    className="inline-flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-brand-500 text-gray-300 hover:text-white text-xs font-medium px-4 py-2.5 rounded-full transition-all shrink-0">
+                    {p.icon} {p.label}
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* ── INSTALLMENT ENGINE ───────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 pb-16">
-        <div className="bg-gray-950 rounded-3xl p-8 md:p-12">
+      <section className="max-w-7xl mx-auto px-4 pb-10 md:pb-16">
+        <div className="bg-gray-950 rounded-3xl p-6 md:p-12">
           <div className="text-center mb-10">
             <p className="text-gold-400 text-xs font-bold uppercase tracking-widest mb-3">Flexible Installments</p>
             <h2 className="text-3xl md:text-4xl font-black text-white mb-3">Own it today. Pay your way.</h2>
@@ -392,8 +401,9 @@ export default function Home() {
                 Green Corridor helps you reduce electricity bills by combining inverter appliances, UPS/battery backup and solar systems into one practical plan for your home or business. Not just solar — a complete strategy.
               </p>
 
-              {/* Pathway chips */}
-              <div className="flex flex-wrap gap-2 mb-10">
+              {/* Pathway chips — horizontal scroll on mobile */}
+              <div className="-mx-8 sm:mx-0 overflow-x-auto no-scrollbar mb-8 sm:mb-10">
+              <div className="flex sm:flex-wrap gap-2 px-8 sm:px-0 pb-1 sm:pb-0 flex-nowrap">
                 {[
                   { icon: '☀️', label: 'Solar Systems' },
                   { icon: '❄️', label: 'Inverter ACs' },
@@ -407,6 +417,7 @@ export default function Home() {
                     {c.icon} {c.label}
                   </span>
                 ))}
+              </div>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">
@@ -426,7 +437,7 @@ export default function Home() {
 
 
       {/* ── FOR BUSINESSES ───────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 text-brand-500 text-xs font-bold uppercase tracking-widest mb-2">
             <Building2 className="w-4 h-4" /> Commercial Solutions
@@ -465,7 +476,7 @@ export default function Home() {
       </section>
 
       {/* ── BRANDS ───────────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 py-14">
+      <section className="max-w-7xl mx-auto px-4 py-8 sm:py-14">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-black text-gray-900">Brands We Carry</h2>
           <Link to="/products" className="text-sm text-brand-600 font-semibold flex items-center gap-1 hover:text-brand-700">
@@ -503,7 +514,7 @@ export default function Home() {
       </section>
 
       {/* ── TOOLS ────────────────────────────────────────────────── */}
-      <section className="bg-gray-50 py-14">
+      <section className="bg-gray-50 py-10 sm:py-14">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-10">
             <div className="text-brand-500 text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1 justify-center"><Zap className="w-4 h-4" /> Free Tools</div>
@@ -526,7 +537,7 @@ export default function Home() {
 
       {/* ── PROOF OF WORK ────────────────────────────────────────── */}
       {galleryStrip.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 py-14">
+        <section className="max-w-7xl mx-auto px-4 py-8 sm:py-14">
           <div className="flex items-end justify-between mb-6">
             <div>
               <p className="text-brand-500 text-xs font-bold uppercase tracking-widest mb-1">Real Jobs</p>
@@ -585,19 +596,19 @@ export default function Home() {
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-brand-500/50 to-transparent" />
         <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-18">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
           {/* Editorial header — left-aligned, intentional */}
-          <div className="mb-16 md:mb-20">
-            <p className="text-brand-400 text-xs font-bold uppercase tracking-[0.25em] mb-4">Established 2015 · Karachi</p>
-            <h2 className="text-4xl md:text-6xl font-black text-white leading-[1.05] tracking-tight max-w-2xl">
+          <div className="mb-8 md:mb-12">
+            <p className="text-brand-400 text-xs font-bold uppercase tracking-[0.25em] mb-3">Established 2015 · Karachi</p>
+            <h2 className="text-3xl md:text-6xl font-black text-white leading-[1.05] tracking-tight max-w-2xl">
               11+ years.<br />
               <span className="text-brand-400">14,400+ homes &amp; businesses.</span><br />
               One standard.
             </h2>
           </div>
 
-          {/* Metrics — large editorial numbers, horizontal rule treatment */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-0 mb-16">
+          {/* Metrics */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-0 mb-8 md:mb-12">
             {[
               { value: '14,400+', label: 'Homes & businesses served', detail: 'Karachi-wide, since 2015' },
               { value: '24,000+', label: 'Orders delivered',          detail: 'On time, every time' },
@@ -605,16 +616,16 @@ export default function Home() {
               { value: '11+ yrs', label: 'In business',               detail: 'No shortcuts. No drop in quality.' },
             ].map((s, i) => (
               <div key={s.label}
-                className={`group py-6 md:py-8 pr-4 md:pr-8 cursor-default transition-all duration-300 hover:bg-white/[0.03] rounded-xl ${i % 2 !== 0 ? 'pl-4 md:pl-8 border-l border-white/10' : ''} ${i >= 2 ? 'border-t border-white/10 md:border-t-0 md:border-l border-white/10' : ''}`}>
-                <p className="text-4xl md:text-6xl font-black text-white leading-none tracking-tight mb-2 group-hover:text-brand-300 transition-colors duration-300">{s.value}</p>
-                <p className="text-sm font-bold text-brand-400 mb-1">{s.label}</p>
-                <p className="text-xs text-gray-600 group-hover:text-gray-500 leading-snug transition-colors duration-300">{s.detail}</p>
+                className={`group py-4 md:py-8 pr-3 md:pr-8 cursor-default transition-all duration-300 hover:bg-white/[0.03] rounded-xl ${i % 2 !== 0 ? 'pl-3 md:pl-8 border-l border-white/10' : ''} ${i >= 2 ? 'border-t border-white/10 md:border-t-0 md:border-l border-white/10' : ''}`}>
+                <p className="text-3xl md:text-6xl font-black text-white leading-none tracking-tight mb-1 md:mb-2 group-hover:text-brand-300 transition-colors duration-300">{s.value}</p>
+                <p className="text-xs md:text-sm font-bold text-brand-400 mb-0.5 md:mb-1">{s.label}</p>
+                <p className="hidden md:block text-xs text-gray-600 group-hover:text-gray-500 leading-snug transition-colors duration-300">{s.detail}</p>
               </div>
             ))}
           </div>
 
           {/* Proof pillars — minimal, not boxed */}
-          <div className="border-t border-white/8 pt-12 grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="border-t border-white/8 pt-8 md:pt-10 grid grid-cols-2 md:grid-cols-4 gap-5 md:gap-8">
             {[
               { icon: ShieldCheck, label: 'Authentic Products', sub: '100% genuine, full manufacturer warranty' },
               { icon: CreditCard,  label: 'Easy Installments',  sub: '2–12 months · no bank account needed' },
@@ -629,7 +640,7 @@ export default function Home() {
             ))}
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 mt-12">
+          <div className="flex flex-col sm:flex-row gap-4 mt-8 md:mt-10">
             <Link to="/products" className="inline-flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-8 py-4 rounded-2xl transition-colors">
               Shop All Products <ArrowRight className="w-4 h-4" />
             </Link>
@@ -641,7 +652,7 @@ export default function Home() {
       </section>
 
       {/* ── CUSTOMER REVIEWS ─────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
         <div className="text-center mb-10">
           <p className="text-brand-500 text-xs font-bold uppercase tracking-widest mb-2">Customer Stories</p>
           <h2 className="text-2xl md:text-3xl font-black text-gray-900">What Our Customers Say</h2>
@@ -669,7 +680,7 @@ export default function Home() {
       </section>
 
       {/* ── FEATURED PRODUCTS ────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 py-14">
+      <section className="max-w-7xl mx-auto px-4 py-8 sm:py-14">
         <div className="flex items-center justify-between mb-8">
           <div>
             <p className="text-brand-500 text-xs font-bold uppercase tracking-widest mb-1">Featured</p>
