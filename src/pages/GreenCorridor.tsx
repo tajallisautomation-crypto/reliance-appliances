@@ -708,7 +708,7 @@ export default function GreenCorridor() {
       {/*
         Taxonomy intelligence: each tile links to a pre-filtered product page
         using the structured filter keys defined in Products.tsx.
-        Inverter ACs include Gree Airy and Haier HFT via product intelligence rules.
+        Inverter ACs include Gree Airy and Haier HFT/HFAB via product intelligence rules.
         Inverter fridges surface only compressor-inverter models.
       */}
       <section className="max-w-5xl mx-auto px-4 py-20">
@@ -725,7 +725,7 @@ export default function GreenCorridor() {
             {
               icon: '❄️',
               label: 'Inverter ACs',
-              sub: 'Includes Gree Airy & Haier HFT series',
+              sub: 'Includes Gree Airy & Haier HFT/HFAB series',
               href: '/products/air-conditioners?actech=inverter',
               bg: 'bg-blue-50 border-blue-100',
               accent: 'text-blue-700',

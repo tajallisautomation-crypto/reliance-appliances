@@ -19,4 +19,4 @@ Allow: /assets/
 Allow: /*.js
 Allow: /*.css
 
-Sitemap: https://reliance.tajallis.com.pk/api/sitemap.xml
+Sitemap: https://reliance.tajallis.com.pk/sitemap.xml

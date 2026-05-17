@@ -61,6 +61,8 @@ function parseBatteryVoltageFromSpecs(specs: Record<string, string>): 24 | 48 | 
 const DISCOUNT_THRESHOLD = 3
 const DISCOUNT_PCT       = 0.05   // 5%
 
+const BUILDER_STEP_LABELS = ['Choose Type', 'Add Products', 'Review Package', 'Confirm Order']
+
 // Categories available in the package builder
 const TABS = [
   { id: 'ac',      label: 'Air Conditioners', icon: '❄️' },
@@ -588,6 +590,10 @@ function PackageSummary({
   const totalItems = items.reduce((n, i) => n + i.qty, 0)
   const subtotal   = items.reduce((n, i) => n + i.product.price.cash_floor * i.qty, 0)
   const qualifies  = totalItems >= DISCOUNT_THRESHOLD
+  const hasAC      = items.some(i => {
+    const nc = (i.product.normalized_category || i.product.original_category || '').toLowerCase()
+    return nc.includes('air cond') || nc.includes('ton air')
+  })
   const discount   = qualifies ? Math.round(subtotal * DISCOUNT_PCT) : 0
   const total      = subtotal - discount
   const plan3m     = total > 0 ? calcPlan(total, '3m')  : null
@@ -811,6 +817,14 @@ function PackageSummary({
                 <p className="text-xs text-gray-400 text-right">Cash price shown above</p>
               ) : null}
 
+              {/* AC installation policy note */}
+              {hasAC && (
+                <div className="bg-sky-50 border border-sky-100 rounded-xl px-3 py-2.5 text-xs text-sky-800">
+                  <p className="font-semibold mb-0.5">AC Installation</p>
+                  <p>Brand installation is <strong>free</strong>, normally within 24 hrs. Urgent Tajalli's installation available on request — quoted separately (not included in package price).</p>
+                </div>
+              )}
+
               {/* Primary: website order */}
               <button onClick={() => setView('form')}
                 className="w-full mt-3 py-3.5 rounded-2xl font-black text-white bg-brand-500 hover:bg-brand-600 transition-colors flex items-center justify-center gap-2">
@@ -939,8 +953,14 @@ export default function MYOPPage() {
     store.updateQty(id, qty)
   }
 
-  const totalItems = store.itemCount()
-  const qualifies  = totalItems >= DISCOUNT_THRESHOLD
+  const totalItems      = store.itemCount()
+  const qualifies       = totalItems >= DISCOUNT_THRESHOLD
+  const subtotalForBar  = selected.reduce((n, i) => n + i.product.price.cash_floor * i.qty, 0)
+  const discountForBar  = qualifies ? Math.round(subtotalForBar * DISCOUNT_PCT) : 0
+  const totalForBar     = subtotalForBar - discountForBar
+  const waMsgForBar     = buildWAMessage(selected, subtotalForBar, discountForBar, totalForBar)
+  // Step 1: no type chosen yet, Step 2: type/preset chosen, Step 3: items added, Step 4: discount unlocked
+  const currentStep = qualifies ? 4 : selected.length > 0 ? 3 : activePreset ? 2 : 1
 
   // Solar / UPS load recommendation
   const currentPreset     = activePreset ? PRESET_PACKS.find(p => p.id === activePreset) ?? null : null
@@ -988,19 +1008,41 @@ export default function MYOPPage() {
         </div>
       </div>
 
-      {/* How it works strip */}
-      <div className="bg-white border-b border-gray-100 py-5 px-4">
-        <div className="max-w-4xl mx-auto grid grid-cols-3 gap-4 text-center">
-          {[
-            { step: '01', text: 'Browse & add products from any category' },
-            { step: '02', text: 'Add 3+ items to unlock your 5% discount' },
-            { step: '03', text: 'Place your order online or via WhatsApp — we confirm and deliver' },
-          ].map(s => (
-            <div key={s.step} className="flex flex-col items-center gap-1">
-              <span className="text-xs font-black text-brand-500">{s.step}</span>
-              <p className="text-xs text-gray-600 leading-snug">{s.text}</p>
-            </div>
-          ))}
+      {/* Step progress bar */}
+      <div className="bg-white border-b border-gray-100 py-4 px-4 sticky top-0 z-30">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center gap-1">
+            {BUILDER_STEP_LABELS.map((label, i) => {
+              const num    = i + 1
+              const active = num === currentStep
+              const done   = num < currentStep
+              return (
+                <span key={num} className="contents">
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <div className={`w-6 h-6 rounded-full text-[10px] font-black flex items-center justify-center shrink-0 transition-colors ${
+                      done   ? 'bg-green-500 text-white' :
+                      active ? 'bg-brand-500 text-white' :
+                               'bg-gray-100 text-gray-400'
+                    }`}>
+                      {done ? '✓' : num}
+                    </div>
+                    <span className={`text-[11px] font-bold whitespace-nowrap hidden sm:inline transition-colors ${
+                      active ? 'text-brand-600' : done ? 'text-green-600' : 'text-gray-300'
+                    }`}>
+                      {label}
+                    </span>
+                  </div>
+                  {i < BUILDER_STEP_LABELS.length - 1 && (
+                    <div className={`flex-1 h-0.5 rounded-full min-w-[4px] transition-colors ${done ? 'bg-green-300' : 'bg-gray-100'}`} />
+                  )}
+                </span>
+              )
+            })}
+          </div>
+          {/* Mobile: show current step label inline */}
+          <p className="sm:hidden text-xs font-bold text-brand-600 mt-1.5">
+            Step {currentStep} of 4 — {BUILDER_STEP_LABELS[currentStep - 1]}
+          </p>
         </div>
       </div>
 
@@ -1029,7 +1071,8 @@ export default function MYOPPage() {
                   </button>
                 </div>
               </div>
-              <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+              {/* Scroll-snap on mobile: one card at a time; normal scroll on sm+ */}
+              <div className="flex gap-3 overflow-x-auto pb-3 no-scrollbar snap-x snap-mandatory sm:snap-none">
                 {PRESET_PACKS.map(pack => {
                   const isActive  = activePreset === pack.id
                   const isLoading = bundleLoading === pack.id
@@ -1037,8 +1080,12 @@ export default function MYOPPage() {
                   const filledCount = pack.slots.filter(slot =>
                     selected.some(i => getProductTabId(i.product) === slot.tabId)
                   ).length
+                  const startingFrom = pack.items?.length
+                    ? pack.items.reduce((s, item) => s + item.price, 0)
+                    : null
                   return (
-                    <div key={pack.id} className={`bg-white border-2 rounded-2xl p-4 flex flex-col gap-2 transition-all shrink-0 w-56 ${
+                    <div key={pack.id} className={`bg-white border-2 rounded-2xl p-4 flex flex-col gap-2 transition-all shrink-0
+                      snap-start w-[calc(100vw-3.5rem)] sm:w-56 ${
                       isActive
                         ? 'border-brand-400 shadow-lg shadow-brand-50'
                         : 'border-gray-200 hover:border-brand-200 hover:shadow-md'
@@ -1051,6 +1098,12 @@ export default function MYOPPage() {
                           <p className="text-[10px] text-gray-400 leading-tight mt-0.5">{pack.tagline}</p>
                         </div>
                       </div>
+
+                      {/* Best for chip */}
+                      <span className="self-start text-[10px] font-bold text-brand-700 bg-brand-50 border border-brand-200 px-2 py-0.5 rounded-full leading-tight">
+                        Best for: {pack.bestFor.split(',')[0].trim()}
+                      </span>
+
                       {/* Slot pills */}
                       <div className="flex flex-wrap gap-1">
                         {pack.slots.map((slot, i) => {
@@ -1068,11 +1121,17 @@ export default function MYOPPage() {
                           )
                         })}
                       </div>
-                      {/* Positioning */}
+
+                      {/* Positioning / use case */}
                       <p className="text-[10px] text-gray-500 leading-snug line-clamp-2">{pack.positioning}</p>
-                      <p className="text-[10px] text-gray-400 leading-tight">
-                        <span className="font-semibold">Best for:</span> {pack.bestFor}
-                      </p>
+
+                      {/* Starting price */}
+                      {startingFrom !== null && (
+                        <p className="text-xs font-black text-brand-600">
+                          Starting from PKR {formatPrice(startingFrom)}
+                        </p>
+                      )}
+
                       {/* Progress bar (only when active + has items) */}
                       {isActive && filledCount > 0 && (
                         <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
@@ -1082,11 +1141,12 @@ export default function MYOPPage() {
                           />
                         </div>
                       )}
-                      {/* CTA */}
+
+                      {/* CTA — full width */}
                       <button
                         onClick={() => startPreset(pack)}
                         disabled={isLoading}
-                        className={`mt-auto py-2 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 ${
+                        className={`mt-auto w-full py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 ${
                           isLoaded  ? 'bg-green-500 text-white' :
                           isActive  ? 'bg-brand-500 hover:bg-brand-600 text-white' :
                                       'bg-gray-900 hover:bg-brand-500 text-white'
@@ -1323,26 +1383,32 @@ export default function MYOPPage() {
         </div>
       </div>
 
-      {/* Mobile floating bar */}
+      {/* Mobile floating bar — single sticky CTA; WhatsApp is built-in here (no separate float on this page) */}
       {selected.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden bg-white border-t border-gray-200 px-4 py-3 flex items-center gap-3 shadow-apple-xl">
-          <div className="flex-1 min-w-0">
-            <p className="text-xs text-gray-500 leading-none mb-0.5">
-              {totalItems} item{totalItems !== 1 ? 's' : ''} selected
-              {qualifies && <span className="text-green-600 font-semibold ml-1">· 5% off</span>}
-            </p>
-            <p className="font-black text-gray-900 text-base leading-none">
-              PKR {formatPrice(
-                selected.reduce((n, i) => n + i.product.price.cash_floor * i.qty, 0) * (qualifies ? (1 - DISCOUNT_PCT) : 1)
-              )}
-            </p>
+        <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden bg-white border-t border-gray-200 px-4 py-3 shadow-apple-xl">
+          <div className="flex items-center gap-2.5">
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] text-gray-500 leading-none mb-0.5">
+                {totalItems} item{totalItems !== 1 ? 's' : ''}
+                {qualifies && <span className="text-green-600 font-semibold ml-1">· 5% off applied</span>}
+              </p>
+              <p className="font-black text-gray-900 text-base leading-none">
+                PKR {formatPrice(totalForBar)}
+              </p>
+            </div>
+            {/* WhatsApp replaces the global floating button on this page */}
+            <a href={waSales(waMsgForBar)} target="_blank" rel="noreferrer"
+              aria-label="Order via WhatsApp"
+              className="w-11 h-11 rounded-full bg-[#25D366] hover:bg-[#1da84e] flex items-center justify-center shrink-0 transition-colors shadow-lg">
+              <MessageCircle className="w-5 h-5 text-white" />
+            </a>
+            <button
+              onClick={() => document.getElementById('myop-summary')?.scrollIntoView({ behavior: 'smooth' })}
+              className="bg-brand-500 hover:bg-brand-600 text-white font-bold px-4 py-3 rounded-xl flex items-center gap-1.5 text-sm whitespace-nowrap transition-colors"
+            >
+              <ShoppingBag className="w-4 h-4" /> View Package
+            </button>
           </div>
-          <button
-            onClick={() => document.getElementById('myop-summary')?.scrollIntoView({ behavior: 'smooth' })}
-            className="bg-brand-500 hover:bg-brand-600 text-white font-bold px-5 py-3 rounded-xl flex items-center gap-2 text-sm whitespace-nowrap transition-colors"
-          >
-            <ShoppingBag className="w-4 h-4" /> View Summary
-          </button>
         </div>
       )}
       {/* Bottom padding for mobile bar */}

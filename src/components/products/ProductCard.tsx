@@ -33,7 +33,7 @@ export default function ProductCard({ product: p }: Props) {
   const bestPlan = p.installments['12m'] ?? p.installments['6m'] ?? p.installments['3m'];
 
   return (
-    <Link to={`/products/${p.slug}`} className="group block bg-white rounded-2xl border border-gray-100 hover:border-gray-200 hover:shadow-apple-lg active:scale-[0.99] transition-all duration-200 overflow-hidden">
+    <Link to={`/products/${p.slug}`} className="group flex flex-col bg-white rounded-2xl border border-gray-100 hover:border-gray-200 hover:shadow-apple-lg active:scale-[0.99] transition-all duration-200 overflow-hidden">
 
       {/* Image */}
       <div className="relative aspect-square bg-gray-50 overflow-hidden">
@@ -75,27 +75,14 @@ export default function ProductCard({ product: p }: Props) {
           </div>
         )}
 
-        {/* Quick actions — always visible on mobile, hover-reveal on desktop */}
-        <div className="absolute bottom-2 right-2 flex gap-1.5 sm:translate-y-2 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100 transition-all duration-200">
-          {isAvailable && (
-            <button onClick={handleAdd} aria-label={`Add ${p.model} to cart`}
-              className={`w-10 h-10 rounded-full shadow-apple-lg flex items-center justify-center transition-all duration-200 ${added ? 'bg-emerald-500 text-white scale-110' : 'bg-white text-brand-500 active:bg-brand-500 active:text-white hover:bg-brand-500 hover:text-white'}`}>
-              {added
-                ? <CheckCircle className="w-4 h-4" />
-                : <ShoppingCart className="w-4 h-4" />}
-            </button>
-          )}
+        {/* Compare icon — desktop hover only; kept as icon since it's secondary */}
+        <div className="absolute top-2 right-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
           <CompareButton product={p} variant="icon" />
-          <a href={waProduct(p.brand, p.model)} target="_blank" rel="noreferrer"
-            aria-label={`Enquire about ${p.model}`} onClick={e => e.stopPropagation()}
-            className="w-10 h-10 rounded-full bg-white shadow-apple-lg flex items-center justify-center transition-colors text-green-500 active:bg-green-500 active:text-white hover:bg-green-500 hover:text-white">
-            <MessageCircle className="w-4 h-4" />
-          </a>
         </div>
       </div>
 
       {/* Details */}
-      <div className="p-3 sm:p-4">
+      <div className="p-3 sm:p-4 flex flex-col flex-1">
         <p className="text-[10px] font-bold text-brand-500 uppercase tracking-widest mb-0.5">{p.brand}</p>
         <h3 className="font-semibold text-gray-900 text-sm leading-snug mb-0.5 line-clamp-2">
           {p.simplified_name || p.model}
@@ -115,17 +102,49 @@ export default function ProductCard({ product: p }: Props) {
         {/* Installment hint */}
         {bestPlan ? (
           <p className="text-xs text-brand-600 font-semibold mb-2">
-            or <span className="font-black">PKR {formatPrice(bestPlan.monthly)}</span>/mo
+            Installment from <span className="font-black">PKR {formatPrice(bestPlan.monthly)}</span>/mo
           </p>
         ) : <div className="mb-2" />}
 
         {/* Warranty */}
         {p.warranty && (
-          <div className="flex items-center gap-1 pt-2 border-t border-gray-50">
+          <div className="flex items-center gap-1 pb-3 border-b border-gray-50">
             <CheckCircle className="w-3 h-3 text-emerald-500 flex-shrink-0" />
             <p className="text-[10px] text-gray-400 line-clamp-2 leading-snug">{p.warranty}</p>
           </div>
         )}
+
+        {/* Text-based action row — always visible, primary conversion path */}
+        <div className="flex gap-1.5 mt-auto pt-2.5" onClick={e => e.preventDefault()}>
+          {isAvailable ? (
+            <button
+              onClick={handleAdd}
+              aria-label={`Add ${p.model} to cart`}
+              className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-bold transition-all ${
+                added
+                  ? 'bg-emerald-500 text-white'
+                  : 'bg-gray-900 hover:bg-brand-500 text-white'
+              }`}
+            >
+              {added ? <CheckCircle className="w-3 h-3" /> : <ShoppingCart className="w-3 h-3" />}
+              {added ? 'Added' : 'Add to Cart'}
+            </button>
+          ) : (
+            <div className="flex-1 flex items-center justify-center py-2 rounded-lg text-[11px] font-bold bg-gray-100 text-gray-400">
+              View Details
+            </div>
+          )}
+          <a
+            href={waProduct(p.brand, p.model)}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`WhatsApp quote for ${p.model}`}
+            onClick={e => e.stopPropagation()}
+            className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-bold bg-[#25D366] hover:bg-[#1da84e] text-white transition-colors"
+          >
+            <MessageCircle className="w-3 h-3" /> WA Quote
+          </a>
+        </div>
       </div>
     </Link>
   );

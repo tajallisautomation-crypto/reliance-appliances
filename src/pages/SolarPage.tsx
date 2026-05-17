@@ -374,7 +374,7 @@ function PackageCard({
         {/* Price + CTAs */}
         <div className="mt-auto">
           <div className="text-center mb-4">
-            <p className="text-xs text-gray-400 mb-0.5">Total Package Price</p>
+            <p className="text-xs text-gray-400 mb-0.5">Starting from</p>
             {pricesReady ? (
               <p className="text-3xl font-black text-gray-900">PKR {formatPrice(displayPrice)}</p>
             ) : (
@@ -383,22 +383,29 @@ function PackageCard({
             <p className="text-xs text-gray-400 mt-1">All-inclusive · labor · transport · equipment</p>
             {!isDefault && pricesReady && (
               <p className="text-xs text-brand-600 mt-1 font-medium">
-                Custom config — price subject to confirmation
+                Custom config — final price confirmed on WhatsApp
               </p>
             )}
           </div>
 
+          {/* Site-assessment note */}
+          <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-3 text-center leading-snug">
+            Solar packages require a site assessment. Final pricing is confirmed after the site visit.
+          </p>
+
           <div className="space-y-2">
-            <button
-              onClick={handleBook}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-white text-sm bg-brand-500 hover:bg-brand-600 transition-colors">
-              <CalendarCheck className="w-4 h-4" /> Book This Package
-            </button>
+            {/* Primary: WhatsApp quote — no commitment, preferred first step */}
             <a href={wa(WA_SALES, buildWAMsg(pkg, withFrame, invOpt, batOpt, displayPrice))}
               target="_blank" rel="noreferrer"
-              className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-2xl border border-gray-200 text-gray-500 text-xs font-medium hover:bg-gray-50 transition-colors">
-              <MessageCircle className="w-3.5 h-3.5 text-[#25D366]" /> Questions? Ask on WhatsApp
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-white text-sm bg-[#25D366] hover:bg-[#1da84e] transition-colors">
+              <MessageCircle className="w-4 h-4" /> Get Final WhatsApp Quote
             </a>
+            {/* Secondary: Book site visit */}
+            <button
+              onClick={handleBook}
+              className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-2xl border border-gray-200 text-gray-600 text-xs font-semibold hover:bg-gray-50 transition-colors">
+              <CalendarCheck className="w-3.5 h-3.5" /> Book Site Visit
+            </button>
           </div>
         </div>
       </div>

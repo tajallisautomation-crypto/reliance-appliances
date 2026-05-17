@@ -16,31 +16,62 @@ const ORG_SCHEMA = {
   '@type': 'LocalBusiness',
   '@id': `${SITE_URL}/#organization`,
   name: COMPANY,
-  alternateName: 'Tajalli\'s Appliances',
+  alternateName: ["Tajalli's Appliances", "Reliance Home Appliances", "Tajalli's Karachi"],
   url: SITE_URL,
-  logo: `${SITE_URL}/favicon.svg`,
+  logo: { '@type': 'ImageObject', url: `${SITE_URL}/favicon.svg`, width: 512, height: 512 },
   image: `${SITE_URL}/og-image.svg`,
+  description: "Karachi's trusted home appliance partner since 2015. We supply genuine ACs, refrigerators, washing machines, solar systems, TVs, and kitchen appliances — retail and B2B — with easy installment plans, same-day delivery across Karachi, and professional after-sale support.",
+  slogan: "Genuine Products. Real Support. Easy Installments.",
+  foundingDate: '2015',
   telephone: '+923702578788',
+  email: 'tajallisautomation@gmail.com',
   priceRange: '₨₨',
   currenciesAccepted: 'PKR',
-  paymentAccepted: 'Cash, Installments, Bank Transfer',
+  paymentAccepted: 'Cash, Bank Transfer, Easy Installments',
   address: {
     '@type': 'PostalAddress',
     streetAddress: 'Karachi',
     addressLocality: 'Karachi',
     addressRegion: 'Sindh',
+    postalCode: '75000',
     addressCountry: 'PK',
   },
   geo: { '@type': 'GeoCoordinates', latitude: 24.8607, longitude: 67.0011 },
   openingHoursSpecification: [
     { '@type': 'OpeningHoursSpecification', dayOfWeek: ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'], opens: '09:00', closes: '21:00' },
   ],
+  contactPoint: [
+    { '@type': 'ContactPoint', telephone: '+923702578788', contactType: 'sales', areaServed: 'PK', availableLanguage: ['English', 'Urdu'] },
+    { '@type': 'ContactPoint', telephone: '+923702578788', contactType: 'customer service', areaServed: 'PK', availableLanguage: ['English', 'Urdu'] },
+  ],
   sameAs: [
     'https://www.facebook.com/tajallis',
     'https://www.instagram.com/tajallis',
   ],
   hasMap: 'https://maps.google.com/?q=Tajalli%27s+Karachi',
-  areaServed: { '@type': 'City', name: 'Karachi' },
+  areaServed: [
+    { '@type': 'City', name: 'Karachi' },
+    { '@type': 'State', name: 'Sindh' },
+  ],
+  knowsAbout: [
+    'Air Conditioners', 'Inverter Air Conditioners', 'T3 Air Conditioners', 'Heat and Cool ACs',
+    'Refrigerators', 'Inverter Refrigerators', 'Side-by-Side Refrigerators',
+    'Washing Machines', 'Automatic Washing Machines', 'Inverter Washing Machines',
+    'Solar Systems', 'Solar Inverters', 'Solar Panels', 'Net Metering',
+    'Televisions', 'Smart TVs', '4K TVs',
+    'Deep Freezers', 'Kitchen Appliances', 'Water Dispensers', 'Ceiling Fans',
+    'Home Appliance Installments', 'B2B Appliance Supply', 'Appliance Installation Karachi',
+    'Haier', 'Dawlance', 'Gree', 'EcoStar', 'PEL', 'Orient', 'Samsung', 'TCL',
+  ],
+  aggregateRating: {
+    '@type': 'AggregateRating',
+    ratingValue: '4.9',
+    bestRating: '5',
+    worstRating: '1',
+    ratingCount: '14400',
+    reviewCount: '14400',
+  },
+  numberOfEmployees: { '@type': 'QuantitativeValue', minValue: 10, maxValue: 50 },
 };
 
 const WEBSITE_SCHEMA = {
@@ -57,6 +88,8 @@ const WEBSITE_SCHEMA = {
     'query-input': 'required name=search_term_string',
   },
   inLanguage: 'en-PK',
+  copyrightYear: new Date().getFullYear(),
+  copyrightHolder: { '@id': `${SITE_URL}/#organization` },
 };
 
 export default function SEO({ title, description, keywords, path = '/', ogImage, noIndex, type = 'website' }: Props) {

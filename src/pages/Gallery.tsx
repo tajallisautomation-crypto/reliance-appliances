@@ -142,10 +142,10 @@ function MediaCard({ item, onClick }: { item: MediaItem; onClick: () => void }) 
             onLoad={() => setLoaded(true)}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
           {item.caption && (
-            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-              <span className="text-white text-xs font-medium line-clamp-2">{item.caption}</span>
+            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-3">
+              <span className="text-white text-xs font-medium line-clamp-2 leading-snug">{item.caption}</span>
             </div>
           )}
         </>
@@ -262,16 +262,15 @@ export default function Gallery() {
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-2xl font-black text-gray-900 mb-3">Like what you see?</h2>
           <p className="text-gray-500 mb-8 max-w-md mx-auto">
-            Book a free consultation and we'll handle everything — from choosing the right
-            appliance to installing it in your home.
+            Every job is done by our team — delivery, installation, and after-sales support included. Book a similar service today.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <a
-              href={waSales('Hi, I saw your work gallery and would like a consultation.')}
+              href={waSales('Hi, I saw your work gallery and would like to book a similar service.')}
               target="_blank" rel="noreferrer"
-              className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold px-8 py-4 rounded-2xl transition-colors"
+              className="flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#1fb857] text-white font-bold px-8 py-4 rounded-2xl transition-colors"
             >
-              <MessageCircle className="w-5 h-5" /> Book on WhatsApp
+              <MessageCircle className="w-5 h-5" /> Book a Similar Service on WhatsApp
             </a>
             <Link to="/products"
               className="flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-8 py-4 rounded-2xl transition-colors">

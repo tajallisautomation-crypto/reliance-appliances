@@ -276,8 +276,8 @@ const SPEC_FILTERS: Record<string, SpecFilter[]> = {
             if (/inverter/i.test(src)) return true;
             // Product intelligence: Gree Airy series = inverter (not always labeled)
             if (/gree/i.test(p.brand) && /\bairy\b/i.test(p.simplified_name || '')) return true;
-            // Product intelligence: Haier HFT series = T3 inverter
-            if (/haier/i.test(p.brand) && /\bHFT\b/.test(p.model || '')) return true;
+            // Product intelligence: Haier HFT/HFAB series = T3 inverter
+            if (/haier/i.test(p.brand) && /\bHFT\b|\bHFAB\b/.test(p.model || '')) return true;
             return false;
           },
         },
@@ -286,9 +286,9 @@ const SPEC_FILTERS: Record<string, SpecFilter[]> = {
           match: p => {
             const src = (p.simplified_name || '') + ' ' + (p.tags || '');
             if (/inverter/i.test(src)) return false;
-            // Gree Airy and Haier HFT are inverter — exclude from non-inverter
+            // Gree Airy and Haier HFT/HFAB are inverter — exclude from non-inverter
             if (/gree/i.test(p.brand) && /\bairy\b/i.test(p.simplified_name || '')) return false;
-            if (/haier/i.test(p.brand) && /\bHFT\b/.test(p.model || '')) return false;
+            if (/haier/i.test(p.brand) && /\bHFT\b|\bHFAB\b/.test(p.model || '')) return false;
             return true;
           },
         },
@@ -303,8 +303,10 @@ const SPEC_FILTERS: Record<string, SpecFilter[]> = {
           value: 't3', label: 'T3 (High Ambient 52°C)',
           match: p => {
             if (/\bT3\b/i.test((p.simplified_name || '') + ' ' + (p.model || ''))) return true;
-            // Haier HFT series = T3 inverter (product intelligence rule)
-            if (/haier/i.test(p.brand) && /\bHFT\b/.test(p.model || '')) return true;
+            // Haier HFT/HFAB series = T3 inverter (product intelligence rule)
+            if (/haier/i.test(p.brand) && /\bHFT\b|\bHFAB\b/.test(p.model || '')) return true;
+            // Tags-based: covers HFS/HFC/HFP models tagged as T3 via enrichment
+            if (/\bt3\b/i.test(p.tags || '')) return true;
             return false;
           },
         },

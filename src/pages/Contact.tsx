@@ -5,10 +5,9 @@ import { waSales } from '@/lib/whatsapp'
 import { supabase } from '@/lib/supabase'
 
 const CONTACT_INFO = [
-  { icon: Phone,   label: 'Sales',   value: '+92 370 2578788', href: 'tel:+923702578788' },
-  { icon: Phone,   label: 'Support', value: '+92 335 4266238', href: 'tel:+923354266238' },
+  { icon: Phone,   label: 'Sales & Support', value: '+92 370 2578788', href: 'tel:+923702578788' },
   { icon: Mail,    label: 'Email',   value: 'support@tajallis.com.pk', href: 'mailto:support@tajallis.com.pk' },
-  { icon: MapPin,  label: 'Location', value: 'Karachi, Pakistan', href: '#' },
+  { icon: MapPin,  label: 'Location', value: 'L-152-153, Sector 11C-1, North Karachi', href: 'https://maps.google.com/?q=L-152-153+Sector+11C-1+UP+More+North+Karachi' },
 ]
 
 const HOURS = [

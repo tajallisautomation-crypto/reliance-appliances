@@ -206,18 +206,18 @@ export function buildSearchIndex(products: Product[]): SearchIndex {
     // ── Product intelligence rules ────────────────────────────────────────────
     // Governance: these rules classify products that suppliers don't tag correctly.
     // Gree Airy series = inverter AC
-    // Haier HFT series = T3 inverter AC
+    // Haier HFT/HFAB series = T3 inverter AC
     // These tokens are added to the index so filter matching works correctly.
     const modelUpper = (p.model || '').toUpperCase();
     const nameForIntel = (p.simplified_name || '').toLowerCase();
     const brandLow = p.brand.toLowerCase();
     if (
       (brandLow === 'gree' && /\bairy\b/i.test(nameForIntel)) ||
-      (brandLow === 'haier' && /\bHFT\b/.test(modelUpper))
+      (brandLow === 'haier' && /\bHFT\b|\bHFAB\b/.test(modelUpper))
     ) {
       tokens.add('inverter');
     }
-    if (brandLow === 'haier' && /\bHFT\b/.test(modelUpper)) {
+    if (brandLow === 'haier' && /\bHFT\b|\bHFAB\b/.test(modelUpper)) {
       tokens.add('t3');
     }
 

@@ -290,7 +290,7 @@ export const TEMPLATES = {
     `Aapki baat sun ke dil dukha. Maafi chahta hoon.\n\n` +
     `Mujhe puri detail batain — main personally ensure karunga ke yeh masla jaldi se jaldi theek ho.\n\n` +
     `*${COMPANY} ka wada hai: koi customer pareshan nahi jaata.*\n\n` +
-    `Admin line: 0335-4266238 (direct escalation)`,
+    `Hamari support line: 0370-2578788`,
 
   // ── 11. CORPORATE ENQUIRY ─────────────────────────────────────────
   corporate_ur: (company: string, name: string) =>
@@ -302,7 +302,7 @@ export const TEMPLATES = {
     `☀️ Office solar + backup solutions\n` +
     `📄 Monthly invoice available\n\n` +
     `Ek dedicated corporate manager aapko assign hoga.\n` +
-    `Corporate line: 0335-4266238`,
+    `Sales line: 0370-2578788`,
 
   // ── 12. SOLAR CONSULTATION ────────────────────────────────────────
   solar_consult_ur: (name: string) =>

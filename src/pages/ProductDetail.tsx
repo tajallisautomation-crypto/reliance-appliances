@@ -7,6 +7,7 @@ import {
   TrendingDown, TrendingUp, History, Info, ZoomIn, X, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { getProductBySlug, getRelatedProducts, getAlternativeProducts, getPriceHistory, formatPrice, DEFAULT_CATEGORIES, isTrueT3 } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import type { Product } from '@/lib/types';
 import ProductCard from '@/components/products/ProductCard';
 import ReviewSection from '@/components/products/ReviewSection';
@@ -56,6 +57,7 @@ export default function ProductDetail() {
   const [activeImg,  setActiveImg]  = useState(0);
   const [activeTab,  setActiveTab]  = useState<TabKey>('specs');
   const [priceHistory, setPriceHistory] = useState<{ retail_price: number; imported_at: string }[]>([]);
+  const [reviewSummary, setReviewSummary] = useState<{ avg: number; count: number } | null>(null);
   const [priceHistoryLoading, setPriceHistoryLoading] = useState(true);
   const [lightbox, setLightbox] = useState(false);
   const [zoom, setZoom] = useState(1);
@@ -85,6 +87,14 @@ export default function ProductDetail() {
         getPriceHistory(p.id)
           .then(ph => startTransition(() => { setPriceHistory(ph); setPriceHistoryLoading(false); }))
           .catch(() => setPriceHistoryLoading(false));
+        Promise.resolve(supabase.from('reviews').select('rating').eq('product_id', p.id))
+          .then(({ data }) => {
+            if (data && data.length > 0) {
+              const avg = data.reduce((s: number, r: { rating: number }) => s + r.rating, 0) / data.length;
+              startTransition(() => setReviewSummary({ avg: Math.round(avg * 10) / 10, count: data.length }));
+            }
+          })
+          .catch(() => {});
       })
       .catch(() => navigate('/products', { replace: true }));
   }, [slug, navigate]);
@@ -225,6 +235,15 @@ export default function ProductDetail() {
         },
       },
     },
+    ...(reviewSummary ? {
+      aggregateRating: {
+        '@type': 'AggregateRating',
+        ratingValue: reviewSummary.avg.toFixed(1),
+        reviewCount: reviewSummary.count,
+        bestRating: 5,
+        worstRating: 1,
+      },
+    } : {}),
   };
 
   // BreadcrumbList schema

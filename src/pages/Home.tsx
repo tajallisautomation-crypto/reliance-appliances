@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import {
   ArrowRight, Calculator, ShieldCheck, Truck, CreditCard, Headphones,
   ChevronRight, Zap, Leaf, Image, Phone, Building2,
@@ -8,6 +9,7 @@ import {
 } from 'lucide-react'
 import { getProducts, getProductCount, type Product, formatPrice } from '../lib/api'
 import { waSales } from '../lib/whatsapp'
+import { SITE_URL } from '../lib/config'
 
 const HERO_TILES = [
   { Icon: AirVent,   label: 'AC Installation',  area: 'North Karachi',   bg: 'from-blue-50 to-blue-100',    color: 'text-blue-500'  },
@@ -79,6 +81,61 @@ const TOOLS = [
   { icon: '📦', title: 'Package Builder',         desc: 'Mix appliances and get an instant bundle price estimate.',   href: '/build-your-package' },
 ]
 
+const FAQ_SCHEMA = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'Do you offer installment plans for home appliances in Karachi?',
+      acceptedAnswer: { '@type': 'Answer', text: "Yes. Tajalli's offers easy installment plans with 2, 3, 6, and 12-month options. No hidden charges — the breakdown is shown upfront before you buy. Available on ACs, refrigerators, washing machines, TVs, and more." },
+    },
+    {
+      '@type': 'Question',
+      name: 'Do you deliver and install appliances in Karachi?',
+      acceptedAnswer: { '@type': 'Answer', text: "Yes. We offer same-day delivery across Karachi and professional installation for air conditioners, washing machines, and other appliances. Our trained technicians handle setup and post-installation testing." },
+    },
+    {
+      '@type': 'Question',
+      name: 'What brands do you carry?',
+      acceptedAnswer: { '@type': 'Answer', text: "We carry all major Pakistani and international brands including Haier, Dawlance, Gree, EcoStar, PEL, Orient, Samsung, TCL, Westpoint, Crown, Waves, and more — all genuine, company-warranted products." },
+    },
+    {
+      '@type': 'Question',
+      name: 'Are your products genuine with official warranty?',
+      acceptedAnswer: { '@type': 'Answer', text: "Yes. Every product sold by Tajalli's is 100% genuine with full manufacturer warranty. We are an authorised dealer for all brands we carry. No grey imports, no refurbished stock." },
+    },
+    {
+      '@type': 'Question',
+      name: 'What is a T3 air conditioner and do you sell them?',
+      acceptedAnswer: { '@type': 'Answer', text: "A T3-rated air conditioner is designed to operate in extreme heat — up to 52°C outdoor ambient temperature. This rating is critical for Pakistan's climate. We stock T3 ACs from Haier (HFT/HFAB series), Gree (Pular T3, Airy T3, Zeno T3), EcoStar (Nova T3, Ario T3, Prince T3), and Dawlance." },
+    },
+    {
+      '@type': 'Question',
+      name: 'Do you offer solar systems for homes and businesses?',
+      acceptedAnswer: { '@type': 'Answer', text: "Yes. We design and install on-grid, off-grid, and hybrid solar systems. Packages start from 3kW for homes up to commercial-scale setups. We handle panels, inverter, net metering registration, and after-sale monitoring." },
+    },
+    {
+      '@type': 'Question',
+      name: 'What areas in Karachi do you serve?',
+      acceptedAnswer: { '@type': 'Answer', text: "We deliver and install across all major Karachi areas including North Karachi, Federal B Area, Gulshan-e-Iqbal, Gulistan-e-Johar, North Nazimabad, Nazimabad, DHA, Clifton, PECHS, Malir, Korangi, Saddar, Orangi Town, and more." },
+    },
+  ],
+};
+
+const TESTIMONIAL_SCHEMA = {
+  '@context': 'https://schema.org',
+  '@type': 'LocalBusiness',
+  '@id': `${SITE_URL}/#organization`,
+  review: REVIEWS.map(r => ({
+    '@type': 'Review',
+    author: { '@type': 'Person', name: r.name },
+    reviewRating: { '@type': 'Rating', ratingValue: 5, bestRating: 5, worstRating: 1 },
+    reviewBody: r.text,
+    publisher: { '@type': 'Organization', name: "Tajalli's" },
+  })),
+};
+
 export default function Home() {
   const [featured,       setFeatured]      = useState<Product[]>([])
   const [loading,        setLoading]       = useState(true)
@@ -111,9 +168,13 @@ export default function Home() {
       <SEO
         title="Tajalli's Home & Commercial Solutions — Appliances & Solar Karachi"
         description="Buy ACs, refrigerators, washing machines, solar systems & kitchen appliances on easy installments in Karachi. Pakistan's most trusted store since 2015. Home delivery & after-sale support."
-        keywords="home appliances karachi, buy ac karachi, solar panels karachi, haier dawlance price pakistan, refrigerator installment karachi, washing machine price karachi"
+        keywords="home appliances karachi, buy ac karachi, solar panels karachi, haier dawlance price pakistan, refrigerator installment karachi, washing machine price karachi, t3 ac karachi, inverter ac installment karachi"
         path="/"
       />
+      <Helmet>
+        <script type="application/ld+json">{JSON.stringify(FAQ_SCHEMA)}</script>
+        <script type="application/ld+json">{JSON.stringify(TESTIMONIAL_SCHEMA)}</script>
+      </Helmet>
 
       {/* ── HERO ─────────────────────────────────────────────────── */}
       <section className="relative bg-gradient-to-b from-brand-50/50 via-brand-50/20 to-white">

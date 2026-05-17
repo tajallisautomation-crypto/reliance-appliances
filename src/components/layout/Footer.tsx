@@ -94,6 +94,11 @@ export default function Footer() {
               </li>
             ))}
           </ul>
+          <a href="https://wa.me/923702578788?text=Hi%2C+I+want+to+check+delivery%2Finstallation+availability+in+my+area."
+            target="_blank" rel="noreferrer"
+            className="mt-3 inline-flex items-center gap-1.5 text-xs text-green-400 hover:text-green-300 transition-colors font-semibold">
+            Not in your area? WhatsApp us →
+          </a>
         </CollapsibleSection>
 
         {/* Contact — always visible */}
@@ -102,10 +107,9 @@ export default function Footer() {
           <ul className="space-y-3">
             {[
               { icon: Phone, val: '+92 370 2578788', href: 'tel:+923702578788' },
-              { icon: Phone, val: '+92 335 4266238', href: 'tel:+923354266238' },
               { icon: Mail,  val: 'sales@tajallis.com.pk',   href: 'mailto:sales@tajallis.com.pk' },
               { icon: Mail,  val: 'support@tajallis.com.pk', href: 'mailto:support@tajallis.com.pk' },
-              { icon: MapPin, val: 'Karachi, Pakistan', href: 'https://maps.google.com/?q=Karachi,Pakistan' },
+              { icon: MapPin, val: 'L-152-153, Sector 11C-1, UP More, North Karachi, Karachi', href: 'https://maps.google.com/?q=L-152-153+Sector+11C-1+UP+More+North+Karachi' },
             ].map(({ icon: Icon, val, href }) => (
               <li key={val}>
                 <a href={href} className="flex items-start gap-2 text-sm text-brand-300 hover:text-white transition-colors">

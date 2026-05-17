@@ -222,12 +222,20 @@ export default function InstallmentCalculator({
         {isReady && (
           <div className="animate-slide-up rounded-2xl border-2 border-gray-100 overflow-hidden">
 
+            {/* Cash price row */}
+            <div className="bg-gray-50 border-b border-gray-100 px-5 py-3 flex justify-between items-center">
+              <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">
+                Cash Price
+              </p>
+              <p className="text-sm font-bold text-gray-700">{fmtPKR(retail)}</p>
+            </div>
+
             {/* Due Today row */}
             <div className="bg-brand-50 border-b border-brand-100 px-5 py-4">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-[10px] font-extrabold text-brand-500 uppercase tracking-widest mb-0.5">
-                    Due Today
+                    Advance (Due Today)
                   </p>
                   <p className="text-3xl font-black text-gray-900 leading-none">
                     {fmtPKR(downPayment)}
@@ -244,7 +252,7 @@ export default function InstallmentCalculator({
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-[10px] font-extrabold text-brand-500 uppercase tracking-widest mb-0.5">
-                    Then Monthly × {cfg.months}
+                    Monthly Payment × {cfg.months}
                   </p>
                   <p className="text-3xl font-black text-brand-600 leading-none">
                     {fmtPKR(monthly)}
@@ -262,13 +270,20 @@ export default function InstallmentCalculator({
             {/* Summary row */}
             <div className="bg-gray-50 px-5 py-3 grid grid-cols-2 gap-4">
               <div>
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">Total</p>
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">Total Installment Price</p>
                 <p className="text-sm font-bold text-gray-800 mt-0.5">{fmtPKR(total)}</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">Finance Fee</p>
-                <p className="text-sm font-bold text-gray-500 mt-0.5">+{fmtPKR(markup)}</p>
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">Financing Charge</p>
+                <p className="text-sm font-bold text-gray-500 mt-0.5">+{fmtPKR(markup)} (+{markupPct}%)</p>
               </div>
+            </div>
+
+            {/* Example-only notice */}
+            <div className="bg-amber-50 border-t border-amber-100 px-5 py-2.5 text-center">
+              <p className="text-[10px] text-amber-700 font-semibold">
+                Example only — final amounts confirmed on WhatsApp
+              </p>
             </div>
           </div>
         )}
@@ -278,7 +293,7 @@ export default function InstallmentCalculator({
           <div className="flex items-start gap-2 text-xs text-blue-700 bg-blue-50 rounded-xl px-4 py-3">
             <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-blue-400" />
             <span>
-              Amounts rounded to nearest PKR 100. Approval subject to document verification.
+              Amounts rounded to nearest PKR 100. Installment plans are available on selected products and may vary by customer profile, product type, and payment history. Approval subject to document verification.
             </span>
           </div>
         )}
