@@ -451,9 +451,9 @@ export function Corporate() {
               className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
               <MessageCircle className="w-4 h-4" /> WhatsApp Corporate Team
             </a>
-            <a href="tel:+923354266238"
+            <a href="tel:+923702578788"
               className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors">
-              <Phone className="w-4 h-4" /> +92 335 4266238
+              <Phone className="w-4 h-4" /> +92 370 2578788
             </a>
           </div>
         </div>
@@ -540,9 +540,9 @@ export function Corporate() {
               className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
               <MessageCircle className="w-4 h-4" /> WhatsApp Corporate Team
             </a>
-            <a href="tel:+923354266238"
+            <a href="tel:+923702578788"
               className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-bold bg-white text-gray-900 hover:bg-gray-100 transition-colors">
-              <Phone className="w-4 h-4" /> +92 335 4266238
+              <Phone className="w-4 h-4" /> +92 370 2578788
             </a>
           </div>
           <div className="mt-6 flex flex-wrap gap-4 justify-center text-sm">

@@ -45,10 +45,10 @@ export default function AuthModal({ open, onClose, onSuccess, defaultMode = 'log
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return }
     setLoading(true); setError('')
     try {
-      const { data } = await signUp(email, password)
-      if (data.user) {
+      const result = await signUp(email, password)
+      if (result.user) {
         await supabase.from('customer_profiles').upsert({
-          user_id:   data.user.id,
+          user_id:   result.user.id,
           full_name: name.trim(),
           phone:     phone.trim(),
         }, { onConflict: 'user_id' })

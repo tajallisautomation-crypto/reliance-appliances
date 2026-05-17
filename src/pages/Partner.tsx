@@ -380,8 +380,8 @@ export default function Partner() {
 
             <p className="text-xs text-center text-gray-400">
               Or reach us directly:{' '}
-              <a href="tel:+923354266238" className="font-semibold text-gray-700 hover:text-brand-600">
-                <Phone className="w-3 h-3 inline-block" /> +92 335 4266238
+              <a href="tel:+923702578788" className="font-semibold text-gray-700 hover:text-brand-600">
+                <Phone className="w-3 h-3 inline-block" /> +92 370 2578788
               </a>
             </p>
           </form>

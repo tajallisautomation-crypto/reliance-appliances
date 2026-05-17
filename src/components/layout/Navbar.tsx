@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ShoppingCart, Menu, X, Phone, User, Leaf, Search, ChevronDown, Building2 } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
+import { useAuthStore } from '@/store/authStore';
 import CartDrawer from '@/components/cart/CartDrawer';
 import SearchBar from '@/components/SearchBar';
 import { waSales } from '@/lib/whatsapp';
@@ -62,6 +63,7 @@ const MOBILE_GROUPS: { label: string; links: [string, string][] }[] = [
   {
     label: 'More',
     links: [
+      ['My Account 👤',        '/portal'],
       ['Services',             '/services'],
       ['Partner With Us',      '/partner'],
       ['Refer & Earn',         '/referral'],
@@ -84,6 +86,7 @@ export default function Navbar() {
   const resourcesTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const location = useLocation();
   const totalItems = useCartStore(s => s.items.reduce((n, i) => n + i.qty, 0));
+  const isLoggedIn = useAuthStore(s => s.isLoggedIn);
 
   const openProducts   = () => { if (productsTimeoutRef.current)  clearTimeout(productsTimeoutRef.current);  setProductsOpen(true); };
   const closeProducts  = () => { productsTimeoutRef.current  = setTimeout(() => setProductsOpen(false), 120); };
@@ -154,8 +157,11 @@ export default function Navbar() {
                 </a>
 
                 <Link to="/portal" aria-label="My Account"
-                  className="hidden sm:flex w-9 h-9 items-center justify-center rounded-full hover:bg-brand-600 text-white/80 hover:text-white transition-colors">
+                  className={`relative flex w-9 h-9 items-center justify-center rounded-full transition-colors ${isLoggedIn ? 'bg-brand-600 text-white hover:bg-brand-700' : 'hover:bg-brand-600 text-white/80 hover:text-white'}`}>
                   <User className="h-4 w-4" />
+                  {isLoggedIn && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-brand-500" />
+                  )}
                 </Link>
 
                 <button onClick={() => setCartOpen(true)} aria-label={`Cart (${totalItems} items)`}

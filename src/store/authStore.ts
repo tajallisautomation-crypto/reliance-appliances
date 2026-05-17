@@ -34,9 +34,12 @@ supabase.auth.getSession().then(({ data }) => {
 
 supabase.auth.onAuthStateChange((event, session) => {
   if (event === 'PASSWORD_RECOVERY') {
-    // Reset-email link was clicked — show the set-new-password form
     useAuthStore.getState().setRecovery(true);
   } else {
     useAuthStore.getState().setSession(session);
+    // Clear recovery mode once user is fully signed in after password reset
+    if (event === 'SIGNED_IN' && useAuthStore.getState().isRecovery) {
+      useAuthStore.getState().setRecovery(false);
+    }
   }
 });

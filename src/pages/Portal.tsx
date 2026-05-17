@@ -1,320 +1,239 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Phone, Search, CheckCircle, Clock, Package, MessageCircle, ShieldCheck, Wrench, CreditCard, Upload, FileText, X } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Eye, EyeOff, Loader2, CheckCircle } from 'lucide-react'
 import SEO from '@/components/ui/SEO'
+import Spinner from '@/components/ui/Spinner'
 import { supabase } from '@/lib/supabase'
-import { waSales, openWhatsApp } from '@/lib/whatsapp'
+import { useAuthStore } from '@/store/authStore'
+import { updatePassword } from '@/lib/auth'
+import AuthModal from '@/components/AuthModal'
+import PortalAuth from '@/components/portal/PortalAuth'
+import PortalOverview from '@/components/portal/PortalOverview'
+import PortalAppliances from '@/components/portal/PortalAppliances'
+import PortalRecommendations from '@/components/portal/PortalRecommendations'
+import PortalPayments from '@/components/portal/PortalPayments'
+import PortalReferrals from '@/components/portal/PortalReferrals'
+import PortalLoyalty from '@/components/portal/PortalLoyalty'
+import PortalAccount from '@/components/portal/PortalAccount'
+import type { CustomerProfile, CustomerAppliance, LoyaltyTransaction, ReferralEarning, PortalOrder, PortalData } from '@/components/portal/portalTypes'
+import toast from 'react-hot-toast'
 
-interface OrderResult {
-  id: string
-  customer_name: string
-  customer_phone: string
-  products: Array<{ model: string; brand: string; qty: number; price: number }>
-  total_amount: number
-  payment_method: string
-  created_at: string
-  status?: string
-}
+type Tab = 'overview' | 'appliances' | 'recommendations' | 'payments' | 'referrals' | 'loyalty' | 'account'
 
-const SERVICES = [
-  { icon: ShieldCheck, title: 'Warranty Claim',  desc: 'Report a product issue covered under warranty.',   wa: 'warranty' },
-  { icon: Wrench,      title: 'Service Request', desc: 'Schedule a maintenance or repair visit.',           wa: 'service' },
-  { icon: CreditCard,  title: 'Installment Help', desc: 'Questions about your installment plan.',           wa: 'installment' },
-  { icon: Package,     title: 'Track Order',     desc: 'Get an update on your current order.',             wa: 'order' },
+const TABS: { id: Tab; label: string; emoji: string }[] = [
+  { id: 'overview',         label: 'Overview',         emoji: '🏠' },
+  { id: 'appliances',       label: 'Appliances',        emoji: '📦' },
+  { id: 'recommendations',  label: 'Recommendations',   emoji: '💡' },
+  { id: 'payments',         label: 'Payments',          emoji: '💳' },
+  { id: 'referrals',        label: 'Referrals',         emoji: '🎁' },
+  { id: 'loyalty',          label: 'Loyalty',           emoji: '⭐' },
+  { id: 'account',          label: 'Account',           emoji: '⚙️' },
 ]
 
-function buildWaMsg(type: string) {
-  const msgs: Record<string, string> = {
-    warranty:    "Hi Tajalli's! I need to make a warranty claim for my product.",
-    service:     "Hi Tajalli's! I would like to schedule a service/repair visit.",
-    installment: "Hi Tajalli's! I have a question about my installment plan.",
-    order:       "Hi Tajalli's! I would like an update on my order.",
+// ── Password recovery view (shown after clicking reset email link) ──────────
+function SetNewPasswordView() {
+  const { setRecovery } = useAuthStore()
+  const [pw, setPw]       = useState('')
+  const [confirm, setConf] = useState('')
+  const [showPw, setShowPw] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [done, setDone]   = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (pw.length < 8)   { setError('Password must be at least 8 characters.'); return }
+    if (pw !== confirm)  { setError('Passwords do not match.'); return }
+    setLoading(true); setError('')
+    try {
+      await updatePassword(pw)
+      setDone(true)
+      setRecovery(false)
+      toast.success('Password updated! You are now signed in.')
+    } catch (err: any) {
+      setError(err.message || 'Could not update password.')
+    } finally { setLoading(false) }
   }
-  return waSales(msgs[type] || "Hi Tajalli's!")
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl shadow-lg w-full max-w-md p-8">
+        <h1 className="text-2xl font-black text-gray-900 mb-1">Set New Password</h1>
+        <p className="text-sm text-gray-500 mb-7">Choose a new password for your account.</p>
+
+        {done ? (
+          <div className="flex flex-col items-center gap-4 py-6">
+            <CheckCircle className="w-12 h-12 text-green-500" />
+            <p className="font-bold text-gray-900">Password updated!</p>
+            <p className="text-sm text-gray-500">You're now signed in to your account.</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{error}</div>}
+            {[
+              { label: 'New Password',     key: 'pw',      value: pw,      set: setPw  },
+              { label: 'Confirm Password', key: 'confirm', value: confirm, set: setConf },
+            ].map(f => (
+              <div key={f.key}>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">{f.label}</label>
+                <div className="relative border border-gray-200 rounded-xl focus-within:border-brand-400">
+                  <input type={showPw ? 'text' : 'password'} value={f.value} onChange={e => f.set(e.target.value)}
+                    required minLength={8} placeholder="••••••••"
+                    className="w-full px-4 py-3 pr-10 text-sm focus:outline-none rounded-xl" />
+                  {f.key === 'pw' && (
+                    <button type="button" onClick={() => setShowPw(s => !s)}
+                      className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600">
+                      {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+            <button type="submit" disabled={loading}
+              className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-colors">
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {loading ? 'Updating…' : 'Set New Password'}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  )
 }
 
-export default function Portal() {
-  const [phone, setPhone] = useState('')
-  const [orderId, setOrderId] = useState('')
-  const [searching, setSearching] = useState(false)
-  const [orders, setOrders] = useState<OrderResult[]>([])
-  const [searched, setSearched] = useState(false)
-  const [searchErr, setSearchErr] = useState('')
+// ── Authenticated dashboard ────────────────────────────────────────────────
+function DashboardView({ email }: { email: string }) {
+  const [activeTab, setActiveTab] = useState<Tab>('overview')
+  const [loading, setLoading]     = useState(true)
+  const [profile, setProfile]     = useState<CustomerProfile | null>(null)
+  const [appliances, setAppliances]         = useState<CustomerAppliance[]>([])
+  const [loyaltyTxns, setLoyaltyTxns]       = useState<LoyaltyTransaction[]>([])
+  const [referralEarnings, setReferralEarnings] = useState<ReferralEarning[]>([])
+  const [orders, setOrders]       = useState<PortalOrder[]>([])
 
-  // Document upload state
-  const [docName, setDocName]   = useState('')
-  const [docPhone, setDocPhone] = useState('')
-  const [docFiles, setDocFiles] = useState<File[]>([])
-  const [docSent, setDocSent]   = useState(false)
-
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!phone.trim() && !orderId.trim()) return
-    setSearching(true)
-    setSearchErr('')
-    setOrders([])
+  const fetchAll = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const uid = user.id
+    setLoading(true)
     try {
-      let q = supabase.from('orders').select('*')
-      if (orderId.trim()) {
-        q = q.eq('id', orderId.trim())
+      const [pRes, aRes, lRes, rRes, oRes] = await Promise.all([
+        supabase.from('customer_profiles').select('*').eq('user_id', uid).single(),
+        supabase.from('customer_appliances').select('*').eq('user_id', uid).eq('is_active', true).order('created_at', { ascending: false }),
+        supabase.from('loyalty_transactions').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(50),
+        supabase.from('referral_earnings').select('*').eq('referrer_user_id', uid).order('created_at', { ascending: false }),
+        supabase.from('orders').select('*').eq('customer_email', email).order('created_at', { ascending: false }).limit(20),
+      ])
+      if (pRes.data) {
+        setProfile(pRes.data)
       } else {
-        q = q.eq('customer_phone', phone.trim())
+        // First login — create profile row
+        const { data: np } = await supabase
+          .from('customer_profiles')
+          .upsert({ user_id: uid, full_name: user.user_metadata?.full_name || '' }, { onConflict: 'user_id' })
+          .select().single()
+        if (np) setProfile(np)
       }
-      const { data, error } = await q.order('created_at', { ascending: false }).limit(10)
-      if (error) throw error
-      setOrders((data || []) as OrderResult[])
-      setSearched(true)
-    } catch (err: any) {
-      setSearchErr('Unable to look up orders. Please WhatsApp us for order status.')
+      setAppliances(aRes.data || [])
+      setLoyaltyTxns(lRes.data || [])
+      setReferralEarnings(rRes.data || [])
+      setOrders(oRes.data || [])
+    } catch (err) {
       if (import.meta.env.DEV) console.error('[Portal]', err)
-    } finally {
-      setSearching(false)
-    }
-  }
+    } finally { setLoading(false) }
+  }, [email])
 
-  const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-PK', { day:'numeric', month:'short', year:'numeric' })
-  const fmtPKR  = (n: number) => 'PKR\u00A0' + Math.round(n || 0).toLocaleString('en-PK')
+  useEffect(() => { fetchAll() }, [fetchAll])
+
+  const portalData: PortalData = { profile, appliances, loyaltyTxns, referralEarnings, orders, reload: fetchAll }
+
+  const TAB_VIEWS: Record<Tab, React.ReactNode> = {
+    overview:        <PortalOverview        {...portalData} />,
+    appliances:      <PortalAppliances      {...portalData} />,
+    recommendations: <PortalRecommendations {...portalData} />,
+    payments:        <PortalPayments        {...portalData} />,
+    referrals:       <PortalReferrals       {...portalData} />,
+    loyalty:         <PortalLoyalty         {...portalData} />,
+    account:         <PortalAccount         {...portalData} />,
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <SEO
-        title="Customer Portal — Tajalli's"
-        description="Track your Tajalli's orders, request service, or get help with your installment plan. No account needed — just your phone number."
-        noIndex
-      />
-
-      {/* Header */}
-      <div className="bg-white border-b">
-        <div className="max-w-4xl mx-auto px-4 py-10 text-center">
-          <div className="inline-flex items-center gap-2 bg-brand-50 text-brand-600 px-4 py-2 rounded-full text-sm font-semibold mb-5">
-            👤 Customer Portal
+      {/* Top bar */}
+      <div className="bg-brand-600 text-white">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center font-bold text-sm flex-shrink-0">
+            {profile?.full_name?.charAt(0).toUpperCase() || email.charAt(0).toUpperCase()}
           </div>
-          <h1 className="text-3xl font-black text-gray-900 mb-2">How Can We Help?</h1>
-          <p className="text-gray-500">Track your order, request support, or get help with your plan.</p>
+          <div className="min-w-0">
+            <p className="font-bold text-sm leading-none">{profile?.full_name || 'My Account'}</p>
+            <p className="text-brand-200 text-xs mt-0.5 truncate">{email}</p>
+          </div>
+          <div className="ml-auto flex-shrink-0">
+            <span className={`text-xs font-bold px-2.5 py-1 rounded-full bg-white/15`}>
+              {profile?.loyalty_tier ? profile.loyalty_tier.charAt(0).toUpperCase() + profile.loyalty_tier.slice(1) : 'Bronze'} · {(profile?.loyalty_points ?? 0).toLocaleString()} pts
+            </span>
+          </div>
+        </div>
+
+        {/* Tab bar */}
+        <div className="border-t border-brand-500/50 overflow-x-auto no-scrollbar">
+          <nav className="flex px-4 min-w-max">
+            {TABS.map(t => (
+              <button key={t.id} onClick={() => setActiveTab(t.id)}
+                className={`flex items-center gap-1.5 px-3 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors ${
+                  activeTab === t.id
+                    ? 'border-white text-white'
+                    : 'border-transparent text-brand-200 hover:text-white'
+                }`}>
+                <span>{t.emoji}</span> {t.label}
+              </button>
+            ))}
+          </nav>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-10 space-y-8">
-
-        {/* Order lookup */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <h2 className="font-bold text-gray-900 text-lg mb-1 flex items-center gap-2">
-            <Search className="w-5 h-5 text-brand-500" /> Look Up Your Order
-          </h2>
-          <p className="text-sm text-gray-500 mb-5">Enter your phone number or order ID to see your orders.</p>
-          <form onSubmit={handleSearch} className="space-y-3">
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-gray-500 block mb-1">Phone Number</label>
-                <input value={phone} onChange={e => setPhone(e.target.value)}
-                  placeholder="+92 3XX XXXXXXX" type="tel"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-400" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-500 block mb-1">Or Order ID</label>
-                <input value={orderId} onChange={e => setOrderId(e.target.value)}
-                  placeholder="e.g. ORD-1234567890"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-400" />
-              </div>
-            </div>
-            <button type="submit" disabled={searching || (!phone.trim() && !orderId.trim())}
-              className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-semibold px-6 py-3 rounded-xl transition-colors">
-              <Search className="w-4 h-4" /> {searching ? 'Searching…' : 'Find My Orders'}
-            </button>
-          </form>
-
-          {searchErr && (
-            <div className="mt-4 p-4 bg-red-50 border border-red-100 rounded-xl text-sm text-red-700">{searchErr}</div>
-          )}
-
-          {searched && !searchErr && (
-            <div className="mt-6">
-              {orders.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">
-                  <Package className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">No orders found</p>
-                  <p className="text-sm mt-1">Try a different phone number, or <a href={waSales()} target="_blank" rel="noreferrer" className="text-brand-500 hover:underline">WhatsApp us</a> for help.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-500">{orders.length} order{orders.length !== 1 ? 's' : ''} found</p>
-                  {orders.map(order => (
-                    <div key={order.id} className="border border-gray-100 rounded-xl p-4 space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="font-bold text-gray-900 text-sm">{order.customer_name}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">{fmtDate(order.created_at)}</p>
-                        </div>
-                        <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
-                          order.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                          order.status === 'delivered' ? 'bg-blue-100 text-blue-700' :
-                          'bg-amber-100 text-amber-700'
-                        }`}>
-                          {order.status || 'Processing'}
-                        </span>
-                      </div>
-                      {Array.isArray(order.products) && order.products.length > 0 && (
-                        <div className="space-y-1">
-                          {order.products.map((p, i) => (
-                            <div key={i} className="flex justify-between text-sm text-gray-600">
-                              <span>{p.qty}× {p.brand} {p.model}</span>
-                              <span className="font-medium">{fmtPKR(p.price * p.qty)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                        <div>
-                          <span className="text-xs text-gray-400">Total · {order.payment_method}</span>
-                          <p className="font-bold text-brand-600">{fmtPKR(order.total_amount)}</p>
-                        </div>
-                        <a href={waSales(`Hi! I'm enquiring about my order. Customer: ${order.customer_name}, Phone: ${order.customer_phone}`)}
-                          target="_blank" rel="noreferrer"
-                          className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold px-4 py-2 rounded-xl">
-                          <MessageCircle className="w-3.5 h-3.5" /> Ask about this order
-                        </a>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Service options */}
-        <div>
-          <h2 className="font-bold text-gray-900 text-lg mb-4">Request Support</h2>
-          <div className="grid sm:grid-cols-2 gap-4">
-            {SERVICES.map(s => (
-              <a key={s.title} href={buildWaMsg(s.wa)} target="_blank" rel="noreferrer"
-                className="flex items-start gap-4 bg-white rounded-2xl border border-gray-100 hover:border-brand-200 hover:shadow-sm p-5 transition-all group">
-                <div className="w-11 h-11 bg-brand-50 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-brand-100">
-                  <s.icon className="w-5 h-5 text-brand-500" />
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900 group-hover:text-brand-700">{s.title}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{s.desc}</p>
-                </div>
-              </a>
-            ))}
-          </div>
-        </div>
-
-        {/* Installment document upload */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <h2 className="font-bold text-gray-900 text-lg mb-1 flex items-center gap-2">
-            <Upload className="w-5 h-5 text-brand-500" /> Submit Installment Documents
-          </h2>
-          <p className="text-sm text-gray-500 mb-5">
-            Upload your NIC, utility bill, and guarantor documents here. Our team will make a home visit within 4 working days to complete verification.
-          </p>
-
-          {docSent ? (
-            <div className="text-center py-8">
-              <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
-              <p className="font-bold text-gray-900 mb-1">Documents submitted!</p>
-              <p className="text-sm text-gray-500">We'll contact you within 4 working days to arrange a home visit.</p>
-              <button onClick={() => { setDocSent(false); setDocName(''); setDocPhone(''); setDocFiles([]); }}
-                className="mt-4 text-sm text-brand-500 hover:underline">Submit another</button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-medium text-gray-600 block mb-1">Your Full Name *</label>
-                  <input value={docName} onChange={e => setDocName(e.target.value)}
-                    placeholder="e.g. Ali Hassan"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-400" />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-600 block mb-1">Phone Number *</label>
-                  <input value={docPhone} onChange={e => setDocPhone(e.target.value)}
-                    placeholder="03XX XXXXXXX" type="tel"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-400" />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-gray-600 block mb-2">Documents to Upload</label>
-                <label className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-200 rounded-2xl p-6 cursor-pointer hover:border-brand-200 hover:bg-brand-50 transition-colors">
-                  <FileText className="w-5 h-5 text-gray-400" />
-                  <span className="text-sm text-gray-500">Tap to select files (images, PDF)</span>
-                  <input type="file" multiple accept="image/*,application/pdf"
-                    className="hidden"
-                    onChange={e => setDocFiles(prev => [...prev, ...Array.from(e.target.files || [])])} />
-                </label>
-                {docFiles.length > 0 && (
-                  <ul className="mt-3 space-y-1.5">
-                    {docFiles.map((f, i) => (
-                      <li key={i} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-2 text-sm">
-                        <span className="text-gray-700 truncate">{f.name}</span>
-                        <button onClick={() => setDocFiles(prev => prev.filter((_, j) => j !== i))}
-                          className="ml-3 text-gray-400 hover:text-red-500 flex-shrink-0">
-                          <X className="w-4 h-4" />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <p className="text-xs text-gray-400 mt-2">Include: NIC (buyer + guarantor), utility bill (buyer + guarantor), passport photos</p>
-              </div>
-
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-700">
-                <p className="font-semibold mb-1">How document submission works</p>
-                <p>Clicking submit will open WhatsApp. Send your selected files along with the pre-filled message. Our team will review and schedule a home visit.</p>
-              </div>
-
-              <button
-                disabled={!docName.trim() || !docPhone.trim() || docFiles.length === 0}
-                onClick={() => {
-                  const fileNames = docFiles.map(f => f.name).join(', ')
-                  const msg = encodeURIComponent(
-                    `Hi Tajalli's! I'd like to submit documents for an installment application.\n\nName: ${docName}\nPhone: ${docPhone}\nFiles: ${fileNames}\n\nI'll send the files in this chat.`
-                  )
-                  openWhatsApp(`https://wa.me/923702578788?text=${msg}`)
-                  setDocSent(true)
-                }}
-                className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white py-3.5 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2">
-                <MessageCircle className="w-4 h-4" /> Submit via WhatsApp
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Direct contact */}
-        <div className="bg-gray-900 rounded-2xl p-6 text-white flex flex-col sm:flex-row items-center justify-between gap-5">
-          <div>
-            <h3 className="font-bold text-lg">Need immediate help?</h3>
-            <p className="text-gray-400 text-sm mt-1">Our team responds within minutes during business hours.</p>
-          </div>
-          <div className="flex gap-3 flex-shrink-0">
-            <a href="tel:+923702578788"
-              className="flex items-center gap-2 border border-white/30 text-white px-5 py-3 rounded-xl font-medium hover:bg-white/10 text-sm">
-              <Phone className="w-4 h-4" /> Call Us
-            </a>
-            <a href={waSales()} target="_blank" rel="noreferrer"
-              className="flex items-center gap-2 text-white font-semibold px-5 py-3 rounded-xl text-sm bg-wa hover:bg-wa-hover transition-colors">
-              <MessageCircle className="w-4 h-4" /> WhatsApp
-            </a>
-          </div>
-        </div>
-
-        {/* Quick links */}
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: 'Browse Products', href: '/products', emoji: '🛍️' },
-            { label: 'Installment Plans', href: '/installments', emoji: '💳' },
-            { label: 'Solar Calculator', href: '/solar-calculator', emoji: '☀️' },
-          ].map(l => (
-            <Link key={l.href} to={l.href}
-              className="flex flex-col items-center gap-2 bg-white rounded-2xl border border-gray-100 hover:border-brand-200 p-4 text-center transition-all group">
-              <span className="text-2xl">{l.emoji}</span>
-              <span className="text-xs font-medium text-gray-600 group-hover:text-brand-700">{l.label}</span>
-            </Link>
-          ))}
-        </div>
+      {/* Tab content */}
+      <div className="max-w-4xl mx-auto px-4 py-6">
+        {loading ? (
+          <div className="flex items-center justify-center py-20"><Spinner /></div>
+        ) : (
+          TAB_VIEWS[activeTab]
+        )}
       </div>
     </div>
+  )
+}
+
+// ── Main Portal component ──────────────────────────────────────────────────
+export default function Portal() {
+  const { session, isLoggedIn, loading: authLoading, isRecovery } = useAuthStore()
+  const [authOpen, setAuthOpen]   = useState(false)
+  const [authMode, setAuthMode]   = useState<'login' | 'signup'>('login')
+
+  const openLogin  = () => { setAuthMode('login');  setAuthOpen(true) }
+  const openSignup = () => { setAuthMode('signup'); setAuthOpen(true) }
+
+  if (authLoading) return (
+    <div className="min-h-screen flex items-center justify-center"><Spinner /></div>
+  )
+
+  if (isRecovery) return <SetNewPasswordView />
+
+  return (
+    <>
+      <SEO title="My Account — Tajalli's" description="Manage your Tajalli's account, appliances, loyalty points, and installments." noIndex />
+
+      {isLoggedIn && session?.user ? (
+        <DashboardView email={session.user.email ?? ''} />
+      ) : (
+        <PortalAuth onLogin={openLogin} onSignup={openSignup} />
+      )}
+
+      <AuthModal
+        open={authOpen}
+        onClose={() => setAuthOpen(false)}
+        defaultMode={authMode}
+      />
+    </>
   )
 }

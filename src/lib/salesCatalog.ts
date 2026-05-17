@@ -378,7 +378,7 @@ export function buildCategoryWAMessage(cat: CatalogCategory, grouped: Map<string
     if (products.length > 10) lines.push(`  _(+${products.length - 10} more models)_`);
     lines.push('');
   }
-  lines.push(`📞 0370-2578788  |  0335-4266238`);
+  lines.push(`📞 0370-2578788`);
   lines.push(`✅ Free delivery Karachi  ·  Genuine warranty  ·  Easy installments`);
   return lines.join('\n');
 }
@@ -467,7 +467,7 @@ export function buildPrintHTML(cat: CatalogCategory, grouped: Map<string, Produc
 </div>
 ${groupHTML}
 <div class="footer">
-  <div>📞 <strong>0370-2578788</strong> &nbsp;|&nbsp; 0335-4266238 &nbsp;|&nbsp; sales@tajallis.com.pk</div>
+  <div>📞 <strong>0370-2578788</strong> &nbsp;|&nbsp; sales@tajallis.com.pk</div>
   <div>✅ Free delivery Karachi &nbsp;·&nbsp; Genuine warranty &nbsp;·&nbsp; Easy installments &nbsp;·&nbsp; tajallis.com.pk</div>
 </div>
 </body>

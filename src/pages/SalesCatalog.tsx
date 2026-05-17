@@ -189,7 +189,7 @@ function FlyerGroupCard({ cat, group, products }: { cat: CatalogCategory; group:
           style={{ background: '#f8f9fa', borderTop: '2px solid #123F73' }}>
           <div className="text-[10px] text-gray-600">
             <span className="font-bold text-brand-600">📞 0370-2578788</span>
-            <span className="mx-2 text-gray-300">·</span>0335-4266238
+            <span className="mx-2 text-gray-300">·</span>sales@tajallis.com.pk
           </div>
           <div className="text-[10px] text-gray-500 text-right leading-tight">
             <div className="font-semibold">tajallis.com.pk</div>
