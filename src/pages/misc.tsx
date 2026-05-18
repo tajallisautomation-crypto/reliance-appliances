@@ -5,11 +5,142 @@ import {
   Phone, MessageCircle, Building2, Award, Shield, ClipboardList,
   Wrench, Truck, CalendarCheck, CheckCircle, Star, Clock,
   ThumbsUp, Headphones, Zap, Users, ChevronRight, AlertCircle,
+  ChevronDown,
 } from 'lucide-react'
 import SEO from '@/components/ui/SEO'
 import { getMaintenanceImages, type MediaItem } from '@/lib/gallery'
-import { SERVICES_CATALOG, requiresSiteConsultation, DELIVERY_POLICY } from '@/lib/services'
+import { SERVICES_CATALOG, type ServiceEntry, requiresSiteConsultation, DELIVERY_POLICY } from '@/lib/services'
 import { waSales, waAdmin } from '@/lib/whatsapp'
+
+// ── Service package groups (for the package cards section) ───────────────────
+
+const PACKAGE_GROUPS = [
+  {
+    id: 'ac-preventive',
+    label: 'AC Preventive Care',
+    ids: ['ac-basic-care', 'ac-master-service-split', 'ac-master-service-floor', 'summer-ac-readiness'],
+  },
+  {
+    id: 'ac-repairs',
+    label: 'AC Repairs',
+    ids: ['ac-leakage-repair-split', 'ac-leakage-repair-floor', 'ac-coil-change', 'ac-card-repair', 'ac-card-replacement'],
+  },
+  {
+    id: 'ac-setup',
+    label: 'AC Installation & Setup',
+    ids: ['ac-install-tajalli', 'ac-relocation', 'ac-lifting'],
+  },
+  {
+    id: 'home-appliance',
+    label: 'Home Appliance Repairs',
+    ids: ['fridge-leakage-repair', 'fridge-relay-replacement', 'dispenser-tap-replacement', 'dispenser-leakage-fix', 'dispenser-tank-repair', 'home-appliance-care-package', 'repair-visit-standard'],
+  },
+  {
+    id: 'power-backup',
+    label: 'Power Backup & Inverter',
+    ids: ['ups-solar-inverter-service', 'solar-inverter-reinstall', 'solar-battery-replacement-labor', 'shop-salon-backup-starter'],
+  },
+]
+
+// ── PackageCard ───────────────────────────────────────────────────────────────
+
+function PackageCard({ s }: { s: ServiceEntry }) {
+  const [open, setOpen] = useState(false)
+
+  const priceBlock = () => {
+    if (s.price.tiers && s.price.tiers.length > 0) {
+      return (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 mt-3">
+          {s.price.tiers.map(t => (
+            <div key={t.label} className="bg-[#1a2a4a] rounded-lg px-2.5 py-2 text-center">
+              <div className="text-[10px] text-slate-300 font-medium">{t.label}</div>
+              <div className="text-amber-400 font-black text-sm mt-0.5">PKR {t.amount.toLocaleString()}</div>
+            </div>
+          ))}
+        </div>
+      )
+    }
+    if (s.price.options && s.price.options.length > 0) {
+      return (
+        <div className="grid grid-cols-2 gap-1.5 mt-3">
+          {s.price.options.map(o => (
+            <div key={o.label} className="bg-[#1a2a4a] rounded-lg px-2.5 py-2 text-center">
+              <div className="text-[10px] text-slate-300 font-medium">{o.label}</div>
+              <div className="text-amber-400 font-black text-sm mt-0.5">PKR {o.amount.toLocaleString()}</div>
+            </div>
+          ))}
+        </div>
+      )
+    }
+    if (s.price.type === 'free') {
+      return <div className="mt-3 text-green-400 font-black text-lg">{s.price.display}</div>
+    }
+    if (s.price.type === 'on_request') {
+      return <div className="mt-3 text-amber-300 font-semibold text-sm">{s.price.display}</div>
+    }
+    return (
+      <div className="mt-3 bg-[#1a2a4a] rounded-xl px-4 py-2.5 text-center">
+        <div className="text-amber-400 font-black text-xl">{s.price.display}</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-[#0d1b35] border border-[#1e3260] rounded-2xl overflow-hidden flex flex-col">
+      {/* Header */}
+      <div className="bg-[#0f2247] px-5 py-4 flex items-start gap-3">
+        <Shield className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+        <h3 className="font-black text-white text-base leading-snug">{s.name}</h3>
+      </div>
+
+      <div className="px-5 py-4 flex flex-col gap-3 flex-1">
+        {/* Best for */}
+        {s.bestFor && (
+          <div className="flex gap-2 text-sm text-slate-300">
+            <span className="text-amber-400 font-semibold shrink-0">Best for:</span>
+            <span>{s.bestFor}</span>
+          </div>
+        )}
+
+        {/* Includes */}
+        {s.packageIncludes && s.packageIncludes.length > 0 && (
+          <div>
+            <p className="text-xs font-bold text-amber-400 uppercase tracking-wide mb-1.5">Includes:</p>
+            <ul className="space-y-1">
+              {s.packageIncludes.map(item => (
+                <li key={item} className="flex items-start gap-1.5 text-xs text-slate-300">
+                  <CheckCircle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Pricing */}
+        {priceBlock()}
+
+        {/* Terms toggle */}
+        {s.packageTerms && (
+          <div className="mt-auto pt-2">
+            <button
+              onClick={() => setOpen(v => !v)}
+              className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+              Terms
+            </button>
+            {open && (
+              <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed border-t border-[#1e3260] pt-2">
+                {s.packageTerms}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 // ── Services ─────────────────────────────────────────────────────────────────
 
@@ -135,81 +266,91 @@ export function Services() {
           </div>
         </section>
 
-        {/* ── Service pricing table ── */}
+        {/* ── Service Packages ── */}
         <section>
           <div className="text-center mb-8">
-            <h2 className="text-2xl font-black text-gray-900">Service Pricing</h2>
-            <p className="text-gray-500 mt-1 text-sm">Transparent pricing — no surprises. Materials are always itemised separately.</p>
+            <h2 className="text-2xl font-black text-gray-900">Service Packages & Pricing</h2>
+            <p className="text-gray-500 mt-1 text-sm">Transparent, fixed pricing — no surprises. Materials always itemised separately.</p>
           </div>
 
-          {/* Repair diagnosis / visit-charge policy */}
-          <div className="mb-4 bg-brand-50 border border-brand-200 rounded-2xl px-5 py-4 flex gap-3">
-            <Wrench className="w-5 h-5 text-brand-600 shrink-0 mt-0.5" />
-            <div className="text-sm text-brand-900 leading-relaxed space-y-1">
-              <p><strong>Repair Policy — Diagnosis First:</strong> All repair services (AC, refrigerator, freezer, dispenser, washing machine, solar inverter, UPS, microwave, LED TV) require an on-site technician visit for diagnosis. The repair quote is only provided <em>after</em> the technician assesses the unit.</p>
-              <ul className="list-disc pl-4 space-y-0.5 text-brand-800">
-                <li><strong>Standard (Within 48 hours):</strong> PKR 2,000 — collected at start of visit.</li>
-                <li><strong>Same-Day Priority:</strong> PKR 3,000 — collected in advance. Request by 12pm.</li>
-                <li>If you <strong>decline</strong> the repair after diagnosis, the visit charge is retained. No refund on visit fees.</li>
-              </ul>
+          {/* Policy notices */}
+          <div className="space-y-3 mb-8">
+            <div className="bg-brand-50 border border-brand-200 rounded-2xl px-5 py-4 flex gap-3">
+              <Wrench className="w-5 h-5 text-brand-600 shrink-0 mt-0.5" />
+              <div className="text-sm text-brand-900 leading-relaxed space-y-1">
+                <p><strong>Repair Policy — Diagnosis First:</strong> All repair services require an on-site technician visit for diagnosis. Repair quote provided after assessment.</p>
+                <ul className="list-disc pl-4 space-y-0.5 text-brand-800">
+                  <li><strong>Standard (within 48 hrs):</strong> PKR 2,000 — collected at start of visit.</li>
+                  <li><strong>Same-day Priority:</strong> PKR 3,000 — collected in advance. Request by 12pm.</li>
+                  <li>If you <strong>decline</strong> the repair, the visit charge is retained.</li>
+                </ul>
+              </div>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-2xl px-5 py-4 flex gap-3">
+              <AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+              <p className="text-sm text-blue-800 leading-relaxed">
+                <strong>Materials Policy:</strong> Repair and installation rates include standard equipment, parts and materials unless clearly stated otherwise. Installation-only rates (AC installation, relocation, lifting, cleaning, checkup, master service) are labor-only — materials charged separately.
+              </p>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 flex gap-3">
+              <Truck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-sm text-amber-800 leading-relaxed">
+                <strong>Delivery:</strong> {DELIVERY_POLICY.display}. <strong>Installment sales</strong> require advance payment before verification. Final pricing may vary based on site conditions, gas refill, electrical work, transport, or special requirements — confirm before work begins.
+              </p>
             </div>
           </div>
 
-          {/* Installation policy notice */}
-          <div className="mb-4 bg-blue-50 border border-blue-200 rounded-2xl px-5 py-4 flex gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-            <div className="text-sm text-blue-800 leading-relaxed">
-              <strong>Installation Policy:</strong> Brand-provided free installations (e.g. Gree, Haier promotional offers) are performed by the brand's own team — Tajalli does not charge for these.
-              When <em>Tajalli's technicians</em> install, our installation charges apply.
-              Equipment, copper pipe, conduit, and other materials are <strong>always charged separately</strong> at cost.
-            </div>
-          </div>
+          {/* Package groups */}
+          {PACKAGE_GROUPS.map(group => {
+            const entries = SERVICES_CATALOG.filter(s => group.ids.includes(s.id))
+            if (entries.length === 0) return null
+            return (
+              <div key={group.id} className="mb-10">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="h-px flex-1 bg-gray-200" />
+                  <h3 className="text-sm font-black uppercase tracking-widest text-gray-700 shrink-0">{group.label}</h3>
+                  <div className="h-px flex-1 bg-gray-200" />
+                </div>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {entries.map(s => <PackageCard key={s.id} s={s} />)}
+                </div>
+              </div>
+            )
+          })}
 
-          {/* Delivery & installment policy */}
-          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 flex gap-3">
-            <Truck className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-            <div className="text-sm text-amber-800 leading-relaxed">
-              <strong>Delivery:</strong> {DELIVERY_POLICY.display}.&nbsp;
-              <strong>Installment sales</strong> require advance payment before verification.&nbsp;
-              {requiresSiteConsultation(1_000_001) && (
-                <span>Orders above <strong>PKR 1,000,000</strong> require a site consultation before finalisation.</span>
-              )}
+          {/* Master price list reference table */}
+          <div className="mt-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-px flex-1 bg-gray-200" />
+              <h3 className="text-sm font-black uppercase tracking-widest text-gray-700 shrink-0">Full Price Reference</h3>
+              <div className="h-px flex-1 bg-gray-200" />
             </div>
-          </div>
-
-          <div className="overflow-x-auto rounded-2xl border border-gray-100 shadow-sm">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-900 text-white">
-                  <th className="text-left px-5 py-3 font-bold">Service</th>
-                  <th className="text-left px-5 py-3 font-bold">Applies To</th>
-                  <th className="text-left px-5 py-3 font-bold">Price</th>
-                  <th className="text-left px-5 py-3 font-bold hidden sm:table-cell">Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {SERVICES_CATALOG.filter(s => s.price.type !== 'free' || s.category === 'installation').map((s, i) => (
-                  <tr key={s.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="px-5 py-3 font-semibold text-gray-900 align-top">{s.name}</td>
-                    <td className="px-5 py-3 text-gray-500 align-top">{s.appliesTo.join(', ')}</td>
-                    <td className="px-5 py-3 align-top">
-                      {s.installationProvider === 'brand_free' ? (
-                        <span className="inline-block bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full text-xs">Free (Brand)</span>
-                      ) : s.price.type === 'free' ? (
-                        <span className="inline-block bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full text-xs">Included</span>
-                      ) : (
-                        <span className="font-bold text-gray-900">{s.price.display}</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3 text-gray-400 text-xs hidden sm:table-cell align-top">{s.notes}</td>
+            <div className="overflow-x-auto rounded-2xl border border-gray-100 shadow-sm">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-900 text-white">
+                    <th className="text-left px-4 py-3 font-bold">Service</th>
+                    <th className="text-left px-4 py-3 font-bold">Price</th>
+                    <th className="text-left px-4 py-3 font-bold hidden sm:table-cell">Notes</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {SERVICES_CATALOG.filter(s => s.price.type !== 'free').map((s, i) => (
+                    <tr key={s.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="px-4 py-2.5 font-semibold text-gray-900 align-top text-xs">{s.name}</td>
+                      <td className="px-4 py-2.5 align-top">
+                        <span className="font-bold text-gray-900 text-xs">{s.price.display}</span>
+                      </td>
+                      <td className="px-4 py-2.5 text-gray-400 text-xs hidden sm:table-cell align-top">{s.notes}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-gray-400 mt-3 text-center">
+              All prices are for Karachi. Subject to change without notice. Confirm final quotation before work begins.
+            </p>
           </div>
-          <p className="text-xs text-gray-400 mt-3 text-center">
-            * All prices are for Karachi. Prices exclude materials unless stated. Subject to change without notice.
-          </p>
         </section>
 
         {/* Recent work photo strip */}

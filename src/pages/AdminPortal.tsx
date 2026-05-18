@@ -4220,6 +4220,8 @@ interface InvoiceLogPayload {
   balanceNote?:        string;
   cashPaySchedule?:    Array<{ date: string; amount: number; note: string }>;
   instScheduleJson?:   Array<{ no: number; label: string; dueDate: string; amount: number }>;
+  amountPaid?:         number;
+  tradeIns?:           Array<{ description: string; value: number }>;
 }
 
 async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<string | null> {
@@ -4284,6 +4286,8 @@ async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<string 
       balance_note:         payload.balanceNote || null,
       cash_pay_schedule_json: payload.cashPaySchedule?.length ? payload.cashPaySchedule : null,
       inst_schedule_json:   payload.instScheduleJson?.length ? payload.instScheduleJson : null,
+      amount_paid:          payload.amountPaid ?? null,
+      trade_ins_json:       payload.tradeIns?.length ? payload.tradeIns : null,
     }).eq('id', inv.id);
 
     // ── invoice_lines ──────────────────────────────────────────────────────
@@ -4455,6 +4459,8 @@ async function updateInvoiceInSupabase(invoiceId: string, payload: InvoiceLogPay
       balance_note:           payload.balanceNote || null,
       cash_pay_schedule_json: payload.cashPaySchedule?.length ? payload.cashPaySchedule : null,
       inst_schedule_json:     payload.instScheduleJson?.length ? payload.instScheduleJson : null,
+      amount_paid:            payload.amountPaid ?? null,
+      trade_ins_json:         payload.tradeIns?.length ? payload.tradeIns : null,
     }).eq('id', invoiceId);
     if (extErr) console.warn('[invoice-update] extended fields failed:', extErr.message);
 
@@ -4741,6 +4747,7 @@ async function generateQuotationPdf(opts: {
   invoiceDate?: string;
   paymentStatus?: string;
   amountPaid?: number;
+  tradeIns?: Array<{ description: string; value: number }>;
 }): Promise<Blob> {
   const NAVY  = '#123F73';
   const DNAV  = '#0B2545';
@@ -4779,6 +4786,7 @@ async function generateQuotationPdf(opts: {
   const installSubtotal   = opts.installationLines.reduce((s, i) => s + i.amount, 0);
   const chargedSvcTotal   = opts.services.filter(s => s.status === 'charged').reduce((sum, s) => sum + s.charged_amount, 0);
   const customChargesTotal = (opts.customCharges ?? []).reduce((s, c) => s + c.amount, 0);
+  const tradeInTotal      = (opts.tradeIns ?? []).reduce((s, t) => s + t.value, 0);
   const baseBeforeDisc    = productSubtotal + installSubtotal + chargedSvcTotal;
   let discountAmt = 0;
   if (opts.discountMode === 'fixed') {
@@ -4786,7 +4794,7 @@ async function generateQuotationPdf(opts: {
   } else {
     discountAmt = Math.round(baseBeforeDisc * opts.discount / 100);
   }
-  const grandTotal = baseBeforeDisc - discountAmt + customChargesTotal;
+  const grandTotal = baseBeforeDisc - discountAmt + customChargesTotal - tradeInTotal;
 
   // ── LAYOUT CONSTANTS ─────────────────────────────────────────────────────────
   const isCompact = opts.docType === 'invoice' || opts.lines.length >= 1;
@@ -4915,7 +4923,7 @@ async function generateQuotationPdf(opts: {
   const _qtPmtStatus = opts.paymentStatus
     ?? (_effPaid ? 'paid' : _effPartial && _qtBalDue <= 0 ? 'paid' : _effPartial ? 'partial' : 'pending');
   const _qtPmtLabel = _qtPmtStatus === 'paid' ? 'PAID IN FULL'
-    : _qtPmtStatus === 'partial' ? 'PARTIAL'
+    : _qtPmtStatus === 'partial' || _qtPmtStatus === 'advance_paid' ? 'PARTIAL'
     : _qtPmtStatus === 'overdue' ? 'OVERDUE'
     : 'PENDING';
   const metaFields: Array<[string, string]> = [
@@ -5174,6 +5182,17 @@ async function generateQuotationPdf(opts: {
     itemsBody.push(['Post-Install Check', '', '1', 'Complimentary', 'PKR 0']);
   }
 
+  // ── Trade-in / buyback section ────────────────────────────────────────────
+  if ((opts.tradeIns ?? []).length > 0) {
+    itemsBody.push([{
+      content: 'TRADE-IN / BUYBACK CREDIT', colSpan: 5,
+      styles: { fillColor: [209, 237, 218] as [number,number,number], textColor: [22, 101, 52] as [number,number,number], fontStyle: 'bold' as const, fontSize: 6.5, cellPadding: { top: 1.5, bottom: 1.5, left: 2 } },
+    }]);
+    for (const ti of opts.tradeIns!) {
+      itemsBody.push([ti.description, 'Buyback credit', '1', `- ${PKR(ti.value)}`, `- ${PKR(ti.value)}`]);
+    }
+  }
+
   // ── Custom charges section ───────────────────────────────────────────────
   if ((opts.customCharges ?? []).length > 0) {
     itemsBody.push([{
@@ -5310,6 +5329,9 @@ async function generateQuotationPdf(opts: {
       const discLabel = `${discTypePrefix}Discount`;
       pricingRows.push([discLabel, `- ${PKR(discountAmt)}`]);
     }
+    if (tradeInTotal > 0) {
+      pricingRows.push(['Trade-In Credit', `- ${PKR(tradeInTotal)}`]);
+    }
 
     const pricingRowH = 4.8;
     // Advance/payment state — computed here so gtNavyBoxH can shrink when no second row needed
@@ -5325,7 +5347,8 @@ async function generateQuotationPdf(opts: {
     const _balOnDelivery = Math.max(0, grandTotal - _amtActuallyPaid);
     // Only show second row when some payment has been made (to convey payment state)
     const _needsSecondRow = _amtActuallyPaid > 0 || _isFullyPaid;
-    const gtNavyBoxH = _needsSecondRow ? 18 : 10;
+    const _hasPartialAdvanceGT = !_isFullyPaid && _amtActuallyPaid > 0 && _amtActuallyPaid < grandTotal;
+    const gtNavyBoxH = !_needsSecondRow ? 10 : _hasPartialAdvanceGT ? 26 : 18;
     const pricingH = pricingRows.length * pricingRowH + (gtNavyBoxH + 9);
     doc.setFillColor(250, 250, 250);
     doc.rect(rightX, rightY, rightW, pricingH, 'F');
@@ -5360,16 +5383,29 @@ async function generateQuotationPdf(opts: {
     doc.text(PKR(grandTotal), rightX + rightW - 3, _gtTextY, { align: 'right' });
 
     if (_needsSecondRow) {
-      const _hasPartialAdvance = !_isFullyPaid && _amtActuallyPaid > 0 && _amtActuallyPaid < grandTotal;
-      const _balStatusLabel = _isFullyPaid ? 'PAID IN FULL' : _hasPartialAdvance ? 'BALANCE DUE' : 'AMOUNT DUE';
-      const _balStatusColor: [number,number,number] = _isFullyPaid ? [134, 239, 172] : _hasPartialAdvance ? [214, 168, 0] : [255, 255, 255];
-      const _balStatusAmt = _isFullyPaid ? grandTotal : _balOnDelivery;
       doc.setDrawColor(45, 85, 140); doc.setLineWidth(0.25);
       doc.line(rightX + 2, pry + 8.5, rightX + rightW - 2, pry + 8.5);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(..._balStatusColor);
-      doc.text(_balStatusLabel, rightX + 3, pry + 13);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(..._balStatusColor);
-      doc.text(PKR(_balStatusAmt), rightX + rightW - 3, pry + 13, { align: 'right' });
+      if (_hasPartialAdvanceGT) {
+        // Three-row treatment: Advance Received | separator | BALANCE DUE
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(214, 168, 0);
+        doc.text('Advance Received', rightX + 3, pry + 13);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(214, 168, 0);
+        doc.text(PKR(_amtActuallyPaid), rightX + rightW - 3, pry + 13, { align: 'right' });
+        doc.setDrawColor(60, 90, 140); doc.setLineWidth(0.2);
+        doc.line(rightX + 2, pry + 17, rightX + rightW - 2, pry + 17);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(214, 168, 0);
+        doc.text('BALANCE DUE', rightX + 3, pry + 21);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(214, 168, 0);
+        doc.text(PKR(_balOnDelivery), rightX + rightW - 3, pry + 21, { align: 'right' });
+      } else {
+        const _balStatusLabel = _isFullyPaid ? 'PAID IN FULL' : 'AMOUNT DUE';
+        const _balStatusColor: [number,number,number] = _isFullyPaid ? [134, 239, 172] : [255, 255, 255];
+        const _balStatusAmt = _isFullyPaid ? grandTotal : _balOnDelivery;
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5); doc.setTextColor(..._balStatusColor);
+        doc.text(_balStatusLabel, rightX + 3, pry + 13);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(..._balStatusColor);
+        doc.text(PKR(_balStatusAmt), rightX + rightW - 3, pry + 13, { align: 'right' });
+      }
     }
 
     rightY += pricingH + 4;
@@ -5878,7 +5914,7 @@ async function generateQuotationPdf(opts: {
   const balanceAmt = grandTotal - advanceAmt;
   // paymentStatus takes priority over advancePaid flag
   const _pbEffPaid    = opts.paymentStatus === 'paid';
-  const _pbEffPartial = opts.paymentStatus === 'partial' || (opts.advancePaid && !_pbEffPaid);
+  const _pbEffPartial = opts.paymentStatus === 'partial' || opts.paymentStatus === 'advance_paid' || (opts.advancePaid && !_pbEffPaid);
   const _paidSoFar = _pbEffPaid ? grandTotal
     : (opts.amountPaid ?? (_pbEffPartial ? advanceAmt : 0));
   const _isFullyPaidDoc = _paidSoFar >= grandTotal && grandTotal > 0;
@@ -9180,6 +9216,8 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
           instTeaserMonthly: grandTotal > 0 ? Math.round(grandTotal * 1.25 / 12) : undefined,
           instTeaserMonths: 12,
           invoiceDate: row.created_at,
+          amountPaid: row.amount_paid ?? undefined,
+          tradeIns: Array.isArray(row.trade_ins_json) ? row.trade_ins_json : undefined,
         });
         filename = `${(row.customer_name || 'Customer').replace(/[/\\:*?"<>|]/g, '').trim()} - ${row.ref_number}.pdf`;
       }
@@ -9612,6 +9650,9 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
   const [preparedBy, setPreparedBy]       = useState('');
   const [stockStatus, setStockStatus]     = useState('In stock · confirm before payment');
   const [advancePaid, setAdvancePaid]     = useState(false);
+  const [amountPaid, setAmountPaid]       = useState(0);
+  const [amountPaidRaw, setAmountPaidRaw] = useState('0');
+  const [tradeIns, setTradeIns]           = useState<Array<{id: string; description: string; value: number}>>([]);
   const [customerArea, setCustomerArea]   = useState('');
   const [isExistingCustomer, setIsExistingCustomer] = useState<boolean | null>(null);
   const [validityHours, setValidityHours] = useState<24 | 48 | 72 | 168>(48);
@@ -9745,7 +9786,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           serviceLevel, elevatedStructureOn, elevatedStructureAmt, wiringAmt, laborAmt,
           customerType, discountReason, discountMode, discountFixed, discountFixedRaw,
           advancePct, advanceMode, advanceFixedAmt, cashPaySchedule, balanceNote,
-          saleType, deliveryEta, preparedBy, stockStatus, advancePaid, customerArea, isExistingCustomer, validityHours,
+          saleType, deliveryEta, preparedBy, stockStatus, advancePaid, amountPaid, amountPaidRaw, tradeIns, customerArea, isExistingCustomer, validityHours,
           instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber,
           customCharges, guarantorName, guarantorPhone, guarantorCnic, invoiceNotes,
           srDeviceBrand, srDeviceModel, srFaultDesc, srWarrantyDays, srJobLines,
@@ -9760,7 +9801,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       advancePct, advanceMode, advanceFixedAmt, cashPaySchedule, balanceNote,
       customerType, discountReason,
       discountMode, discountFixed, discountFixedRaw,
-      saleType, deliveryEta, preparedBy, stockStatus, advancePaid,
+      saleType, deliveryEta, preparedBy, stockStatus, advancePaid, amountPaid, amountPaidRaw, tradeIns,
       customerArea, isExistingCustomer, validityHours,
       instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber,
       customCharges, guarantorName, guarantorPhone, guarantorCnic, invoiceNotes,
@@ -9790,6 +9831,8 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       if (draft.preparedBy !== undefined) setPreparedBy(draft.preparedBy);
       if (draft.stockStatus) setStockStatus(draft.stockStatus);
       if (typeof draft.advancePaid === 'boolean') setAdvancePaid(draft.advancePaid);
+      if (typeof draft.amountPaid === 'number') { setAmountPaid(draft.amountPaid); setAmountPaidRaw(String(draft.amountPaid)); }
+      if (Array.isArray(draft.tradeIns)) setTradeIns(draft.tradeIns);
       if (draft.customerArea !== undefined) setCustomerArea(draft.customerArea);
       if (draft.isExistingCustomer !== undefined) setIsExistingCustomer(draft.isExistingCustomer);
       if (typeof draft.validityHours === 'number') setValidityHours(draft.validityHours);
@@ -9862,7 +9905,9 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
     if (dm === 'fixed') { setDiscountMode('fixed'); setDiscountFixed(dp); setDiscountFixedRaw(String(dp)); setDiscount(0); setDiscountRaw('0'); }
     else { setDiscountMode('percentage'); setDiscount(dp); setDiscountRaw(String(dp)); setDiscountFixed(0); setDiscountFixedRaw('0'); }
     setAdvancePct(row.advance_pct ?? 70);
-    setAdvancePaid(row.payment_status === 'paid' || row.payment_status === 'advance_paid');
+    setAdvancePaid(row.payment_status === 'paid' || row.payment_status === 'advance_paid' || row.payment_status === 'partial');
+    setAmountPaid(row.amount_paid ?? 0);
+    setAmountPaidRaw(String(row.amount_paid ?? 0));
     setAdvanceMode((row.advance_mode ?? 'pct') as 'pct' | 'fixed');
     setAdvanceFixedAmt(row.advance_fixed_amt ?? 0);
     setPreparedBy(row.prepared_by ?? '');
@@ -9892,6 +9937,11 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       setCustomCharges(row.custom_charges_json.map(c => ({ ...c, id: crypto.randomUUID() })));
     } else {
       setCustomCharges([]);
+    }
+    if (Array.isArray(row.trade_ins_json)) {
+      setTradeIns(row.trade_ins_json.map((t: { description: string; value: number }) => ({ ...t, id: crypto.randomUUID() })));
+    } else {
+      setTradeIns([]);
     }
     setGuarantorName(row.guarantor_name ?? '');
     setGuarantorPhone(row.guarantor_phone ?? '');
@@ -10231,7 +10281,8 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
   const discountAmt = totals.discountAmt;
   const grandTotal = totals.grandTotal;
   const customChargesTotal = customCharges.reduce((s, c) => s + c.amount, 0);
-  const effectiveTotal = grandTotal + customChargesTotal;
+  const tradeInTotal = tradeIns.reduce((s, t) => s + t.value, 0);
+  const effectiveTotal = grandTotal + customChargesTotal - tradeInTotal;
 
   const srJobTotal = srJobLines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
   const srCustomTotal = docType === 'service_receipt' ? customCharges.reduce((s, c) => s + c.amount, 0) : 0;
@@ -10302,11 +10353,14 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       instMonthlyAmt: (saleType === 'installment' || docType === 'installment-invoice') ? instMonthlyAmt : 0,
       instFirstDate,
       customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
+      tradeIns: tradeIns.filter(t => t.description && t.value > 0).map(({ description, value }) => ({ description, value })),
       guarantorName, guarantorPhone, guarantorCnic, preparedBy,
       customerArea,
-      paymentStatus: advancePaid
-        ? (saleType === 'installment' ? 'advance_paid' : 'paid')
+      paymentStatus: amountPaid > 0 && amountPaid >= effectiveTotal ? 'paid'
+        : amountPaid > 0 ? 'partial'
+        : advancePaid ? (saleType === 'installment' ? 'advance_paid' : 'partial')
         : 'pending',
+      amountPaid: amountPaid > 0 ? amountPaid : undefined,
       isExistingCustomer,
       stockStatus,
       showNtn,
@@ -10428,6 +10482,11 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           instScheduleRows: saleType === 'installment' && customInstSchedule.length > 0 ? customInstSchedule.map(({ no, label, dueDate, amount }) => ({ no, label, dueDate, amount })) : undefined,
           instTeaserMonthly: saleType !== 'installment' && grandTotal > 0 ? Math.round(grandTotal * 1.25 / 12) : undefined,
           instTeaserMonths: 12,
+          paymentStatus: amountPaid > 0 && amountPaid >= effectiveTotal ? 'paid'
+            : amountPaid > 0 ? 'partial'
+            : undefined,
+          amountPaid: amountPaid > 0 ? amountPaid : undefined,
+          tradeIns: tradeIns.filter(t => t.description && t.value > 0).map(({ description, value }) => ({ description, value })),
         });
       }
       clearTimeout(timeout);
@@ -10850,12 +10909,39 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
             </div>
             )}
           </div>
-          {/* Advance paid toggle */}
-          <label className="flex items-center gap-2 cursor-pointer w-fit">
-            <input type="checkbox" checked={advancePaid} onChange={e => setAdvancePaid(e.target.checked)}
-              className="w-4 h-4 accent-brand-500 rounded" />
-            <span className="text-xs text-gray-500">Advance already paid (removes WA payment proof note)</span>
-          </label>
+          {/* Advance / Amount Received */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 flex-wrap">
+              <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                <input type="checkbox" checked={advancePaid} onChange={e => {
+                  setAdvancePaid(e.target.checked);
+                  if (!e.target.checked) { setAmountPaid(0); setAmountPaidRaw('0'); }
+                }} className="w-4 h-4 accent-brand-500 rounded" />
+                <span className="text-xs font-semibold text-gray-600">Advance received</span>
+              </label>
+              {advancePaid && (
+                <>
+                  <span className="text-xs text-gray-400">PKR</span>
+                  <input
+                    type="text" inputMode="numeric" value={amountPaidRaw}
+                    onChange={e => {
+                      const raw = e.target.value.replace(/[^0-9]/g, '');
+                      setAmountPaidRaw(raw);
+                      setAmountPaid(Number(raw) || 0);
+                    }}
+                    onBlur={() => setAmountPaidRaw(String(amountPaid))}
+                    placeholder="0"
+                    className="w-32 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+                  />
+                  {effectiveTotal > 0 && amountPaid > 0 && (
+                    <span className="text-xs text-gray-400">
+                      Balance: PKR {Math.max(0, effectiveTotal - amountPaid).toLocaleString('en-PK')}
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
           </>)}
           {docType === 'service_receipt' && (
             <div>
@@ -11968,6 +12054,48 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           <div className="flex justify-between text-sm text-gray-500">
             <span>Additional Charges</span>
             <span>+ {fmtPKR(customChargesTotal)}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ── Trade-In / Buyback Panel ── */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Trade-In / Buyback</p>
+          <button
+            onClick={() => setTradeIns(prev => [...prev, { id: crypto.randomUUID(), description: '', value: 0 }])}
+            className="px-3 py-1.5 text-xs font-semibold bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
+            + Add Trade-In
+          </button>
+        </div>
+        {tradeIns.length === 0 && (
+          <p className="text-xs text-gray-400">Buy back old appliances from the client at an agreed price — deducted from the invoice total.</p>
+        )}
+        {tradeIns.map((ti, i) => (
+          <div key={ti.id} className="flex items-center gap-2">
+            <input
+              value={ti.description}
+              onChange={e => setTradeIns(prev => prev.map((t, j) => j === i ? { ...t, description: e.target.value } : t))}
+              placeholder="Item description (e.g. Old Samsung 1.5T AC)"
+              className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+            />
+            <input
+              type="number" min={0}
+              value={ti.value || ''}
+              onChange={e => setTradeIns(prev => prev.map((t, j) => j === i ? { ...t, value: Number(e.target.value) || 0 } : t))}
+              placeholder="PKR"
+              className="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm text-right focus:outline-none focus:ring-2 focus:ring-brand-400"
+            />
+            <button onClick={() => setTradeIns(prev => prev.filter((_, j) => j !== i))}
+              className="text-gray-300 hover:text-red-500 transition-colors p-1">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+        {tradeInTotal > 0 && (
+          <div className="flex justify-between text-sm text-green-700 font-semibold">
+            <span>Trade-In Credit</span>
+            <span>- {fmtPKR(tradeInTotal)}</span>
           </div>
         )}
       </div>
