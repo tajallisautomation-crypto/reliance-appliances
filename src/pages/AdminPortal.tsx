@@ -7683,18 +7683,20 @@ async function generateServiceReceiptPdf(opts: {
   const grandTotal = baseTotal - discountAmt;
 
   const totalsRightX = W - margin - 70;
-  // Only show summary rows not already subtotalled in the individual tables
-  const pricingRows: Array<[string, string]> = [];
+  const pricingRows: Array<{ lbl: string; val: string; sub?: string; red?: boolean }> = [];
   const _numSections = (workTotal > 0 ? 1 : 0) + (partsTotal > 0 ? 1 : 0) + (customTotal > 0 ? 1 : 0);
-  if (_numSections > 1) {
-    // Multiple sections: show combined base before discount
-    pricingRows.push(['Combined Subtotal', PKR(baseTotal)]);
+  // Always show subtotal when there's a discount (so the deduction makes sense)
+  if (_numSections > 1 || discountAmt > 0) {
+    pricingRows.push({ lbl: 'Subtotal', val: PKR(baseTotal) });
   }
   if (discountAmt > 0) {
-    const lbl = opts.discountMode === 'fixed'
-      ? `${opts.discountType} Discount (fixed)`
-      : `${opts.discountType} Discount (${opts.discount}%)`;
-    pricingRows.push([lbl, `- ${PKR(discountAmt)}`]);
+    const discLbl = opts.discountType ? `${opts.discountType} Discount` : 'Discount';
+    pricingRows.push({
+      lbl: discLbl,
+      val: `- ${PKR(discountAmt)}`,
+      sub: opts.discountReason?.trim() || undefined,
+      red: true,
+    });
   }
 
   // Payment status label for TOTAL DUE box
@@ -7710,17 +7712,24 @@ async function generateServiceReceiptPdf(opts: {
     _srPmtStatus === 'overdue'? [185, 28, 28]  : [100, 100, 100];
 
   const pricingRowH = 5;
-  const pricingH = pricingRows.length * pricingRowH + 18 + (_srPmtLabel ? 8 : 0);
+  const pricingH = pricingRows.reduce((h, r) => h + pricingRowH + (r.sub ? 3.5 : 0), 0) + 18 + (_srPmtLabel ? 8 : 0);
   doc.setFillColor(250, 250, 250);
   doc.rect(totalsRightX, y, W - margin - totalsRightX, pricingH, 'F');
   doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
   doc.rect(totalsRightX, y, W - margin - totalsRightX, pricingH, 'S');
   let pry = y + 5;
-  for (const [lbl, val] of pricingRows) {
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(107, 114, 128);
-    doc.text(lbl, totalsRightX + 3, pry);
-    doc.text(val, W - margin - 3, pry, { align: 'right' });
+  for (const row of pricingRows) {
+    doc.setFont('helvetica', row.red ? 'bold' : 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(row.red ? 220 : 107, row.red ? 38 : 114, row.red ? 38 : 128);
+    doc.text(row.lbl, totalsRightX + 3, pry);
+    doc.text(row.val, W - margin - 3, pry, { align: 'right' });
     pry += pricingRowH;
+    if (row.sub) {
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(5.5); doc.setTextColor(150, 100, 50);
+      doc.text(row.sub, totalsRightX + 5, pry - 1.5);
+      pry += 3.5;
+    }
   }
   doc.setFillColor(NAVY);
   doc.rect(totalsRightX, pry - 1, W - margin - totalsRightX, 11, 'F');
@@ -9183,6 +9192,20 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
           warrantyDays = prefixMatch[3] ? Number(prefixMatch[3]) : 0;
           srNotes = notesRaw.replace(prefixMatch[0], '').trim();
         }
+        // Compute discount: prefer discounts_json (multi), fall back to legacy columns
+        let _srRpDiscount = 0, _srRpDiscType = '', _srRpDiscReason = '';
+        if (Array.isArray(row.discounts_json) && row.discounts_json.length > 0) {
+          const _srRpBase = jobLines.reduce((s, l) => s + l.qty * l.unitPrice, 0)
+            + customCharges.reduce((s, c) => s + c.amount, 0);
+          _srRpDiscount = row.discounts_json.reduce((sum, d) =>
+            sum + (d.mode === 'fixed' ? d.amount : Math.round(_srRpBase * d.amount / 100)), 0);
+          _srRpDiscType   = row.discounts_json.map(d => d.type).filter(Boolean).join(', ');
+          _srRpDiscReason = row.discounts_json.map(d => d.reason).filter(Boolean).join('; ');
+        } else {
+          _srRpDiscount   = row.discount_pct ?? 0;
+          _srRpDiscType   = row.discount_type ?? '';
+          _srRpDiscReason = row.discount_reason ?? '';
+        }
         blob = await generateServiceReceiptPdf({
           customerName: row.customer_name ?? '',
           customerPhone: (row.customer_phone ?? '').replace(/\D/g, ''),
@@ -9195,10 +9218,10 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
           jobLines,
           warrantyDays,
           customCharges,
-          discount: row.discount_pct ?? 0,
-          discountMode: discountIsFixed ? 'fixed' : 'percentage',
-          discountType: row.discount_type ?? '',
-          discountReason: row.discount_reason ?? '',
+          discount: _srRpDiscount,
+          discountMode: Array.isArray(row.discounts_json) && row.discounts_json.length > 0 ? 'fixed' : (discountIsFixed ? 'fixed' : 'percentage'),
+          discountType: _srRpDiscType,
+          discountReason: _srRpDiscReason,
           paymentStatus: row.payment_status ?? undefined,
           notes: srNotes,
           preparedBy: row.prepared_by ?? '',
