@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Trash2, Wrench, CheckCircle, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Wrench, CheckCircle, Loader2, Calendar, Hash } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { waSales } from '@/lib/whatsapp'
 import toast from 'react-hot-toast'
@@ -29,6 +29,7 @@ export default function PortalAppliances({ appliances, reload }: PortalData) {
   const [form, setForm] = useState({
     brand: '', model: '', category: 'air-conditioners',
     purchase_year: '', purchase_source: 'other' as 'tajallis' | 'other',
+    serial_no: '', warranty_end_date: '',
   })
 
   const set = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }))
@@ -40,17 +41,19 @@ export default function PortalAppliances({ appliances, reload }: PortalData) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaving(false); return }
     const { error } = await supabase.from('customer_appliances').insert({
-      user_id:         user.id,
-      brand:           form.brand.trim(),
-      model:           form.model.trim(),
-      category:        form.category,
-      purchase_year:   form.purchase_year ? Number(form.purchase_year) : null,
-      purchase_source: form.purchase_source,
+      user_id:           user.id,
+      brand:             form.brand.trim(),
+      model:             form.model.trim(),
+      category:          form.category,
+      purchase_year:     form.purchase_year ? Number(form.purchase_year) : null,
+      purchase_source:   form.purchase_source,
+      serial_no:         form.serial_no.trim() || null,
+      warranty_end_date: form.warranty_end_date || null,
     })
     setSaving(false)
     if (error) { toast.error('Could not add appliance.'); return }
     toast.success('Appliance added!')
-    setForm({ brand: '', model: '', category: 'air-conditioners', purchase_year: '', purchase_source: 'other' })
+    setForm({ brand: '', model: '', category: 'air-conditioners', purchase_year: '', purchase_source: 'other', serial_no: '', warranty_end_date: '' })
     setShowForm(false)
     reload()
   }
@@ -111,6 +114,16 @@ export default function PortalAppliances({ appliances, reload }: PortalData) {
                 min={2000} max={CURRENT_YEAR} placeholder={String(CURRENT_YEAR)}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-brand-400" />
             </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Serial No. (optional)</label>
+              <input value={form.serial_no} onChange={e => set('serial_no', e.target.value)} placeholder="From product sticker"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-brand-400" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Warranty End Date (optional)</label>
+              <input type="date" value={form.warranty_end_date} onChange={e => set('warranty_end_date', e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-brand-400" />
+            </div>
           </div>
           <div>
             <label className="text-xs font-medium text-gray-600 block mb-2">Where did you buy it?</label>
@@ -149,8 +162,8 @@ export default function PortalAppliances({ appliances, reload }: PortalData) {
           {appliances.map(a => {
             const status = serviceStatus(a)
             return (
-              <div key={a.id} className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-4">
-                <span className="text-3xl flex-shrink-0">{CATEGORY_ICONS[a.category] ?? '🔌'}</span>
+              <div key={a.id} className="bg-white rounded-2xl border border-gray-100 p-4 flex items-start gap-4">
+                <span className="text-3xl flex-shrink-0 mt-0.5">{CATEGORY_ICONS[a.category] ?? '🔌'}</span>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-gray-900">{a.brand} {a.model}</p>
                   <p className="text-xs text-gray-400 mt-0.5">
@@ -158,12 +171,36 @@ export default function PortalAppliances({ appliances, reload }: PortalData) {
                     {a.purchase_year ? ` · ${a.purchase_year}` : ''}
                     {a.purchase_source === 'tajallis' ? " · Tajalli's" : ''}
                   </p>
-                  {status === 'due' && (
-                    <span className="inline-block mt-1 text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">Service Due</span>
+                  {(a as any).serial_no && (
+                    <p className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
+                      <Hash className="w-3 h-3" />{(a as any).serial_no}
+                    </p>
                   )}
-                  {status === 'soon' && (
-                    <span className="inline-block mt-1 text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Service Due Soon</span>
-                  )}
+                  {(a as any).warranty_end_date && (() => {
+                    const end = new Date((a as any).warranty_end_date)
+                    const now = new Date()
+                    const expired = end < now
+                    const soonMs = 60 * 24 * 60 * 60 * 1000 // 60 days
+                    const expiringSoon = !expired && (end.getTime() - now.getTime()) < soonMs
+                    return (
+                      <p className={`flex items-center gap-1 text-xs mt-0.5 ${expired ? 'text-red-500' : expiringSoon ? 'text-amber-500' : 'text-green-600'}`}>
+                        <Calendar className="w-3 h-3" />
+                        Warranty {expired ? 'expired' : 'ends'} {end.toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        {expiringSoon && ' — expiring soon'}
+                      </p>
+                    )
+                  })()}
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {status === 'due' && (
+                      <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">Service Due</span>
+                    )}
+                    {status === 'soon' && (
+                      <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Service Due Soon</span>
+                    )}
+                    {a.purchase_source === 'tajallis' && (
+                      <span className="text-xs font-semibold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full">Tajalli's</span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
                   {status && status !== 'ok' && (

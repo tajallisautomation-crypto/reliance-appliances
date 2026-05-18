@@ -843,3 +843,92 @@ export const INSTALLMENT_POLICY = {
   advanceRequiredBefore: 'verification',
   display:               'Advance payment required before verification and delivery',
 } as const;
+
+// ── Annual Care Plans ──────────────────────────────────────────────────────────
+
+export interface AnnualCarePlanAppliance {
+  num:      string;
+  category: string;
+  coverage: string;
+  startsAt: number;
+}
+
+export interface AnnualCarePlan {
+  id:         'essential' | 'plus';
+  name:       string;
+  tagline:    string;
+  description: string;
+  appliances: AnnualCarePlanAppliance[];
+  includes:   string[];
+  bestFor:    string;
+  terms:      string[];
+}
+
+export const ANNUAL_CARE_PLANS: AnnualCarePlan[] = [
+  {
+    id: 'essential',
+    name: 'Essential Annual Care Plan',
+    tagline: 'Basic preventive coverage',
+    description: 'Basic preventive coverage for homes, offices & businesses',
+    appliances: [
+      { num: '01', category: 'Air Conditioners',   coverage: 'Cleaning, filter wash, gas pressure & drain check',          startsAt: 7500  },
+      { num: '02', category: 'Refrigerators',       coverage: 'Cooling, gasket, leakage & relay check',                      startsAt: 6000  },
+      { num: '03', category: 'Freezers',            coverage: 'Cooling efficiency, seal & leakage check',                    startsAt: 6500  },
+      { num: '04', category: 'Washing Machines',    coverage: 'Drain, spin, inlet & performance check',                      startsAt: 6000  },
+      { num: '05', category: 'Televisions',         coverage: 'Display, ports, sound & mounting check',                      startsAt: 4500  },
+      { num: '06', category: 'Solar & UPS',         coverage: 'Cleaning, wiring, inverter & battery health check',           startsAt: 12000 },
+      { num: '07', category: 'Kitchen Appliances',  coverage: 'Basic inspection, cleaning & functional test',                startsAt: 3500  },
+      { num: '08', category: 'Water Dispensers',    coverage: 'Tap, tank, cooling/heating & leakage check',                  startsAt: 4500  },
+      { num: '09', category: 'Small Appliances',    coverage: 'Safety and performance check',                                startsAt: 3000  },
+    ],
+    includes: [
+      '1 scheduled preventive visit per covered product per year',
+      'Inspection, external cleaning & basic testing',
+      'Service checklist tailored to product type',
+      '10% off repair labor',
+      'Standard response within 72 hours',
+      'WhatsApp support',
+    ],
+    bestFor: 'Customers who want affordable annual preventive care and basic peace of mind.',
+    terms: [
+      'Valid for 12 months from activation; starting rates are per unit / set.',
+      'Essential covers preventive care only; parts, gas refill, transport and major repairs are charged separately.',
+      'Commercial, large-capacity, floor-standing ACs and larger solar systems may require a custom quote.',
+      'Damage due to misuse, voltage fluctuation, fire, flooding, pests, rust, theft or accidents is excluded.',
+      "Service available in Tajalli's active service areas; out-of-area visits may carry extra charges.",
+    ],
+  },
+  {
+    id: 'plus',
+    name: 'Plus Annual Care Plan',
+    tagline: 'Preventive care + covered parts',
+    description: 'Preventive care plus free maintenance & covered parts. No product replacement included.',
+    appliances: [
+      { num: '01', category: 'Air Conditioners',   coverage: 'Service, cleaning, covered repairs & parts',                  startsAt: 16500 },
+      { num: '02', category: 'Refrigerators',       coverage: 'Cooling care, repairs, maintenance & parts',                  startsAt: 13500 },
+      { num: '03', category: 'Freezers',            coverage: 'Seal, cooling, repairs, maintenance & parts',                 startsAt: 14500 },
+      { num: '04', category: 'Washing Machines',    coverage: 'Routine service, covered repairs & parts',                    startsAt: 13500 },
+      { num: '05', category: 'Televisions',         coverage: 'Display, ports, sound repairs & covered parts',               startsAt: 9500  },
+      { num: '06', category: 'Solar & UPS',         coverage: 'Cleaning, maintenance, covered repairs & parts',              startsAt: 24000 },
+      { num: '07', category: 'Kitchen Appliances',  coverage: 'Maintenance, repairs & covered parts',                        startsAt: 7500  },
+      { num: '08', category: 'Water Dispensers',    coverage: 'Cooling/heating care, repairs & parts',                       startsAt: 9500  },
+      { num: '09', category: 'Small Appliances',    coverage: 'Routine care, repairs & covered parts',                       startsAt: 6500  },
+    ],
+    includes: [
+      '2 scheduled service visits per covered product per year',
+      'Preventive inspection, cleaning & testing',
+      'Maintenance labor included',
+      'Covered parts included for normal covered faults',
+      'Priority response within 48 hours',
+      'WhatsApp support + annual service reminders',
+    ],
+    bestFor: 'Families, offices and businesses that want stronger protection with free maintenance and parts, without paying for replacement-level cover.',
+    terms: [
+      'Valid for 12 months from activation; starting rates are per unit / set.',
+      'Plus includes preventive care, maintenance labor and covered parts for eligible mechanical and electrical faults.',
+      'Product replacement is not included in this plan.',
+      'Damage due to misuse, power surges, fire, flooding, theft, rust, pests, accessories loss or third-party tampering is excluded.',
+      'Large-capacity, floor-standing, commercial and expanded solar systems may require custom pricing or add-on cover.',
+    ],
+  },
+];

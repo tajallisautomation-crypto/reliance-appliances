@@ -4197,6 +4197,7 @@ interface InvoiceLogPayload {
   guarantorCnic?:  string;
   discount:        number;
   discountType:    string;
+  discounts?:      Array<{ mode: 'percentage' | 'fixed'; amount: number; type: string; reason: string }>;
   grandTotal:      number;
   serviceTotal:    number;
   advancePct:      number;
@@ -4288,6 +4289,7 @@ async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<string 
       inst_schedule_json:   payload.instScheduleJson?.length ? payload.instScheduleJson : null,
       amount_paid:          payload.amountPaid ?? null,
       trade_ins_json:       payload.tradeIns?.length ? payload.tradeIns : null,
+      discounts_json:       payload.discounts?.length ? payload.discounts : null,
     }).eq('id', inv.id);
 
     // ── invoice_lines ──────────────────────────────────────────────────────
@@ -4461,6 +4463,7 @@ async function updateInvoiceInSupabase(invoiceId: string, payload: InvoiceLogPay
       inst_schedule_json:     payload.instScheduleJson?.length ? payload.instScheduleJson : null,
       amount_paid:            payload.amountPaid ?? null,
       trade_ins_json:         payload.tradeIns?.length ? payload.tradeIns : null,
+      discounts_json:         payload.discounts?.length ? payload.discounts : null,
     }).eq('id', invoiceId);
     if (extErr) console.warn('[invoice-update] extended fields failed:', extErr.message);
 
@@ -4748,6 +4751,7 @@ async function generateQuotationPdf(opts: {
   paymentStatus?: string;
   amountPaid?: number;
   tradeIns?: Array<{ description: string; value: number }>;
+  discounts?: Array<{ mode: 'percentage' | 'fixed'; amount: number; type: string; reason: string }>;
 }): Promise<Blob> {
   const NAVY  = '#123F73';
   const DNAV  = '#0B2545';
@@ -5318,16 +5322,25 @@ async function generateQuotationPdf(opts: {
     doc.line(rightX, rightY + 1, rightX + rightW, rightY + 1);
     doc.setLineWidth(0.2);
     rightY += 4;
-    const pricingRows: Array<[string, string]> = [
+    const pricingRows: Array<[string, string, string?]> = [
       ['Product subtotal', PKR(productSubtotal)],
       ...(installSubtotal > 0 ? [['Installation', PKR(installSubtotal)] as [string, string]] : []),
       ...(chargedSvcTotal > 0 ? [['Services', PKR(chargedSvcTotal)] as [string, string]] : []),
       ...(customChargesTotal > 0 ? [['Additional Charges', PKR(customChargesTotal)] as [string, string]] : []),
     ];
-    if (discountAmt > 0) {
+    // Multi-discount rows — each with its own label, amount, and optional reason
+    if (opts.discounts && opts.discounts.length > 0) {
+      for (const d of opts.discounts) {
+        const dAmt = d.mode === 'fixed' ? d.amount : Math.round(baseBeforeDisc * d.amount / 100);
+        if (dAmt > 0) {
+          const label = `${d.type} Discount`;
+          pricingRows.push([label, `- ${PKR(dAmt)}`, d.reason.trim() || undefined]);
+        }
+      }
+    } else if (discountAmt > 0) {
+      // Fallback for legacy reprints without discounts array
       const discTypePrefix = opts.discountType ? `${opts.discountType} ` : '';
-      const discLabel = `${discTypePrefix}Discount`;
-      pricingRows.push([discLabel, `- ${PKR(discountAmt)}`]);
+      pricingRows.push([`${discTypePrefix}Discount`, `- ${PKR(discountAmt)}`]);
     }
     if (tradeInTotal > 0) {
       pricingRows.push(['Trade-In Credit', `- ${PKR(tradeInTotal)}`]);
@@ -5349,7 +5362,9 @@ async function generateQuotationPdf(opts: {
     const _needsSecondRow = _amtActuallyPaid > 0 || _isFullyPaid;
     const _hasPartialAdvanceGT = !_isFullyPaid && _amtActuallyPaid > 0 && _amtActuallyPaid < grandTotal;
     const gtNavyBoxH = !_needsSecondRow ? 10 : _hasPartialAdvanceGT ? 26 : 18;
-    const pricingH = pricingRows.length * pricingRowH + (gtNavyBoxH + 9);
+    const _reasonRowH = 3.2;
+    const pricingReasonExtra = pricingRows.filter(r => r[2]).length * _reasonRowH;
+    const pricingH = pricingRows.length * pricingRowH + pricingReasonExtra + (gtNavyBoxH + 9);
     doc.setFillColor(250, 250, 250);
     doc.rect(rightX, rightY, rightW, pricingH, 'F');
     doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.2);
@@ -5362,7 +5377,7 @@ async function generateQuotationPdf(opts: {
     doc.text('PRICING', rightX + 6, rightY + 3);
 
     let pry = rightY + 4 + 4.5;
-    for (const [lbl, val] of pricingRows) {
+    for (const [lbl, val, reason] of pricingRows) {
       const isDiscount = val.startsWith('- ');
       doc.setFont('helvetica', isDiscount ? 'bold' : 'normal');
       doc.setFontSize(7);
@@ -5370,6 +5385,11 @@ async function generateQuotationPdf(opts: {
       doc.text(lbl, rightX + 3, pry);
       doc.text(val, rightX + rightW - 3, pry, { align: 'right' });
       pry += pricingRowH;
+      if (reason) {
+        doc.setFont('helvetica', 'italic'); doc.setFontSize(5.5); doc.setTextColor(22, 134, 90);
+        doc.text(reason, rightX + 5, pry - 1.5, { maxWidth: rightW - 22 });
+        pry += _reasonRowH;
+      }
     }
 
     doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
@@ -9218,6 +9238,7 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
           invoiceDate: row.created_at,
           amountPaid: row.amount_paid ?? undefined,
           tradeIns: Array.isArray(row.trade_ins_json) ? row.trade_ins_json : undefined,
+          discounts: Array.isArray(row.discounts_json) ? row.discounts_json : undefined,
         });
         filename = `${(row.customer_name || 'Customer').replace(/[/\\:*?"<>|]/g, '').trim()} - ${row.ref_number}.pdf`;
       }
@@ -9529,9 +9550,8 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
   const [autofillCandidate, setAutofillCandidate] = useState<AutofillCandidate | null>(null);
   const [phoneNameConflict, setPhoneNameConflict] = useState<string | null>(null);
   const [docType, setDocType]                 = useState<'quotation' | 'invoice' | 'installment-invoice' | 'service_receipt'>('quotation');
-  const [discount, setDiscount]           = useState(0);
-  const [discountRaw, setDiscountRaw]     = useState('0');
-  const [discountType, setDiscountType]   = useState('Promotional');
+  interface DiscountEntry { id: string; mode: 'percentage' | 'fixed'; amount: number; amountRaw: string; type: string; reason: string; }
+  const [discounts, setDiscounts] = useState<DiscountEntry[]>([]);
   const [lines, setLines]                 = useState<QuoteLine[]>([]);
   const [productSearch, setProductSearch] = useState('');
   const [generating, setGenerating]       = useState(false);
@@ -9561,7 +9581,6 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
   const [showNtn, setShowNtn]         = useState(false);
   const [customerType, setCustomerType] = useState<'house' | 'apartment' | 'commercial'>('house');
   const [serviceLevel, setServiceLevel] = useState<'supply_only' | 'supply_install' | 'full_service'>('supply_only');
-  const [discountReason, setDiscountReason] = useState('');
   // ── Installment invoice state ──
   const [instTotalPrice, setInstTotalPrice]     = useState(0);
   const [instAdvanceAmt, setInstAdvanceAmt]     = useState(0);
@@ -9643,9 +9662,6 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
 
   const [services, setServices] = useState<InvoiceService[]>(DEFAULT_SERVICES);
   const [saleType, setSaleType]           = useState<'cash' | 'installment'>('cash');
-  const [discountMode, setDiscountMode]   = useState<'percentage' | 'fixed'>('percentage');
-  const [discountFixed, setDiscountFixed] = useState(0);
-  const [discountFixedRaw, setDiscountFixedRaw] = useState('0');
   const [deliveryEta, setDeliveryEta]     = useState('24–48h after payment');
   const [preparedBy, setPreparedBy]       = useState('');
   const [stockStatus, setStockStatus]     = useState('In stock · confirm before payment');
@@ -9782,9 +9798,9 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       if (lines.length > 0 || customerName || customerPhone) {
         localStorage.setItem('tajallis-invoice-draft', JSON.stringify({
           lines, customerName, customerPhone, customerEmail, customerAddress, customerCnic,
-          discount, discountRaw, discountType, docType, refNumber,
+          discounts, docType, refNumber,
           serviceLevel, elevatedStructureOn, elevatedStructureAmt, wiringAmt, laborAmt,
-          customerType, discountReason, discountMode, discountFixed, discountFixedRaw,
+          customerType,
           advancePct, advanceMode, advanceFixedAmt, cashPaySchedule, balanceNote,
           saleType, deliveryEta, preparedBy, stockStatus, advancePaid, amountPaid, amountPaidRaw, tradeIns, customerArea, isExistingCustomer, validityHours,
           instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber,
@@ -9796,11 +9812,10 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
     }, 1000);
     return () => { if (autosaveRef.current) clearTimeout(autosaveRef.current); };
   }, [lines, customerName, customerPhone, customerEmail, customerAddress, customerCnic,
-      discount, discountRaw, discountType, docType, refNumber,
+      discounts, docType, refNumber,
       serviceLevel, elevatedStructureOn, elevatedStructureAmt, wiringAmt, laborAmt,
       advancePct, advanceMode, advanceFixedAmt, cashPaySchedule, balanceNote,
-      customerType, discountReason,
-      discountMode, discountFixed, discountFixedRaw,
+      customerType,
       saleType, deliveryEta, preparedBy, stockStatus, advancePaid, amountPaid, amountPaidRaw, tradeIns,
       customerArea, isExistingCustomer, validityHours,
       instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber,
@@ -9818,14 +9833,10 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       if (draft.customerEmail)   setCustomerEmail(draft.customerEmail);
       if (draft.customerAddress) setCustomerAddress(draft.customerAddress);
       if (draft.customerCnic)    setCustomerCnic(draft.customerCnic);
-      if (typeof draft.discount === 'number') { setDiscount(draft.discount); setDiscountRaw(String(draft.discount)); }
-      if (draft.discountType)  setDiscountType(draft.discountType);
+      if (Array.isArray(draft.discounts)) setDiscounts(draft.discounts);
       if (draft.docType)       setDocType(draft.docType);
       if (draft.customerType) setCustomerType(draft.customerType);
       if (draft.serviceLevel) setServiceLevel(draft.serviceLevel);
-      if (draft.discountReason) setDiscountReason(draft.discountReason);
-      if (draft.discountMode) setDiscountMode(draft.discountMode);
-      if (typeof draft.discountFixed === 'number') { setDiscountFixed(draft.discountFixed); setDiscountFixedRaw(String(draft.discountFixed)); }
       if (draft.saleType) setSaleType(draft.saleType);
       if (draft.deliveryEta) setDeliveryEta(draft.deliveryEta);
       if (draft.preparedBy !== undefined) setPreparedBy(draft.preparedBy);
@@ -9898,12 +9909,18 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
     setDocType((row.doc_type ?? 'invoice') as typeof docType);
     setSaleType((row.sale_type ?? (row.doc_type === 'installment-invoice' ? 'installment' : 'cash')) as 'cash' | 'installment');
     setServiceLevel((row.service_level ?? 'supply_only') as 'supply_only' | 'supply_install' | 'full_service');
-    setDiscountType(row.discount_type ?? 'Promotional');
-    setDiscountReason(row.discount_reason ?? '');
-    const dp = row.discount_pct ?? 0;
-    const dm = row.discount_mode ?? (dp > 100 ? 'fixed' : 'percentage');
-    if (dm === 'fixed') { setDiscountMode('fixed'); setDiscountFixed(dp); setDiscountFixedRaw(String(dp)); setDiscount(0); setDiscountRaw('0'); }
-    else { setDiscountMode('percentage'); setDiscount(dp); setDiscountRaw(String(dp)); setDiscountFixed(0); setDiscountFixedRaw('0'); }
+    // Load discounts: prefer discounts_json (multi), fall back to legacy single discount columns
+    if (Array.isArray(row.discounts_json) && row.discounts_json.length > 0) {
+      setDiscounts(row.discounts_json.map((d: { mode: 'percentage' | 'fixed'; amount: number; type: string; reason: string }) => ({ ...d, id: crypto.randomUUID(), amountRaw: String(d.amount) })));
+    } else {
+      const dp = row.discount_pct ?? 0;
+      const dm = row.discount_mode ?? (dp > 100 ? 'fixed' : 'percentage');
+      if (dp > 0) {
+        setDiscounts([{ id: crypto.randomUUID(), mode: dm as 'percentage' | 'fixed', amount: dp, amountRaw: String(dp), type: row.discount_type ?? 'Promotional', reason: row.discount_reason ?? '' }]);
+      } else {
+        setDiscounts([]);
+      }
+    }
     setAdvancePct(row.advance_pct ?? 70);
     setAdvancePaid(row.payment_status === 'paid' || row.payment_status === 'advance_paid' || row.payment_status === 'partial');
     setAmountPaid(row.amount_paid ?? 0);
@@ -10044,8 +10061,8 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       description:   pkgDesc.trim() || null,
       category_tag:  pkgTag.trim() || null,
       lines:         JSON.stringify(lines),
-      discount,
-      discount_type: discountType,
+      discount: totalDiscountFixed,
+      discount_type: discounts[0]?.type ?? 'Promotional',
     });
     setSavingPkg(false);
     if (!error) {
@@ -10060,9 +10077,11 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
 
   function loadTemplate(tmpl: PkgTemplate) {
     setLines(tmpl.lines.map(l => ({ ...l })));
-    setDiscount(tmpl.discount ?? 0);
-    setDiscountRaw(String(tmpl.discount ?? 0));
-    setDiscountType(tmpl.discount_type ?? 'Promotional');
+    if (tmpl.discount) {
+      setDiscounts([{ id: crypto.randomUUID(), mode: 'fixed', amount: tmpl.discount, amountRaw: String(tmpl.discount), type: tmpl.discount_type ?? 'Promotional', reason: '' }]);
+    } else {
+      setDiscounts([]);
+    }
     setToastMsg(`"${tmpl.name}" loaded — ${tmpl.lines.length} items`);
   }
 
@@ -10271,11 +10290,14 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
     setServices(prev => prev.map((s, i) => i === index ? { ...s, ...patch } : s));
   }
 
-  const totals = calcGrandTotal(
-    lines, services,
-    discountMode,
-    discountMode === 'fixed' ? discountFixed : discount
+  // Compute total discount as fixed PKR against the base (pre-discount subtotal + services)
+  const _discBase0 = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0)
+    + services.filter(s => s.status === 'charged').reduce((sum, s) => sum + s.charged_amount, 0);
+  const totalDiscountFixed = Math.min(
+    discounts.reduce((sum, d) => sum + (d.mode === 'fixed' ? d.amount : Math.round(_discBase0 * d.amount / 100)), 0),
+    _discBase0
   );
+  const totals = calcGrandTotal(lines, services, 'fixed', totalDiscountFixed);
   const subtotal = totals.subtotal;
   const serviceTotal = totals.serviceTotal;
   const discountAmt = totals.discountAmt;
@@ -10287,9 +10309,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
   const srJobTotal = srJobLines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
   const srCustomTotal = docType === 'service_receipt' ? customCharges.reduce((s, c) => s + c.amount, 0) : 0;
   const srBaseTotal = srJobTotal + srCustomTotal;
-  const srDiscountAmt = docType === 'service_receipt'
-    ? (discountMode === 'fixed' ? Math.min(discountFixed, srBaseTotal) : Math.round(srBaseTotal * discount / 100))
-    : 0;
+  const srDiscountAmt = docType === 'service_receipt' ? Math.min(totalDiscountFixed, srBaseTotal) : 0;
   const srGrandTotal = srBaseTotal - srDiscountAmt;
 
   const hasUnapprovedFloorViolation = lines.some(l => {
@@ -10334,7 +10354,8 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       docType: docType as InvoiceLogPayload['docType'],
       customerName, customerPhone: customerPhone.replace(/\D/g, ''),
       customerEmail, customerAddress, customerCnic,
-      customerType, serviceLevel, discountReason,
+      customerType, serviceLevel,
+      discountReason: discounts.map(d => d.reason).filter(Boolean).join('; '),
       lines: docType === 'service_receipt'
         ? srJobLines.map(l => ({
             id: l.id, name: l.description, model: '', qty: l.qty, unitPrice: l.unitPrice,
@@ -10344,8 +10365,9 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
             displayPrefix: '', packageNote: '', isPackage: false, packageComponents: [],
           }))
         : lines,
-      services, discount: discountMode === 'fixed' ? discountFixed : discount, discountType,
-      discountMode,
+      services, discount: totalDiscountFixed, discountType: discounts[0]?.type ?? 'Custom',
+      discountMode: 'fixed' as const,
+      discounts: discounts.filter(d => d.amount > 0).map(({ mode, amount, type, reason }) => ({ mode, amount, type, reason })),
       grandTotal: docType === 'service_receipt' ? srGrandTotal : effectiveTotal, serviceTotal, advancePct,
       instTotalPrice: (saleType === 'installment' || docType === 'installment-invoice') ? instTotalPrice : 0,
       instAdvanceAmt: (saleType === 'installment' || docType === 'installment-invoice') ? instAdvanceAmt : 0,
@@ -10426,10 +10448,10 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           jobLines: srJobLines,
           warrantyDays: srWarrantyDays,
           customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
-          discount: discountMode === 'fixed' ? discountFixed : discount,
-          discountMode,
-          discountType,
-          discountReason,
+          discount: totalDiscountFixed,
+          discountMode: 'fixed' as const,
+          discountType: discounts[0]?.type ?? 'Custom',
+          discountReason: discounts.map(d => d.reason).filter(Boolean).join('; '),
           paymentStatus: undefined,
           notes: invoiceNotes,
           preparedBy,
@@ -10454,10 +10476,11 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           isExistingCustomer,
           lines,
           services,
-          discount: discountMode === 'fixed' ? discountFixed : discount,
-          discountMode,
-          discountType,
-          discountReason,
+          discount: totalDiscountFixed,
+          discountMode: 'fixed' as const,
+          discountType: discounts[0]?.type ?? 'Custom',
+          discountReason: discounts.map(d => d.reason).filter(Boolean).join('; '),
+          discounts: discounts.filter(d => d.amount > 0).map(({ mode, amount, type, reason }) => ({ mode, amount, type, reason })),
           docType: docType as 'quotation' | 'invoice',
           saleType,
           refNumber,
@@ -10519,7 +10542,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       const blob = await generateInstallmentAdvancePdf({
         customerName, customerPhone: customerPhone.replace(/\D/g, ''),
         customerEmail, customerAddress, customerCnic,
-        lines, discount: discountMode === 'fixed' ? discountFixed : discount, refNumber,
+        lines, discount: totalDiscountFixed, refNumber,
         instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, showNtn,
         instScheduleRows: customInstSchedule.length > 0 ? customInstSchedule.map(({ no, label, dueDate, amount }) => ({ no, label, dueDate, amount })) : undefined,
         isApartmentClient: customerType === 'apartment',
@@ -10527,7 +10550,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
         services,
         customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
         guarantorName, guarantorPhone, guarantorCnic,
-        discountMode, preparedBy,
+        discountMode: 'fixed' as const, preparedBy,
         paymentStatus: advancePaid ? 'advance_paid' : 'pending',
       });
       clearTimeout(timeout);
@@ -10558,7 +10581,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       const blob = await generateInstallmentPaymentPdf({
         customerName, customerPhone: customerPhone.replace(/\D/g, ''),
         customerEmail, customerAddress, customerCnic,
-        lines, discount, refNumber,
+        lines, discount: totalDiscountFixed, refNumber,
         instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate,
         instScheduleRows: customInstSchedule.length > 0 ? customInstSchedule.map(({ no, label, dueDate, amount }) => ({ no, label, dueDate, amount })) : undefined,
         paymentNumber: instPaymentNumber, showNtn,
@@ -10575,9 +10598,10 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
         docType: 'installment_payment_receipt',
         customerName, customerPhone: customerPhone.replace(/\D/g, ''),
         customerEmail, customerAddress, customerCnic,
-        customerType, serviceLevel, discountReason,
+        customerType, serviceLevel,
+        discountReason: discounts.map(d => d.reason).filter(Boolean).join('; '),
         lines, services,
-        discount: discountMode === 'fixed' ? discountFixed : discount, discountType, discountMode,
+        discount: totalDiscountFixed, discountType: discounts[0]?.type ?? 'Custom', discountMode: 'fixed' as const,
         grandTotal, serviceTotal, advancePct: 0,
         instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate,
         customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
@@ -10951,65 +10975,85 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
           )}
-          {/* Discount mode toggle + input */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-semibold text-gray-600 shrink-0">Discount</label>
-              <div className="flex rounded-lg overflow-hidden border border-gray-200 text-xs">
-                {(['percentage', 'fixed'] as const).map(mode => (
-                  <button key={mode} onClick={() => setDiscountMode(mode)}
-                    className={`px-3 py-1.5 font-semibold transition-colors ${discountMode === mode ? 'bg-brand-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
-                    {mode === 'percentage' ? '%' : 'PKR'}
-                  </button>
-                ))}
-              </div>
-              {discountMode === 'percentage' ? (
-                <input
-                  type="text" inputMode="numeric" value={discountRaw}
-                  onChange={e => {
-                    const raw = e.target.value.replace(/[^0-9]/g, '');
-                    setDiscountRaw(raw);
-                    setDiscount(Math.min(100, Math.max(0, Number(raw) || 0)));
-                  }}
-                  onBlur={() => {
-                    const n = Math.min(100, Math.max(0, Number(discountRaw) || 0));
-                    setDiscount(n); setDiscountRaw(String(n));
-                  }}
-                  placeholder="0"
-                  className="w-20 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
-                />
-              ) : (
-                <input
-                  type="text" inputMode="numeric" value={discountFixedRaw}
-                  onChange={e => {
-                    const raw = e.target.value.replace(/[^0-9]/g, '');
-                    setDiscountFixedRaw(raw);
-                    setDiscountFixed(Math.max(0, Number(raw) || 0));
-                  }}
-                  onBlur={() => {
-                    const n = Math.max(0, Number(discountFixedRaw) || 0);
-                    setDiscountFixed(n); setDiscountFixedRaw(String(n));
-                  }}
-                  placeholder="0"
-                  className="w-28 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
-                />
-              )}
-              <select value={discountType} onChange={e => setDiscountType(e.target.value)}
-                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white">
-                {["Promotional", "MYOP", "Exchange Credit", "Seasonal Sale", "Founder's Special", "Clearance", "Volume", "Custom"].map(t => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
+          {/* ── Multi-discount panel ── */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Discounts</p>
+              <button
+                onClick={() => setDiscounts(prev => [...prev, { id: crypto.randomUUID(), mode: 'fixed', amount: 0, amountRaw: '', type: 'Promotional', reason: '' }])}
+                className="px-3 py-1.5 text-xs font-semibold bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
+                + Add Discount
+              </button>
             </div>
-            {(discountMode === 'percentage' ? discount > 0 : discountFixed > 0) && (
-              <input
-                value={discountReason}
-                onChange={e => setDiscountReason(e.target.value)}
-                placeholder="Discount reason (required)"
-                className={`w-full border rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 ${
-                  !discountReason.trim() ? 'border-red-300' : 'border-gray-200'
-                }`}
-              />
+            {discounts.length === 0 && (
+              <p className="text-xs text-gray-400 italic">No discounts applied.</p>
+            )}
+            {discounts.map((d, idx) => (
+              <div key={d.id} className="rounded-xl border border-green-200 bg-green-50 p-3 space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Mode toggle */}
+                  <div className="flex rounded-lg overflow-hidden border border-green-300 text-xs shrink-0">
+                    {(['fixed', 'percentage'] as const).map(m => (
+                      <button key={m}
+                        onClick={() => setDiscounts(prev => prev.map((x, i) => i === idx ? { ...x, mode: m, amountRaw: '', amount: 0 } : x))}
+                        className={`px-2.5 py-1.5 font-semibold transition-colors ${d.mode === m ? 'bg-green-600 text-white' : 'bg-white text-gray-600 hover:bg-green-50'}`}>
+                        {m === 'percentage' ? '%' : 'PKR'}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Amount */}
+                  <input
+                    type="text" inputMode="numeric" value={d.amountRaw}
+                    placeholder={d.mode === 'percentage' ? '0' : '0'}
+                    onChange={e => {
+                      const raw = e.target.value.replace(/[^0-9]/g, '');
+                      setDiscounts(prev => prev.map((x, i) => i === idx ? { ...x, amountRaw: raw, amount: d.mode === 'percentage' ? Math.min(100, Number(raw) || 0) : Math.max(0, Number(raw) || 0) } : x));
+                    }}
+                    onBlur={() => {
+                      setDiscounts(prev => prev.map((x, i) => i === idx ? { ...x, amountRaw: String(x.amount) } : x));
+                    }}
+                    className="w-24 border border-green-300 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-400"
+                  />
+                  {/* Type */}
+                  <select value={d.type}
+                    onChange={e => setDiscounts(prev => prev.map((x, i) => i === idx ? { ...x, type: e.target.value } : x))}
+                    className="flex-1 min-w-[110px] border border-green-300 rounded-xl px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-green-400">
+                    {["Promotional", "MYOP", "Exchange Credit", "Seasonal Sale", "Founder's Special", "Clearance", "Volume", "Custom"].map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                  {/* Remove */}
+                  <button
+                    onClick={() => setDiscounts(prev => prev.filter((_, i) => i !== idx))}
+                    className="ml-auto text-green-700 hover:text-red-500 transition-colors text-lg leading-none font-bold shrink-0" title="Remove">
+                    ×
+                  </button>
+                </div>
+                {/* Reason */}
+                <input
+                  value={d.reason}
+                  onChange={e => setDiscounts(prev => prev.map((x, i) => i === idx ? { ...x, reason: e.target.value } : x))}
+                  placeholder="Reason (shown on invoice)"
+                  className={`w-full border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-green-400 bg-white ${
+                    d.amount > 0 && !d.reason.trim() ? 'border-red-300' : 'border-green-200'
+                  }`}
+                />
+                {/* Live preview */}
+                {d.amount > 0 && (
+                  <p className="text-xs text-green-700 font-semibold">
+                    {d.mode === 'percentage'
+                      ? `- PKR ${Math.round(_discBase0 * d.amount / 100).toLocaleString('en-PK')} (${d.amount}% of subtotal)`
+                      : `- PKR ${d.amount.toLocaleString('en-PK')}`}
+                  </p>
+                )}
+              </div>
+            ))}
+            {discounts.length > 0 && totalDiscountFixed > 0 && (
+              <div className="flex justify-end">
+                <span className="text-xs font-bold text-green-700 bg-green-100 rounded-lg px-3 py-1.5">
+                  Total discount: - PKR {totalDiscountFixed.toLocaleString('en-PK')}
+                </span>
+              </div>
             )}
           </div>
           {/* ── Installation scope (solar items only) ── */}
@@ -11896,7 +11940,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           </table>
           </div>
           <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-6 text-sm">
-            {discount > 0 && <span className="text-gray-500">Subtotal: PKR {subtotal.toLocaleString('en-PK')} · Discount: − PKR {discountAmt.toLocaleString('en-PK')}</span>}
+            {totalDiscountFixed > 0 && <span className="text-gray-500">Subtotal: PKR {subtotal.toLocaleString('en-PK')} · Discount: − PKR {totalDiscountFixed.toLocaleString('en-PK')}</span>}
             <span className="font-black text-gray-900 text-base">Grand Total: PKR {effectiveTotal.toLocaleString('en-PK')}</span>
           </div>
         </div>
@@ -12160,11 +12204,11 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               pdfState === 'generating' ||
               solarCompatCheck?.status === 'incompatible' ||
               hasUnapprovedFloorViolation ||
-              (discount > 0 && !discountReason.trim())
+              (discounts.some(d => d.amount > 0 && !d.reason.trim()))
             }
             title={
               hasUnapprovedFloorViolation ? 'Enter override reason for all below-floor prices' :
-              (discount > 0 && !discountReason.trim()) ? 'Enter discount reason to proceed' :
+              (discounts.some(d => d.amount > 0 && !d.reason.trim())) ? 'Enter discount reason to proceed' :
               ''
             }
             className={`flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm disabled:opacity-40 transition-colors ${
@@ -12174,7 +12218,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                 ? 'bg-red-600 hover:bg-red-700 text-white'
                 : 'bg-gray-900 hover:bg-gray-800 text-white'
             } ${
-              (hasUnapprovedFloorViolation || (discount > 0 && !discountReason.trim()))
+              (hasUnapprovedFloorViolation || (discounts.some(d => d.amount > 0 && !d.reason.trim())))
                 ? 'opacity-50 cursor-not-allowed'
                 : ''
             }`}
@@ -12218,11 +12262,11 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               !lines.length ||
               instAdvPdfState === 'generating' ||
               hasUnapprovedFloorViolation ||
-              (discount > 0 && !discountReason.trim())
+              (discounts.some(d => d.amount > 0 && !d.reason.trim()))
             }
             title={
               hasUnapprovedFloorViolation ? 'Enter override reason for all below-floor prices' :
-              (discount > 0 && !discountReason.trim()) ? 'Enter discount reason to proceed' :
+              (discounts.some(d => d.amount > 0 && !d.reason.trim())) ? 'Enter discount reason to proceed' :
               ''
             }
             className={`flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm disabled:opacity-40 transition-colors ${
@@ -12232,7 +12276,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                 ? 'bg-red-600 hover:bg-red-700 text-white'
                 : 'bg-brand-600 hover:bg-brand-700 text-white'
             } ${
-              (hasUnapprovedFloorViolation || (discount > 0 && !discountReason.trim()))
+              (hasUnapprovedFloorViolation || (discounts.some(d => d.amount > 0 && !d.reason.trim())))
                 ? 'opacity-50 cursor-not-allowed'
                 : ''
             }`}
@@ -12250,11 +12294,11 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               !lines.length ||
               instPayPdfState === 'generating' ||
               hasUnapprovedFloorViolation ||
-              (discount > 0 && !discountReason.trim())
+              (discounts.some(d => d.amount > 0 && !d.reason.trim()))
             }
             title={
               hasUnapprovedFloorViolation ? 'Enter override reason for all below-floor prices' :
-              (discount > 0 && !discountReason.trim()) ? 'Enter discount reason to proceed' :
+              (discounts.some(d => d.amount > 0 && !d.reason.trim())) ? 'Enter discount reason to proceed' :
               ''
             }
             className={`flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm disabled:opacity-40 transition-colors ${
@@ -12264,7 +12308,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                 ? 'bg-red-600 hover:bg-red-700 text-white'
                 : 'bg-gray-900 hover:bg-gray-800 text-white'
             } ${
-              (hasUnapprovedFloorViolation || (discount > 0 && !discountReason.trim()))
+              (hasUnapprovedFloorViolation || (discounts.some(d => d.amount > 0 && !d.reason.trim())))
                 ? 'opacity-50 cursor-not-allowed'
                 : ''
             }`}

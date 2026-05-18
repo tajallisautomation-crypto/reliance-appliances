@@ -8,7 +8,9 @@ import { updatePassword } from '@/lib/auth'
 import AuthModal from '@/components/AuthModal'
 import PortalAuth from '@/components/portal/PortalAuth'
 import PortalOverview from '@/components/portal/PortalOverview'
+import PortalOrders from '@/components/portal/PortalOrders'
 import PortalAppliances from '@/components/portal/PortalAppliances'
+import PortalSupport from '@/components/portal/PortalSupport'
 import PortalRecommendations from '@/components/portal/PortalRecommendations'
 import PortalPayments from '@/components/portal/PortalPayments'
 import PortalReferrals from '@/components/portal/PortalReferrals'
@@ -17,16 +19,18 @@ import PortalAccount from '@/components/portal/PortalAccount'
 import type { CustomerProfile, CustomerAppliance, LoyaltyTransaction, ReferralEarning, PortalOrder, PortalData } from '@/components/portal/portalTypes'
 import toast from 'react-hot-toast'
 
-type Tab = 'overview' | 'appliances' | 'recommendations' | 'payments' | 'referrals' | 'loyalty' | 'account'
+type Tab = 'overview' | 'orders' | 'appliances' | 'support' | 'payments' | 'recommendations' | 'referrals' | 'loyalty' | 'account'
 
 const TABS: { id: Tab; label: string; emoji: string }[] = [
-  { id: 'overview',         label: 'Overview',         emoji: '🏠' },
-  { id: 'appliances',       label: 'Appliances',        emoji: '📦' },
-  { id: 'recommendations',  label: 'Recommendations',   emoji: '💡' },
-  { id: 'payments',         label: 'Payments',          emoji: '💳' },
-  { id: 'referrals',        label: 'Referrals',         emoji: '🎁' },
-  { id: 'loyalty',          label: 'Loyalty',           emoji: '⭐' },
-  { id: 'account',          label: 'Account',           emoji: '⚙️' },
+  { id: 'overview',        label: 'Overview',       emoji: '🏠' },
+  { id: 'orders',          label: 'Orders',         emoji: '📋' },
+  { id: 'appliances',      label: 'Appliances',     emoji: '📦' },
+  { id: 'support',         label: 'Support',        emoji: '🎫' },
+  { id: 'payments',        label: 'Payments',       emoji: '💳' },
+  { id: 'recommendations', label: 'Tips',           emoji: '💡' },
+  { id: 'referrals',       label: 'Referrals',      emoji: '🎁' },
+  { id: 'loyalty',         label: 'Loyalty',        emoji: '⭐' },
+  { id: 'account',         label: 'Account',        emoji: '⚙️' },
 ]
 
 // ── Password recovery view (shown after clicking reset email link) ──────────
@@ -148,9 +152,11 @@ function DashboardView({ email }: { email: string }) {
 
   const TAB_VIEWS: Record<Tab, React.ReactNode> = {
     overview:        <PortalOverview        {...portalData} />,
+    orders:          <PortalOrders          {...portalData} />,
     appliances:      <PortalAppliances      {...portalData} />,
-    recommendations: <PortalRecommendations {...portalData} />,
+    support:         <PortalSupport         {...portalData} />,
     payments:        <PortalPayments        {...portalData} />,
+    recommendations: <PortalRecommendations {...portalData} />,
     referrals:       <PortalReferrals       {...portalData} />,
     loyalty:         <PortalLoyalty         {...portalData} />,
     account:         <PortalAccount         {...portalData} />,

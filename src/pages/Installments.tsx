@@ -59,14 +59,22 @@ const PROCESS_STEPS = [
 
 const BUYER_DOCS = [
   { text: 'Original CNIC (National Identity Card)', icon: '🪪' },
-  { text: 'Copy of latest electricity or gas utility bill', icon: '🧾' },
+  { text: 'Copy of latest electricity or gas utility bill (proof of residence)', icon: '🧾' },
   { text: 'Passport-sized photograph', icon: '📷' },
+  { text: 'Proof of income — salary slip, bank statement, or business proof', icon: '💰' },
 ]
 
 const GUARANTOR_DOCS = [
   { text: 'Original CNIC of guarantor', icon: '🪪' },
-  { text: 'Copy of utility bill in guarantor\'s name', icon: '🧾' },
+  { text: 'Copy of utility bill in guarantor\'s name (proof of residence)', icon: '🧾' },
   { text: 'Passport-sized photograph of guarantor', icon: '📷' },
+]
+
+const APPLICANT_INFO_FIELDS = [
+  { section: 'Personal', fields: ['Full name', 'Father / Husband name', 'CNIC number', 'Date of birth', 'Mobile number', 'Alternate number'] },
+  { section: 'Address', fields: ['Residential address', 'Landmark / Area', 'Residence type (owned / rented / family)'] },
+  { section: 'Employment', fields: ['Occupation / Employer', 'Office address', 'Monthly income', 'Marital status'] },
+  { section: 'References', fields: ['Reference 1: Name & mobile', 'Reference 2: Name & mobile'] },
 ]
 
 export default function InstallmentsPage() {
@@ -306,12 +314,13 @@ export default function InstallmentsPage() {
             <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl p-5">
               <AlertCircle className="w-5 h-5 text-red-700 flex-shrink-0 mt-0.5" />
               <div className="text-sm">
-                <p className="font-bold text-red-900 mb-1">Late Payment Penalty</p>
-                <p className="text-red-700">
-                  A <strong>1% daily penalty</strong> is charged on the outstanding principal for every day beyond the payment due date.
-                  If a payment remains overdue for <strong>30 days</strong>, comprehensive recovery proceedings — including legal action and product retrieval — will be activated immediately.
-                  Contact us on WhatsApp at the first sign of difficulty.
-                </p>
+                <p className="font-bold text-red-900 mb-1">Late Payment Policy</p>
+                <ul className="text-red-700 space-y-1 mt-1">
+                  <li>• <strong>1% per day</strong> penalty on uninformed overdue balance from day one.</li>
+                  <li>• <strong>Physical follow-up visit</strong> after 15 days of non-payment.</li>
+                  <li>• <strong>Product recovery</strong> and legal proceedings activated after 30 days overdue.</li>
+                </ul>
+                <p className="text-red-600 mt-2 text-xs">Contact us on WhatsApp at the first sign of difficulty — we can discuss arrangements before it escalates.</p>
               </div>
             </div>
             <div className="flex items-start gap-3 bg-green-50 border border-green-100 rounded-2xl p-5">
@@ -325,6 +334,35 @@ export default function InstallmentsPage() {
                 </p>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* Pre-application info guide */}
+        <section className="bg-gray-50 rounded-3xl p-8 border border-gray-100">
+          <div className="mb-6">
+            <h2 className="text-xl font-black text-gray-900">Information You'll Need to Apply</h2>
+            <p className="text-gray-500 mt-1 text-sm">Have these details ready before you contact us — it speeds up the process significantly.</p>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {APPLICANT_INFO_FIELDS.map(group => (
+              <div key={group.section} className="bg-white rounded-2xl border border-gray-100 p-4">
+                <p className="text-xs font-black text-brand-600 uppercase tracking-wide mb-3">{group.section}</p>
+                <ul className="space-y-1.5">
+                  {group.fields.map(f => (
+                    <li key={f} className="flex items-start gap-1.5 text-xs text-gray-600">
+                      <span className="w-1.5 h-1.5 rounded-full bg-brand-400 shrink-0 mt-1.5" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 bg-blue-50 border border-blue-100 rounded-2xl px-5 py-3.5 flex gap-3">
+            <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-blue-700 leading-relaxed">
+              You will also need details for <strong>up to 2 guarantors</strong> (name, CNIC, mobile, occupation, address) and the product details (brand, model, serial number, invoice number). The full application form is filled out with our representative at the time of advance payment.
+            </p>
           </div>
         </section>
 

@@ -9,8 +9,88 @@ import {
 } from 'lucide-react'
 import SEO from '@/components/ui/SEO'
 import { getMaintenanceImages, type MediaItem } from '@/lib/gallery'
-import { SERVICES_CATALOG, type ServiceEntry, requiresSiteConsultation, DELIVERY_POLICY } from '@/lib/services'
+import { SERVICES_CATALOG, ANNUAL_CARE_PLANS, type ServiceEntry, requiresSiteConsultation, DELIVERY_POLICY } from '@/lib/services'
 import { waSales, waAdmin } from '@/lib/whatsapp'
+
+// ── Master price list (mirrors the official Service Price List flyer) ─────────
+
+const PRICE_LIST_SECTIONS = [
+  {
+    num: '01', title: 'Inspection & General Service',
+    items: [
+      { label: 'Technician Visit Charges (if no work done)',  price: 'PKR 2,000',        isNew: false },
+      { label: 'Solar Cleaning & Maintenance',                price: 'PKR 6,500',        isNew: false },
+      { label: 'AC Cleaning & Checkup',                       price: 'PKR 2,500',        isNew: false },
+      { label: 'AC Master Service (Split)',                    price: 'PKR 4,500',        isNew: false },
+      { label: 'AC Master Service (Floor Standing)',           price: 'PKR 7,500',        isNew: false },
+    ],
+  },
+  {
+    num: '02', title: 'AC Leakage Repair',
+    items: [
+      { label: '1 Ton AC Leakage',                            price: 'PKR 13,000',       isNew: false },
+      { label: '1.5 Ton AC Leakage',                          price: 'PKR 17,000',       isNew: false },
+      { label: '2 Ton AC Leakage',                            price: 'PKR 24,000',       isNew: false },
+      { label: '2 Ton Floor Standing AC Leakage',             price: 'PKR 29,000',       isNew: false },
+      { label: '4 Ton Floor Standing AC Leakage',             price: 'PKR 45,000',       isNew: false },
+      { label: 'AC Card Repair',                              price: 'PKR 15,000',       isNew: true  },
+      { label: 'AC Card Replacement',                         price: 'PKR 25,000',       isNew: true  },
+    ],
+  },
+  {
+    num: '03', title: 'AC Coil Change',
+    items: [
+      { label: '1 Ton Coil Change',                           price: 'PKR 30,000',       isNew: false },
+      { label: '1.5 Ton Coil Change',                         price: 'PKR 40,000',       isNew: false },
+      { label: '2 Ton Coil Change',                           price: 'PKR 70,000',       isNew: false },
+      { label: '2 Ton Floor Standing Coil Change',            price: 'PKR 80,000',       isNew: false },
+      { label: '4 Ton Floor Standing Coil Change',            price: 'PKR 110,000',      isNew: false },
+    ],
+  },
+  {
+    num: '04', title: 'Dispenser & Refrigerator Repairs',
+    items: [
+      { label: 'Dispenser Tap Replacement',                   price: 'PKR 3,000',        isNew: false },
+      { label: 'Dispenser Leakage Fix',                       price: 'PKR 5,000',        isNew: false },
+      { label: 'Dispenser Tank Repair',                       price: 'PKR 3,000',        isNew: false },
+      { label: 'Refrigerator Leakage Repair',                 price: 'PKR 10,000',       isNew: false },
+      { label: 'Refrigerator Relay Replacement',              price: 'PKR 7,000',        isNew: false },
+    ],
+  },
+  {
+    num: '05', title: 'UPS / Solar / Installation',
+    items: [
+      { label: 'UPS / Solar Inverter (per watt)',             price: 'PKR 8 per Watt',   isNew: false },
+      { label: 'Solar Installation Labor',                    price: 'PKR 7,000 / kW',   isNew: false },
+      { label: 'Elevated Structure Labor + Material + Install', price: 'PKR 15,000 / plate', isNew: false },
+      { label: 'AC Installation Labor',                       price: 'PKR 4,500',        isNew: false },
+      { label: 'AC Relocation Labor',                         price: 'PKR 7,000',        isNew: false },
+      { label: 'Lifting Charges (per item / floor)',          price: 'PKR 1,000',        isNew: false },
+      { label: 'Fan Installation',                            price: 'PKR 1,500',        isNew: false },
+      { label: 'Solar Inverter Uninstallation & Reinstallation', price: 'PKR 6,000',     isNew: true  },
+      { label: 'Solar Battery Replacement Labor',             price: 'PKR 6,000',        isNew: true  },
+    ],
+  },
+  {
+    num: '06', title: 'LED Installation',
+    items: [
+      { label: 'LED Installation 32 inch',                    price: 'PKR 1,200',        isNew: false },
+      { label: 'LED Installation 40–43 inch',                 price: 'PKR 1,800',        isNew: false },
+      { label: 'LED Installation 50 inch',                    price: 'PKR 2,500',        isNew: false },
+      { label: 'LED Installation 55–75 inch',                 price: 'PKR 7,000',        isNew: false },
+      { label: 'LED Installation 75 inch+',                   price: 'Site survey required', isNew: false },
+    ],
+  },
+  {
+    num: '07', title: 'Additional Services',
+    items: [
+      { label: 'AC Card Repair',                              price: 'PKR 15,000',       isNew: true  },
+      { label: 'AC Card Replacement',                         price: 'PKR 25,000',       isNew: true  },
+      { label: 'Solar Inverter Uninstallation & Reinstallation', price: 'PKR 6,000',     isNew: true  },
+      { label: 'Solar Battery Replacement Labor',             price: 'PKR 6,000',        isNew: true  },
+    ],
+  },
+]
 
 // ── Service package groups (for the package cards section) ───────────────────
 
@@ -318,37 +398,61 @@ export function Services() {
             )
           })}
 
-          {/* Master price list reference table */}
-          <div className="mt-4">
-            <div className="flex items-center gap-3 mb-4">
+          {/* Master price list — 7-category grid matching the official price list flyer */}
+          <div className="mt-6">
+            <div className="flex items-center gap-3 mb-5">
               <div className="h-px flex-1 bg-gray-200" />
-              <h3 className="text-sm font-black uppercase tracking-widest text-gray-700 shrink-0">Full Price Reference</h3>
+              <h3 className="text-sm font-black uppercase tracking-widest text-gray-700 shrink-0">Service Price List</h3>
               <div className="h-px flex-1 bg-gray-200" />
             </div>
-            <div className="overflow-x-auto rounded-2xl border border-gray-100 shadow-sm">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-900 text-white">
-                    <th className="text-left px-4 py-3 font-bold">Service</th>
-                    <th className="text-left px-4 py-3 font-bold">Price</th>
-                    <th className="text-left px-4 py-3 font-bold hidden sm:table-cell">Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {SERVICES_CATALOG.filter(s => s.price.type !== 'free').map((s, i) => (
-                    <tr key={s.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-4 py-2.5 font-semibold text-gray-900 align-top text-xs">{s.name}</td>
-                      <td className="px-4 py-2.5 align-top">
-                        <span className="font-bold text-gray-900 text-xs">{s.price.display}</span>
-                      </td>
-                      <td className="px-4 py-2.5 text-gray-400 text-xs hidden sm:table-cell align-top">{s.notes}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+            {/* Policy notice strip */}
+            <div className="mb-5 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3.5 flex gap-3">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-800 leading-relaxed">
+                Repair rates include equipment, parts and material charges unless otherwise stated.
+                Only installation, cleaning, checkup, technician visit, master service and relocation charges are labor-only.
+                Items that explicitly mention material include material as stated.
+              </p>
             </div>
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {PRICE_LIST_SECTIONS.map(section => (
+                <div key={section.num} className="bg-[#0d1b35] rounded-2xl overflow-hidden border border-[#1e3260]">
+                  {/* Section header */}
+                  <div className="bg-[#0f2247] px-4 py-3 flex items-center gap-2.5">
+                    <span className="bg-amber-400 text-[#0d1b35] text-[10px] font-black px-2 py-0.5 rounded-md">{section.num}</span>
+                    <h4 className="text-white font-black text-xs uppercase tracking-wide">{section.title}</h4>
+                  </div>
+                  {/* Items */}
+                  <div className="px-4 py-3 space-y-2">
+                    {section.items.map((item, i) => (
+                      <div key={i} className="flex items-start justify-between gap-2 border-b border-[#1e3260] last:border-0 pb-2 last:pb-0">
+                        <div className="flex items-start gap-1.5 min-w-0">
+                          {item.isNew && (
+                            <span className="shrink-0 bg-amber-400 text-[#0d1b35] text-[8px] font-black px-1 py-0.5 rounded mt-0.5">NEW</span>
+                          )}
+                          <span className="text-slate-300 text-[11px] leading-snug">{item.label}</span>
+                        </div>
+                        <span className="text-amber-400 font-black text-[11px] shrink-0 text-right">{item.price}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Footer notice */}
+            <div className="mt-4 bg-[#0d1b35] border border-[#1e3260] rounded-2xl px-5 py-4 flex gap-3">
+              <Shield className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Final pricing may vary based on site conditions, gas refill, electrical work, transport, distance, frame work or special installation requirements where applicable.{' '}
+                <strong className="text-amber-400">Please confirm final quotation before work begins.</strong>
+              </p>
+            </div>
+
             <p className="text-xs text-gray-400 mt-3 text-center">
-              All prices are for Karachi. Subject to change without notice. Confirm final quotation before work begins.
+              All prices are for Karachi. Subject to change without notice.
             </p>
           </div>
         </section>
@@ -418,90 +522,113 @@ export function Services() {
           </div>
         </section>
 
-        {/* Annual Maintenance Subscription */}
+        {/* Annual Care Plans */}
         <section>
           <div className="text-center mb-8">
-            <h2 className="text-2xl font-black text-gray-900">Annual Maintenance Subscription</h2>
-            <p className="text-gray-500 mt-1 text-sm">For eligible products — includes free service visits throughout the year</p>
+            <p className="text-brand-600 text-xs font-bold uppercase tracking-widest mb-2">Annual Care Plans</p>
+            <h2 className="text-2xl font-black text-gray-900">Protect Your Appliances Year-Round</h2>
+            <p className="text-gray-500 mt-1 text-sm max-w-xl mx-auto">
+              Choose a plan that fits your budget. Both plans cover all major appliance categories — starting rates are per unit per year.
+            </p>
           </div>
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6">
-              <Star className="w-6 h-6 text-blue-600 mb-3" />
-              <h3 className="font-bold text-gray-900 mb-2">Who qualifies?</h3>
-              <p className="text-sm text-gray-600 leading-relaxed mb-3">
-                Annual maintenance subscriptions are available for products priced above <strong>PKR 50,000</strong> — including ACs, refrigerators, washing machines, solar systems, and other major appliances.
-              </p>
-              <ul className="space-y-1.5 text-sm text-gray-700">
-                {[
-                  'Subscription price = 15% of product price per year',
-                  'Includes all service visits and labor for covered repairs',
-                  'Replacement parts are paid by the customer at cost',
-                  'Priority scheduling — visits confirmed within 24 hours',
-                ].map(item => (
-                  <li key={item} className="flex items-start gap-2">
-                    <CheckCircle className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="bg-gray-50 border border-gray-100 rounded-2xl p-6">
-              <Zap className="w-6 h-6 text-brand-500 mb-3" />
-              <h3 className="font-bold text-gray-900 mb-2">How it works</h3>
-              <ol className="space-y-3 text-sm text-gray-600">
-                {[
-                  'Purchase any eligible product (above PKR 50,000).',
-                  'Opt in to the Annual Maintenance Subscription at the time of purchase or within 30 days.',
-                  'Your subscription price is confirmed at 15% of the product\'s cash price.',
-                  'We schedule routine visits and respond to breakdowns throughout the year — labor is included.',
-                  'If parts need replacing, we source them and bill you at cost — no markup.',
-                ].map((step, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <span className="w-5 h-5 bg-brand-100 text-brand-600 rounded-full text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
-                    {step}
-                  </li>
-                ))}
-              </ol>
-              <div className="mt-4 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-xs text-amber-800">
-                <strong>Example:</strong> AC purchased at PKR 120,000 → Annual Maintenance Subscription = PKR 18,000/year (15%). All service visits and labor included. Parts at cost.
-              </div>
-            </div>
-          </div>
-          <div className="mt-4 text-center">
-            <a href={waSales('Hi, I\'d like to know about the Annual Maintenance Subscription for my appliance')} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-2 bg-gray-900 text-white font-bold px-7 py-3 rounded-xl hover:bg-gray-800 transition-colors">
-              <MessageCircle className="w-4 h-4" /> Ask About Subscription
-            </a>
-          </div>
-        </section>
 
-        {/* AMC callout */}
-        <section className="border-2 border-brand-200 bg-brand-50 rounded-3xl p-8">
-          <div className="flex flex-col md:flex-row gap-6 items-start">
-            <div className="flex-1">
-              <p className="text-brand-600 text-xs font-bold uppercase tracking-widest mb-2">Recommended for Homes & Offices</p>
-              <h2 className="text-xl font-black text-gray-900 mb-3">Annual Maintenance Contract (AMC)</h2>
-              <p className="text-gray-600 text-sm leading-relaxed mb-4">
-                One AMC covers all appliances in your home or office. Scheduled visits, priority breakdown response, and
-                discounted parts — so you're never caught without a working appliance.
-              </p>
-              <ul className="space-y-2">
-                {['2 scheduled service visits per appliance per year', 'Priority same-day breakdown response', '20% discount on all parts', 'Dedicated technician who knows your setup'].map(item => (
-                  <li key={item} className="flex items-start gap-2 text-sm text-gray-700">
-                    <CheckCircle className="w-4 h-4 text-brand-500 flex-shrink-0 mt-0.5" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="md:w-56">
-              <a href={waSales('Hi, I\'d like to know about the Annual Maintenance Contract')} target="_blank" rel="noreferrer"
-                className="block w-full text-center py-3.5 rounded-xl font-bold text-white bg-brand-500 hover:bg-brand-600 transition-colors">
-                Get AMC Quote
-              </a>
-              <p className="text-xs text-gray-500 text-center mt-2">Standard: within 48 hrs · Urgent same-day: request by 12pm</p>
-            </div>
+          <div className="grid lg:grid-cols-2 gap-6">
+            {ANNUAL_CARE_PLANS.map(plan => {
+              const isPlus = plan.id === 'plus'
+              return (
+                <div key={plan.id}
+                  className={`rounded-3xl overflow-hidden border-2 flex flex-col ${isPlus ? 'border-amber-400 bg-[#0d1b35]' : 'border-gray-200 bg-white'}`}
+                >
+                  {/* Plan header */}
+                  <div className={`px-6 py-5 ${isPlus ? 'bg-[#0f2247]' : 'bg-gray-50'}`}>
+                    {isPlus && (
+                      <span className="inline-block bg-amber-400 text-[#0d1b35] text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full mb-2">
+                        Most Popular
+                      </span>
+                    )}
+                    <h3 className={`text-xl font-black ${isPlus ? 'text-amber-400' : 'text-gray-900'}`}>{plan.name}</h3>
+                    <p className={`text-sm mt-1 ${isPlus ? 'text-slate-300' : 'text-gray-500'}`}>{plan.description}</p>
+                  </div>
+
+                  {/* Appliance pricing grid */}
+                  <div className="px-6 pt-5 pb-3">
+                    <p className={`text-xs font-bold uppercase tracking-wide mb-3 ${isPlus ? 'text-amber-400' : 'text-brand-600'}`}>
+                      Starting Rates (per unit / year)
+                    </p>
+                    <div className="space-y-1.5">
+                      {plan.appliances.map(a => (
+                        <div key={a.num}
+                          className={`flex items-center justify-between rounded-xl px-3 py-2 ${isPlus ? 'bg-[#1a2a4a]' : 'bg-gray-50 border border-gray-100'}`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className={`text-[10px] font-black shrink-0 w-5 ${isPlus ? 'text-amber-400' : 'text-brand-500'}`}>{a.num}</span>
+                            <div className="min-w-0">
+                              <div className={`text-xs font-bold truncate ${isPlus ? 'text-white' : 'text-gray-900'}`}>{a.category}</div>
+                              <div className={`text-[10px] truncate ${isPlus ? 'text-slate-400' : 'text-gray-500'}`}>{a.coverage}</div>
+                            </div>
+                          </div>
+                          <span className={`text-xs font-black shrink-0 ml-3 ${isPlus ? 'text-amber-400' : 'text-brand-600'}`}>
+                            PKR {a.startsAt.toLocaleString()}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Includes */}
+                  <div className={`mx-6 mt-4 rounded-2xl px-4 py-4 ${isPlus ? 'bg-[#1a2a4a]' : 'bg-brand-50 border border-brand-100'}`}>
+                    <p className={`text-xs font-bold uppercase tracking-wide mb-2.5 ${isPlus ? 'text-amber-400' : 'text-brand-600'}`}>What's Included</p>
+                    <ul className="space-y-1.5">
+                      {plan.includes.map(item => (
+                        <li key={item} className={`flex items-start gap-2 text-xs ${isPlus ? 'text-slate-300' : 'text-gray-700'}`}>
+                          <CheckCircle className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${isPlus ? 'text-amber-400' : 'text-brand-500'}`} />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Best for */}
+                  <div className={`mx-6 mt-3 rounded-2xl px-4 py-3 ${isPlus ? 'bg-[#1a2a4a]' : 'bg-blue-50 border border-blue-100'}`}>
+                    <p className={`text-xs font-bold uppercase tracking-wide mb-1 ${isPlus ? 'text-amber-400' : 'text-blue-600'}`}>Best For</p>
+                    <p className={`text-xs leading-relaxed ${isPlus ? 'text-slate-300' : 'text-gray-600'}`}>{plan.bestFor}</p>
+                  </div>
+
+                  {/* Terms */}
+                  <div className="mx-6 mt-3 mb-5">
+                    <p className={`text-[10px] font-bold uppercase tracking-wide mb-1.5 ${isPlus ? 'text-slate-400' : 'text-gray-400'}`}>Terms & Conditions</p>
+                    <ol className="space-y-1">
+                      {plan.terms.map((t, i) => (
+                        <li key={i} className={`text-[10px] leading-relaxed ${isPlus ? 'text-slate-500' : 'text-gray-400'}`}>
+                          {i + 1}. {t}
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+
+                  {/* CTA */}
+                  <div className="px-6 pb-6 mt-auto">
+                    <a
+                      href={waSales(`Hi, I'd like to know about the ${plan.name} for my appliances`)}
+                      target="_blank" rel="noreferrer"
+                      className={`flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-sm transition-colors ${
+                        isPlus
+                          ? 'bg-amber-400 text-[#0d1b35] hover:bg-amber-300'
+                          : 'bg-gray-900 text-white hover:bg-gray-800'
+                      }`}
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      Get {plan.id === 'plus' ? 'Plus' : 'Essential'} Plan Quote
+                    </a>
+                  </div>
+                </div>
+              )
+            })}
           </div>
+
+          <p className="text-xs text-gray-400 text-center mt-4">
+            All rates are per unit / set per year. Multi-appliance discounts available — ask via WhatsApp. Plans do not include product replacement.
+          </p>
         </section>
 
         {/* Book service CTA */}
