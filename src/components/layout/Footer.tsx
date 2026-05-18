@@ -121,6 +121,16 @@ export default function Footer() {
         </div>
       </div>
 
+      {/* Authorized service brands */}
+      <div className="border-t border-brand-600/60">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <span className="text-[10px] font-bold text-brand-400 uppercase tracking-widest shrink-0 mr-1">Authorized Brands:</span>
+          {['Haier','Dawlance','Westpoint','EcoStar','Gree','Hanco','Crown Solar','Ziewnic','Welcome','GFC','Orange LED'].map(b => (
+            <span key={b} className="text-[11px] text-brand-300 font-medium">{b}</span>
+          ))}
+        </div>
+      </div>
+
       <div className="border-t-2 border-gold-500/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-xs text-brand-300">© {year} Tajalli&#8217;s Home &amp; Commercial Solutions. All rights reserved.</p>

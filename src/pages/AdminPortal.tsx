@@ -5547,6 +5547,7 @@ async function generateQuotationPdf(opts: {
   doc.setLineWidth(0.2);
 
   // ── UNIFIED ENERGY / SOLAR SECTION ───────────────────────────────────────
+  if (y + 50 > 275) { doc.addPage(); y = 15; }
   {
     const _extractTon2 = (nm: string): number => {
       const m = nm.match(/(\d+\.?\d*)\s*t(?:on|onne)?(?:\b|[^a-z])/i);
@@ -5861,6 +5862,7 @@ async function generateQuotationPdf(opts: {
 
   // ── INSTALLMENT SCHEDULE — compact 2-column layout ───────────────────────────
   if (opts.saleType === 'installment' && (opts.instTotalPrice ?? 0) > 0 && (opts.instMonths ?? 0) > 0 && opts.instFirstDate) {
+    if (y + 30 > 275) { doc.addPage(); y = 15; }
     const instMonths = opts.instMonths ?? 0;
     const fmtDI = (d: Date) => d.toLocaleDateString('en-PK', { month: 'short', day: 'numeric', year: 'numeric' });
 
@@ -5961,6 +5963,7 @@ async function generateQuotationPdf(opts: {
 
   const _actBalDue = Math.max(0, grandTotal - _paidSoFar);
   const payBankH = hasCashSchedule ? Math.max(40, 10 + (opts.cashPaySchedule!.length + 1) * 5.0 + 6) : 40;
+  if (y + payBankH > 275) { doc.addPage(); y = 15; }
   const payColW = Math.round(printW * 0.34);  // 64mm — cash payment
   const qrColW = 44;                          // fixed 44mm for QR
   const bankColW = printW - payColW - qrColW - 6; // remaining for bank
@@ -6272,6 +6275,7 @@ async function generateInstallmentAdvancePdf(opts: {
   customerType?: 'house' | 'apartment' | 'commercial';
   paymentStatus?: string;
   preparedBy?: string;
+  invoiceDate?: string;
 }): Promise<Blob> {
   const NAVY  = '#123F73';
   const DNAV  = '#0B2545';
@@ -6282,7 +6286,7 @@ async function generateInstallmentAdvancePdf(opts: {
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const PKR = (n: number) => { const v = Math.ceil(n / 100) * 100; return `PKR ${v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`; };
-  const now = new Date();
+  const now = opts.invoiceDate ? new Date(opts.invoiceDate) : new Date();
   const fmtDate = (d: Date) => d.toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' });
   const dateStr = fmtDate(now);
 
@@ -6979,6 +6983,7 @@ async function generateInstallmentPaymentPdf(opts: {
   customCharges?: Array<{ name: string; amount: number }>;
   showNtn?: boolean;
   paymentStatus?: string;
+  invoiceDate?: string;
 }): Promise<Blob> {
   const NAVY  = '#123F73';
   const DNAV  = '#0B2545';
@@ -6990,7 +6995,7 @@ async function generateInstallmentPaymentPdf(opts: {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const PKR = (n: number) => { const v = Math.ceil(n / 100) * 100; return `PKR ${v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`; };
   const fmtDate = (d: Date) => d.toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' });
-  const now = new Date();
+  const now = opts.invoiceDate ? new Date(opts.invoiceDate) : new Date();
   const dateStr = fmtDate(now);
 
   const dueDate = new Date(opts.instFirstDate);
@@ -7388,6 +7393,7 @@ async function generateServiceReceiptPdf(opts: {
   notes: string;
   preparedBy: string;
   showNtn?: boolean;
+  invoiceDate?: string;
 }): Promise<Blob> {
   const NAVY  = '#123F73';
   const DNAV  = '#0B2545';
@@ -7398,7 +7404,7 @@ async function generateServiceReceiptPdf(opts: {
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const PKR = (n: number) => { const v = Math.ceil(n / 100) * 100; return `PKR ${v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`; };
-  const now = new Date();
+  const now = opts.invoiceDate ? new Date(opts.invoiceDate) : new Date();
   const dateStr = now.toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' });
 
   const fmtPKPhone = (p: string) => {
@@ -9137,6 +9143,7 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
           paymentNumber,
           customCharges,
           showNtn: true,
+          invoiceDate: row.created_at,
         });
         filename = `${(row.customer_name || 'Customer').replace(/[/\\:*?"<>|]/g, '').trim()} - ${row.ref_number}.pdf`;
 
@@ -9172,6 +9179,7 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
           paymentStatus: row.payment_status ?? undefined,
           preparedBy: row.prepared_by ?? '',
           showNtn: true,
+          invoiceDate: row.created_at,
         });
         filename = `${(row.customer_name || 'Customer').replace(/[/\\:*?"<>|]/g, '').trim()} - ${row.ref_number}.pdf`;
 
@@ -9786,6 +9794,24 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
   }, [hasSolarItems, solarPanelLine, solarInverterLine]);
 
   const [refNumber, setRefNumber] = useState(() => generateRefNumber());
+  const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().slice(0, 10));
+
+  // ── Sequential ref number: fetch next from DB on mount ──
+  useEffect(() => {
+    const year = new Date().getFullYear();
+    const prefix = `TJ-${year}-`;
+    supabase
+      .from('invoices')
+      .select('ref_number')
+      .like('ref_number', `${prefix}%`)
+      .order('ref_number', { ascending: false })
+      .limit(1)
+      .then(({ data }) => {
+        if (!data?.length) { setRefNumber(`${prefix}0001`); return; }
+        const seq = parseInt(data[0].ref_number.replace(prefix, ''), 10);
+        setRefNumber(`${prefix}${String(isNaN(seq) ? 1 : seq + 1).padStart(4, '0')}`);
+      });
+  }, []);
 
   // ── Autosave draft ──
   useEffect(() => {
@@ -9954,6 +9980,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
   function loadForEdit(row: InvoiceRow) {
     setEditingInvoiceId(row.id);
     setRefNumber(row.ref_number);
+    setInvoiceDate(row.created_at.slice(0, 10));
     setCustomerName(row.customer_name ?? '');
     setCustomerPhone(row.customer_phone ?? '');
     setCustomerEmail(row.customer_email ?? '');
@@ -10520,6 +10547,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           notes: invoiceNotes,
           preparedBy,
           showNtn,
+          invoiceDate,
         });
       } else {
         const instLines: Array<{ name: string; amount: number }> = installationType === 'installation-included'
@@ -10569,12 +10597,15 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           instScheduleRows: saleType === 'installment' && customInstSchedule.length > 0 ? customInstSchedule.map(({ no, label, dueDate, amount }) => ({ no, label, dueDate, amount })) : undefined,
           instTeaserMonthly: saleType !== 'installment' && grandTotal > 0 ? Math.round(grandTotal * 1.25 / 12) : undefined,
           instTeaserMonths: 12,
-          paymentStatus: amountPaid > 0 && amountPaid >= effectiveTotal ? 'paid'
-            : amountPaid > 0 ? 'partial'
-            : advancePaid ? (saleType === 'installment' ? 'advance_paid' : 'partial')
-            : 'pending',
+          paymentStatus: saleType === 'installment'
+            ? (amountPaid > 0 ? 'partial' : advancePaid ? 'advance_paid' : 'pending')
+            : (amountPaid > 0 && amountPaid >= effectiveTotal ? 'paid'
+                : amountPaid > 0 ? 'partial'
+                : advancePaid ? 'partial'
+                : 'pending'),
           amountPaid: amountPaid > 0 ? amountPaid : undefined,
           tradeIns: tradeIns.filter(t => t.description && t.value > 0).map(({ description, value }) => ({ description, value })),
+          invoiceDate,
         });
       }
       clearTimeout(timeout);
@@ -10617,6 +10648,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
         guarantorName, guarantorPhone, guarantorCnic,
         discountMode: 'fixed' as const, preparedBy,
         paymentStatus: advancePaid ? 'advance_paid' : 'pending',
+        invoiceDate,
       });
       clearTimeout(timeout);
       const url = URL.createObjectURL(blob);
@@ -10652,6 +10684,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
         paymentNumber: instPaymentNumber, showNtn,
         customCharges: customCharges.map(({ name, amount }) => ({ name, amount })),
         paymentStatus: advancePaid ? 'advance_paid' : 'pending',
+        invoiceDate,
       });
       clearTimeout(timeout);
       const url = URL.createObjectURL(blob);
@@ -10766,7 +10799,19 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               {savingEdits ? 'Saving…' : 'Save Changes'}
             </button>
             <button
-              onClick={() => { setEditingInvoiceId(null); setRefNumber(generateRefNumber()); }}
+              onClick={() => {
+  setEditingInvoiceId(null);
+  setInvoiceDate(new Date().toISOString().slice(0, 10));
+  const year = new Date().getFullYear();
+  const prefix = `TJ-${year}-`;
+  supabase.from('invoices').select('ref_number').like('ref_number', `${prefix}%`)
+    .order('ref_number', { ascending: false }).limit(1)
+    .then(({ data }) => {
+      if (!data?.length) { setRefNumber(`${prefix}0001`); return; }
+      const seq = parseInt(data[0].ref_number.replace(prefix, ''), 10);
+      setRefNumber(`${prefix}${String(isNaN(seq) ? 1 : seq + 1).padStart(4, '0')}`);
+    });
+}}
               className="text-xs font-semibold text-blue-600 hover:text-blue-800 whitespace-nowrap">
               ✕ Cancel
             </button>
@@ -10929,6 +10974,20 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                   {t === 'cash' ? 'Cash' : 'Installment'}
                 </button>
               ))}
+            </div>
+          </div>
+          {/* Ref number + Invoice date */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Reference No.</label>
+              <input value={refNumber} onChange={e => setRefNumber(e.target.value)}
+                placeholder="TJ-2026-0001"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Invoice Date</label>
+              <input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
           </div>
           {/* Prepared by + Stock status */}
@@ -12487,7 +12546,7 @@ function generateSolarPdf(lead: SolarLead, opts: {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(160, 160, 160);
-  doc.text('tajallis.com.pk  |  +92 335 426 6238  |  Karachi', margin, 28);
+  doc.text('tajallis.com.pk  |  +92 370 2578788  |  Karachi', margin, 28);
 
   doc.setTextColor(18, 63, 115); // brand navy
   doc.setFont('helvetica', 'bold');

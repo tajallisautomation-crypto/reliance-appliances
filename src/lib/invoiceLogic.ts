@@ -114,13 +114,11 @@ export function calcGrandTotal(
   };
 }
 
-/** Caller must handle DB unique constraint violation on rare same-day collision. */
+/** Sync fallback only — UI should use DB-fetched sequential number instead. */
 export function generateRefNumber(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const date = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
-  const rand = Math.floor(Math.random() * 900000) + 100000;
-  return `TJ-${date}-${rand}`;
+  const year = new Date().getFullYear();
+  const rand = Math.floor(Math.random() * 9000) + 1000;
+  return `TJ-${year}-${rand}`;
 }
 
 export function generateWhatsAppSummary(input: WhatsAppSummaryInput): string {

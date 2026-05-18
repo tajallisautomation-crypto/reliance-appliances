@@ -13,17 +13,19 @@ export interface CustomerProfile {
 }
 
 export interface CustomerAppliance {
-  id:               string
-  user_id:          string
-  brand:            string
-  model:            string
-  category:         string
-  purchase_year:    number | null
-  purchase_source:  'tajallis' | 'other'
-  last_serviced_at: string | null
-  is_active:        boolean
-  notes:            string
-  created_at:       string
+  id:                string
+  user_id:           string
+  brand:             string
+  model:             string
+  category:          string
+  purchase_year:     number | null
+  purchase_source:   'tajallis' | 'other'
+  last_serviced_at:  string | null
+  is_active:         boolean
+  notes:             string
+  serial_no:         string | null
+  warranty_end_date: string | null
+  created_at:        string
 }
 
 export interface LoyaltyTransaction {
@@ -64,4 +66,5 @@ export interface PortalData {
   referralEarnings: ReferralEarning[]
   orders:           PortalOrder[]
   reload:           () => void
+  navigateTo?:      (tab: string) => void
 }

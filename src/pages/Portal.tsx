@@ -21,16 +21,14 @@ import toast from 'react-hot-toast'
 
 type Tab = 'overview' | 'orders' | 'appliances' | 'support' | 'payments' | 'recommendations' | 'referrals' | 'loyalty' | 'account'
 
-const TABS: { id: Tab; label: string; emoji: string }[] = [
-  { id: 'overview',        label: 'Overview',       emoji: '🏠' },
-  { id: 'orders',          label: 'Orders',         emoji: '📋' },
-  { id: 'appliances',      label: 'Appliances',     emoji: '📦' },
-  { id: 'support',         label: 'Support',        emoji: '🎫' },
-  { id: 'payments',        label: 'Payments',       emoji: '💳' },
-  { id: 'recommendations', label: 'Tips',           emoji: '💡' },
-  { id: 'referrals',       label: 'Referrals',      emoji: '🎁' },
-  { id: 'loyalty',         label: 'Loyalty',        emoji: '⭐' },
-  { id: 'account',         label: 'Account',        emoji: '⚙️' },
+// Primary tabs shown in the tab bar. Secondary tabs (appliances, recommendations, referrals, loyalty)
+// are accessible via cards on the Overview tab.
+const PRIMARY_TABS: { id: Tab; label: string; emoji: string }[] = [
+  { id: 'overview',  label: 'Overview',  emoji: '🏠' },
+  { id: 'orders',    label: 'Orders',    emoji: '📋' },
+  { id: 'payments',  label: 'Payments',  emoji: '💳' },
+  { id: 'support',   label: 'Support',   emoji: '🎫' },
+  { id: 'account',   label: 'Account',   emoji: '⚙️' },
 ]
 
 // ── Password recovery view (shown after clicking reset email link) ──────────
@@ -148,7 +146,11 @@ function DashboardView({ email }: { email: string }) {
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
-  const portalData: PortalData = { profile, appliances, loyaltyTxns, referralEarnings, orders, reload: fetchAll }
+  const portalData: PortalData = {
+    profile, appliances, loyaltyTxns, referralEarnings, orders,
+    reload: fetchAll,
+    navigateTo: (tab: string) => setActiveTab(tab as Tab),
+  }
 
   const TAB_VIEWS: Record<Tab, React.ReactNode> = {
     overview:        <PortalOverview        {...portalData} />,
@@ -181,19 +183,23 @@ function DashboardView({ email }: { email: string }) {
           </div>
         </div>
 
-        {/* Tab bar */}
+        {/* Tab bar — primary tabs only; secondary modules accessed via Overview */}
         <div className="border-t border-brand-500/50 overflow-x-auto no-scrollbar">
           <nav className="flex px-4 min-w-max">
-            {TABS.map(t => (
-              <button key={t.id} onClick={() => setActiveTab(t.id)}
-                className={`flex items-center gap-1.5 px-3 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors ${
-                  activeTab === t.id
-                    ? 'border-white text-white'
-                    : 'border-transparent text-brand-200 hover:text-white'
-                }`}>
-                <span>{t.emoji}</span> {t.label}
-              </button>
-            ))}
+            {PRIMARY_TABS.map(t => {
+              const isActive = activeTab === t.id ||
+                (t.id === 'overview' && ['appliances','recommendations','referrals','loyalty'].includes(activeTab))
+              return (
+                <button key={t.id} onClick={() => setActiveTab(t.id)}
+                  className={`flex items-center gap-1.5 px-3 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors ${
+                    isActive
+                      ? 'border-white text-white'
+                      : 'border-transparent text-brand-200 hover:text-white'
+                  }`}>
+                  <span>{t.emoji}</span> {t.label}
+                </button>
+              )
+            })}
           </nav>
         </div>
       </div>

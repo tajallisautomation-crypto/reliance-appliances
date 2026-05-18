@@ -29,13 +29,19 @@ export default function PortalAuth({ onLogin, onSignup }: Props) {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!phone.trim() && !orderId.trim()) return
+    if (!phone.trim() || !orderId.trim()) {
+      setSearchErr('Please enter both your phone number and order ID to look up your order.')
+      return
+    }
     setSearching(true); setSearchErr(''); setOrders([])
     try {
-      let q = supabase.from('orders').select('*')
-      if (orderId.trim()) q = q.eq('id', orderId.trim())
-      else q = q.eq('customer_phone', phone.trim())
-      const { data, error } = await q.order('created_at', { ascending: false }).limit(10)
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('customer_phone', phone.trim())
+        .eq('id', orderId.trim())
+        .order('created_at', { ascending: false })
+        .limit(5)
       if (error) throw error
       setOrders(data || [])
       setSearched(true)
@@ -87,23 +93,23 @@ export default function PortalAuth({ onLogin, onSignup }: Props) {
           <h2 className="font-bold text-gray-900 text-lg mb-1 flex items-center gap-2">
             <Search className="w-5 h-5 text-brand-500" /> Track an Order Without Signing In
           </h2>
-          <p className="text-sm text-gray-500 mb-5">Enter your phone number or order ID to look up order status.</p>
+          <p className="text-sm text-gray-500 mb-5">Enter both your phone number and order ID to look up your order status.</p>
           <form onSubmit={handleSearch} className="space-y-3">
             <div className="grid sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-medium text-gray-500 block mb-1">Phone Number</label>
-                <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+92 3XX XXXXXXX" type="tel"
+                <label className="text-xs font-medium text-gray-500 block mb-1">Phone Number *</label>
+                <input value={phone} onChange={e => { setPhone(e.target.value); setSearchErr('') }} placeholder="+92 3XX XXXXXXX" type="tel"
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-400" />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-500 block mb-1">Or Order ID</label>
-                <input value={orderId} onChange={e => setOrderId(e.target.value)} placeholder="ORD-XXXXXXXX"
+                <label className="text-xs font-medium text-gray-500 block mb-1">Order ID *</label>
+                <input value={orderId} onChange={e => { setOrderId(e.target.value); setSearchErr('') }} placeholder="Provided at checkout"
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand-400" />
               </div>
             </div>
-            <button type="submit" disabled={searching || (!phone.trim() && !orderId.trim())}
+            <button type="submit" disabled={searching || !phone.trim() || !orderId.trim()}
               className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-semibold px-6 py-3 rounded-xl text-sm transition-colors">
-              <Search className="w-4 h-4" /> {searching ? 'Searching…' : 'Find My Orders'}
+              <Search className="w-4 h-4" /> {searching ? 'Searching…' : 'Find My Order'}
             </button>
           </form>
 

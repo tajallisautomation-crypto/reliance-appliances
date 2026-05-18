@@ -10,7 +10,7 @@ import {
 import SEO from '@/components/ui/SEO'
 import { getMaintenanceImages, type MediaItem } from '@/lib/gallery'
 import { SERVICES_CATALOG, ANNUAL_CARE_PLANS, type ServiceEntry, requiresSiteConsultation, DELIVERY_POLICY } from '@/lib/services'
-import { waSales, waAdmin } from '@/lib/whatsapp'
+import { waSales } from '@/lib/whatsapp'
 
 // ── Master price list (mirrors the official Service Price List flyer) ─────────
 
@@ -715,7 +715,7 @@ export function Corporate() {
             for businesses that expect more than a standard retailer can offer.
           </p>
           <div className="flex flex-wrap gap-4 justify-center mt-8">
-            <a href={waAdmin('Hi, I\'d like a corporate quote')} target="_blank" rel="noreferrer"
+            <a href={waSales('Hi, I\'d like a corporate quote')} target="_blank" rel="noreferrer"
               className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
               <MessageCircle className="w-4 h-4" /> WhatsApp Corporate Team
             </a>
@@ -804,7 +804,7 @@ export function Corporate() {
             Tell us your requirements and your account manager will send a complete proposal within 24 hours.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href={waAdmin('Hi, I\'d like a corporate appliance quote for my business')} target="_blank" rel="noreferrer"
+            <a href={waSales('Hi, I\'d like a corporate appliance quote for my business')} target="_blank" rel="noreferrer"
               className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
               <MessageCircle className="w-4 h-4" /> WhatsApp Corporate Team
             </a>

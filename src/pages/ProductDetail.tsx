@@ -7,6 +7,7 @@ import {
   TrendingDown, TrendingUp, History, Info, ZoomIn, X, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { getProductBySlug, getRelatedProducts, getAlternativeProducts, getPriceHistory, formatPrice, DEFAULT_CATEGORIES, isTrueT3 } from '@/lib/api';
+import { SITE_URL } from '@/lib/config';
 import { supabase } from '@/lib/supabase';
 import type { Product } from '@/lib/types';
 import ProductCard from '@/components/products/ProductCard';
@@ -164,7 +165,6 @@ export default function ProductDetail() {
     `Hi, I'm interested in the ${p.simplified_name || `${p.brand} ${p.model}`} and would like to book a free consultation.`
   );
 
-  const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://tajallis.com.pk';
   // Resolve the canonical category slug for breadcrumb + structured data.
   // Priority: 1) normalized seo_category_slug from taxonomy (most accurate)
   //           2) DEFAULT_CATEGORIES slug match against raw DB category string
@@ -821,13 +821,42 @@ export default function ProductDetail() {
                 </div>
                 <div className="bg-brand-50 rounded-2xl p-6 border border-brand-100">
                   <h3 className="font-bold text-gray-900 mb-2">Book Installation</h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Professional installation available same-day in Karachi. PKR 2,000 flat fee — includes all labour and basic fittings.
+                  <p className="text-sm text-gray-600 mb-1">
+                    Professional installation by certified technicians in Karachi.
                   </p>
+                  <ul className="text-xs text-brand-700 space-y-0.5 mb-4">
+                    <li>AC Installation Labor — <strong>PKR 4,500</strong></li>
+                    <li>AC Relocation Labor — <strong>PKR 7,000</strong></li>
+                    <li>Lifting charge — <strong>PKR 1,000</strong> per item per floor</li>
+                    <li className="text-gray-500 pt-0.5">Copper pipe, bracket & materials charged separately</li>
+                  </ul>
                   <a href={waSales(`Hi, I'd like to book installation for ${p.simplified_name || `${p.brand} ${p.model}`}.`)}
                     target="_blank" rel="noreferrer"
                     className="inline-flex items-center gap-2 font-bold text-white px-6 py-3 rounded-xl bg-wa hover:bg-wa-hover transition-colors">
                     <MessageCircle className="h-4 w-4" /> Book via WhatsApp
+                  </a>
+                </div>
+
+                {/* Annual Care Plan upsell — AC specific */}
+                <div className="mt-4 bg-[#0d1b35] rounded-2xl p-5 border border-[#1e3260]">
+                  <p className="text-amber-400 text-[10px] font-black uppercase tracking-widest mb-2">Protect Your Investment</p>
+                  <h3 className="text-white font-black text-sm mb-3">Annual Care Plans for Air Conditioners</h3>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div className="bg-[#0f2247] rounded-xl p-3 border border-[#1e3260]">
+                      <p className="text-amber-400 font-black text-xs mb-0.5">Essential Plan</p>
+                      <p className="text-white font-black text-lg">PKR 7,500<span className="text-slate-400 text-xs font-normal"> / yr</span></p>
+                      <p className="text-slate-400 text-[11px] mt-1">1 preventive visit · gas pressure check · 10% off repair labor</p>
+                    </div>
+                    <div className="bg-[#0f2247] rounded-xl p-3 border border-amber-500/30">
+                      <p className="text-amber-400 font-black text-xs mb-0.5">Plus Plan</p>
+                      <p className="text-white font-black text-lg">PKR 16,500<span className="text-slate-400 text-xs font-normal"> / yr</span></p>
+                      <p className="text-slate-400 text-[11px] mt-1">2 visits · covered parts · priority 48hr response</p>
+                    </div>
+                  </div>
+                  <a href={waSales(`Hi, I'd like to know about the Annual Care Plan for my AC (${p.simplified_name || `${p.brand} ${p.model}`}).`)}
+                    target="_blank" rel="noreferrer"
+                    className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors">
+                    Ask about Annual Care Plans →
                   </a>
                 </div>
               </>
@@ -861,6 +890,47 @@ export default function ProductDetail() {
                     <MessageCircle className="h-4 w-4" /> WhatsApp Us
                   </a>
                 </div>
+
+                {/* Annual Care Plan upsell — category-specific pricing */}
+                {(() => {
+                  const cat = _normCat
+                  const plans: Record<string, { essential: number; plus: number }> = {
+                    'refrigerators':    { essential: 6000,  plus: 13500 },
+                    'deep freezers':    { essential: 6500,  plus: 14500 },
+                    'washing machines': { essential: 6000,  plus: 13500 },
+                    'televisions':      { essential: 4500,  plus: 9500  },
+                    'solar systems':    { essential: 12000, plus: 24000 },
+                    'kitchen appliances': { essential: 3500, plus: 7500 },
+                    'water dispensers': { essential: 4500,  plus: 9500  },
+                    'small appliances': { essential: 3000,  plus: 6500  },
+                  }
+                  const match = Object.entries(plans).find(([k]) => cat.includes(k))
+                  if (!match) return null
+                  const [, pricing] = match
+                  return (
+                    <div className="bg-[#0d1b35] rounded-2xl p-5 border border-[#1e3260]">
+                      <p className="text-amber-400 text-[10px] font-black uppercase tracking-widest mb-2">Annual Care Plan</p>
+                      <h3 className="text-white font-black text-sm mb-3">Keep it covered all year</h3>
+                      <div className="grid sm:grid-cols-2 gap-3">
+                        <div className="bg-[#0f2247] rounded-xl p-3 border border-[#1e3260]">
+                          <p className="text-amber-400 font-black text-xs mb-0.5">Essential</p>
+                          <p className="text-white font-black text-lg">PKR {pricing.essential.toLocaleString()}<span className="text-slate-400 text-xs font-normal"> / yr</span></p>
+                          <p className="text-slate-400 text-[11px] mt-1">1 preventive visit · 10% off repair labor</p>
+                        </div>
+                        <div className="bg-[#0f2247] rounded-xl p-3 border border-amber-500/30">
+                          <p className="text-amber-400 font-black text-xs mb-0.5">Plus</p>
+                          <p className="text-white font-black text-lg">PKR {pricing.plus.toLocaleString()}<span className="text-slate-400 text-xs font-normal"> / yr</span></p>
+                          <p className="text-slate-400 text-[11px] mt-1">2 visits · covered parts · priority response</p>
+                        </div>
+                      </div>
+                      <a href={waSales(`Hi, I'd like to know about the Annual Care Plan for my ${p.simplified_name || `${p.brand} ${p.model}`}.`)}
+                        target="_blank" rel="noreferrer"
+                        className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors">
+                        Ask about Annual Care Plans →
+                      </a>
+                    </div>
+                  )
+                })()}
               </div>
             )}
           </div>

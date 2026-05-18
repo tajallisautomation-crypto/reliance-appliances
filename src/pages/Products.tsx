@@ -3,6 +3,7 @@ import { useSearchParams, useParams, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { Grid3X3, List, SlidersHorizontal, X, ChevronDown, ChevronUp } from 'lucide-react'
 import { getProducts, DEFAULT_CATEGORIES, type Product } from '../lib/api'
+import { SITE_URL } from '../lib/config'
 import ProductCard from '../components/products/ProductCard'
 import SEO from '../components/ui/SEO'
 
@@ -769,7 +770,6 @@ export default function Products() {
     ? `Search: "${search}" — Tajalli's`
     : 'All Products — Home Appliances Karachi'
 
-  const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://tajallis.com.pk'
   const pageUrl  = categorySlug ? `/products/category/${categorySlug}` : '/products'
 
   const itemListSchema = filteredProducts.length > 0 ? {

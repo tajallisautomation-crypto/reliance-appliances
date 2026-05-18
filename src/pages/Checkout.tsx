@@ -16,7 +16,7 @@ const BANK_DETAILS = [
     account: '01060101874794',
     iban:    'PK33MEZN0001060101874794',
     branch:  'F.B Area Branch, Karachi',
-    title:   "Tajalli's Home Collection",
+    title:   "Tajalli's Home Collection / Tajalli's Home & Commercial Solutions",
     qr:      '/meezan-qr.jpeg',
   },
 ]

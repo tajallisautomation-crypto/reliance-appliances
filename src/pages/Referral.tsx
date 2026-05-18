@@ -6,9 +6,7 @@ import {
 } from 'lucide-react'
 import SEO from '../components/ui/SEO'
 import { waSales } from '../lib/whatsapp'
-import { WA_SALES } from '../lib/config'
-
-const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://tajallis.com.pk'
+import { WA_SALES, SITE_URL } from '../lib/config'
 
 function generateCode(name: string, phone: string): string {
   const namePart  = name.replace(/\s+/g, '').toUpperCase().slice(0, 4)

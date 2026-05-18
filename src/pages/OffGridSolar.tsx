@@ -5,7 +5,7 @@ import {
   CheckCircle, Shield, ArrowRight, Phone, User, MapPin,
 } from 'lucide-react'
 import { submitSolarLead } from '../lib/api'
-import { WA_ADMIN } from '../lib/config'
+import { WA_SALES } from '../lib/config'
 
 
 
@@ -94,7 +94,7 @@ function OffGridCalculator() {
   }
 
   const waHref = result && bill
-    ? `https://wa.me/${WA_ADMIN}?text=${buildWaMessage(parseInt(bill.replace(/,/g, '')), parseInt(backup), result)}`
+    ? `https://wa.me/${WA_SALES}?text=${buildWaMessage(parseInt(bill.replace(/,/g, '')), parseInt(backup), result)}`
     : '#'
 
   return (
@@ -264,7 +264,7 @@ function LeadForm() {
         </div>
         <div className="text-white font-bold text-lg">Request Received</div>
         <div className="text-gray-400 text-sm">Our solar expert will call you within 2 hours. JazakAllah.</div>
-        <a href={`https://wa.me/${WA_ADMIN}?text=${encodeURIComponent('Assalam-o-Alaikum, I just submitted an off-grid solar inquiry on the website. Please call me.')}`}
+        <a href={`https://wa.me/${WA_SALES}?text=${encodeURIComponent('Assalam-o-Alaikum, I just submitted an off-grid solar inquiry on the website. Please call me.')}`}
           target="_blank" rel="noreferrer"
           className="inline-flex items-center gap-2 text-[#25D366] text-sm hover:underline">
           <MessageCircle className="w-4 h-4" /> Chat on WhatsApp instead
@@ -559,7 +559,7 @@ export default function OffGridSolar() {
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <a
-              href={`https://wa.me/${WA_ADMIN}?text=${encodeURIComponent('Assalam-o-Alaikum, I want to inquire about an off-grid solar system.')}`}
+              href={`https://wa.me/${WA_SALES}?text=${encodeURIComponent('Assalam-o-Alaikum, I want to inquire about an off-grid solar system.')}`}
               target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2.5 bg-[#25D366] hover:bg-[#20bc5a] text-white font-bold px-8 py-4 rounded-2xl transition-all text-sm"
             >

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   MessageCircle, Phone, Mail, AlertCircle, Package,
-  Wrench, Truck, HelpCircle, CheckCircle2, ChevronRight, ArrowLeft,
+  Wrench, Truck, HelpCircle, CheckCircle2, ChevronRight, ArrowLeft, CalendarCheck,
 } from 'lucide-react'
 import SEO from '@/components/ui/SEO'
 import { waSales } from '@/lib/whatsapp'
@@ -71,6 +71,16 @@ const ISSUE_TYPES: IssueType[] = [
     requiredFields: ['orderRef'],
     waTemplate: f =>
       `Hi Tajalli's, I need help with my installment account.\n\nName: ${f.name}\nPhone: ${f.phone}\nInvoice No: ${f.orderRef || '—'}\nDue Date: ${f.dueDate || '—'}\n\nIssue:\n${f.description}`,
+  },
+  {
+    value: 'care-plan',
+    label: 'Annual Care Plan / Service Package',
+    icon: CalendarCheck,
+    color: 'text-amber-700 bg-amber-50 border-amber-200',
+    hint: 'For Annual Care Plan enquiries, new subscriptions, renewals, or queries about service packages and pricing.',
+    requiredFields: ['product'],
+    waTemplate: f =>
+      `Hi Tajalli's, I have an enquiry about an Annual Care Plan or Service Package.\n\nName: ${f.name}\nPhone: ${f.phone}\nAppliance / Product: ${f.product || '—'}\n\nEnquiry:\n${f.description}`,
   },
   {
     value: 'general-query',
