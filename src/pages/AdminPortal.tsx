@@ -7384,6 +7384,7 @@ async function generateServiceReceiptPdf(opts: {
   discountType: string;
   discountReason: string;
   paymentStatus?: string;
+  amountPaid?: number;
   notes: string;
   preparedBy: string;
   showNtn?: boolean;
@@ -7500,7 +7501,10 @@ async function generateServiceReceiptPdf(opts: {
   }
 
   // Right: receipt meta
-  const _srBalDue2 = opts.paymentStatus === 'paid' ? 0 : _srGrandTotal0;
+  const _srBalDue2 = opts.paymentStatus === 'paid' ? 0
+    : opts.paymentStatus === 'partial' && (opts.amountPaid ?? 0) > 0
+      ? Math.max(0, _srGrandTotal0 - (opts.amountPaid ?? 0))
+    : _srGrandTotal0;
   const _srStatusLabel2 = opts.paymentStatus === 'paid' ? 'PAID IN FULL'
     : opts.paymentStatus === 'partial' ? 'PARTIAL'
     : opts.paymentStatus === 'overdue' ? 'OVERDUE'
@@ -9223,6 +9227,7 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
           discountType: _srRpDiscType,
           discountReason: _srRpDiscReason,
           paymentStatus: row.payment_status ?? undefined,
+          amountPaid: row.amount_paid ?? undefined,
           notes: srNotes,
           preparedBy: row.prepared_by ?? '',
           showNtn: true,
@@ -10507,7 +10512,11 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           discountMode: 'fixed' as const,
           discountType: discounts[0]?.type ?? 'Custom',
           discountReason: discounts.map(d => d.reason).filter(Boolean).join('; '),
-          paymentStatus: undefined,
+          paymentStatus: amountPaid > 0 && amountPaid >= srGrandTotal ? 'paid'
+            : amountPaid > 0 ? 'partial'
+            : advancePaid ? 'paid'
+            : 'pending',
+          amountPaid: amountPaid > 0 ? amountPaid : undefined,
           notes: invoiceNotes,
           preparedBy,
           showNtn,
