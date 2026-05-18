@@ -8598,6 +8598,10 @@ type InvoiceRow = {
   balance_note: string | null;
   cash_pay_schedule_json: Array<{ date: string; amount: number; note: string }> | null;
   inst_schedule_json: Array<{ no: number; label: string; dueDate: string; amount: number }> | null;
+  // new columns (migrations 20260519)
+  amount_paid: number | null;
+  trade_ins_json: Array<{ description: string; value: number }> | null;
+  discounts_json: Array<{ mode: 'percentage' | 'fixed'; amount: number; type: string; reason: string }> | null;
   invoice_lines?: Array<{
     name: string;
     model: string | null;
