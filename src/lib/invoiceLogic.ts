@@ -200,11 +200,11 @@ function acRunKw(ton: number, isInverter: boolean): number {
   return Math.round(kw * (isInverter ? 1 : 1.3) * 10) / 10;
 }
 
-/** Monthly kWh for an AC unit (Karachi avg 8 h/day). */
+/** Monthly kWh for an AC unit (Pakistani summer, 8 h/day avg).
+ *  Inverter: 1T≈180, 1.5T≈250, 2T≈320. Non-inverter ×1.40. */
 function acKwhMonth(ton: number, isInverter: boolean): number {
-  // 1T inv≈80, 1.5T inv≈115, 2T inv≈155; standard ×1.35
-  const base = Math.round(40 + ton * 50);
-  return Math.round(base * (isInverter ? 1 : 1.35));
+  const base = Math.round(ton * 140 + 40);
+  return Math.round(base * (isInverter ? 1 : 1.4));
 }
 
 export function buildDetailedAdvisory(

@@ -5559,19 +5559,19 @@ async function generateQuotationPdf(opts: {
         // Tonnage-aware estimate: Karachi usage 8h/day avg; inverter ~30% less than standard
         const ton = _extractTon2(nm);
         const isInv = /inverter/i.test(nm);
-        // 1T inv≈70, 1.5T inv≈105, 2T inv≈140 kWh/mo; standard ×1.35
-        const base = Math.round(35 + ton * 46);
-        return { kwh: Math.round(base * (isInv ? 1 : 1.35)), isEst: true };
+        // Inverter: 1T≈180, 1.5T≈250, 2T≈320 kWh/mo (8 h/day, Pakistani summer); standard ×1.40
+        const base = Math.round(ton * 140 + 40);
+        return { kwh: Math.round(base * (isInv ? 1 : 1.4)), isEst: true };
       }
       if (/refrigerator|fridge/i.test(c) || /fridge|refrig/i.test(n)) {
         const isInv = /inverter/i.test(nm);
-        return { kwh: isInv ? 55 : 80, isEst: true };        // inverter fridge ~55, standard ~80
+        return { kwh: isInv ? 60 : 90, isEst: true };
       }
-      if (/deep.?freez|chest.?freez|vertical.?freez/i.test(c) || /freezer/i.test(n))  return { kwh: 100, isEst: true };
-      if (/washing|washer/i.test(c))                                                   return { kwh: 25,  isEst: true };
+      if (/deep.?freez|chest.?freez|vertical.?freez/i.test(c) || /freezer/i.test(n))  return { kwh: 50,  isEst: true };
+      if (/washing|washer/i.test(c))                                                   return { kwh: 30,  isEst: true };
       if (/microwave/i.test(c))                                                        return { kwh: 12,  isEst: true };
-      if (/water.?heater|geyser/i.test(c))                                             return { kwh: 45,  isEst: true };
-      if (/television|led.*tv/i.test(c) || /\btv\b/.test(n))                          return { kwh: 18,  isEst: true };
+      if (/water.?heater|geyser/i.test(c))                                             return { kwh: 50,  isEst: true };
+      if (/television|led.*tv/i.test(c) || /\btv\b/.test(n))                          return { kwh: 20,  isEst: true };
       return { kwh: 0, isEst: false };
     };
 
@@ -6683,17 +6683,18 @@ async function generateInstallmentAdvancePdf(opts: {
         const m = nm.match(/(\d+\.?\d*)\s*t(?:on|onne)?(?:\b|[^a-z])/i);
         const ton = m ? parseFloat(m[1]) : 1.5;
         const isInv = /inverter/i.test(nm);
-        const base = Math.round(35 + ton * 46);
-        return { kwh: Math.round(base * (isInv ? 1 : 1.35)), isEst: true };
+        // Inverter: 1T≈180, 1.5T≈250, 2T≈320 kWh/mo (8 h/day, Pakistani summer); standard ×1.40
+        const base = Math.round(ton * 140 + 40);
+        return { kwh: Math.round(base * (isInv ? 1 : 1.4)), isEst: true };
       }
       if (/refrigerator|fridge/i.test(c) || /fridge|refrig/i.test(n)) {
-        return { kwh: /inverter/i.test(nm) ? 55 : 80, isEst: true };
+        return { kwh: /inverter/i.test(nm) ? 60 : 90, isEst: true };
       }
-      if (/deep.?freez|chest.?freez|vertical.?freez/i.test(c) || /freezer/i.test(n))  return { kwh: 100, isEst: true };
-      if (/washing|washer/i.test(c))                                                   return { kwh: 25,  isEst: true };
+      if (/deep.?freez|chest.?freez|vertical.?freez/i.test(c) || /freezer/i.test(n))  return { kwh: 50,  isEst: true };
+      if (/washing|washer/i.test(c))                                                   return { kwh: 30,  isEst: true };
       if (/microwave/i.test(c))                                                        return { kwh: 12,  isEst: true };
-      if (/water.?heater|geyser/i.test(c))                                             return { kwh: 45,  isEst: true };
-      if (/television|led.*tv/i.test(c) || /\btv\b/.test(n))                          return { kwh: 18,  isEst: true };
+      if (/water.?heater|geyser/i.test(c))                                             return { kwh: 50,  isEst: true };
+      if (/television|led.*tv/i.test(c) || /\btv\b/.test(n))                          return { kwh: 20,  isEst: true };
       return { kwh: 0, isEst: false };
     };
     const _advEnergyLines = opts.lines
