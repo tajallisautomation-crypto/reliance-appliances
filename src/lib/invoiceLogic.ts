@@ -185,6 +185,28 @@ export interface DetailedAdvisory {
   paragraphs: string[];         // each string is one paragraph block
 }
 
+/** Extract AC tonnage from product name / keySpec. Returns null if not found. */
+function extractAcTon(name: string, keySpec?: string): number | null {
+  const text = `${name} ${keySpec ?? ''}`;
+  const m = text.match(/(\d+\.?\d*)\s*t(?:on|onne)?(?:\b|[^a-zA-Z])/i);
+  return m ? parseFloat(m[1]) : null;
+}
+
+/** Running power draw (kW) for an AC unit by tonnage and type. */
+function acRunKw(ton: number, isInverter: boolean): number {
+  // Inverter running watts: 1T≈800W, 1.5T≈1200W, 2T≈1600W, 2.5T≈2000W
+  // Standard fixed-speed ≈ 30% more + high inrush
+  const kw = 0.5 + ton * 0.52;
+  return Math.round(kw * (isInverter ? 1 : 1.3) * 10) / 10;
+}
+
+/** Monthly kWh for an AC unit (Karachi avg 8 h/day). */
+function acKwhMonth(ton: number, isInverter: boolean): number {
+  // 1T inv≈80, 1.5T inv≈115, 2T inv≈155; standard ×1.35
+  const base = Math.round(40 + ton * 50);
+  return Math.round(base * (isInverter ? 1 : 1.35));
+}
+
 export function buildDetailedAdvisory(
   customerType: CustomerType,
   lines: AdvisoryLine[]
@@ -192,29 +214,29 @@ export function buildDetailedAdvisory(
   if (customerType === 'commercial') return null;
 
   const totalKwh = lines.reduce((s, l) => s + l.kwhPerMonth * l.qty, 0);
-  const hasSolar = lines.some(l =>
-    /solar|inverter/i.test(l.category)
-  );
+  const hasSolar = lines.some(l => /solar|inverter/i.test(l.category));
 
   if (customerType === 'apartment') {
     const UPS_COST_PER_KW = 120_000;
     const PKRfmtUps = (n: number) => `PKR ${Math.round(n).toLocaleString('en-PK')}`;
 
-    // Estimate peak power demand per product type
+    // Estimate peak running power per product type
     let peakKw = 0;
     for (const l of lines) {
       const cat = l.category.toLowerCase();
       if (/air.?condition|\bac\b/i.test(cat)) {
-        peakKw += 1.8 * l.qty; // 1.5–1.7 ton inverter AC running load
+        const ton = extractAcTon(l.name, l.keySpec) ?? 1.5;
+        const isInv = /inverter/i.test(l.name) || /inverter/i.test(cat) || /inverter/i.test(l.keySpec ?? '');
+        peakKw += acRunKw(ton, isInv) * l.qty;
       } else if (/deep.?freez|vertical.?freez|chest.?freez/i.test(cat) || /freezer/i.test(l.name)) {
         peakKw += 0.25 * l.qty;
       } else if (/refrigerator|fridge/i.test(cat) || /fridge/i.test(l.name)) {
         peakKw += 0.15 * l.qty;
       } else if (l.kwhPerMonth > 0) {
-        peakKw += (l.kwhPerMonth / 30 / 8) * l.qty; // generic: assume 8h/day
+        peakKw += (l.kwhPerMonth / 30 / 8) * l.qty;
       }
     }
-    const upsKw = Math.max(1, Math.ceil(peakKw * 2) / 2); // round to nearest 0.5 kW
+    const upsKw = Math.max(1, Math.ceil(peakKw * 2) / 2);
     const upsCost = upsKw * UPS_COST_PER_KW;
     const hasAC = lines.some(l => /air.?condition|\bac\b/i.test(l.category));
 
@@ -222,32 +244,39 @@ export function buildDetailedAdvisory(
     paras.push(
       `UPS / inverter backup suits apartments better than rooftop solar. ` +
       `A ${upsKw} kVA system covers your load during load-shed. ` +
-      `Est. ${PKRfmtUps(upsCost)} installed (${upsKw} kW x PKR 120,000/kW) — ask us for a free sizing quote.`
+      `Est. ${PKRfmtUps(upsCost)} installed (${upsKw} kW × PKR 120,000/kW) — ask us for a free sizing quote.`
     );
 
     for (const l of lines) {
       const cat = l.category.toLowerCase();
       if (/freezer|refrigerator|fridge/i.test(cat) || /freezer|fridge/i.test(l.name)) {
         const isInverter = /inverter/i.test(l.name) || /inverter/i.test(cat) || /inverter/i.test(l.keySpec ?? '');
-        const itemKw = /deep.?freez|vertical.?freez/i.test(cat) || /freezer/i.test(l.name) ? 0.25 : 0.15;
+        const isFreezer = /deep.?freez|vertical.?freez/i.test(cat) || /freezer/i.test(l.name);
+        const itemKw = isFreezer ? 0.25 : 0.15;
         const itemCost = itemKw * UPS_COST_PER_KW;
+        const label = isFreezer ? 'freezer' : 'refrigerator';
         if (isInverter) {
           paras.push(
-            `Your inverter ${/freezer/i.test(l.name) ? 'freezer' : 'refrigerator'} is UPS-ready — ` +
+            `Your inverter ${label} is UPS-ready — ` +
             `low inrush current means a ${itemKw} kW UPS (est. ${PKRfmtUps(itemCost)}) handles it comfortably.`
           );
         } else {
           paras.push(
-            `A standard ${/freezer/i.test(l.name) ? 'freezer' : 'refrigerator'} draws ~${l.kwhPerMonth || 30}–${(l.kwhPerMonth || 30) + 10} units/mo. ` +
-            `Switching to an inverter model cuts this by ~40% and reduces UPS sizing.`
+            `A standard ${label} draws ~${l.kwhPerMonth || (isFreezer ? 90 : 70)}–${(l.kwhPerMonth || (isFreezer ? 90 : 70)) + 15} units/mo. ` +
+            `Switching to an inverter model cuts this by ~35% and reduces UPS sizing.`
           );
         }
       } else if (/air.?condition|\bac\b/i.test(cat)) {
-        const acKw = 1.8;
-        const acCost = acKw * UPS_COST_PER_KW;
+        const ton = extractAcTon(l.name, l.keySpec) ?? 1.5;
+        const isInv = /inverter/i.test(l.name) || /inverter/i.test(cat) || /inverter/i.test(l.keySpec ?? '');
+        const runKw = acRunKw(ton, isInv);
+        const cost = runKw * UPS_COST_PER_KW;
+        const tonLabel = ton === 1 ? '1-ton' : ton === 1.5 ? '1.5-ton' : ton === 2 ? '2-ton' : `${ton}-ton`;
+        const typeLabel = isInv ? 'inverter' : 'standard';
         paras.push(
-          `For uninterrupted AC during load-shedding, a ${acKw} kW UPS minimum is required. ` +
-          `Est. ${PKRfmtUps(acCost)} for AC backup alone (inverter + batteries + installation).`
+          `Your ${tonLabel} ${typeLabel} AC requires ~${runKw} kW running load. ` +
+          `UPS backup: ${runKw} kW × PKR 120,000/kW = est. ${PKRfmtUps(cost)} installed.` +
+          (isInv ? '' : ' Inverter ACs use ~30% less power and are easier to back up.')
         );
       }
     }
@@ -266,17 +295,15 @@ export function buildDetailedAdvisory(
   const PKRfmt = (n: number) => `PKR ${Math.round(n).toLocaleString('en-PK')}`;
   if (!hasSolar) {
     const dailyKwh = totalKwh / 30;
-    // Round up to nearest 0.5 kW, minimum 1 kW (5 peak sun hours for Karachi)
     let systemKw = Math.max(1, Math.ceil((dailyKwh / 5) * 2) / 2);
 
-    // Tiered equipment cost per kW (user-defined pricing)
     let equipCostPerKw: number;
     if (systemKw <= 2) equipCostPerKw = 200_000;
     else if (systemKw <= 3) equipCostPerKw = 180_000;
     else equipCostPerKw = 160_000;
 
     const equipCost = Math.round(systemKw * equipCostPerKw);
-    const structCost = Math.round(systemKw * 1000 * 30); // PKR 30/Watt
+    const structCost = Math.round(systemKw * 1000 * 30);
     const totalSetupCost = equipCost + structCost;
 
     const monthlyGen = Math.round(systemKw * 5 * 30);
@@ -322,10 +349,19 @@ export function buildDetailedAdvisory(
       }
     } else if (/air.?condition|\bac\b/i.test(cat)) {
       const isInverter = /inverter/i.test(l.name) || /inverter/i.test(cat);
+      const ton = extractAcTon(l.name, l.keySpec) ?? 1.5;
+      const runKw = acRunKw(ton, isInverter);
+      const kwhMo = l.kwhPerMonth || acKwhMonth(ton, isInverter);
+      const tonLabel = ton === 1 ? '1-ton' : ton === 1.5 ? '1.5-ton' : ton === 2 ? '2-ton' : `${ton}-ton`;
+      const solarKw = Math.max(2, Math.round(runKw * 1.5 * 2) / 2);
+      const upsCost = Math.round(runKw * 120_000);
       paras.push(
         isInverter
-          ? `Inverter ACs pair well with hybrid solar. A ${l.kwhPerMonth || 120}-unit/month AC load can be offset by a 2–3kW panel array (est. above). For load-shed UPS only: 1.8 kW x PKR 120,000/kW = est. PKR 216,000 installed.`
-          : `Standard ACs have high inrush current. Upgrade to an inverter model before adding solar. UPS backup for AC: ~1.8 kW x PKR 120,000/kW = est. PKR 216,000 installed.`
+          ? `Your ${tonLabel} inverter AC draws ~${kwhMo} units/month and ~${runKw} kW running load. ` +
+            `A ${solarKw}–${solarKw + 1}kW hybrid solar array offsets most of this. ` +
+            `For load-shed UPS only: ${runKw} kW × PKR 120,000/kW = est. PKR ${upsCost.toLocaleString('en-PK')} installed.`
+          : `Standard ${tonLabel} ACs have high inrush current (~${Math.round(runKw * 3)}kW surge) — upgrade to inverter before adding solar. ` +
+            `UPS backup: ~${runKw} kW × PKR 120,000/kW = est. PKR ${upsCost.toLocaleString('en-PK')} installed.`
       );
     }
   }

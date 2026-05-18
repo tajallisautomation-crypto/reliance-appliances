@@ -4920,7 +4920,7 @@ async function generateQuotationPdf(opts: {
     : Math.ceil(Math.round(grandTotal * opts.advancePct / 100) / 100) * 100;
   // Resolve effective payment state: paymentStatus field takes precedence
   const _effPaid    = opts.paymentStatus === 'paid';
-  const _effPartial = opts.paymentStatus === 'partial' || (opts.advancePaid && !_effPaid);
+  const _effPartial = opts.paymentStatus === 'partial' || opts.paymentStatus === 'advance_paid' || (opts.advancePaid && !_effPaid);
   const _effAmtPaid = _effPaid ? grandTotal
     : (opts.amountPaid ?? (_effPartial ? _qtAdvAmt2 : 0));
   const _qtBalDue = Math.max(0, grandTotal - _effAmtPaid);
@@ -5548,16 +5548,30 @@ async function generateQuotationPdf(opts: {
 
   // ── UNIFIED ENERGY / SOLAR SECTION ───────────────────────────────────────
   {
+    const _extractTon2 = (nm: string): number => {
+      const m = nm.match(/(\d+\.?\d*)\s*t(?:on|onne)?(?:\b|[^a-z])/i);
+      return m ? parseFloat(m[1]) : 1.5; // default 1.5T if not found
+    };
     const catKwh2 = (kwh: number, cat: string, nm: string): { kwh: number; isEst: boolean } => {
       if (kwh > 0) return { kwh, isEst: false };
       const c = cat.toLowerCase(), n = nm.toLowerCase();
-      if (/air.?cond|split\s+ac|window\s+ac/i.test(c) || /\bac\b/.test(n))            return { kwh: 240, isEst: true };
-      if (/refrigerator|fridge/i.test(c) || /fridge|refrig/i.test(n))                 return { kwh: 100, isEst: true };
-      if (/deep.?freez|chest.?freez|vertical.?freez/i.test(c) || /freezer/i.test(n))  return { kwh: 150, isEst: true };
-      if (/washing|washer/i.test(c))                                                   return { kwh: 30,  isEst: true };
+      if (/air.?cond|split\s+ac|window\s+ac/i.test(c) || /\bac\b/.test(n)) {
+        // Tonnage-aware estimate: Karachi usage 8h/day avg; inverter ~30% less than standard
+        const ton = _extractTon2(nm);
+        const isInv = /inverter/i.test(nm);
+        // 1T inv≈70, 1.5T inv≈105, 2T inv≈140 kWh/mo; standard ×1.35
+        const base = Math.round(35 + ton * 46);
+        return { kwh: Math.round(base * (isInv ? 1 : 1.35)), isEst: true };
+      }
+      if (/refrigerator|fridge/i.test(c) || /fridge|refrig/i.test(n)) {
+        const isInv = /inverter/i.test(nm);
+        return { kwh: isInv ? 55 : 80, isEst: true };        // inverter fridge ~55, standard ~80
+      }
+      if (/deep.?freez|chest.?freez|vertical.?freez/i.test(c) || /freezer/i.test(n))  return { kwh: 100, isEst: true };
+      if (/washing|washer/i.test(c))                                                   return { kwh: 25,  isEst: true };
       if (/microwave/i.test(c))                                                        return { kwh: 12,  isEst: true };
       if (/water.?heater|geyser/i.test(c))                                             return { kwh: 45,  isEst: true };
-      if (/television|led.*tv/i.test(c) || /\btv\b/.test(n))                          return { kwh: 10,  isEst: true };
+      if (/television|led.*tv/i.test(c) || /\btv\b/.test(n))                          return { kwh: 18,  isEst: true };
       return { kwh: 0, isEst: false };
     };
 
@@ -6000,7 +6014,7 @@ async function generateQuotationPdf(opts: {
           ['Status', 'Paid in Full'],
         ] as Array<[string, string]>;
       }
-      if (opts.advancePaid && _paidSoFar > 0) {
+      if (_pbEffPartial && _paidSoFar > 0) {
         // Partial: advance received, balance still outstanding
         return [
           ['Advance Received', PKR(_paidSoFar)],
@@ -9200,7 +9214,7 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
         // Derive advancePaid from DB payment_status:
         // cash 'paid' = full amount collected; installment 'paid' = advance collected
         const _rpPmtStatus = row.payment_status ?? 'pending';
-        const _rpAdvancePaid = _rpPmtStatus === 'paid' || _rpPmtStatus === 'partial';
+        const _rpAdvancePaid = _rpPmtStatus === 'paid' || _rpPmtStatus === 'partial' || _rpPmtStatus === 'advance_paid';
         blob = await generateQuotationPdf({
           customerName: row.customer_name ?? '',
           customerPhone: (row.customer_phone ?? '').replace(/\D/g, ''),
@@ -10511,7 +10525,8 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           instTeaserMonths: 12,
           paymentStatus: amountPaid > 0 && amountPaid >= effectiveTotal ? 'paid'
             : amountPaid > 0 ? 'partial'
-            : undefined,
+            : advancePaid ? (saleType === 'installment' ? 'advance_paid' : 'partial')
+            : 'pending',
           amountPaid: amountPaid > 0 ? amountPaid : undefined,
           tradeIns: tradeIns.filter(t => t.description && t.value > 0).map(({ description, value }) => ({ description, value })),
         });
