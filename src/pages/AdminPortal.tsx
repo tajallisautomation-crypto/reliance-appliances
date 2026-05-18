@@ -10340,9 +10340,17 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
     setServices(prev => prev.map((s, i) => i === index ? { ...s, ...patch } : s));
   }
 
-  // Compute total discount as fixed PKR against the base (pre-discount subtotal + services)
-  const _discBase0 = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0)
-    + services.filter(s => s.status === 'charged').reduce((sum, s) => sum + s.charged_amount, 0);
+  // Service receipt totals must be computed first so they can be used as the discount base
+  const srJobTotal = srJobLines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+  const srCustomTotal = docType === 'service_receipt' ? customCharges.reduce((s, c) => s + c.amount, 0) : 0;
+  const srBaseTotal = srJobTotal + srCustomTotal;
+
+  // Discount base: for service receipts use job lines; for invoices/quotations use product lines + services.
+  // Using the wrong base (product lines) for service receipts would cap the discount to 0 since lines is empty.
+  const _discBase0 = docType === 'service_receipt'
+    ? srBaseTotal
+    : lines.reduce((s, l) => s + l.qty * l.unitPrice, 0)
+      + services.filter(s => s.status === 'charged').reduce((sum, s) => sum + s.charged_amount, 0);
   const totalDiscountFixed = Math.min(
     discounts.reduce((sum, d) => sum + (d.mode === 'fixed' ? d.amount : Math.round(_discBase0 * d.amount / 100)), 0),
     _discBase0
@@ -10356,9 +10364,6 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
   const tradeInTotal = tradeIns.reduce((s, t) => s + t.value, 0);
   const effectiveTotal = grandTotal + customChargesTotal - tradeInTotal;
 
-  const srJobTotal = srJobLines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
-  const srCustomTotal = docType === 'service_receipt' ? customCharges.reduce((s, c) => s + c.amount, 0) : 0;
-  const srBaseTotal = srJobTotal + srCustomTotal;
   const srDiscountAmt = docType === 'service_receipt' ? Math.min(totalDiscountFixed, srBaseTotal) : 0;
   const srGrandTotal = srBaseTotal - srDiscountAmt;
 
