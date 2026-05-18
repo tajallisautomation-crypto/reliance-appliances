@@ -6679,13 +6679,21 @@ async function generateInstallmentAdvancePdf(opts: {
     const _advCatKwh = (kwh: number, cat: string, nm: string): { kwh: number; isEst: boolean } => {
       if (kwh > 0) return { kwh, isEst: false };
       const c = cat.toLowerCase(), n = nm.toLowerCase();
-      if (/air.?cond|split\s+ac|window\s+ac/i.test(c) || /\bac\b/.test(n))            return { kwh: 240, isEst: true };
-      if (/refrigerator|fridge/i.test(c) || /fridge|refrig/i.test(n))                 return { kwh: 100, isEst: true };
-      if (/deep.?freez|chest.?freez|vertical.?freez/i.test(c) || /freezer/i.test(n))  return { kwh: 150, isEst: true };
-      if (/washing|washer/i.test(c))                                                   return { kwh: 30,  isEst: true };
+      if (/air.?cond|split\s+ac|window\s+ac/i.test(c) || /\bac\b/.test(n)) {
+        const m = nm.match(/(\d+\.?\d*)\s*t(?:on|onne)?(?:\b|[^a-z])/i);
+        const ton = m ? parseFloat(m[1]) : 1.5;
+        const isInv = /inverter/i.test(nm);
+        const base = Math.round(35 + ton * 46);
+        return { kwh: Math.round(base * (isInv ? 1 : 1.35)), isEst: true };
+      }
+      if (/refrigerator|fridge/i.test(c) || /fridge|refrig/i.test(n)) {
+        return { kwh: /inverter/i.test(nm) ? 55 : 80, isEst: true };
+      }
+      if (/deep.?freez|chest.?freez|vertical.?freez/i.test(c) || /freezer/i.test(n))  return { kwh: 100, isEst: true };
+      if (/washing|washer/i.test(c))                                                   return { kwh: 25,  isEst: true };
       if (/microwave/i.test(c))                                                        return { kwh: 12,  isEst: true };
       if (/water.?heater|geyser/i.test(c))                                             return { kwh: 45,  isEst: true };
-      if (/television|led.*tv/i.test(c) || /\btv\b/.test(n))                          return { kwh: 10,  isEst: true };
+      if (/television|led.*tv/i.test(c) || /\btv\b/.test(n))                          return { kwh: 18,  isEst: true };
       return { kwh: 0, isEst: false };
     };
     const _advEnergyLines = opts.lines
