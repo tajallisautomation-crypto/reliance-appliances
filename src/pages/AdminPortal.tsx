@@ -14063,8 +14063,8 @@ import { checkCompatibility, parseBatteryVoltage } from '@/lib/compatibility';
 function CompatibilityReviewTab({ products, onRefresh }: { products: Product[]; onRefresh: () => void }) {
   const [saving, setSaving] = useState<string | null>(null);
   const [saved,  setSaved]  = useState<Set<string>>(new Set());
+  const [edits,  setEdits]  = useState<Record<string, Record<string, string>>>({});
 
-  // Separate products by system role based on normalized_category / category
   const inverters = products.filter(p =>
     p.normalized_category === 'Solar Inverters' ||
     p.category.toLowerCase().includes('inverter') ||
@@ -14076,29 +14076,69 @@ function CompatibilityReviewTab({ products, onRefresh }: { products: Product[]; 
     p.category.toLowerCase().includes('lifepo4')
   );
 
-  // For each inverter, check compatibility status derived from specs
   function getInverterKw(p: Product): number | null {
     const specVals = Object.values(p.specs || {}).join(' ');
-    const m = specVals.match(/(\d+\.?\d*)\s*kw/i) || p.model.match(/(\d+\.?\d*)\s*kw/i) || p.model.match(/pv(\d{4,5})/i);
-    if (!m) return null;
-    const v = parseFloat(m[1]);
-    // PV model codes: PV8500 = 8.5kW, PV7000 = 7kW
-    if (p.model.toUpperCase().match(/PV\d{4,5}/)) return v / 1000;
-    return v;
-  }
-
-  function getBatteryVoltage(p: Product): number | null {
-    const specVals = Object.values(p.specs || {}).join(' ');
-    const m = specVals.match(/\b(24|48)\s*v/i);
-    if (m) return parseInt(m[1]);
+    // Direct kW match — never divide by 1000
+    const kwMatch = specVals.match(/(\d+\.?\d*)\s*kw/i) || p.model.match(/(\d+\.?\d*)\s*kw/i);
+    if (kwMatch) return parseFloat(kwMatch[1]);
+    // PV model-code fallback only: PV8500 = 8.5kW, PV7000 = 7kW
+    const pvMatch = p.model.match(/pv(\d{4,5})/i);
+    if (pvMatch) return parseFloat(pvMatch[1]) / 1000;
     return null;
   }
 
+  function getBatteryVoltage(p: Product): number | null {
+    const specs = p.specs || {};
+    // Prefer spec keys explicitly about voltage to avoid false positives
+    for (const [key, val] of Object.entries(specs)) {
+      if (/\bvolt/i.test(key)) {
+        const m = String(val).match(/\b(24|48)\b/);
+        if (m) return parseInt(m[1]);
+      }
+    }
+    // Fallback: scan spec values for 24V / 48V with unit boundary
+    const specVals = Object.values(specs).join(' ');
+    const m = specVals.match(/\b(24|48)\s*v\b/i);
+    if (m) return parseInt(m[1]);
+    // Also check simplified name / model
+    const nameM = (p.simplified_name || p.model).match(/\b(24|48)\s*v\b/i);
+    if (nameM) return parseInt(nameM[1]);
+    return null;
+  }
+
+  function getBatteryKwh(p: Product): number | null {
+    const specs = p.specs || {};
+    for (const [key, val] of Object.entries(specs)) {
+      if (/capacity|energy|kwh/i.test(key)) {
+        const m = String(val).match(/(\d+\.?\d*)\s*kwh/i);
+        if (m) return parseFloat(m[1]);
+      }
+    }
+    const specVals = Object.values(specs).join(' ');
+    const m = specVals.match(/(\d+\.?\d*)\s*kwh/i);
+    if (m) return parseFloat(m[1]);
+    const nameM = (p.simplified_name || p.model).match(/(\d+\.?\d*)\s*kwh/i);
+    if (nameM) return parseFloat(nameM[1]);
+    return null;
+  }
+
+  function getEditVal(id: string, field: string, detected: number | null, dbVal: number | null | undefined): string {
+    if (edits[id]?.[field] !== undefined) return edits[id][field];
+    if (dbVal != null) return String(dbVal);
+    if (detected != null) return String(detected);
+    return '';
+  }
+
+  function handleEdit(id: string, field: string, value: string) {
+    setEdits(prev => ({ ...prev, [id]: { ...(prev[id] || {}), [field]: value } }));
+  }
+
   async function saveField(id: string, field: string, value: unknown) {
-    setSaving(id);
+    const key = `${id}_${field}`;
+    setSaving(key);
     try {
       const { error } = await supabase.from('products').update({ [field]: value, updated_at: new Date().toISOString() }).eq('id', id);
-      if (!error) { setSaved(prev => new Set([...prev, id])); onRefresh(); }
+      if (!error) { setSaved(prev => new Set([...prev, key])); onRefresh(); }
     } finally { setSaving(null); }
   }
 
@@ -14108,13 +14148,13 @@ function CompatibilityReviewTab({ products, onRefresh }: { products: Product[]; 
         <h2 className="font-black text-gray-900 text-lg mb-1">⚡ Compatibility Review</h2>
         <p className="text-sm text-gray-600">
           Solar inverters and batteries must have <strong>inverter_power_kw</strong> and <strong>battery_voltage</strong> populated
-          before they can be paired or recommended. Products missing these fields are blocked from compatibility matching.
+          before they can be paired or recommended. Edit any value manually — auto-detection may not be reliable for all models.
         </p>
         <div className="mt-3 grid sm:grid-cols-3 gap-3 text-xs text-center">
           {[
             { label: 'Solar Inverters', count: inverters.length, color: 'bg-amber-100 text-amber-800' },
             { label: 'Solar Batteries', count: batteries.length, color: 'bg-blue-100 text-blue-800' },
-            { label: 'Unresolved (missing data)', count: [...inverters, ...batteries].filter(p => !getInverterKw(p) && !getBatteryVoltage(p)).length, color: 'bg-red-100 text-red-700' },
+            { label: 'Unresolved (missing data)', count: [...inverters, ...batteries].filter(p => !(p as any).inverter_power_kw && !(p as any).battery_voltage).length, color: 'bg-red-100 text-red-700' },
           ].map(s => (
             <div key={s.label} className={`rounded-xl px-4 py-3 font-bold ${s.color}`}>
               <div className="text-2xl">{s.count}</div>
@@ -14134,8 +14174,8 @@ function CompatibilityReviewTab({ products, onRefresh }: { products: Product[]; 
             <thead>
               <tr className="bg-gray-900 text-white text-left">
                 <th className="px-4 py-3 font-bold">Product</th>
-                <th className="px-4 py-3 font-bold">Detected kW</th>
-                <th className="px-4 py-3 font-bold">DB inverter_power_kw</th>
+                <th className="px-4 py-3 font-bold">Auto-detected kW</th>
+                <th className="px-4 py-3 font-bold">Set inverter_power_kw</th>
                 <th className="px-4 py-3 font-bold">Status</th>
               </tr>
             </thead>
@@ -14143,7 +14183,8 @@ function CompatibilityReviewTab({ products, onRefresh }: { products: Product[]; 
               {inverters.map((p, i) => {
                 const detectedKw = getInverterKw(p);
                 const dbKw = (p as any).inverter_power_kw;
-                const isSaved = saved.has(p.id);
+                const editVal = getEditVal(p.id, 'inverter_power_kw', detectedKw, dbKw);
+                const kwKey = `${p.id}_inverter_power_kw`;
                 const result = checkCompatibility({ inverterPowerKw: dbKw ?? detectedKw, batteryVoltage: 48 });
                 return (
                   <tr key={p.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
@@ -14157,19 +14198,22 @@ function CompatibilityReviewTab({ products, onRefresh }: { products: Product[]; 
                         : <span className="text-red-500 text-xs">Not detected</span>}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        {dbKw
-                          ? <span className="font-bold text-green-700">{dbKw} kW</span>
-                          : <span className="text-gray-400 text-xs italic">not set</span>}
-                        {detectedKw && !dbKw && (
-                          <button
-                            disabled={saving === p.id}
-                            onClick={() => saveField(p.id, 'inverter_power_kw', detectedKw)}
-                            className="text-[10px] bg-brand-500 text-white px-2 py-0.5 rounded font-bold hover:bg-brand-600 disabled:opacity-40"
-                          >
-                            {saving === p.id ? '…' : isSaved ? '✓' : `Set ${detectedKw}kW`}
-                          </button>
-                        )}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {dbKw != null && <span className="text-[10px] text-gray-400 shrink-0">saved: {dbKw}kW</span>}
+                        <input
+                          type="number" step="0.1" min="0" placeholder="e.g. 3.6"
+                          value={editVal}
+                          onChange={e => handleEdit(p.id, 'inverter_power_kw', e.target.value)}
+                          className="w-20 border border-gray-300 rounded px-2 py-0.5 text-xs focus:ring-1 focus:ring-brand-400 focus:outline-none"
+                        />
+                        <span className="text-xs text-gray-400">kW</span>
+                        <button
+                          disabled={saving === kwKey || !editVal || isNaN(parseFloat(editVal))}
+                          onClick={() => saveField(p.id, 'inverter_power_kw', parseFloat(editVal))}
+                          className="text-[10px] bg-brand-500 text-white px-2 py-0.5 rounded font-bold hover:bg-brand-600 disabled:opacity-40 shrink-0"
+                        >
+                          {saving === kwKey ? '…' : saved.has(kwKey) ? '✓' : 'Save'}
+                        </button>
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -14205,55 +14249,86 @@ function CompatibilityReviewTab({ products, onRefresh }: { products: Product[]; 
             <thead>
               <tr className="bg-gray-900 text-white text-left">
                 <th className="px-4 py-3 font-bold">Product</th>
-                <th className="px-4 py-3 font-bold">Detected Voltage</th>
-                <th className="px-4 py-3 font-bold">DB battery_voltage</th>
+                <th className="px-4 py-3 font-bold">Auto-detected</th>
+                <th className="px-4 py-3 font-bold">Set Voltage (V)</th>
+                <th className="px-4 py-3 font-bold">Set Capacity (kWh)</th>
                 <th className="px-4 py-3 font-bold">Status</th>
               </tr>
             </thead>
             <tbody>
               {batteries.map((p, i) => {
-                const detectedV = getBatteryVoltage(p);
-                const dbV = (p as any).battery_voltage;
-                const isSaved = saved.has(p.id);
+                const detectedV   = getBatteryVoltage(p);
+                const detectedKwh = getBatteryKwh(p);
+                const dbV   = (p as any).battery_voltage;
+                const dbKwh = (p as any).battery_capacity_kwh;
+                const editV   = getEditVal(p.id, 'battery_voltage', detectedV, dbV);
+                const editKwh = getEditVal(p.id, 'battery_capacity_kwh', detectedKwh, dbKwh);
+                const vKey   = `${p.id}_battery_voltage`;
+                const kwhKey = `${p.id}_battery_capacity_kwh`;
                 return (
                   <tr key={p.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                     <td className="px-4 py-3">
                       <div className="font-semibold text-gray-900 text-xs">{p.brand} {p.simplified_name || p.model}</div>
                       <div className="text-gray-400 text-[10px]">{p.category}</div>
                     </td>
-                    <td className="px-4 py-3">
-                      {detectedV !== null
-                        ? <span className="font-bold text-blue-700">{detectedV}V</span>
-                        : <span className="text-red-500 text-xs">Not detected</span>}
+                    <td className="px-4 py-3 text-[11px] space-y-0.5">
+                      <div>{detectedV != null ? <span className="text-blue-700 font-bold">{detectedV}V</span> : <span className="text-gray-400">V: —</span>}</div>
+                      <div>{detectedKwh != null ? <span className="text-blue-700 font-bold">{detectedKwh}kWh</span> : <span className="text-gray-400">kWh: —</span>}</div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        {dbV
-                          ? <span className="font-bold text-green-700">{dbV}V</span>
-                          : <span className="text-gray-400 text-xs italic">not set</span>}
-                        {detectedV && !dbV && (
-                          <button
-                            disabled={saving === p.id}
-                            onClick={() => saveField(p.id, 'battery_voltage', detectedV)}
-                            className="text-[10px] bg-brand-500 text-white px-2 py-0.5 rounded font-bold hover:bg-brand-600 disabled:opacity-40"
-                          >
-                            {saving === p.id ? '…' : isSaved ? '✓' : `Set ${detectedV}V`}
-                          </button>
-                        )}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {dbV != null && <span className="text-[10px] text-gray-400 shrink-0">saved: {dbV}V</span>}
+                        <select
+                          value={editV}
+                          onChange={e => handleEdit(p.id, 'battery_voltage', e.target.value)}
+                          className="border border-gray-300 rounded px-2 py-0.5 text-xs focus:ring-1 focus:ring-brand-400 focus:outline-none"
+                        >
+                          <option value="">— V —</option>
+                          <option value="24">24V</option>
+                          <option value="48">48V</option>
+                        </select>
+                        <button
+                          disabled={saving === vKey || !editV}
+                          onClick={() => saveField(p.id, 'battery_voltage', parseInt(editV))}
+                          className="text-[10px] bg-brand-500 text-white px-2 py-0.5 rounded font-bold hover:bg-brand-600 disabled:opacity-40 shrink-0"
+                        >
+                          {saving === vKey ? '…' : saved.has(vKey) ? '✓' : 'Save'}
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {dbKwh != null && <span className="text-[10px] text-gray-400 shrink-0">saved: {dbKwh}</span>}
+                        <input
+                          type="number" step="0.1" min="0" placeholder="e.g. 2.4"
+                          value={editKwh}
+                          onChange={e => handleEdit(p.id, 'battery_capacity_kwh', e.target.value)}
+                          className="w-20 border border-gray-300 rounded px-2 py-0.5 text-xs focus:ring-1 focus:ring-brand-400 focus:outline-none"
+                        />
+                        <span className="text-xs text-gray-400">kWh</span>
+                        <button
+                          disabled={saving === kwhKey || !editKwh || isNaN(parseFloat(editKwh))}
+                          onClick={() => saveField(p.id, 'battery_capacity_kwh', parseFloat(editKwh))}
+                          className="text-[10px] bg-brand-500 text-white px-2 py-0.5 rounded font-bold hover:bg-brand-600 disabled:opacity-40 shrink-0"
+                        >
+                          {saving === kwhKey ? '…' : saved.has(kwhKey) ? '✓' : 'Save'}
+                        </button>
                       </div>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        dbV || detectedV ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        dbV ? 'bg-green-100 text-green-700' :
+                        detectedV ? 'bg-amber-100 text-amber-700' :
+                        'bg-red-100 text-red-700'
                       }`}>
-                        {dbV ? '✓ Data OK' : detectedV ? '⚠ Detected, not saved' : '⚠ Missing voltage data'}
+                        {dbV ? '✓ V saved' : detectedV ? '⚠ Detected, not saved' : '⚠ Missing voltage'}
                       </span>
                     </td>
                   </tr>
                 );
               })}
               {batteries.length === 0 && (
-                <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400 text-sm">No solar batteries found in catalog.</td></tr>
+                <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">No solar batteries found in catalog.</td></tr>
               )}
             </tbody>
           </table>
