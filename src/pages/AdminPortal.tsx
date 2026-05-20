@@ -10469,7 +10469,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       customerArea,
       paymentStatus: amountPaid > 0 && amountPaid >= effectiveTotal ? 'paid'
         : amountPaid > 0 ? 'partial'
-        : advancePaid ? (saleType === 'installment' ? 'advance_paid' : 'partial')
+        : advancePaid ? (saleType === 'installment' ? 'advance_paid' : 'paid')
         : 'pending',
       amountPaid: amountPaid > 0 ? amountPaid : undefined,
       isExistingCustomer,
@@ -10603,7 +10603,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
             ? (amountPaid > 0 ? 'partial' : advancePaid ? 'advance_paid' : 'pending')
             : (amountPaid > 0 && amountPaid >= effectiveTotal ? 'paid'
                 : amountPaid > 0 ? 'partial'
-                : advancePaid ? 'partial'
+                : advancePaid ? 'paid'
                 : 'pending'),
           amountPaid: amountPaid > 0 ? amountPaid : undefined,
           tradeIns: tradeIns.filter(t => t.description && t.value > 0).map(({ description, value }) => ({ description, value })),
