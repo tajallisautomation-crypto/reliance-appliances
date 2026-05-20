@@ -1,21 +1,39 @@
 import { Link } from 'react-router-dom'
-import { Bell, CreditCard, Package, ChevronRight, Wrench, Calendar } from 'lucide-react'
+import { Bell, CreditCard, Package, ChevronRight, Wrench, Calendar, Shield, Zap, RefreshCw, Star } from 'lucide-react'
 import { waSales } from '@/lib/whatsapp'
 import type { PortalData } from './portalTypes'
-import { TIERS, TIER_BENEFITS, SERVICE_INTERVAL, INST_MONTHLY, CATEGORY_ICONS } from './portalConstants'
+import { TIERS, TIER_BENEFITS, SERVICE_INTERVAL, INST_MONTHLY, CATEGORY_ICONS, CATEGORY_TO_PLAN_CATEGORY } from './portalConstants'
 
 const fmtPKR  = (n: number) => 'PKR ' + Math.round(n || 0).toLocaleString('en-PK')
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })
+const fmtDateShort = (d: Date) => d.toLocaleDateString('en-PK', { day: 'numeric', month: 'short' })
 
 function daysAgo(dateStr: string): number {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86_400_000)
+}
+
+function daysUntil(dateStr: string): number {
+  return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86_400_000)
 }
 
 function customerSince(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-PK', { month: 'long', year: 'numeric' })
 }
 
-export default function PortalOverview({ profile, appliances, loyaltyTxns, orders, referralEarnings, navigateTo }: PortalData) {
+interface Action {
+  priority: number
+  icon: React.ReactNode
+  label: string
+  detail: string
+  cta: string
+  ctaHref?: string
+  ctaOnClick?: () => void
+  color: string
+  bg: string
+  border: string
+}
+
+export default function PortalOverview({ profile, appliances, loyaltyTxns, orders, referralEarnings, carePlans, navigateTo }: PortalData) {
   const tier = TIERS[profile?.loyalty_tier ?? 'bronze']
   const pts  = profile?.loyalty_points ?? 0
 
@@ -37,16 +55,151 @@ export default function PortalOverview({ profile, appliances, loyaltyTxns, order
     })
   }).filter(x => x.due >= new Date()).sort((a, b) => a.due.getTime() - b.due.getTime())[0]
 
+  const overdueInstallment = instOrders.flatMap(o => {
+    const count = INST_MONTHLY[o.payment_method] ?? 0
+    return Array.from({ length: count }, (_, i) => {
+      const d = new Date(o.created_at)
+      d.setMonth(d.getMonth() + i + 1)
+      return { due: d, amount: o.monthly_amount ?? 0 }
+    })
+  }).filter(x => x.due < new Date())[0]
+
+  const warrantyExpiringSoon = appliances.filter(a => {
+    if (!a.warranty_end_date) return false
+    const days = daysUntil(a.warranty_end_date)
+    return days > 0 && days <= 60
+  })
+
+  const warrantyExpired = appliances.filter(a => {
+    if (!a.warranty_end_date) return false
+    return daysUntil(a.warranty_end_date) <= 0
+  })
+
+  const expiringCarePlans = carePlans.filter(cp =>
+    cp.status === 'expiring_soon' || (cp.expires_at && daysUntil(cp.expires_at) <= 30 && daysUntil(cp.expires_at) > 0)
+  )
+
+  const appliancesWithoutPlan = appliances.filter(a => {
+    const planCat = CATEGORY_TO_PLAN_CATEGORY[a.category]
+    if (!planCat) return false
+    return !carePlans.some(cp => cp.appliance_id === a.id && ['active', 'expiring_soon', 'pending_inspection'].includes(cp.status))
+  })
+
   const recentOrders = orders.slice(0, 3)
   const totalReferralEarned = referralEarnings.reduce((s, r) => s + (r.commission_amount ?? 0), 0)
   const pendingReferrals = referralEarnings.filter(r => r.status === 'pending').length
 
-  const warrantyExpiringSoon = appliances.filter(a => {
-    if (!a.warranty_end_date) return false
-    const end = new Date(a.warranty_end_date)
-    const diffMs = end.getTime() - Date.now()
-    return diffMs > 0 && diffMs < 60 * 24 * 60 * 60 * 1000
-  })
+  // Build prioritized next actions
+  const actions: Action[] = []
+
+  if (overdueInstallment) {
+    actions.push({
+      priority: 1,
+      icon: <CreditCard className="w-4 h-4" />,
+      label: 'Payment Overdue',
+      detail: `${fmtPKR(overdueInstallment.amount)} was due ${fmtDateShort(overdueInstallment.due)}. Clear now to avoid penalty.`,
+      cta: 'Pay Now',
+      ctaOnClick: () => navigateTo?.('payments'),
+      color: 'text-red-700',
+      bg: 'bg-red-50',
+      border: 'border-red-200',
+    })
+  }
+
+  if (warrantyExpiringSoon.length > 0) {
+    const a = warrantyExpiringSoon[0]
+    const days = daysUntil(a.warranty_end_date!)
+    actions.push({
+      priority: 2,
+      icon: <Shield className="w-4 h-4" />,
+      label: 'Warranty Expiring Soon',
+      detail: `${a.brand} ${a.model} warranty ends in ${days} day${days !== 1 ? 's' : ''}. Claim support or add a care plan before expiry.`,
+      cta: 'Claim Warranty',
+      ctaHref: waSales(`Hi! I'd like to claim warranty for my ${a.brand} ${a.model} before it expires. Serial: ${a.serial_no || 'N/A'}`),
+      color: 'text-amber-700',
+      bg: 'bg-amber-50',
+      border: 'border-amber-200',
+    })
+  }
+
+  if (nextDue && !overdueInstallment) {
+    const daysLeft = Math.ceil((nextDue.due.getTime() - Date.now()) / 86_400_000)
+    if (daysLeft <= 10) {
+      actions.push({
+        priority: 3,
+        icon: <CreditCard className="w-4 h-4" />,
+        label: 'Installment Due Soon',
+        detail: `${fmtPKR(nextDue.amount)} due on ${fmtDateShort(nextDue.due)} — ${daysLeft} days left.`,
+        cta: 'Pay Now',
+        ctaOnClick: () => navigateTo?.('payments'),
+        color: 'text-blue-700',
+        bg: 'bg-blue-50',
+        border: 'border-blue-200',
+      })
+    }
+  }
+
+  if (serviceDue.length > 0) {
+    const a = serviceDue[0]
+    actions.push({
+      priority: 4,
+      icon: <Wrench className="w-4 h-4" />,
+      label: 'Service Due',
+      detail: `${a.brand} ${a.model || a.category} is due for its annual service. Book now to avoid higher repair costs.`,
+      cta: 'Book Service',
+      ctaHref: waSales(`Hi! I'd like to book a service visit for my ${a.brand} ${a.model}.`),
+      color: 'text-orange-700',
+      bg: 'bg-orange-50',
+      border: 'border-orange-200',
+    })
+  }
+
+  if (expiringCarePlans.length > 0) {
+    const cp = expiringCarePlans[0]
+    const days = cp.expires_at ? daysUntil(cp.expires_at) : 0
+    actions.push({
+      priority: 5,
+      icon: <RefreshCw className="w-4 h-4" />,
+      label: 'Care Plan Expiring',
+      detail: `Your ${cp.plan_tier.charAt(0).toUpperCase() + cp.plan_tier.slice(1)} Care plan expires in ${days} days. Renew to keep your protection active.`,
+      cta: 'Renew Plan',
+      ctaOnClick: () => navigateTo?.('care-plans'),
+      color: 'text-purple-700',
+      bg: 'bg-purple-50',
+      border: 'border-purple-200',
+    })
+  }
+
+  if (appliancesWithoutPlan.length > 0 && actions.length < 3) {
+    actions.push({
+      priority: 6,
+      icon: <Shield className="w-4 h-4" />,
+      label: 'Appliances Without Coverage',
+      detail: `${appliancesWithoutPlan.length} of your registered appliance${appliancesWithoutPlan.length > 1 ? 's have' : ' has'} no care plan. Protect them with Essential, Plus, or Elite cover.`,
+      cta: 'View Care Plans',
+      ctaOnClick: () => navigateTo?.('care-plans'),
+      color: 'text-brand-700',
+      bg: 'bg-brand-50',
+      border: 'border-brand-200',
+    })
+  }
+
+  if (warrantyExpired.length > 0 && actions.length < 4) {
+    const a = warrantyExpired[0]
+    actions.push({
+      priority: 7,
+      icon: <Shield className="w-4 h-4" />,
+      label: 'Warranty Expired',
+      detail: `${a.brand} ${a.model} warranty has expired. Protect it from unexpected repair costs with an Annual Care Plan.`,
+      cta: 'Add Care Plan',
+      ctaOnClick: () => navigateTo?.('care-plans'),
+      color: 'text-gray-700',
+      bg: 'bg-gray-50',
+      border: 'border-gray-200',
+    })
+  }
+
+  const topActions = actions.sort((a, b) => a.priority - b.priority).slice(0, 4)
 
   return (
     <div className="space-y-5">
@@ -72,69 +225,46 @@ export default function PortalOverview({ profile, appliances, loyaltyTxns, order
         </div>
       </div>
 
-      {/* Service due alerts */}
-      {serviceDue.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Bell className="w-5 h-5 text-amber-600" />
-            <p className="font-bold text-amber-800">Service Reminder{serviceDue.length > 1 ? 's' : ''}</p>
-          </div>
-          <div className="space-y-2">
-            {serviceDue.map(a => (
-              <div key={a.id} className="flex items-center justify-between bg-white rounded-xl px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <span className="text-xl">{CATEGORY_ICONS[a.category] ?? '🔧'}</span>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">{a.brand} {a.model}</p>
-                    <p className="text-xs text-gray-500">Last serviced: {a.last_serviced_at ? fmtDate(a.last_serviced_at) : 'Not recorded'}</p>
+      {/* Next Best Actions */}
+      {topActions.length > 0 && (
+        <div>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <Zap className="w-3.5 h-3.5" /> Your next best actions
+          </p>
+          <div className="space-y-2.5">
+            {topActions.map((action, i) => (
+              <div key={i} className={`rounded-2xl border p-4 ${action.bg} ${action.border}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${action.color} bg-white/60`}>
+                      {action.icon}
+                    </div>
+                    <div className="min-w-0">
+                      <p className={`font-bold text-sm ${action.color}`}>{action.label}</p>
+                      <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">{action.detail}</p>
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0">
+                    {action.ctaHref ? (
+                      <a href={action.ctaHref} target="_blank" rel="noreferrer"
+                        className={`text-xs font-bold px-3 py-1.5 rounded-lg bg-white/80 hover:bg-white transition-colors whitespace-nowrap ${action.color}`}>
+                        {action.cta}
+                      </a>
+                    ) : (
+                      <button onClick={action.ctaOnClick}
+                        className={`text-xs font-bold px-3 py-1.5 rounded-lg bg-white/80 hover:bg-white transition-colors whitespace-nowrap ${action.color}`}>
+                        {action.cta}
+                      </button>
+                    )}
                   </div>
                 </div>
-                <a href={waSales(`Hi! I'd like to schedule a service visit for my ${a.brand} ${a.model}.`)} target="_blank" rel="noreferrer"
-                  className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">
-                  <Wrench className="w-3 h-3" /> Book
-                </a>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Warranty expiring soon */}
-      {warrantyExpiringSoon.length > 0 && (
-        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex items-start gap-3">
-          <span className="text-xl">📋</span>
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-orange-800 text-sm">Warranty Expiring Soon</p>
-            <p className="text-xs text-orange-700 mt-0.5 truncate">
-              {warrantyExpiringSoon.map(a => `${a.brand} ${a.model}`).join(', ')} — ends within 60 days
-            </p>
-          </div>
-          <button onClick={() => navigateTo?.('appliances')} className="text-xs font-bold text-orange-700 hover:underline flex-shrink-0">
-            View →
-          </button>
-        </div>
-      )}
-
-      {/* Next installment due */}
-      {nextDue && (
-        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <CreditCard className="w-6 h-6 text-blue-600 flex-shrink-0" />
-            <div>
-              <p className="font-bold text-blue-900">Upcoming Installment</p>
-              <p className="text-sm text-blue-700">
-                {fmtPKR(nextDue.amount)} due {nextDue.due.toLocaleDateString('en-PK', { day: 'numeric', month: 'short' })}
-              </p>
-            </div>
-          </div>
-          <button onClick={() => navigateTo?.('payments')}
-            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-4 py-2.5 rounded-xl flex-shrink-0">
-            <CreditCard className="w-4 h-4" /> Pay
-          </button>
-        </div>
-      )}
-
-      {/* Secondary module cards */}
+      {/* Module cards */}
       <div>
         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">My Modules</p>
         <div className="grid grid-cols-2 gap-3">
@@ -147,6 +277,22 @@ export default function PortalOverview({ profile, appliances, loyaltyTxns, order
             <p className="font-bold text-gray-900 text-sm">Appliances</p>
             <p className="text-xs text-gray-500 mt-0.5">
               {appliances.length} registered{serviceDue.length > 0 ? ` · ${serviceDue.length} service due` : ''}
+            </p>
+          </button>
+
+          <button onClick={() => navigateTo?.('care-plans')}
+            className="bg-white rounded-2xl border border-gray-100 hover:border-brand-200 hover:shadow-sm p-4 text-left transition-all group">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-2xl">🛡️</span>
+              <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-brand-400" />
+            </div>
+            <p className="font-bold text-gray-900 text-sm">Care Plans</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {carePlans.filter(cp => cp.status === 'active').length > 0
+                ? `${carePlans.filter(cp => cp.status === 'active').length} active plan${carePlans.filter(cp => cp.status === 'active').length > 1 ? 's' : ''}`
+                : appliancesWithoutPlan.length > 0
+                  ? `${appliancesWithoutPlan.length} appliance${appliancesWithoutPlan.length > 1 ? 's' : ''} unprotected`
+                  : 'Essential · Plus · Elite'}
             </p>
           </button>
 
@@ -182,12 +328,24 @@ export default function PortalOverview({ profile, appliances, loyaltyTxns, order
               {pendingReferrals > 0 ? ` · ${pendingReferrals} pending` : ''}
             </p>
           </button>
+
+          <button onClick={() => navigateTo?.('support')}
+            className="bg-white rounded-2xl border border-gray-100 hover:border-brand-200 hover:shadow-sm p-4 text-left transition-all group">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-2xl">🎫</span>
+              <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-brand-400" />
+            </div>
+            <p className="font-bold text-gray-900 text-sm">Support</p>
+            <p className="text-xs text-gray-500 mt-0.5">Warranty claims & service tickets</p>
+          </button>
         </div>
       </div>
 
       {/* Tier benefits */}
       <div className="bg-white rounded-2xl border border-gray-100 p-4">
-        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{tier.label} Benefits</p>
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+          <Star className="w-3.5 h-3.5 text-yellow-500" /> {tier.label} Benefits
+        </p>
         <ul className="space-y-1.5">
           {TIER_BENEFITS[profile?.loyalty_tier ?? 'bronze'].map(b => (
             <li key={b} className="flex items-center gap-2 text-sm text-gray-700">
@@ -239,6 +397,33 @@ export default function PortalOverview({ profile, appliances, loyaltyTxns, order
           <ChevronRight className="w-4 h-4" />
         </Link>
       </div>
+
+      {/* Service bell alerts (kept for quick reference below actions) */}
+      {serviceDue.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Bell className="w-5 h-5 text-amber-600" />
+            <p className="font-bold text-amber-800">Service Due — Quick Book</p>
+          </div>
+          <div className="space-y-2">
+            {serviceDue.map(a => (
+              <div key={a.id} className="flex items-center justify-between bg-white rounded-xl px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">{CATEGORY_ICONS[a.category] ?? '🔧'}</span>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{a.brand} {a.model}</p>
+                    <p className="text-xs text-gray-500">Last serviced: {a.last_serviced_at ? fmtDate(a.last_serviced_at) : 'Not recorded'}</p>
+                  </div>
+                </div>
+                <a href={waSales(`Hi! I'd like to schedule a service visit for my ${a.brand} ${a.model}.`)} target="_blank" rel="noreferrer"
+                  className="flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">
+                  <Wrench className="w-3 h-3" /> Book
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

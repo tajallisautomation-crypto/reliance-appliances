@@ -13,19 +13,37 @@ export interface CustomerProfile {
 }
 
 export interface CustomerAppliance {
-  id:                string
-  user_id:           string
-  brand:             string
-  model:             string
-  category:          string
-  purchase_year:     number | null
-  purchase_source:   'tajallis' | 'other'
-  last_serviced_at:  string | null
-  is_active:         boolean
-  notes:             string
-  serial_no:         string | null
-  warranty_end_date: string | null
-  created_at:        string
+  id:                   string
+  user_id:              string
+  brand:                string
+  model:                string
+  category:             string
+  purchase_year:        number | null
+  purchase_source:      'tajallis' | 'other'
+  last_serviced_at:     string | null
+  is_active:            boolean
+  notes:                string
+  serial_no:            string | null
+  warranty_start_date:  string | null
+  warranty_end_date:    string | null
+  delivery_date:        string | null
+  installation_date:    string | null
+  area_location:        string | null
+  created_at:           string
+}
+
+export interface CustomerCarePlan {
+  id:               string
+  user_id:          string
+  appliance_id:     string | null
+  plan_tier:        'essential' | 'plus' | 'elite'
+  status:           'pending_inspection' | 'inspection_required' | 'active' | 'expiring_soon' | 'expired' | 'not_eligible' | 'cancelled'
+  activated_at:     string | null
+  expires_at:       string | null
+  annual_price:     number | null
+  replacement_used: boolean
+  notes:            string
+  created_at:       string
 }
 
 export interface LoyaltyTransaction {
@@ -65,6 +83,7 @@ export interface PortalData {
   loyaltyTxns:      LoyaltyTransaction[]
   referralEarnings: ReferralEarning[]
   orders:           PortalOrder[]
+  carePlans:        CustomerCarePlan[]
   reload:           () => void
   navigateTo?:      (tab: string) => void
 }

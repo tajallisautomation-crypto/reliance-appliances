@@ -2,7 +2,7 @@
  * Solar Calculator — Tajalli's Home And Commercial Solutions
  *
  * Pricing rules:
- *   Solar — wiring & equipment: Rs.12/W | labor: Rs.5/W | elevated frame: Rs.28/W (optional)
+ *   Solar — wiring & equipment: Rs.12/W | labor: Rs.6/W | elevated frame: Rs.28/W (optional)
  *   UPS   — wiring & equipment: Rs.9/W  | labor: Rs.3/W
  *
  * Installment rules:
@@ -205,9 +205,41 @@ function getBatteryVoltageFromProduct(product: Product): 24 | 48 | 'unknown' {
  */
 function bestBatteryBank(batteries: Product[], targetKWh: number, inverterKw?: number): BatteryBank | null {
   if (!targetKWh || !batteries.length) return null
+  // Parse usable kWh from a battery product.
+  // Search order: product name → capacity spec key → Ah×V fallback.
+  // IMPORTANT: do NOT join all spec values — irrelevant fields (e.g. "24V" voltage)
+  // could match the number before a "kWh" that belongs to a different spec,
+  // causing a 24V battery to be misread as 24 kWh.
   const kwhOf = (p: Product) => {
-    const m = (p.simplified_name + ' ' + (p.specs?.Capacity ?? '') + '').match(/(\d+(?:\.\d)?)\s*k[wW]h/i)
-    return m ? parseFloat(m[1]) : 0
+    // 1. Look for explicit kWh in the product name (most reliable)
+    const name = p.simplified_name ?? ''
+    const kwhInName = name.match(/(\d+(?:\.\d+)?)\s*k[wW]h/i)
+    if (kwhInName) return parseFloat(kwhInName[1])
+
+    // 2. Look for kWh or Ah in a capacity-specific spec key
+    const CAPACITY_KEYS = ['capacity', 'energy capacity', 'battery capacity',
+                           'rated capacity', 'nominal capacity', 'storage capacity']
+    const capEntry = Object.entries(p.specs ?? {})
+      .find(([k]) => CAPACITY_KEYS.includes(k.toLowerCase()))
+    if (capEntry) {
+      const capVal = capEntry[1]
+      const kwhInSpec = capVal.match(/(\d+(?:\.\d+)?)\s*k[wW]h/i)
+      if (kwhInSpec) return parseFloat(kwhInSpec[1])
+      const ahInSpec = capVal.match(/(\d+(?:\.\d+)?)\s*[aA]h/i)
+      if (ahInSpec) {
+        const v = getBatteryVoltageFromProduct(p)
+        if (v !== 'unknown') return (parseFloat(ahInSpec[1]) * v) / 1000
+      }
+    }
+
+    // 3. Ah in product name as last resort (e.g. "100Ah 48V Battery")
+    const ahInName = name.match(/(\d+(?:\.\d+)?)\s*[aA]h/i)
+    if (ahInName) {
+      const v = getBatteryVoltageFromProduct(p)
+      if (v !== 'unknown') return (parseFloat(ahInName[1]) * v) / 1000
+    }
+
+    return 0
   }
 
   // Filter by compatibility if inverter kW is known
@@ -291,6 +323,7 @@ export default function SolarCalculator() {
   const [billMode,    setBillMode]  = useState(false)
   const [billAmount,  setBillAmount]= useState('')
   const [netMetering, setNetMetering] = useState(false)  // only valid when sysKW > 10
+  const [nightKWhOverride, setNightKWhOverride] = useState<number | null>(null)
 
   // Load solar products from Supabase on mount
   useEffect(() => {
@@ -318,6 +351,23 @@ export default function SolarCalculator() {
   }, [billAmount])
 
   const effectiveDailyU = billMode && billKWh ? billKWh / 30 : dailyU
+
+  // Reactive nighttime load estimate — used as the battery sizing input (hybrid / off-grid).
+  // Appliance mode: sum load that runs beyond peak sun hours.
+  // Bill mode: 40% of estimated daily kWh. Direct mode: 40% of expected solar production.
+  const afterDarkEstimate = useMemo(() => {
+    if (items.length > 0) {
+      const fromItems = items.reduce((s, i) => {
+        const nightHrs = Math.max(0, i.hours - peakHrs)
+        return s + (i.watts * i.qty * nightHrs / 1000)
+      }, 0)
+      if (fromItems > 0) return +fromItems.toFixed(2)
+    }
+    if (effectiveDailyU > 0) return +(effectiveDailyU * 0.4).toFixed(2)
+    // Direct kW mode with no items/bill: 40% of estimated daily production
+    const kw = parseFloat(directKW) || 0
+    return kw > 0 ? +(kw * peakHrs * 0.4).toFixed(2) : 0
+  }, [items, peakHrs, effectiveDailyU, directKW])
 
   const addItem = (app: typeof APPLIANCES[0]) => setItems(prev => {
     const ex = prev.find(i => i.id === app.id)
@@ -355,14 +405,10 @@ export default function SolarCalculator() {
       const activeType = mode === 'ups' ? 'ups-only' : sysType
       const refU = effectiveDailyU || dailyU
 
-      // ── After-dark kWh — appliances running beyond solar production hours ──────
-      // Appliances with more daily hours than peakHrs draw from battery at night.
-      // In bill mode (no items), estimate 40% of daily usage is after dark.
-      const afterDarkFromItems = items.reduce((s, i) => {
-        const nightHrs = Math.max(0, i.hours - peakHrs)
-        return s + (i.watts * i.qty * nightHrs / 1000)
-      }, 0)
-      const afterDarkKWh = afterDarkFromItems > 0 ? afterDarkFromItems : refU * 0.4
+      // ── After-dark kWh — basis for battery sizing (hybrid / off-grid) ───────
+      // Uses the user-set nighttime override when provided; otherwise falls back to
+      // afterDarkEstimate (appliance hours > peakHrs, or 40% of daily in bill/direct mode).
+      const afterDarkKWh = nightKWhOverride !== null ? nightKWhOverride : afterDarkEstimate
 
       // Partially off-grid: battery covers nighttime only
       const partialOffGridBatKWh = Math.max(0.5, Math.ceil(afterDarkKWh / 0.85 * 1.2 * 10) / 10)
@@ -444,7 +490,12 @@ export default function SolarCalculator() {
       const total = r100(panelCost + invCost + batCost + wiringCost + frameCost + nmCost)
 
       // Savings (skip for UPS-only)
-      const monthlyUnits = activeType === 'ups-only' ? 0 : +(refU * 30).toFixed(0)
+      // On-grid without net metering: nighttime load still draws from grid — only daytime solar
+      // production offsets the bill. Use (refU − afterDarkKWh) as the effectively saved daily kWh.
+      // Hybrid / off-grid / on-grid with net metering: full savings (battery or grid export covers remainder).
+      const isOnGridNoNM = activeType === 'on-grid' && !(netMetering && sysKW >= NET_METERING_MIN_KW)
+      const savedDailyU  = isOnGridNoNM ? Math.max(0, refU - afterDarkKWh) : refU
+      const monthlyUnits = activeType === 'ups-only' ? 0 : +(savedDailyU * 30).toFixed(0)
       const mSave        = r100(monthlyUnits * UNIT_RATE)
       const paybackYrs   = mSave > 0 ? +(total / mSave / 12).toFixed(1) : 99
 
@@ -510,11 +561,11 @@ export default function SolarCalculator() {
         <div className="max-w-4xl mx-auto text-center">
           {/* Mode toggle */}
           <div className="inline-flex bg-white/20 rounded-2xl p-1 mb-3">
-            <button onClick={() => { setMode('solar'); setQuote(null); setStep(1); }}
+            <button onClick={() => { setMode('solar'); setQuote(null); setStep(1); setNightKWhOverride(null); }}
               className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${mode === 'solar' ? 'bg-white text-brand-600 shadow' : 'text-white/80 hover:text-white'}`}>
               ☀️ Solar Calculator
             </button>
-            <button onClick={() => { setMode('ups'); setQuote(null); setStep(1); }}
+            <button onClick={() => { setMode('ups'); setQuote(null); setStep(1); setNightKWhOverride(null); }}
               className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${mode === 'ups' ? 'bg-white text-brand-600 shadow' : 'text-white/80 hover:text-white'}`}>
               🔌 UPS Calculator
             </button>
@@ -833,7 +884,7 @@ export default function SolarCalculator() {
                 {[
                   { v: `${totalW}W`,    l: 'Total Load' },
                   { v: `${backupHrs}h`, l: 'Backup Time' },
-                  { v: `${+(totalW * backupHrs / 1000 * 1.2).toFixed(1)} kWh`, l: 'Battery Needed' },
+                  { v: `${+(totalW * backupHrs / 1000 / 0.85 * 1.2).toFixed(1)} kWh`, l: 'Battery Needed' },
                 ].map((x,i) => (
                   <div key={i} className="bg-white rounded-xl p-3">
                     <div className="text-xl font-bold text-brand-600">{x.v}</div>
@@ -871,7 +922,7 @@ export default function SolarCalculator() {
                   { val:'off-grid', label:'Off-Grid',  desc:'Fully independent.',              icon:'☀️' },
                   { val:'ups-only', label:'UPS / Battery', desc:'No panels — backup only.',   icon:'🔌' },
                 ] as const).map(s => (
-                  <button key={s.val} onClick={() => setSysType(s.val)}
+                  <button key={s.val} onClick={() => { setSysType(s.val); setNightKWhOverride(null); }}
                     className={`p-3 rounded-xl border-2 text-center transition-all
                       ${sysType === s.val ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-brand-300'}`}>
                     <div className="text-xl mb-1">{s.icon}</div>
@@ -911,6 +962,41 @@ export default function SolarCalculator() {
                     </div>
                   </div>
                 </label>
+              </div>
+            )}
+
+            {/* Nighttime Battery Load — hybrid / off-grid only */}
+            {(sysType === 'hybrid' || sysType === 'off-grid') && (
+              <div className="bg-white rounded-2xl shadow-sm border border-blue-100 p-5">
+                <h3 className="font-semibold text-gray-700 mb-1 text-sm">🔋 Nighttime Battery Load</h3>
+                <p className="text-xs text-gray-500 mb-3">
+                  How much energy do you need stored for use after sunset?
+                  {items.length > 0 && afterDarkEstimate > 0
+                    ? ` Calculated from your appliances: ${afterDarkEstimate} kWh/night.`
+                    : ' Adjust if you know your typical after-dark usage.'}
+                </p>
+                <div className="flex items-center gap-4">
+                  <input type="range" min={0} max={Math.max(2, Math.ceil(effectiveDailyU || (parseFloat(directKW) || 5) * peakHrs / 2))} step={0.1}
+                    value={nightKWhOverride ?? afterDarkEstimate}
+                    onChange={e => setNightKWhOverride(parseFloat(e.target.value))}
+                    className="flex-1 accent-brand-500"/>
+                  <div className="bg-blue-100 text-blue-700 font-bold px-4 py-2 rounded-xl min-w-[80px] text-center text-sm">
+                    {(nightKWhOverride ?? afterDarkEstimate).toFixed(1)} kWh
+                  </div>
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <p className="text-xs text-gray-400">
+                    {items.length === 0
+                      ? 'Default is 40% of daily usage. Raise if you run ACs or fridges at night.'
+                      : 'Appliances running beyond your solar window automatically count toward this.'}
+                  </p>
+                  {nightKWhOverride !== null && (
+                    <button onClick={() => setNightKWhOverride(null)}
+                      className="text-xs text-blue-500 hover:underline ml-3 shrink-0">
+                      Reset to auto
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 

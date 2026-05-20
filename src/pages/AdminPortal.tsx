@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useDeferredValue, useCallback } from 'react';
+import AdminDashboard from './AdminDashboard';
+import ReportsPortal from './ReportsPortal';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import QRCode from 'qrcode';
@@ -34,7 +36,7 @@ import {
   RefreshCw, AlertTriangle, Camera, ImageOff, Tag, Wand2, ListChecks, MessageCircle,
   CheckSquare, Square, Filter, History, Edit2, Star, MoveUp, MoveDown,
   Building2, Phone, Mail, Bell, Settings, ShoppingBag, CalendarDays, CheckCircle, Layers,
-  MapPin, Users,
+  MapPin, Users, Sun, Menu, LayoutDashboard, BarChart2,
 } from 'lucide-react';
 import { useSettingsStore, SETTING_DEFAULTS, DEFAULT_BANNERS, type OfferBanner } from '@/store/settingsStore';
 import * as XLSX from 'xlsx';
@@ -4753,9 +4755,9 @@ async function generateQuotationPdf(opts: {
   tradeIns?: Array<{ description: string; value: number }>;
   discounts?: Array<{ mode: 'percentage' | 'fixed'; amount: number; type: string; reason: string }>;
 }): Promise<Blob> {
-  const NAVY  = '#123F73';
-  const DNAV  = '#0B2545';
-  const GOLD  = '#F6C400';
+  const NAVY  = '#0F2D52';
+  const DNAV  = '#0C2444';
+  const GOLD  = '#FFC107';
   const DARK  = '#1A1A1A';
   const W = 210; const margin = 9;
   const printW = W - margin * 2;
@@ -6277,9 +6279,9 @@ async function generateInstallmentAdvancePdf(opts: {
   preparedBy?: string;
   invoiceDate?: string;
 }): Promise<Blob> {
-  const NAVY  = '#123F73';
-  const DNAV  = '#0B2545';
-  const GOLD  = '#F6C400';
+  const NAVY  = '#0F2D52';
+  const DNAV  = '#0C2444';
+  const GOLD  = '#FFC107';
   const DARK  = '#1A1A1A';
   const W = 210; const margin = 18;
   const printW = W - margin * 2;
@@ -6985,9 +6987,9 @@ async function generateInstallmentPaymentPdf(opts: {
   paymentStatus?: string;
   invoiceDate?: string;
 }): Promise<Blob> {
-  const NAVY  = '#123F73';
-  const DNAV  = '#0B2545';
-  const GOLD  = '#F6C400';
+  const NAVY  = '#0F2D52';
+  const DNAV  = '#0C2444';
+  const GOLD  = '#FFC107';
   const DARK  = '#1A1A1A';
   const W = 210; const margin = 18;
   const printW = W - margin * 2;
@@ -7395,9 +7397,9 @@ async function generateServiceReceiptPdf(opts: {
   showNtn?: boolean;
   invoiceDate?: string;
 }): Promise<Blob> {
-  const NAVY  = '#123F73';
-  const DNAV  = '#0B2545';
-  const GOLD  = '#F6C400';
+  const NAVY  = '#0F2D52';
+  const DNAV  = '#0C2444';
+  const GOLD  = '#FFC107';
   const DARK  = '#1A1A1A';
   const W = 210; const margin = 10;
   const printW = W - margin * 2;
@@ -14299,14 +14301,15 @@ export default function AdminPortal() {
   const [deleteId, setDeleteId]   = useState<string | null>(null);
   const [deleting, setDeleting]   = useState(false);
   const [quickImg, setQuickImg]   = useState<Product | null>(null);
-  type AdminTab = 'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'quotation' | 'invoices' | 'installment_ledger' | 'customers' | 'settings' | 'schema' | 'audit' | 'catalog' | 'solar' | 'compatibility';
-  const VALID_TABS: AdminTab[] = ['products','images','import','tools','qc','reviews','leads','orders','enquiries','quotation','invoices','installment_ledger','customers','settings','schema','audit','catalog','solar','compatibility'];
+  type AdminTab = 'dashboard' | 'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'quotation' | 'invoices' | 'installment_ledger' | 'customers' | 'settings' | 'schema' | 'audit' | 'catalog' | 'solar' | 'compatibility' | 'reports';
+  const VALID_TABS: AdminTab[] = ['dashboard','products','images','import','tools','qc','reviews','leads','orders','enquiries','quotation','invoices','installment_ledger','customers','settings','schema','audit','catalog','solar','compatibility','reports'];
   const tabFromHash = (): AdminTab => {
     const h = window.location.hash.slice(1) as AdminTab;
-    return VALID_TABS.includes(h) ? h : 'products';
+    return VALID_TABS.includes(h) ? h : 'dashboard';
   };
   const [tab, setTab] = useState<AdminTab>(tabFromHash);
   const changeTab = (t: AdminTab) => { setTab(t); window.location.hash = t; };
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editRequest, setEditRequest] = useState<InvoiceRow | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
@@ -14540,67 +14543,148 @@ export default function AdminPortal() {
   // ── Dashboard ─────────────────────────────────────────────────────────────────
 
   const missingImgCount = products.filter(p => !productHasImage(p)).length;
+  const qcIssueCount = products.length > 0 ? qcSummary(products).qcIssues : 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header + Tabs — sticky unit sits below the public navbar */}
-      <div className="sticky top-14 sm:top-16 lg:top-[104px] z-20 bg-white shadow-sm">
-      {/* Header */}
-      <div className="border-b border-gray-100 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-brand-100 rounded-lg flex items-center justify-center">
-            <Package className="w-4 h-4 text-brand-600" />
+      {/* Sticky top header — sits below the public navbar, no tabs */}
+      <div className="sticky top-14 sm:top-16 lg:top-[104px] z-20 bg-white border-b border-gray-100 shadow-sm">
+        <div className="px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(v => !v)}
+              className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="w-8 h-8 bg-brand-100 rounded-lg flex items-center justify-center">
+              <Package className="w-4 h-4 text-brand-600" />
+            </div>
+            <span className="font-black text-gray-900">Tajalli's Admin</span>
+            <span className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium">{products.length} products</span>
           </div>
-          <span className="font-black text-gray-900">Tajalli's Admin</span>
-          <span className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium">{products.length} products</span>
+          <button onClick={() => signOut()} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800">
+            <LogOut className="w-4 h-4" /> Sign out
+          </button>
         </div>
-        <button onClick={() => signOut()} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800">
-          <LogOut className="w-4 h-4" /> Sign out
-        </button>
       </div>
 
-      {/* Tabs — grouped by function */}
-      <div className="border-b border-gray-100 px-4 overflow-x-auto">
-        <div className="flex gap-1 min-w-max">
-          {([
-            { id: 'products',  label: 'Products',    group: 'catalog' },
-            { id: 'images',    label: `Images${missingImgCount > 0 ? ` (${missingImgCount})` : ''}`, group: 'catalog' },
-            { id: 'import',    label: 'Import CSV',  group: 'catalog' },
-            { id: 'tools',     label: 'Data Tools',  group: 'catalog' },
-            { id: 'qc',        label: `QC${products.length > 0 ? ` (${qcSummary(products).qcIssues})` : ''}`, group: 'catalog' },
-            { id: 'catalog',   label: 'WhatsApp Catalog', group: 'catalog' },
-            { id: 'orders',    label: 'Orders',      group: 'crm' },
-            { id: 'enquiries', label: 'Enquiries',   group: 'crm' },
-            { id: 'quotation',          label: '📄 Quotation',         group: 'crm' },
-            { id: 'invoices',           label: '🗂 Invoice Log',        group: 'crm' },
-            { id: 'installment_ledger', label: '📅 Installment Ledger', group: 'crm' },
-            { id: 'customers',          label: '👥 Customers',          group: 'crm' },
-            { id: 'reviews',            label: 'Reviews',               group: 'crm' },
-            { id: 'solar',     label: '☀️ Solar Leads', group: 'crm' },
-            { id: 'leads',     label: 'Partners',    group: 'crm' },
-            { id: 'settings',  label: 'Settings',    group: 'config' },
-            { id: 'schema',    label: 'Spec Schema', group: 'config' },
-            { id: 'audit',        label: 'Audit Log',        group: 'config' },
-            { id: 'compatibility', label: '⚡ Compatibility',  group: 'config' },
-          ] as const).map((t, i, arr) => {
-            const prevGroup = i > 0 ? arr[i - 1].group : t.group;
-            return (
-              <div key={t.id} className={`flex items-center ${prevGroup !== t.group && i > 0 ? 'ml-2 pl-2 border-l border-gray-200' : ''}`}>
-                <button onClick={() => changeTab(t.id)}
-                  className={`px-3 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                    tab === t.id ? 'border-brand-500 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}>
-                  {t.label}
+      {/* Body — sidebar + main content */}
+      <div className="flex">
+        {/* Mobile backdrop */}
+        {sidebarOpen && (
+          <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        )}
+
+        {/* Sidebar: fixed drawer on mobile, sticky column on lg+ */}
+        <aside className={[
+          'fixed lg:sticky z-40 lg:z-auto self-start',
+          'top-[112px] sm:top-[120px] lg:top-[160px]',
+          'h-[calc(100vh-112px)] sm:h-[calc(100vh-120px)] lg:h-[calc(100vh-160px)]',
+          'w-52 bg-white border-r border-gray-100 overflow-y-auto shrink-0',
+          'transition-transform duration-200 ease-in-out',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+        ].join(' ')}>
+          <nav className="p-3 pt-4 space-y-5">
+
+            {/* DASHBOARD */}
+            <div>
+              <button onClick={() => { changeTab('dashboard'); setSidebarOpen(false); }}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-semibold transition-colors text-left
+                  ${tab === 'dashboard' ? 'bg-brand-50 text-brand-700' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'}`}>
+                <LayoutDashboard className={`w-4 h-4 shrink-0 ${tab === 'dashboard' ? 'text-brand-500' : 'text-gray-400'}`} />
+                Dashboard
+              </button>
+            </div>
+
+            <div>
+              <p className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400">Catalog</p>
+              {([
+                { id: 'products' as const, label: 'Products',         icon: Package },
+                { id: 'images'   as const, label: missingImgCount > 0 ? `Images · ${missingImgCount}` : 'Images', icon: ImageIcon, alert: missingImgCount > 0 },
+                { id: 'import'   as const, label: 'Import CSV',       icon: FileUp },
+                { id: 'tools'    as const, label: 'Data Tools',        icon: Wand2 },
+                { id: 'qc'       as const, label: qcIssueCount > 0 ? `QC · ${qcIssueCount}` : 'QC', icon: ListChecks, alert: qcIssueCount > 0 },
+                { id: 'catalog'  as const, label: 'WhatsApp Catalog',  icon: MessageCircle },
+              ]).map(({ id, label, icon: Icon, alert }) => (
+                <button key={id} onClick={() => { changeTab(id); setSidebarOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors text-left
+                    ${tab === id ? 'bg-brand-50 text-brand-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
+                  <Icon className={`w-4 h-4 shrink-0 ${tab === id ? 'text-brand-500' : alert ? 'text-amber-400' : 'text-gray-400'}`} />
+                  <span className={alert ? 'font-semibold' : ''}>{label}</span>
                 </button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      </div>{/* end sticky header+tabs wrapper */}
+              ))}
+            </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        {tab === 'import' ? (
+            <div>
+              <p className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400">Sales & Finance</p>
+              {([
+                { id: 'orders'             as const, label: 'Orders',       icon: ShoppingBag },
+                { id: 'enquiries'          as const, label: 'Enquiries',    icon: Bell },
+                { id: 'quotation'          as const, label: 'Quotation',    icon: Edit2 },
+                { id: 'invoices'           as const, label: 'Invoice Log',  icon: History },
+                { id: 'installment_ledger' as const, label: 'Installments', icon: CalendarDays },
+              ]).map(({ id, label, icon: Icon }) => (
+                <button key={id} onClick={() => { changeTab(id); setSidebarOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors text-left
+                    ${tab === id ? 'bg-brand-50 text-brand-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
+                  <Icon className={`w-4 h-4 shrink-0 ${tab === id ? 'text-brand-500' : 'text-gray-400'}`} />
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div>
+              <p className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400">CRM</p>
+              {([
+                { id: 'customers' as const, label: 'Customers',   icon: Users },
+                { id: 'reviews'   as const, label: 'Reviews',     icon: Star },
+                { id: 'solar'     as const, label: 'Solar Leads', icon: Sun },
+                { id: 'leads'     as const, label: 'Partners',    icon: Building2 },
+              ]).map(({ id, label, icon: Icon }) => (
+                <button key={id} onClick={() => { changeTab(id); setSidebarOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors text-left
+                    ${tab === id ? 'bg-brand-50 text-brand-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
+                  <Icon className={`w-4 h-4 shrink-0 ${tab === id ? 'text-brand-500' : 'text-gray-400'}`} />
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div>
+              <p className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400">Settings</p>
+              {([
+                { id: 'settings'      as const, label: 'Site Settings', icon: Settings },
+                { id: 'schema'        as const, label: 'Spec Schema',   icon: Tag },
+                { id: 'audit'         as const, label: 'Audit Log',     icon: CheckSquare },
+                { id: 'compatibility' as const, label: 'Compatibility', icon: Layers },
+              ]).map(({ id, label, icon: Icon }) => (
+                <button key={id} onClick={() => { changeTab(id); setSidebarOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors text-left
+                    ${tab === id ? 'bg-brand-50 text-brand-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
+                  <Icon className={`w-4 h-4 shrink-0 ${tab === id ? 'text-brand-500' : 'text-gray-400'}`} />
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* REPORTS */}
+            <div>
+              <button onClick={() => { changeTab('reports'); setSidebarOpen(false); }}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors text-left
+                  ${tab === 'reports' ? 'bg-brand-50 text-brand-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
+                <BarChart2 className={`w-4 h-4 shrink-0 ${tab === 'reports' ? 'text-brand-500' : 'text-gray-400'}`} />
+                BI Reports
+              </button>
+            </div>
+
+          </nav>
+        </aside>
+
+        <div className="flex-1 min-w-0 px-4 py-6">
+        {tab === 'dashboard' ? (
+          <AdminDashboard products={products} onNavigate={changeTab as (tab: string) => void} />
+        ) : tab === 'reports' ? (
+          <ReportsPortal embedded />
+        ) : tab === 'import' ? (
           <ImportTab onImported={loadProducts} existingProducts={products} />
         ) : tab === 'tools' ? (
           <ToolsTab onRefresh={loadProducts} products={products} selectedIds={selectedIds} />
@@ -14923,6 +15007,7 @@ export default function AdminPortal() {
             )}
           </>
         )}
+        </div>
       </div>
 
       {/* Product modal */}

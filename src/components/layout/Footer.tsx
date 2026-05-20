@@ -41,6 +41,13 @@ export default function Footer() {
               </p>
             </div>
           </div>
+          <p className="flex items-center gap-1 text-[11px] font-semibold mb-3">
+            <span className="text-white/70">Delivered</span>
+            <span className="text-white/30 mx-0.5">•</span>
+            <span className="text-gold-400">Installed</span>
+            <span className="text-white/30 mx-0.5">•</span>
+            <span className="text-eco-400">Supported</span>
+          </p>
           <p className="text-sm text-brand-200 leading-relaxed mb-4">
             Karachi's most trusted appliance partner since 2015. Serving 14,400+ clients — homes, offices &amp; businesses — with genuine products and real after-sales support.
           </p>

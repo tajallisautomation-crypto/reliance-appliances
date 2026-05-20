@@ -528,106 +528,171 @@ export function Services() {
             <p className="text-brand-600 text-xs font-bold uppercase tracking-widest mb-2">Annual Care Plans</p>
             <h2 className="text-2xl font-black text-gray-900">Protect Your Appliances Year-Round</h2>
             <p className="text-gray-500 mt-1 text-sm max-w-xl mx-auto">
-              Choose a plan that fits your budget. Both plans cover all major appliance categories — starting rates are per unit per year.
+              Three tiers of annual coverage for every budget. Starting rates are per registered product per year. Final pricing confirmed after inspection.
             </p>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-6">
-            {ANNUAL_CARE_PLANS.map(plan => {
-              const isPlus = plan.id === 'plus'
-              return (
-                <div key={plan.id}
-                  className={`rounded-3xl overflow-hidden border-2 flex flex-col ${isPlus ? 'border-amber-400 bg-[#0d1b35]' : 'border-gray-200 bg-white'}`}
-                >
-                  {/* Plan header */}
-                  <div className={`px-6 py-5 ${isPlus ? 'bg-[#0f2247]' : 'bg-gray-50'}`}>
-                    {isPlus && (
-                      <span className="inline-block bg-amber-400 text-[#0d1b35] text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full mb-2">
-                        Most Popular
-                      </span>
-                    )}
-                    <h3 className={`text-xl font-black ${isPlus ? 'text-amber-400' : 'text-gray-900'}`}>{plan.name}</h3>
-                    <p className={`text-sm mt-1 ${isPlus ? 'text-slate-300' : 'text-gray-500'}`}>{plan.description}</p>
-                  </div>
+          {(() => {
+            const PLAN_STYLE = {
+              essential: {
+                card:         'border-gray-200 bg-white',
+                header:       'bg-gray-50',
+                badge:        null as string | null,
+                badgeBg:      '',
+                title:        'text-gray-900',
+                desc:         'text-gray-500',
+                label:        'text-brand-600',
+                itemBg:       'bg-gray-50 border border-gray-100',
+                numColor:     'text-brand-500',
+                catColor:     'text-gray-900',
+                covColor:     'text-gray-500',
+                priceColor:   'text-brand-600',
+                includesBg:   'bg-brand-50 border border-brand-100',
+                includesLabel:'text-brand-600',
+                includesItem: 'text-gray-700',
+                checkColor:   'text-brand-500',
+                bestBg:       'bg-blue-50 border border-blue-100',
+                bestLabel:    'text-blue-600',
+                bestText:     'text-gray-600',
+                termsLabel:   'text-gray-400',
+                termsItem:    'text-gray-400',
+                cta:          'bg-gray-900 text-white hover:bg-gray-800',
+              },
+              plus: {
+                card:         'border-amber-400 bg-[#0d1b35]',
+                header:       'bg-[#0f2247]',
+                badge:        'Most Popular',
+                badgeBg:      'bg-amber-400 text-[#0d1b35]',
+                title:        'text-amber-400',
+                desc:         'text-slate-300',
+                label:        'text-amber-400',
+                itemBg:       'bg-[#1a2a4a]',
+                numColor:     'text-amber-400',
+                catColor:     'text-white',
+                covColor:     'text-slate-400',
+                priceColor:   'text-amber-400',
+                includesBg:   'bg-[#1a2a4a]',
+                includesLabel:'text-amber-400',
+                includesItem: 'text-slate-300',
+                checkColor:   'text-amber-400',
+                bestBg:       'bg-[#1a2a4a]',
+                bestLabel:    'text-amber-400',
+                bestText:     'text-slate-300',
+                termsLabel:   'text-slate-400',
+                termsItem:    'text-slate-500',
+                cta:          'bg-amber-400 text-[#0d1b35] hover:bg-amber-300',
+              },
+              elite: {
+                card:         'border-yellow-500 bg-[#0f0a1a]',
+                header:       'bg-[#160e26]',
+                badge:        'Best Coverage',
+                badgeBg:      'bg-yellow-400 text-[#0f0a1a]',
+                title:        'text-yellow-300',
+                desc:         'text-stone-300',
+                label:        'text-yellow-400',
+                itemBg:       'bg-[#1e1530]',
+                numColor:     'text-yellow-400',
+                catColor:     'text-white',
+                covColor:     'text-stone-400',
+                priceColor:   'text-yellow-300',
+                includesBg:   'bg-[#1e1530]',
+                includesLabel:'text-yellow-400',
+                includesItem: 'text-stone-300',
+                checkColor:   'text-yellow-400',
+                bestBg:       'bg-[#1e1530]',
+                bestLabel:    'text-yellow-400',
+                bestText:     'text-stone-300',
+                termsLabel:   'text-stone-500',
+                termsItem:    'text-stone-600',
+                cta:          'bg-yellow-400 text-[#0f0a1a] hover:bg-yellow-300',
+              },
+            } as const
 
-                  {/* Appliance pricing grid */}
-                  <div className="px-6 pt-5 pb-3">
-                    <p className={`text-xs font-bold uppercase tracking-wide mb-3 ${isPlus ? 'text-amber-400' : 'text-brand-600'}`}>
-                      Starting Rates (per unit / year)
-                    </p>
-                    <div className="space-y-1.5">
-                      {plan.appliances.map(a => (
-                        <div key={a.num}
-                          className={`flex items-center justify-between rounded-xl px-3 py-2 ${isPlus ? 'bg-[#1a2a4a]' : 'bg-gray-50 border border-gray-100'}`}
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className={`text-[10px] font-black shrink-0 w-5 ${isPlus ? 'text-amber-400' : 'text-brand-500'}`}>{a.num}</span>
-                            <div className="min-w-0">
-                              <div className={`text-xs font-bold truncate ${isPlus ? 'text-white' : 'text-gray-900'}`}>{a.category}</div>
-                              <div className={`text-[10px] truncate ${isPlus ? 'text-slate-400' : 'text-gray-500'}`}>{a.coverage}</div>
-                            </div>
-                          </div>
-                          <span className={`text-xs font-black shrink-0 ml-3 ${isPlus ? 'text-amber-400' : 'text-brand-600'}`}>
-                            PKR {a.startsAt.toLocaleString()}
+            return (
+              <div className="grid lg:grid-cols-3 gap-5">
+                {ANNUAL_CARE_PLANS.map(plan => {
+                  const s = PLAN_STYLE[plan.id]
+                  return (
+                    <div key={plan.id} className={`rounded-3xl overflow-hidden border-2 flex flex-col ${s.card}`}>
+                      {/* Header */}
+                      <div className={`px-5 py-5 ${s.header}`}>
+                        {s.badge && (
+                          <span className={`inline-block text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full mb-2 ${s.badgeBg}`}>
+                            {s.badge}
                           </span>
+                        )}
+                        <h3 className={`text-xl font-black ${s.title}`}>{plan.name}</h3>
+                        <p className={`text-xs mt-1 leading-relaxed ${s.desc}`}>{plan.description}</p>
+                      </div>
+
+                      {/* Pricing grid */}
+                      <div className="px-5 pt-4 pb-2">
+                        <p className={`text-[10px] font-bold uppercase tracking-wide mb-2.5 ${s.label}`}>Starting rates — per unit / year</p>
+                        <div className="space-y-1.5">
+                          {plan.appliances.map(a => (
+                            <div key={a.num} className={`flex items-center justify-between rounded-xl px-3 py-2 ${s.itemBg}`}>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className={`text-[10px] font-black shrink-0 w-5 ${s.numColor}`}>{a.num}</span>
+                                <div className="min-w-0">
+                                  <div className={`text-[11px] font-bold truncate ${s.catColor}`}>{a.category}</div>
+                                  <div className={`text-[10px] truncate ${s.covColor}`}>{a.coverage}</div>
+                                </div>
+                              </div>
+                              <span className={`text-[11px] font-black shrink-0 ml-2 ${s.priceColor}`}>
+                                {a.startsAt === 0 ? 'Custom' : `PKR ${a.startsAt.toLocaleString()}`}
+                              </span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      </div>
+
+                      {/* Includes */}
+                      <div className={`mx-5 mt-4 rounded-2xl px-4 py-3.5 ${s.includesBg}`}>
+                        <p className={`text-[10px] font-bold uppercase tracking-wide mb-2 ${s.includesLabel}`}>What's Included</p>
+                        <ul className="space-y-1.5">
+                          {plan.includes.map(item => (
+                            <li key={item} className={`flex items-start gap-2 text-xs ${s.includesItem}`}>
+                              <CheckCircle className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${s.checkColor}`} />
+                              {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Best for */}
+                      <div className={`mx-5 mt-3 rounded-2xl px-4 py-3 ${s.bestBg}`}>
+                        <p className={`text-[10px] font-bold uppercase tracking-wide mb-1 ${s.bestLabel}`}>Best For</p>
+                        <p className={`text-xs leading-relaxed ${s.bestText}`}>{plan.bestFor}</p>
+                      </div>
+
+                      {/* Terms */}
+                      <div className="mx-5 mt-3 mb-4">
+                        <p className={`text-[10px] font-bold uppercase tracking-wide mb-1.5 ${s.termsLabel}`}>Terms & Conditions</p>
+                        <ol className="space-y-1">
+                          {plan.terms.map((t, i) => (
+                            <li key={i} className={`text-[10px] leading-relaxed ${s.termsItem}`}>{i + 1}. {t}</li>
+                          ))}
+                        </ol>
+                      </div>
+
+                      {/* CTA */}
+                      <div className="px-5 pb-5 mt-auto">
+                        <a href={waSales(`Hi, I'd like to know about the ${plan.name} for my appliances`)}
+                          target="_blank" rel="noreferrer"
+                          className={`flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-sm transition-colors ${s.cta}`}>
+                          <MessageCircle className="w-4 h-4" />
+                          Get {plan.id === 'elite' ? 'Elite' : plan.id === 'plus' ? 'Plus' : 'Essential'} Plan Quote
+                        </a>
+                      </div>
                     </div>
-                  </div>
-
-                  {/* Includes */}
-                  <div className={`mx-6 mt-4 rounded-2xl px-4 py-4 ${isPlus ? 'bg-[#1a2a4a]' : 'bg-brand-50 border border-brand-100'}`}>
-                    <p className={`text-xs font-bold uppercase tracking-wide mb-2.5 ${isPlus ? 'text-amber-400' : 'text-brand-600'}`}>What's Included</p>
-                    <ul className="space-y-1.5">
-                      {plan.includes.map(item => (
-                        <li key={item} className={`flex items-start gap-2 text-xs ${isPlus ? 'text-slate-300' : 'text-gray-700'}`}>
-                          <CheckCircle className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${isPlus ? 'text-amber-400' : 'text-brand-500'}`} />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {/* Best for */}
-                  <div className={`mx-6 mt-3 rounded-2xl px-4 py-3 ${isPlus ? 'bg-[#1a2a4a]' : 'bg-blue-50 border border-blue-100'}`}>
-                    <p className={`text-xs font-bold uppercase tracking-wide mb-1 ${isPlus ? 'text-amber-400' : 'text-blue-600'}`}>Best For</p>
-                    <p className={`text-xs leading-relaxed ${isPlus ? 'text-slate-300' : 'text-gray-600'}`}>{plan.bestFor}</p>
-                  </div>
-
-                  {/* Terms */}
-                  <div className="mx-6 mt-3 mb-5">
-                    <p className={`text-[10px] font-bold uppercase tracking-wide mb-1.5 ${isPlus ? 'text-slate-400' : 'text-gray-400'}`}>Terms & Conditions</p>
-                    <ol className="space-y-1">
-                      {plan.terms.map((t, i) => (
-                        <li key={i} className={`text-[10px] leading-relaxed ${isPlus ? 'text-slate-500' : 'text-gray-400'}`}>
-                          {i + 1}. {t}
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-
-                  {/* CTA */}
-                  <div className="px-6 pb-6 mt-auto">
-                    <a
-                      href={waSales(`Hi, I'd like to know about the ${plan.name} for my appliances`)}
-                      target="_blank" rel="noreferrer"
-                      className={`flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-sm transition-colors ${
-                        isPlus
-                          ? 'bg-amber-400 text-[#0d1b35] hover:bg-amber-300'
-                          : 'bg-gray-900 text-white hover:bg-gray-800'
-                      }`}
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                      Get {plan.id === 'plus' ? 'Plus' : 'Essential'} Plan Quote
-                    </a>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
 
           <p className="text-xs text-gray-400 text-center mt-4">
-            All rates are per unit / set per year. Multi-appliance discounts available — ask via WhatsApp. Plans do not include product replacement.
+            All rates are per unit / set per year. Final eligibility and pricing confirmed after inspection. Elite includes product replacement only if declared non-repairable.
           </p>
         </section>
 

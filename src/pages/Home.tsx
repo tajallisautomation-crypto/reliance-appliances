@@ -799,32 +799,40 @@ export default function Home() {
           <h2 className="text-2xl md:text-3xl font-black text-gray-900">Services & Annual Care Plans</h2>
           <p className="text-gray-500 text-sm mt-2 max-w-xl mx-auto">Professional repair, maintenance &amp; protection plans for every appliance — from a single visit to full annual cover.</p>
         </div>
-        <div className="grid sm:grid-cols-3 gap-4 mb-6">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {/* Service packages */}
           <div className="bg-white border border-gray-100 rounded-2xl p-5 hover:border-brand-200 hover:shadow-soft transition-all">
             <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center mb-3">
               <Wrench className="w-5 h-5 text-brand-600" />
             </div>
             <h3 className="font-black text-gray-900 mb-1">Service Packages</h3>
-            <p className="text-sm text-gray-500 mb-3 leading-relaxed">AC repairs, refrigerator repair, dispenser repair, UPS/solar service — transparent fixed pricing.</p>
+            <p className="text-sm text-gray-500 mb-3 leading-relaxed">AC, fridge, solar & dispenser repairs — transparent fixed pricing, no surprises.</p>
             <p className="text-xs text-brand-600 font-bold mb-3">From PKR 2,500 per visit</p>
             <Link to="/services" className="text-xs font-bold text-brand-500 hover:text-brand-700 flex items-center gap-1">View all packages <ChevronRight className="w-3.5 h-3.5" /></Link>
           </div>
           {/* Essential Care Plan */}
           <div className="bg-[#0d1b35] rounded-2xl p-5 border border-[#1e3260]">
-            <p className="text-amber-400 text-[10px] font-black uppercase tracking-widest mb-2">Essential Plan</p>
-            <h3 className="text-white font-black mb-1">Annual Care Plan</h3>
-            <p className="text-slate-300 text-sm mb-3 leading-relaxed">Basic preventive coverage — 1 scheduled visit, 10% off repair labor, 72hr response.</p>
+            <p className="text-amber-400 text-[10px] font-black uppercase tracking-widest mb-2">Essential Care</p>
+            <h3 className="text-white font-black mb-1">Basic Annual Cover</h3>
+            <p className="text-slate-300 text-sm mb-3 leading-relaxed">1 preventive visit, basic inspection, 10% off repairs, 72hr response.</p>
             <p className="text-amber-400 font-black text-sm mb-3">From PKR 3,000 / year</p>
             <Link to="/services#care-plans" className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1">View plans <ChevronRight className="w-3.5 h-3.5" /></Link>
           </div>
           {/* Plus Care Plan */}
           <div className="bg-[#0d1b35] rounded-2xl p-5 border border-amber-500/40">
-            <p className="text-amber-400 text-[10px] font-black uppercase tracking-widest mb-2">Plus Plan — Best Value</p>
-            <h3 className="text-white font-black mb-1">Plus Annual Care</h3>
+            <p className="text-amber-400 text-[10px] font-black uppercase tracking-widest mb-2">Plus Care — Best Value</p>
+            <h3 className="text-white font-black mb-1">Maintenance + Parts</h3>
             <p className="text-slate-300 text-sm mb-3 leading-relaxed">2 visits, covered parts, maintenance labor included, priority 48hr response.</p>
             <p className="text-amber-400 font-black text-sm mb-3">From PKR 6,500 / year</p>
             <Link to="/services#care-plans" className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1">View plans <ChevronRight className="w-3.5 h-3.5" /></Link>
+          </div>
+          {/* Elite Care Plan */}
+          <div className="bg-[#0f0a1a] rounded-2xl p-5 border border-yellow-500/50">
+            <p className="text-yellow-400 text-[10px] font-black uppercase tracking-widest mb-2">Elite Care — Full Protection</p>
+            <h3 className="text-white font-black mb-1">Repairs + Replacement</h3>
+            <p className="text-stone-300 text-sm mb-3 leading-relaxed">3 visits, covered repairs & parts, replacement if non-repairable, priority 24hr.</p>
+            <p className="text-yellow-300 font-black text-sm mb-3">From PKR 13,650 / year</p>
+            <Link to="/services#care-plans" className="text-xs font-bold text-yellow-400 hover:text-yellow-300 flex items-center gap-1">View plans <ChevronRight className="w-3.5 h-3.5" /></Link>
           </div>
         </div>
         <div className="text-center">

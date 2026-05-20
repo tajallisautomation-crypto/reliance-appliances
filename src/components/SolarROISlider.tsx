@@ -7,24 +7,24 @@
 import { useState, useMemo } from 'react'
 import { Sun, TrendingUp, Zap, ArrowRight } from 'lucide-react'
 import { fmtPKR } from '../lib/api'
+import { SAVING_PCT_3KW, SAVING_PCT_5KW, SAVING_PCT_8KW, SAVING_PCT_12KW } from '../lib/solarRules'
 
 // ─── Lookup table: monthly bill → recommended system ─────────────────────────
-// kW = on-grid residential system; cost = installed turnkey (PKR)
-// Based on ~4 peak sun hours/day, PKR 80K/kW installed, 85% bill offset
+// Costs derived from the SolarCalculator formula (on-grid, no frame, no battery):
+//   panels: ceil(kW × 1000 / 620) × PKR 30,000
+//   inverter: kW-tier × PKR 55,000/kW
+//   wiring+labor: kW × 1,000 × PKR 18/W
+// Bill thresholds aligned with solarRules.ts GreenCorridor tiers.
 const SOLAR_MAP = [
-  { billMax:  3_000, kw:  1, cost:    85_000 },
-  { billMax:  5_000, kw:  2, cost:   165_000 },
-  { billMax:  8_000, kw:  3, cost:   245_000 },
-  { billMax: 12_000, kw:  5, cost:   385_000 },
-  { billMax: 18_000, kw:  7, cost:   525_000 },
-  { billMax: 25_000, kw: 10, cost:   725_000 },
-  { billMax: 35_000, kw: 15, cost: 1_050_000 },
-  { billMax: 50_000, kw: 20, cost: 1_350_000 },
+  { billMax:  15_000, kw:  3, cost:   370_000, savingPct: SAVING_PCT_3KW  },
+  { billMax:  40_000, kw:  5, cost:   630_000, savingPct: SAVING_PCT_5KW  },
+  { billMax:  80_000, kw:  8, cost:   970_000, savingPct: SAVING_PCT_8KW  },
+  { billMax: 200_000, kw: 12, cost: 1_480_000, savingPct: SAVING_PCT_12KW },
 ]
 
 const BILL_MIN  = 2_000
-const BILL_MAX  = 50_000
-const BILL_STEP = 500
+const BILL_MAX  = 80_000
+const BILL_STEP = 1_000
 
 function getSolarRec(bill: number) {
   return SOLAR_MAP.find(row => bill <= row.billMax) ?? SOLAR_MAP[SOLAR_MAP.length - 1]
@@ -48,8 +48,8 @@ export default function SolarROISlider({ waNumber = '923702578788' }: Props) {
 
   const rec = useMemo(() => getSolarRec(bill), [bill])
 
-  // ROI metrics
-  const annualSavings  = useMemo(() => Math.round(bill * 12 * 0.85 / 100) * 100,  [bill])
+  // ROI metrics — saving % varies by system tier (from solarRules.ts)
+  const annualSavings  = useMemo(() => Math.round(bill * 12 * rec.savingPct / 100) * 100,  [bill, rec])
   const paybackYears   = useMemo(() => +(rec.cost / annualSavings).toFixed(1), [rec, annualSavings])
   const savings10yr    = useMemo(() => annualSavings * 10 - rec.cost,              [annualSavings, rec])
   const savings25yr    = useMemo(() => annualSavings * 25 - rec.cost,              [annualSavings, rec])
@@ -122,7 +122,7 @@ export default function SolarROISlider({ waNumber = '923702578788' }: Props) {
               {rec.kw} kW
             </p>
             <p className="text-xs text-eco-600 mt-1 font-medium">
-              On-grid solar · fully installed
+              {rec.kw >= 8 ? 'Hybrid solar · fully installed' : 'On-grid solar · fully installed'}
             </p>
           </div>
           <div className="text-right flex-shrink-0">
@@ -212,7 +212,7 @@ export default function SolarROISlider({ waNumber = '923702578788' }: Props) {
 
         {/* ── Disclaimer ───────────────────────────────────────────────────── */}
         <p className="text-[10px] text-gray-400 text-center leading-relaxed">
-          Estimates based on 4 peak sun hours/day, 85% bill offset, and current market rates.
+          Estimates based on 7 peak sun hours/day (Karachi), {Math.round(rec.savingPct * 100)}% bill offset for this system size, and current Tajalli's market rates.
           Actual savings may vary. Subject to site survey.
         </p>
 

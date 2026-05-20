@@ -69,9 +69,19 @@ type Tab = 'summary' | 'revenue' | 'sales' | 'seasonality' | 'customers' | 'lead
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const ADMIN_PASS = (import.meta as any).env?.VITE_ADMIN_PASS || 'reliance2025';
-const C = ['#123F73','#2E7D32','#F6C400','#8b5cf6','#3FA34D','#ef4444','#14b8a6','#0B2545','#64748b','#06b6d4'];
+const C = ['#0F2D52','#2E7D32','#FFC107','#8b5cf6','#3FA34D','#ef4444','#14b8a6','#0C2444','#64748b','#06b6d4'];
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const EXPENSE_CATS = ['rent','utilities','staff_salaries','marketing','logistics','maintenance','purchase_costs','other'];
+const REPORT_TABS: { key: Tab; label: string; icon: any }[] = [
+  { key: 'summary',    label: 'Summary',     icon: BarChart2   },
+  { key: 'revenue',    label: 'Revenue',     icon: DollarSign  },
+  { key: 'sales',      label: 'Sales',       icon: ShoppingBag },
+  { key: 'seasonality',label: 'Seasonality', icon: Calendar    },
+  { key: 'customers',  label: 'Customers',   icon: Users       },
+  { key: 'leads',      label: 'Leads',       icon: Zap         },
+  { key: 'insights',   label: 'Insights',    icon: Lightbulb   },
+  { key: 'studio',     label: 'Data Studio', icon: Settings    },
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const pk = (n: number) => `PKR ${formatPrice(n)}`;
@@ -148,8 +158,8 @@ function Empty({ msg = 'No data yet' }: { msg?: string }) {
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export default function ReportsPortal() {
-  const [authed, setAuthed] = useState(false);
+export default function ReportsPortal({ embedded = false }: { embedded?: boolean } = {}) {
+  const [authed, setAuthed] = useState(embedded); // skip auth gate when embedded in admin
   const [passInput, setPass] = useState('');
   const [tab, setTab] = useState<Tab>('summary');
   const [period, setPeriod] = useState<'3m' | '6m' | '12m'>('6m');
@@ -467,7 +477,7 @@ export default function ReportsPortal() {
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm border border-gray-100">
         <div className="text-center mb-8">
           <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg,#123F73,#0B2545)' }}>
+            style={{ background: 'linear-gradient(135deg,#0F2D52,#0C2444)' }}>
             <TrendingUp className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-xl font-black text-gray-900">Reports Portal</h1>
@@ -486,16 +496,7 @@ export default function ReportsPortal() {
     </div>
   );
 
-  const TABS: { key: Tab; label: string; icon: any }[] = [
-    { key: 'summary',    label: 'Summary',    icon: BarChart2   },
-    { key: 'revenue',    label: 'Revenue',    icon: DollarSign  },
-    { key: 'sales',      label: 'Sales',      icon: ShoppingBag },
-    { key: 'seasonality',label: 'Seasonality',icon: Calendar    },
-    { key: 'customers',  label: 'Customers',  icon: Users       },
-    { key: 'leads',      label: 'Leads',      icon: Zap         },
-    { key: 'insights',   label: 'Insights',   icon: Lightbulb   },
-    { key: 'studio',     label: 'Data Studio',icon: Settings    },
-  ];
+  const TABS = REPORT_TABS;
 
   // ─── Save helpers ──────────────────────────────────────────
   const toast = (msg: string) => { setSaveMsg(msg); setTimeout(() => setSaveMsg(''), 3000); };
@@ -593,9 +594,9 @@ export default function ReportsPortal() {
                   <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${Math.round(v / 1000)}K`} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
-                  <Area type="monotone" dataKey="revenue" name="Revenue" fill="#EBF2FA" stroke="#123F73" strokeWidth={2} />
+                  <Area type="monotone" dataKey="revenue" name="Revenue" fill="#EEF3F8" stroke="#0F2D52" strokeWidth={2} />
                   {metrics.monthlyRevenue.some(m => m.target) &&
-                    <Line type="monotone" dataKey="target" name="Target" stroke="#F6C400" strokeWidth={2} strokeDasharray="5 3" dot={false} />}
+                    <Line type="monotone" dataKey="target" name="Target" stroke="#FFC107" strokeWidth={2} strokeDasharray="5 3" dot={false} />}
                 </ComposedChart>
               </ResponsiveContainer>
             )}
@@ -668,9 +669,9 @@ export default function ReportsPortal() {
                 <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${Math.round(v / 1000)}K`} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="revenue" name="Revenue" fill="#123F73" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="revenue" name="Revenue" fill="#0F2D52" radius={[4, 4, 0, 0]} />
                 {metrics.monthlyRevenue.some(m => m.target) &&
-                  <Line type="monotone" dataKey="target" name="Target" stroke="#F6C400" strokeWidth={2} strokeDasharray="5 3" dot={false} />}
+                  <Line type="monotone" dataKey="target" name="Target" stroke="#FFC107" strokeWidth={2} strokeDasharray="5 3" dot={false} />}
               </ComposedChart>
             </ResponsiveContainer>
           )}
@@ -754,7 +755,7 @@ export default function ReportsPortal() {
                 <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${Math.round(v / 1000)}K`} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="revenue" name="Revenue" fill="#123F73" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="revenue" name="Revenue" fill="#0F2D52" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="expenses" name="Expenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
                 <Line type="monotone" dataKey="profit" name="Net Profit" stroke="#2E7D32" strokeWidth={2.5} dot={false} />
               </ComposedChart>
@@ -805,7 +806,7 @@ export default function ReportsPortal() {
                 <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={v => `${Math.round(v / 1000)}K`} />
                 <YAxis type="category" dataKey="name" tick={{ fontSize: 9 }} width={130} />
                 <Tooltip formatter={(v: any) => pk(v)} />
-                <Bar dataKey="revenue" name="Revenue" fill="#123F73" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="revenue" name="Revenue" fill="#0F2D52" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -906,10 +907,10 @@ export default function ReportsPortal() {
                 <YAxis yAxisId="idx" orientation="right" tick={{ fontSize: 10 }} domain={[0, 200]} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
-                <Bar yAxisId="rev" dataKey="revenue" name="Revenue" fill="#EBF2FA" radius={[4, 4, 0, 0]}>
+                <Bar yAxisId="rev" dataKey="revenue" name="Revenue" fill="#EEF3F8" radius={[4, 4, 0, 0]}>
                   {metrics.seasonalData.map((_, i) => <Cell key={i} fill={C[0]} fillOpacity={0.6} />)}
                 </Bar>
-                <Line yAxisId="idx" type="monotone" dataKey="index" name="Seasonal Index" stroke="#F6C400" strokeWidth={2.5} dot={{ r: 4 }} />
+                <Line yAxisId="idx" type="monotone" dataKey="index" name="Seasonal Index" stroke="#FFC107" strokeWidth={2.5} dot={{ r: 4 }} />
                 <ReferenceLine yAxisId="idx" y={100} stroke="#2E7D32" strokeDasharray="4 3" label={{ value: 'Avg=100', position: 'right', fontSize: 10 }} />
               </ComposedChart>
             </ResponsiveContainer>
@@ -1438,6 +1439,47 @@ export default function ReportsPortal() {
     leads: renderLeads, insights: renderInsights, studio: renderStudio,
   };
 
+  // ─── Embedded toolbar (when inside AdminPortal) ────────────────────────────
+  if (embedded) {
+    return (
+      <div className="space-y-0 -mx-4 -my-6">
+        {/* Compact toolbar */}
+        <div className="bg-white border-b border-gray-100 px-4 py-2.5 flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-semibold text-gray-500 mr-1">Period:</span>
+          {(['3m','6m','12m'] as const).map(p => (
+            <button key={p} onClick={() => setPeriod(p)}
+              className={`text-xs px-2.5 py-1 rounded-lg font-semibold transition-all ${period === p ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+              {p === '3m' ? '3M' : p === '6m' ? '6M' : '12M'}
+            </button>
+          ))}
+          <button onClick={fetchData} disabled={loading} className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 ml-1">
+            <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'Loading…' : `Updated ${refreshedAt.toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' })}`}
+          </button>
+          <div className="ml-auto flex items-center gap-0.5 overflow-x-auto">
+            {TABS.map(t => (
+              <button key={t.key} onClick={() => setTab(t.key)}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors
+                  ${tab === t.key ? 'bg-brand-50 text-brand-700' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'}`}>
+                <t.icon className="h-3.5 w-3.5 shrink-0" />{t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {/* Content */}
+        <div className="px-4 py-6">
+          {loading && orders.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64 gap-3 text-gray-400">
+              <RefreshCw className="h-8 w-8 animate-spin" />
+              <p className="text-sm">Loading business data…</p>
+            </div>
+          ) : tabContent[tab]()}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Standalone layout ──────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-50">
       <SEO title="Reports Portal" noIndex />
@@ -1447,7 +1489,7 @@ export default function ReportsPortal() {
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg,#123F73,#0B2545)' }}>
+              style={{ background: 'linear-gradient(135deg,#0F2D52,#0C2444)' }}>
               <TrendingUp className="h-5 w-5 text-white" />
             </div>
             <div>

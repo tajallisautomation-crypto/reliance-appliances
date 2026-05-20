@@ -70,6 +70,45 @@ export const SERVICE_INTERVAL: Partial<Record<string, number>> = {
   'freezers':         730,
 }
 
+// Maps portal appliance category → ANNUAL_CARE_PLANS appliances[].category name
+export const CATEGORY_TO_PLAN_CATEGORY: Record<string, string> = {
+  'air-conditioners':   'Air Conditioners',
+  'refrigerators':      'Refrigerators',
+  'freezers':           'Freezers',
+  'washing-machines':   'Washing Machines',
+  'televisions':        'Televisions',
+  'microwaves':         'Kitchen Appliances',
+  'water-dispensers':   'Water Dispensers',
+  'kitchen-appliances': 'Kitchen Appliances',
+  'small-appliances':   'Small Appliances',
+  'solar':              'Solar & UPS',
+  'ups-inverters':      'Solar & UPS',
+  'geysers':            'Small Appliances',
+}
+
+// Starting prices per plan tier per plan category (from ANNUAL_CARE_PLANS)
+export const CARE_PLAN_STARTS: Record<string, { essential: number; plus: number; elite: number }> = {
+  'Air Conditioners':  { essential: 7500,  plus: 16500, elite: 38350 },
+  'Refrigerators':     { essential: 6000,  plus: 13500, elite: 31200 },
+  'Freezers':          { essential: 6500,  plus: 14500, elite: 32500 },
+  'Washing Machines':  { essential: 6000,  plus: 13500, elite: 30550 },
+  'Televisions':       { essential: 4500,  plus: 9500,  elite: 24050 },
+  'Solar & UPS':       { essential: 12000, plus: 24000, elite: 54600 },
+  'Kitchen Appliances':{ essential: 3500,  plus: 7500,  elite: 17550 },
+  'Water Dispensers':  { essential: 4500,  plus: 9500,  elite: 22750 },
+  'Small Appliances':  { essential: 3000,  plus: 6500,  elite: 13650 },
+}
+
+export const CARE_PLAN_LABELS: Record<string, { label: string; color: string; bg: string }> = {
+  active:               { label: 'Active',              color: 'text-green-700',  bg: 'bg-green-100'  },
+  expiring_soon:        { label: 'Expiring Soon',        color: 'text-amber-700',  bg: 'bg-amber-100'  },
+  expired:              { label: 'Expired',              color: 'text-red-700',    bg: 'bg-red-100'    },
+  pending_inspection:   { label: 'Pending Inspection',   color: 'text-blue-700',   bg: 'bg-blue-100'   },
+  inspection_required:  { label: 'Inspection Required',  color: 'text-purple-700', bg: 'bg-purple-100' },
+  not_eligible:         { label: 'Not Eligible',         color: 'text-gray-600',   bg: 'bg-gray-100'   },
+  cancelled:            { label: 'Cancelled',            color: 'text-gray-500',   bg: 'bg-gray-100'   },
+}
+
 export const BANK = {
   bank:    'Meezan Bank',
   account: '01060101874794',

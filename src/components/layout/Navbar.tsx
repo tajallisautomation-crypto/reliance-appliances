@@ -128,6 +128,13 @@ export default function Navbar() {
                   <span className="hidden sm:block text-[9.5px] font-semibold text-brand-200 mt-0.5 tracking-[0.08em] uppercase">
                     Home &amp; Commercial Solutions
                   </span>
+                  <span className={`hidden sm:flex items-center gap-0.5 mt-0.5 text-[8px] font-semibold tracking-wide ${scrolled ? 'opacity-0 h-0' : 'opacity-100'} transition-all duration-200`}>
+                    <span className="text-white/70">Delivered</span>
+                    <span className="text-white/30 mx-0.5">·</span>
+                    <span className="text-gold-400">Installed</span>
+                    <span className="text-white/30 mx-0.5">·</span>
+                    <span className="text-eco-400">Supported</span>
+                  </span>
                 </span>
               </Link>
 

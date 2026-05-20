@@ -120,10 +120,10 @@ function FlyerGroupCard({ cat, group, products }: { cat: CatalogCategory; group:
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3"
-          style={{ background: 'linear-gradient(135deg,#1e3a5f 0%,#2d5a8e 100%)' }}>
+          style={{ background: 'linear-gradient(135deg,#0F2D52 0%,#3A6B9E 100%)' }}>
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-black text-sm shrink-0"
-              style={{ background: 'linear-gradient(135deg,#123F73,#F6C400)' }}>R</div>
+              style={{ background: 'linear-gradient(135deg,#0F2D52,#FFC107)' }}>R</div>
             <div>
               <div className="text-white font-black text-sm leading-tight">Tajalli's</div>
             </div>
@@ -186,7 +186,7 @@ function FlyerGroupCard({ cat, group, products }: { cat: CatalogCategory; group:
 
         {/* Footer */}
         <div className="px-5 py-2.5 flex items-center justify-between"
-          style={{ background: '#f8f9fa', borderTop: '2px solid #123F73' }}>
+          style={{ background: '#f8f9fa', borderTop: '2px solid #0F2D52' }}>
           <div className="text-[10px] text-gray-600">
             <span className="font-bold text-brand-600">📞 0370-2578788</span>
             <span className="mx-2 text-gray-300">·</span>sales@tajallis.com.pk

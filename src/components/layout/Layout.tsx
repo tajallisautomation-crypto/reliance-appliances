@@ -8,19 +8,20 @@ import { MessageCircle } from 'lucide-react'
 import { waSales } from '@/lib/whatsapp'
 
 // Pages that manage their own bottom CTA or are app-like — hide the global floating WA button there
-const HIDE_WA_FLOAT = ['/build-your-package', '/portal']
+const HIDE_WA_FLOAT = ['/build-your-package', '/portal', '/admin']
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
   const showWaFloat  = !HIDE_WA_FLOAT.some(p => pathname === p || pathname.startsWith(p + '/'))
   const isPortal     = pathname === '/portal' || pathname.startsWith('/portal/')
+  const isAdmin      = pathname === '/admin' || pathname.startsWith('/admin/')
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
       <AnnouncementBanner />
       <Navbar />
       <main className="flex-1">{children}</main>
-      {isPortal ? (
+      {isAdmin ? null : isPortal ? (
         <div className="border-t border-gray-100 py-3 text-center text-xs text-gray-400">
           © {new Date().getFullYear()} Tajalli's Home &amp; Commercial Solutions · <a href="tel:+923702578788" className="hover:text-brand-500">+92 370 2578788</a>
         </div>

@@ -16,19 +16,19 @@ import PortalPayments from '@/components/portal/PortalPayments'
 import PortalReferrals from '@/components/portal/PortalReferrals'
 import PortalLoyalty from '@/components/portal/PortalLoyalty'
 import PortalAccount from '@/components/portal/PortalAccount'
-import type { CustomerProfile, CustomerAppliance, LoyaltyTransaction, ReferralEarning, PortalOrder, PortalData } from '@/components/portal/portalTypes'
+import PortalCarePlans from '@/components/portal/PortalCarePlans'
+import type { CustomerProfile, CustomerAppliance, CustomerCarePlan, LoyaltyTransaction, ReferralEarning, PortalOrder, PortalData } from '@/components/portal/portalTypes'
 import toast from 'react-hot-toast'
 
-type Tab = 'overview' | 'orders' | 'appliances' | 'support' | 'payments' | 'recommendations' | 'referrals' | 'loyalty' | 'account'
+type Tab = 'overview' | 'orders' | 'appliances' | 'support' | 'payments' | 'recommendations' | 'referrals' | 'loyalty' | 'account' | 'care-plans'
 
-// Primary tabs shown in the tab bar. Secondary tabs (appliances, recommendations, referrals, loyalty)
-// are accessible via cards on the Overview tab.
 const PRIMARY_TABS: { id: Tab; label: string; emoji: string }[] = [
-  { id: 'overview',  label: 'Overview',  emoji: '🏠' },
-  { id: 'orders',    label: 'Orders',    emoji: '📋' },
-  { id: 'payments',  label: 'Payments',  emoji: '💳' },
-  { id: 'support',   label: 'Support',   emoji: '🎫' },
-  { id: 'account',   label: 'Account',   emoji: '⚙️' },
+  { id: 'overview',    label: 'Overview',    emoji: '🏠' },
+  { id: 'care-plans',  label: 'Care Plans',  emoji: '🛡️' },
+  { id: 'orders',      label: 'Orders',      emoji: '📋' },
+  { id: 'payments',    label: 'Payments',    emoji: '💳' },
+  { id: 'support',     label: 'Support',     emoji: '🎫' },
+  { id: 'account',     label: 'Account',     emoji: '⚙️' },
 ]
 
 // ── Password recovery view (shown after clicking reset email link) ──────────
@@ -107,10 +107,11 @@ function DashboardView({ email }: { email: string }) {
   const [activeTab, setActiveTab] = useState<Tab>('overview')
   const [loading, setLoading]     = useState(true)
   const [profile, setProfile]     = useState<CustomerProfile | null>(null)
-  const [appliances, setAppliances]         = useState<CustomerAppliance[]>([])
-  const [loyaltyTxns, setLoyaltyTxns]       = useState<LoyaltyTransaction[]>([])
+  const [appliances, setAppliances]             = useState<CustomerAppliance[]>([])
+  const [loyaltyTxns, setLoyaltyTxns]           = useState<LoyaltyTransaction[]>([])
   const [referralEarnings, setReferralEarnings] = useState<ReferralEarning[]>([])
   const [orders, setOrders]       = useState<PortalOrder[]>([])
+  const [carePlans, setCarePlans] = useState<CustomerCarePlan[]>([])
 
   const fetchAll = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -118,12 +119,13 @@ function DashboardView({ email }: { email: string }) {
     const uid = user.id
     setLoading(true)
     try {
-      const [pRes, aRes, lRes, rRes, oRes] = await Promise.all([
+      const [pRes, aRes, lRes, rRes, oRes, cpRes] = await Promise.all([
         supabase.from('customer_profiles').select('*').eq('user_id', uid).single(),
         supabase.from('customer_appliances').select('*').eq('user_id', uid).eq('is_active', true).order('created_at', { ascending: false }),
         supabase.from('loyalty_transactions').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(50),
         supabase.from('referral_earnings').select('*').eq('referrer_user_id', uid).order('created_at', { ascending: false }),
         supabase.from('orders').select('*').eq('customer_email', email).order('created_at', { ascending: false }).limit(20),
+        supabase.from('customer_care_plans').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
       ])
       if (pRes.data) {
         setProfile(pRes.data)
@@ -139,6 +141,7 @@ function DashboardView({ email }: { email: string }) {
       setLoyaltyTxns(lRes.data || [])
       setReferralEarnings(rRes.data || [])
       setOrders(oRes.data || [])
+      setCarePlans(cpRes.data || [])
     } catch (err) {
       if (import.meta.env.DEV) console.error('[Portal]', err)
     } finally { setLoading(false) }
@@ -147,13 +150,14 @@ function DashboardView({ email }: { email: string }) {
   useEffect(() => { fetchAll() }, [fetchAll])
 
   const portalData: PortalData = {
-    profile, appliances, loyaltyTxns, referralEarnings, orders,
+    profile, appliances, loyaltyTxns, referralEarnings, orders, carePlans,
     reload: fetchAll,
     navigateTo: (tab: string) => setActiveTab(tab as Tab),
   }
 
   const TAB_VIEWS: Record<Tab, React.ReactNode> = {
     overview:        <PortalOverview        {...portalData} />,
+    'care-plans':    <PortalCarePlans       {...portalData} />,
     orders:          <PortalOrders          {...portalData} />,
     appliances:      <PortalAppliances      {...portalData} />,
     support:         <PortalSupport         {...portalData} />,
