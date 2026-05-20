@@ -8359,12 +8359,13 @@ function CustomerCrmTab() {
                             )}
                             {inv.payment_status && inv.payment_status !== 'paid' && (
                               <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                                inv.payment_status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                inv.payment_status === 'partial' ? 'bg-blue-100 text-blue-700' :
-                                inv.payment_status === 'overdue' ? 'bg-red-100 text-red-700' :
+                                inv.payment_status === 'pending'      ? 'bg-yellow-100 text-yellow-700' :
+                                inv.payment_status === 'partial'      ? 'bg-blue-100 text-blue-700' :
+                                inv.payment_status === 'advance_paid' ? 'bg-orange-100 text-orange-700' :
+                                inv.payment_status === 'overdue'      ? 'bg-red-100 text-red-700' :
                                 'bg-gray-100 text-gray-600'
                               }`}>
-                                {inv.payment_status}
+                                {inv.payment_status === 'advance_paid' ? 'advance paid' : inv.payment_status}
                               </span>
                             )}
                             {isExpanded
@@ -8669,10 +8670,11 @@ type InvoiceRow = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  pending:  'bg-yellow-100 text-yellow-800',
-  partial:  'bg-blue-100 text-blue-800',
-  paid:     'bg-green-100 text-green-800',
-  overdue:  'bg-red-100 text-red-800',
+  pending:       'bg-yellow-100 text-yellow-800',
+  partial:       'bg-blue-100 text-blue-800',
+  advance_paid:  'bg-orange-100 text-orange-800',
+  paid:          'bg-green-100 text-green-800',
+  overdue:       'bg-red-100 text-red-800',
 };
 
 // ── InstallmentLedgerTab ────────────────────────────────────────────────────
@@ -9425,6 +9427,7 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
             <option value="">All statuses</option>
             <option value="pending">Pending</option>
             <option value="partial">Partial</option>
+            <option value="advance_paid">Advance Paid</option>
             <option value="paid">Paid</option>
             <option value="overdue">Overdue</option>
           </select>
@@ -9507,6 +9510,7 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
                           className="border border-gray-200 rounded-lg px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-brand-400">
                           <option value="pending">Pending</option>
                           <option value="partial">Partial</option>
+                          <option value="advance_paid">Advance Paid</option>
                           <option value="paid">Paid</option>
                           <option value="overdue">Overdue</option>
                         </select>
@@ -10469,7 +10473,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       customerArea,
       paymentStatus: amountPaid > 0 && amountPaid >= effectiveTotal ? 'paid'
         : amountPaid > 0 ? 'partial'
-        : advancePaid ? (saleType === 'installment' ? 'advance_paid' : 'paid')
+        : advancePaid ? 'advance_paid'
         : 'pending',
       amountPaid: amountPaid > 0 ? amountPaid : undefined,
       isExistingCustomer,
@@ -10543,7 +10547,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           discountReason: discounts.map(d => d.reason).filter(Boolean).join('; '),
           paymentStatus: amountPaid > 0 && amountPaid >= srGrandTotal ? 'paid'
             : amountPaid > 0 ? 'partial'
-            : advancePaid ? 'paid'
+            : advancePaid ? 'advance_paid'
             : 'pending',
           amountPaid: amountPaid > 0 ? amountPaid : undefined,
           notes: invoiceNotes,
@@ -10599,12 +10603,10 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           instScheduleRows: saleType === 'installment' && customInstSchedule.length > 0 ? customInstSchedule.map(({ no, label, dueDate, amount }) => ({ no, label, dueDate, amount })) : undefined,
           instTeaserMonthly: saleType !== 'installment' && grandTotal > 0 ? Math.round(grandTotal * 1.25 / 12) : undefined,
           instTeaserMonths: 12,
-          paymentStatus: saleType === 'installment'
-            ? (amountPaid > 0 ? 'partial' : advancePaid ? 'advance_paid' : 'pending')
-            : (amountPaid > 0 && amountPaid >= effectiveTotal ? 'paid'
-                : amountPaid > 0 ? 'partial'
-                : advancePaid ? 'paid'
-                : 'pending'),
+          paymentStatus: amountPaid > 0 && amountPaid >= effectiveTotal ? 'paid'
+            : amountPaid > 0 ? 'partial'
+            : advancePaid ? 'advance_paid'
+            : 'pending',
           amountPaid: amountPaid > 0 ? amountPaid : undefined,
           tradeIns: tradeIns.filter(t => t.description && t.value > 0).map(({ description, value }) => ({ description, value })),
           invoiceDate,
