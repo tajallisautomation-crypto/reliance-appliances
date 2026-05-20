@@ -249,6 +249,10 @@ export default function ReportsPortal({ embedded = false }: { embedded?: boolean
       .map(([k, v]) => ({ key: k, month: monthLabel(k), ...v }));
 
     const totalRevenue = monthlyRevenue.reduce((s, m) => s + m.revenue, 0);
+    // Invoice-only revenue for avg order value (offline sales skew the denominator)
+    const invoiceOnlyRevenue = filtInv.length
+      ? filtInv.reduce((s, i) => s + (Number(i.grand_total) || 0), 0)
+      : filtOrd.reduce((s, o) => s + (Number(o.total_amount) || 0), 0);
     const now = monthKey(new Date());
     const thisMonthRev = monthMap.get(now)?.revenue || 0;
     const prevMonthKey = (() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return monthKey(d); })();
@@ -293,9 +297,10 @@ export default function ReportsPortal({ embedded = false }: { embedded?: boolean
     const paymentMethods = Array.from(pmMap.entries())
       .map(([name, value], i) => ({ name, value, color: C[i % C.length] }));
 
-    // Avg order value
+    // Avg order value (from invoices/orders only — excludes offline sales to keep the avg meaningful)
     const totalOrders = revSource.length;
-    const avgOrderValue = totalOrders ? totalRevenue / totalOrders : 0;
+    const avgOrderValue = totalOrders ? invoiceOnlyRevenue / totalOrders : 0;
+    const sourceIsInvoices = filtInv.length > 0;
 
     // Installment health
     const instTotal = ledger.reduce((s, r) => s + (Number(r.contract_total) || 0), 0);
@@ -314,19 +319,17 @@ export default function ReportsPortal({ embedded = false }: { embedded?: boolean
       solarLeads.reduce((acc, l) => ({ ...acc, [l.city]: (acc[l.city] || 0) + 1 }), {} as Record<string, number>)
     ).map(([city, count], i) => ({ city, count, value: count, color: C[i % C.length] }));
 
-    // Seasonality — all-time monthly pattern
+    // Seasonality — all-time monthly pattern (use invoices if any, else orders — never both)
+    const allInvoices = invoices.filter(i => i.doc_type !== 'quotation');
+    const seasonSource = allInvoices.length ? allInvoices : allOrd;
+    const seasonRevField = allInvoices.length ? 'grand_total' : 'total_amount';
     const seasonMap = new Map<number, { revenue: number; orders: number }>();
     for (let m = 1; m <= 12; m++) seasonMap.set(m, { revenue: 0, orders: 0 });
-    for (const r of allOrd) {
+    for (const r of seasonSource) {
       const m = new Date(r.created_at).getMonth() + 1;
       const e = seasonMap.get(m)!;
-      e.revenue += Number(r.total_amount) || 0;
+      e.revenue += Number((r as any)[seasonRevField]) || 0;
       e.orders  += 1;
-    }
-    for (const inv of invoices.filter(i => i.doc_type !== 'quotation')) {
-      const m = new Date(inv.created_at).getMonth() + 1;
-      const e = seasonMap.get(m)!;
-      e.revenue += Number(inv.grand_total) || 0;
     }
     const avgSeasonRev = Array.from(seasonMap.values()).reduce((s, v) => s + v.revenue, 0) / 12;
     const seasonalData = Array.from(seasonMap.entries()).map(([m, v]) => ({
@@ -337,10 +340,10 @@ export default function ReportsPortal({ embedded = false }: { embedded?: boolean
     }));
 
     // Customer analysis from invoices
-    const custMap = new Map<string, { name: string; revenue: number; orders: number; area: string }>();
+    const custMap = new Map<string, { name: string; phone: string; revenue: number; orders: number; area: string }>();
     for (const inv of filtInv) {
       const key = inv.customer_phone || inv.customer_name || 'Unknown';
-      if (!custMap.has(key)) custMap.set(key, { name: inv.customer_name || 'Unknown', revenue: 0, orders: 0, area: inv.customer_area || '' });
+      if (!custMap.has(key)) custMap.set(key, { name: inv.customer_name || 'Unknown', phone: inv.customer_phone || '', revenue: 0, orders: 0, area: inv.customer_area || '' });
       const c = custMap.get(key)!;
       c.revenue += Number(inv.grand_total) || 0;
       c.orders  += 1;
@@ -394,15 +397,16 @@ export default function ReportsPortal({ embedded = false }: { embedded?: boolean
         .map(([k, v]) => ({ month: monthLabel(k), expenses: v }));
     })();
 
-    // Analytics events
+    // Analytics events (period-filtered)
+    const filtEvents = analyticsEvents.filter(e => e.created_at >= cutoff);
     const eventMap = new Map<string, number>();
-    for (const e of analyticsEvents) eventMap.set(e.event, (eventMap.get(e.event) || 0) + 1);
+    for (const e of filtEvents) eventMap.set(e.event, (eventMap.get(e.event) || 0) + 1);
     const topEvents = Array.from(eventMap.entries()).sort(([, a], [, b]) => b - a)
       .map(([event, count], i) => ({ event, count, color: C[i % C.length] }));
 
     return {
       monthlyRevenue, totalRevenue, thisMonthRev, lastMonthRev, revenueGrowth,
-      totalOrders, avgOrderValue, categoryBreakdown, topProducts, paymentMethods,
+      totalOrders, avgOrderValue, sourceIsInvoices, categoryBreakdown, topProducts, paymentMethods,
       instTotal, instCollected, instOutstanding, instOverdue,
       solarFunnel, solarByCity,
       seasonalData, uniqueCustomers, repeatCustomers, topCustomers, customerAreas, customerTypes,
@@ -565,7 +569,7 @@ export default function ReportsPortal({ embedded = false }: { embedded?: boolean
       {/* KPI row */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         <KpiCard label="Revenue (Period)" value={`PKR ${formatPrice(metrics.totalRevenue / 1000)}K`}
-          sub={`${metrics.totalOrders} invoices`} change={`${metrics.revenueGrowth > 0 ? '+' : ''}${metrics.revenueGrowth.toFixed(1)}% MoM`}
+          sub={`${metrics.totalOrders} ${metrics.sourceIsInvoices ? 'invoices' : 'orders'}`} change={`${metrics.revenueGrowth > 0 ? '+' : ''}${metrics.revenueGrowth.toFixed(1)}% MoM`}
           up={metrics.revenueGrowth >= 0} icon={DollarSign} color="text-blue-600" />
         <KpiCard label="This Month" value={`PKR ${formatPrice(metrics.thisMonthRev / 1000)}K`}
           sub="month to date" icon={TrendingUp} color="text-emerald-600" />
@@ -585,7 +589,7 @@ export default function ReportsPortal({ embedded = false }: { embedded?: boolean
       {/* Revenue trend + Category split */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <Section title="Revenue Trend" sub={`${period} window — invoices + offline sales`}>
+          <Section title="Revenue Trend" sub={`${period} window — ${metrics.sourceIsInvoices ? 'invoices' : 'orders'} + offline sales`}>
             {metrics.monthlyRevenue.length < 2 ? <Empty msg="Need at least 2 months of data" /> : (
               <ResponsiveContainer width="100%" height={240}>
                 <ComposedChart data={metrics.monthlyRevenue}>
@@ -1022,7 +1026,7 @@ export default function ReportsPortal({ embedded = false }: { embedded?: boolean
                   <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
                     <td className="py-2 px-3 text-gray-400 font-medium">{i + 1}</td>
                     <td className="py-2 px-3 font-semibold text-gray-800">{c.name}</td>
-                    <td className="py-2 px-3 text-gray-500">{c.area || '—'}</td>
+                    <td className="py-2 px-3 text-gray-500">{c.phone || '—'}</td>
                     <td className="py-2 px-3 text-gray-500">{c.area || '—'}</td>
                     <td className="py-2 px-3 font-semibold text-gray-700">{c.orders}</td>
                     <td className="py-2 px-3 font-bold text-gray-900">{pk(c.revenue)}</td>
