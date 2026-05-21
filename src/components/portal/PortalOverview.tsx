@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Bell, CreditCard, Package, ChevronRight, Wrench, Calendar, Shield, Zap, RefreshCw, Star } from 'lucide-react'
+import { Bell, CreditCard, Package, ChevronRight, Wrench, Calendar, Shield, Zap, RefreshCw, Star, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { waSales } from '@/lib/whatsapp'
 import type { PortalData } from './portalTypes'
 import { TIERS, TIER_BENEFITS, SERVICE_INTERVAL, INST_MONTHLY, CATEGORY_ICONS, CATEGORY_TO_PLAN_CATEGORY } from './portalConstants'
@@ -33,7 +33,7 @@ interface Action {
   border: string
 }
 
-export default function PortalOverview({ profile, appliances, loyaltyTxns, orders, referralEarnings, carePlans, navigateTo }: PortalData) {
+export default function PortalOverview({ profile, appliances, loyaltyTxns, orders, referralEarnings, carePlans, accountVerification, navigateTo }: PortalData) {
   const tier = TIERS[profile?.loyalty_tier ?? 'bronze']
   const pts  = profile?.loyalty_points ?? 0
 
@@ -45,24 +45,47 @@ export default function PortalOverview({ profile, appliances, loyaltyTxns, order
     return daysAgo(ref) >= interval
   })
 
-  const instOrders = orders.filter(o => INST_MONTHLY[o.payment_method])
-  const nextDue = instOrders.flatMap(o => {
-    const count = INST_MONTHLY[o.payment_method] ?? 0
-    return Array.from({ length: count }, (_, i) => {
-      const d = new Date(o.created_at)
-      d.setMonth(d.getMonth() + i + 1)
-      return { due: d, amount: o.monthly_amount ?? 0 }
-    })
-  }).filter(x => x.due >= new Date()).sort((a, b) => a.due.getTime() - b.due.getTime())[0]
+  // ── Installment status — read from authoritative DB ledger ────────────────
+  // accountVerification is computed in Portal.tsx from installment_schedules.
+  // Only fall back to order-estimation if no installment invoices exist in the ledger.
+  const hasLedgerData = accountVerification.totalMonthlySlots > 0
+  const fmtDue = (d: string) => new Date(d).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })
 
-  const overdueInstallment = instOrders.flatMap(o => {
+  // Legacy estimation (from online orders table) — used only when no ledger data
+  const instOrders = orders.filter(o => INST_MONTHLY[o.payment_method])
+  const legacyNextDue = !hasLedgerData ? instOrders.flatMap(o => {
     const count = INST_MONTHLY[o.payment_method] ?? 0
     return Array.from({ length: count }, (_, i) => {
       const d = new Date(o.created_at)
       d.setMonth(d.getMonth() + i + 1)
       return { due: d, amount: o.monthly_amount ?? 0 }
     })
-  }).filter(x => x.due < new Date())[0]
+  }).filter(x => x.due >= new Date()).sort((a, b) => a.due.getTime() - b.due.getTime())[0] : undefined
+
+  const legacyOverdue = !hasLedgerData ? instOrders.flatMap(o => {
+    const count = INST_MONTHLY[o.payment_method] ?? 0
+    return Array.from({ length: count }, (_, i) => {
+      const d = new Date(o.created_at)
+      d.setMonth(d.getMonth() + i + 1)
+      return { due: d, amount: o.monthly_amount ?? 0 }
+    })
+  }).filter(x => x.due < new Date())[0] : undefined
+
+  // Resolved values — prefer ledger, fall back to estimation
+  const isOverdue = hasLedgerData
+    ? accountVerification.isDefaulter
+    : !!legacyOverdue
+  const overdueAmount = hasLedgerData
+    ? accountVerification.totalOverdueAmount
+    : (legacyOverdue?.amount ?? 0)
+  const overdueDue = hasLedgerData
+    ? (accountVerification.installmentSlots.find(s =>
+        s.status === 'overdue' ||
+        (s.status === 'pending' && s.installment_no > 0 && new Date(s.due_date) < new Date())
+      )?.due_date ?? null)
+    : null
+  const nextDueDate = hasLedgerData ? accountVerification.nextDueDate : (legacyNextDue ? legacyNextDue.due.toISOString().slice(0,10) : null)
+  const nextDueAmt  = hasLedgerData ? accountVerification.nextDueAmount : (legacyNextDue?.amount ?? null)
 
   const warrantyExpiringSoon = appliances.filter(a => {
     if (!a.warranty_end_date) return false
@@ -92,12 +115,12 @@ export default function PortalOverview({ profile, appliances, loyaltyTxns, order
   // Build prioritized next actions
   const actions: Action[] = []
 
-  if (overdueInstallment) {
+  if (isOverdue) {
     actions.push({
       priority: 1,
       icon: <CreditCard className="w-4 h-4" />,
-      label: 'Payment Overdue',
-      detail: `${fmtPKR(overdueInstallment.amount)} was due ${fmtDateShort(overdueInstallment.due)}. Clear now to avoid penalty.`,
+      label: `Payment Overdue${accountVerification.overdueCount > 1 ? ` (${accountVerification.overdueCount} missed)` : ''}`,
+      detail: `${fmtPKR(overdueAmount)} outstanding${overdueDue ? ` — was due ${fmtDue(overdueDue)}` : ''}. Clear immediately to avoid service suspension.`,
       cta: 'Pay Now',
       ctaOnClick: () => navigateTo?.('payments'),
       color: 'text-red-700',
@@ -122,14 +145,14 @@ export default function PortalOverview({ profile, appliances, loyaltyTxns, order
     })
   }
 
-  if (nextDue && !overdueInstallment) {
-    const daysLeft = Math.ceil((nextDue.due.getTime() - Date.now()) / 86_400_000)
+  if (nextDueDate && nextDueAmt != null && !isOverdue) {
+    const daysLeft = Math.ceil((new Date(nextDueDate).getTime() - Date.now()) / 86_400_000)
     if (daysLeft <= 10) {
       actions.push({
         priority: 3,
         icon: <CreditCard className="w-4 h-4" />,
         label: 'Installment Due Soon',
-        detail: `${fmtPKR(nextDue.amount)} due on ${fmtDateShort(nextDue.due)} — ${daysLeft} days left.`,
+        detail: `${fmtPKR(nextDueAmt)} due on ${fmtDue(nextDueDate)} — ${daysLeft} day${daysLeft !== 1 ? 's' : ''} left.`,
         cta: 'Pay Now',
         ctaOnClick: () => navigateTo?.('payments'),
         color: 'text-blue-700',
@@ -203,6 +226,71 @@ export default function PortalOverview({ profile, appliances, loyaltyTxns, order
 
   return (
     <div className="space-y-5">
+
+      {/* ── Account Standing Banner — shown whenever installment history exists ── */}
+      {hasLedgerData && (
+        accountVerification.isDefaulter ? (
+          <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-4 h-4 text-red-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-red-800 text-sm">Account Alert — Overdue Payments</p>
+                <p className="text-xs text-red-700 mt-0.5 leading-relaxed">
+                  {accountVerification.overdueCount} payment{accountVerification.overdueCount > 1 ? 's' : ''} totalling{' '}
+                  <span className="font-bold">{fmtPKR(accountVerification.totalOverdueAmount)}</span> are past due.
+                  Services may be suspended until cleared.
+                </p>
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  <a
+                    href={waSales(`Hi! I want to clear my overdue installment payment(s). Outstanding: PKR ${Math.round(accountVerification.totalOverdueAmount).toLocaleString('en-PK')}. Name: ${profile?.full_name || 'Customer'}.`)}
+                    target="_blank" rel="noreferrer"
+                    className="text-xs font-bold px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors"
+                  >
+                    Contact Us to Pay
+                  </a>
+                  <button
+                    onClick={() => navigateTo?.('orders')}
+                    className="text-xs font-bold px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl transition-colors"
+                  >
+                    View Schedule
+                  </button>
+                </div>
+              </div>
+            </div>
+            {/* Payment track mini-ledger */}
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              {[
+                { label: 'Paid', value: accountVerification.paidCount, color: 'text-green-700 bg-green-50' },
+                { label: 'Overdue', value: accountVerification.overdueCount, color: 'text-red-700 bg-red-100' },
+                { label: 'Remaining', value: accountVerification.totalMonthlySlots - accountVerification.paidCount - accountVerification.overdueCount, color: 'text-gray-600 bg-gray-100' },
+              ].map(s => (
+                <div key={s.label} className={`rounded-xl py-2 px-1 ${s.color}`}>
+                  <p className="text-lg font-black">{s.value}</p>
+                  <p className="text-[10px] font-semibold">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-green-200 bg-green-50 p-3.5 flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-green-800">Account in Good Standing</p>
+              <p className="text-xs text-green-600 mt-0.5">
+                {accountVerification.paidCount > 0
+                  ? `${accountVerification.paidCount} of ${accountVerification.totalMonthlySlots} installments paid on time.`
+                  : 'All installments current.'}
+                {accountVerification.nextDueDate && (
+                  <> Next payment <span className="font-semibold">{fmtDue(accountVerification.nextDueDate)}</span>.</>
+                )}
+              </p>
+            </div>
+          </div>
+        )
+      )}
+
       {/* Welcome + tier */}
       <div className={`rounded-2xl p-5 ${tier.bg}`}>
         <div className="flex items-start justify-between">

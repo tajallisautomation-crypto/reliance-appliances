@@ -9954,6 +9954,15 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
   const [customerArea, setCustomerArea]   = useState('');
   const [isExistingCustomer, setIsExistingCustomer] = useState<boolean | null>(null);
   const [validityHours, setValidityHours] = useState<24 | 48 | 72 | 168>(48);
+  // ── Customer payment track (from installment_schedules) ──
+  interface CustomerPaymentTrack {
+    status: 'clean' | 'has_overdue' | 'no_installments';
+    paidCount: number;
+    overdueCount: number;
+    totalSlots: number;
+    totalOverdueAmt: number;
+  }
+  const [customerPaymentTrack, setCustomerPaymentTrack] = useState<CustomerPaymentTrack | null>(null);
   // ── Custom charges ──
   const [customCharges, setCustomCharges] = useState<Array<{id: string; name: string; amount: number}>>([]);
   // ── Custom product form ──
@@ -10045,23 +10054,30 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
     }
   }, []);
 
-  // ── Phone autofill lookup ────────────────────────────────────────────────
+  // ── Phone autofill + payment history lookup ─────────────────────────────
   useEffect(() => {
     const digits = customerPhone.replace(/\D/g, '');
-    if (digits.length < 7) { setAutofillCandidate(null); setPhoneNameConflict(null); return; }
+    if (digits.length < 7) {
+      setAutofillCandidate(null);
+      setPhoneNameConflict(null);
+      setCustomerPaymentTrack(null);
+      return;
+    }
     const t = setTimeout(async () => {
+      // 1. Fetch latest invoice for autofill
       const { data } = await supabase
         .from('invoices')
-        .select('customer_name,customer_phone,customer_email,customer_address,customer_cnic,customer_area,customer_type,is_existing_customer')
+        .select('id,customer_name,customer_phone,customer_email,customer_address,customer_cnic,customer_area,customer_type,is_existing_customer,doc_type')
         .ilike('customer_phone', `%${digits.slice(-7)}%`)
         .order('created_at', { ascending: false })
-        .limit(1);
+        .limit(20);
+
       if (data && data.length > 0) {
         const r = data[0];
         const foundName = (r.customer_name ?? '').trim();
         const enteredName = customerName.trim();
         setIsExistingCustomer(true);
-        // Name conflict: phone seen before with a different non-empty name already typed
+
         if (foundName && enteredName && foundName.toLowerCase() !== enteredName.toLowerCase()) {
           setPhoneNameConflict(foundName);
           setAutofillCandidate({
@@ -10073,7 +10089,6 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
             customerType: (r.customer_type ?? 'house') as 'house' | 'apartment' | 'commercial',
           });
         } else {
-          // Auto-fill all empty fields immediately — no button click required
           setPhoneNameConflict(null);
           setAutofillCandidate(null);
           if (foundName && !enteredName) setCustomerName(foundName);
@@ -10083,9 +10098,43 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           if (r.customer_area)    setCustomerArea(ca => ca || r.customer_area!);
           if (r.customer_type)    setCustomerType(r.customer_type as 'house' | 'apartment' | 'commercial');
         }
+
+        // 2. Check installment payment track from authoritative ledger
+        const instInvoiceIds = data
+          .filter(inv => inv.doc_type === 'installment-invoice')
+          .map(inv => inv.id);
+
+        if (instInvoiceIds.length > 0) {
+          const { data: slots } = await supabase
+            .from('installment_schedules')
+            .select('status,amount_due,amount_paid,due_date,installment_no')
+            .in('invoice_id', instInvoiceIds);
+
+          if (slots) {
+            const today = new Date();
+            const monthly = slots.filter(s => s.installment_no > 0);
+            const overdueSlots = monthly.filter(s =>
+              s.status === 'overdue' ||
+              (s.status === 'pending' && new Date(s.due_date) < today)
+            );
+            setCustomerPaymentTrack({
+              status:          overdueSlots.length > 0 ? 'has_overdue' : 'clean',
+              paidCount:       monthly.filter(s => s.status === 'paid').length,
+              overdueCount:    overdueSlots.length,
+              totalSlots:      monthly.length,
+              totalOverdueAmt: overdueSlots.reduce((s, r) =>
+                s + Math.max(0, (r.amount_due ?? 0) - (r.amount_paid ?? 0)), 0),
+            });
+          } else {
+            setCustomerPaymentTrack({ status: 'no_installments', paidCount: 0, overdueCount: 0, totalSlots: 0, totalOverdueAmt: 0 });
+          }
+        } else {
+          setCustomerPaymentTrack({ status: 'no_installments', paidCount: 0, overdueCount: 0, totalSlots: 0, totalOverdueAmt: 0 });
+        }
       } else {
         setAutofillCandidate(null);
         setPhoneNameConflict(null);
+        setCustomerPaymentTrack(null);
       }
     }, 400);
     return () => clearTimeout(t);
@@ -11113,6 +11162,29 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               <button onClick={() => setPhoneNameConflict(null)} className="text-amber-400 hover:text-amber-600 shrink-0">
                 <X className="w-3.5 h-3.5" />
               </button>
+            </div>
+          )}
+          {/* ── Customer payment track record ── */}
+          {customerPaymentTrack && customerPaymentTrack.status === 'has_overdue' && (
+            <div className="px-3 py-2.5 bg-red-50 border border-red-300 rounded-xl text-xs space-y-1">
+              <div className="flex items-center gap-1.5 font-bold text-red-700">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                Defaulter — {customerPaymentTrack.overdueCount} overdue payment{customerPaymentTrack.overdueCount > 1 ? 's' : ''}
+                {' '}· PKR {Math.round(customerPaymentTrack.totalOverdueAmt).toLocaleString('en-PK')} outstanding
+              </div>
+              <p className="text-red-600 leading-relaxed">
+                Additional documentation and guarantor required before processing any new installment invoice.
+                Cleared: {customerPaymentTrack.paidCount}/{customerPaymentTrack.totalSlots} installments.
+              </p>
+            </div>
+          )}
+          {customerPaymentTrack && customerPaymentTrack.status === 'clean' && customerPaymentTrack.totalSlots > 0 && (
+            <div className="px-3 py-2.5 bg-emerald-50 border border-emerald-300 rounded-xl text-xs space-y-0.5">
+              <div className="flex items-center gap-1.5 font-bold text-emerald-700">
+                <CheckCircle className="w-3.5 h-3.5" />
+                Verified — Clean payment record ({customerPaymentTrack.paidCount}/{customerPaymentTrack.totalSlots} installments paid on time)
+              </div>
+              <p className="text-emerald-600">No additional documentation required for new installment invoices.</p>
             </div>
           )}
           <input value={customerEmail} onChange={e => setCustomerEmail(e.target.value)}
