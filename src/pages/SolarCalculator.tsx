@@ -1429,6 +1429,14 @@ export default function SolarCalculator() {
               )}
             </div>
 
+            {/* Disclaimer */}
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-800 space-y-1.5">
+              <p className="font-bold text-amber-900">Important — Calculator Assumptions</p>
+              <p>This estimate assumes <strong>5–5.5 peak sun hours/day</strong> (Karachi average), <strong>PKR 50–60/unit</strong> electricity rate, and standard roof orientation. Actual output and savings will vary based on your site, shading, usage pattern, and local tariff.</p>
+              <p>Prices are indicative. Final price is confirmed after a site visit. Panel degradation (~0.5%/year), elevated frame costs, and any special structural requirements are not included in this estimate.</p>
+              <p>Solar systems above <strong>5kW or PKR 700,000</strong> require full cash payment. Installment plans require a minimum <strong>40% advance</strong> and are subject to approval. <a href="/policy/solar" className="underline font-semibold hover:text-amber-900">Full solar disclaimer →</a></p>
+            </div>
+
             {/* Lead capture */}
             {!submitted ? (
               <div className="bg-white rounded-2xl shadow-sm border border-brand-100 p-5">

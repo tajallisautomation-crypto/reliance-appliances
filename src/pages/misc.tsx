@@ -5,7 +5,7 @@ import {
   Phone, MessageCircle, Building2, Award, Shield, ClipboardList,
   Wrench, Truck, CalendarCheck, CheckCircle, Star, Clock,
   ThumbsUp, Headphones, Zap, Users, ChevronRight, AlertCircle,
-  ChevronDown,
+  ChevronDown, Mail,
 } from 'lucide-react'
 import SEO from '@/components/ui/SEO'
 import { getMaintenanceImages, type MediaItem } from '@/lib/gallery'
@@ -729,70 +729,156 @@ export function Services() {
 const CORP_BENEFITS = [
   {
     icon: Building2,
-    title: 'Volume Pricing',
-    desc: 'Dedicated pricing tiers for orders of 5, 10, 20+ units. The more you order, the more you save — with no compromise on after-sale support.',
+    title: 'Volume Pricing — Up to 12% Off',
+    desc: '5 units: 4% off. 10 units: 8% off. 20+ units: 12% off list price. Savings are applied per-item across the full order. Applies to ACs, refrigerators, washing machines, TVs, and more.',
     bg: 'bg-blue-50 border-blue-100',   fg: 'text-blue-600',
   },
   {
     icon: Shield,
     title: 'Extended Warranty & Priority Service',
-    desc: 'Corporate clients receive extended warranty periods and jump-the-queue priority for any service or breakdown calls — same-day response guaranteed.',
+    desc: 'Corporate accounts receive extended warranty coordination and jump-the-queue priority for any service or breakdown. Guaranteed 4-hour response for breakdown calls — no waiting behind retail queue.',
     bg: 'bg-green-50 border-green-100',  fg: 'text-green-600',
   },
   {
     icon: ClipboardList,
     title: 'Dedicated Account Manager',
-    desc: 'A single point of contact manages your entire procurement — from quotation to delivery to after-sale. No call centres, no hold music.',
+    desc: 'A single named contact manages your entire procurement — from specification to quotation to delivery to after-sale. Reach them directly by WhatsApp. No call centres, no hold music, no re-explaining.',
     bg: 'bg-brand-50 border-brand-100', fg: 'text-brand-600',
   },
   {
     icon: Award,
-    title: 'Custom Procurement Packages',
-    desc: 'We build brand-agnostic bundles optimised for your use case — office, hotel, hospital, or factory. Specification, sourcing, and logistics handled end-to-end.',
+    title: 'Brand-Agnostic Procurement',
+    desc: "We source the right product for your requirement — not just what's in stock. We carry Haier, Dawlance, Gree, EcoStar, Westpoint, Crown, and others. Your spec drives the selection, not our margin.",
     bg: 'bg-purple-50 border-purple-100', fg: 'text-purple-600',
+  },
+  {
+    icon: Truck,
+    title: 'Phased & Scheduled Delivery',
+    desc: 'Projects with multiple phases (fit-out, floor-by-floor, building-by-building) get phased delivery at no extra cost. We work to your project schedule, not ours.',
+    bg: 'bg-amber-50 border-amber-100', fg: 'text-amber-600',
+  },
+  {
+    icon: Zap,
+    title: 'Commercial Solar Packages',
+    desc: 'Reduce your commercial electricity bill with a custom solar system. We design, supply, install, and maintain. Grid-tied and hybrid options for offices, factories, and retail units.',
+    bg: 'bg-eco-50 border-eco-100', fg: 'text-eco-600',
   },
 ]
 
 const INDUSTRIES = [
-  { emoji: '🏨', name: 'Hotels & Hospitality' },
-  { emoji: '🏢', name: 'Offices & Commercial' },
-  { emoji: '🏗️', name: 'Real Estate & Developers' },
-  { emoji: '🏫', name: 'Schools & Institutions' },
-  { emoji: '🏥', name: 'Clinics & Healthcare' },
-  { emoji: '🏭', name: 'Factories & Industry' },
+  { emoji: '🏨', name: 'Hotels & Hospitality',       desc: 'Room ACs, commercial fridges, laundry equipment, backup power' },
+  { emoji: '🏢', name: 'Offices & Commercial',        desc: 'Multi-floor AC systems, UPS backup, kitchen appliances' },
+  { emoji: '🏗️', name: 'Real Estate & Developers',   desc: 'Fit-out packages per unit, bulk pricing, phased delivery' },
+  { emoji: '🏫', name: 'Schools & Institutions',       desc: 'Classroom ACs, admin refrigeration, solar for cost reduction' },
+  { emoji: '🏥', name: 'Clinics & Healthcare',         desc: 'Medical-grade cooling, reliable backup power, fast response' },
+  { emoji: '🏭', name: 'Factories & Industry',         desc: 'Industrial cooling, large-capacity freezers, solar systems' },
+  { emoji: '💇', name: 'Salons & Beauty',              desc: 'Reliable UPS + AC packages, backup power for chairs & equipment' },
+  { emoji: '🍽️', name: 'Restaurants & Cafes',         desc: 'Commercial refrigeration, freezers, kitchen appliances' },
+  { emoji: '🏬', name: 'Retail & Showrooms',           desc: 'Display cooling, energy-efficient ACs, solar to cut overheads' },
+]
+
+const CORP_CATEGORIES = [
+  { emoji: '❄️', name: 'Air Conditioners', detail: '1T–4T floor standing, inverter & T3-rated, any brand' },
+  { emoji: '🧊', name: 'Refrigerators & Freezers', detail: 'Commercial upright, chest deep freezers, display units' },
+  { emoji: '👕', name: 'Washing Machines', detail: 'Semi-auto, fully auto, front-load — bulk rates' },
+  { emoji: '📺', name: 'Televisions & Displays', detail: 'Smart TVs for waiting areas, conference rooms, lobbies' },
+  { emoji: '☀️', name: 'Solar Systems', detail: 'Grid-tied, hybrid, off-grid — complete supply & install' },
+  { emoji: '🔋', name: 'UPS & Battery Backup', detail: 'Salon, office, and factory backup power packages' },
+  { emoji: '🍳', name: 'Kitchen Appliances', detail: 'Microwaves, water dispensers, commercial kitchen equipment' },
+  { emoji: '💨', name: 'Fans & Ventilation', detail: 'Industrial fans, exhaust systems, office ceiling fans' },
 ]
 
 export function Corporate() {
   return (
     <div className="min-h-screen bg-white">
       <SEO
-        title="Corporate Solutions — Tajalli's Karachi"
-        description="Bulk appliance procurement for offices, hotels, hospitals, and developers. Volume pricing, dedicated account manager, and priority after-sale support."
+        title="Commercial Solutions — Tajalli's Home & Commercial Solutions, Karachi"
+        description="B2B appliance procurement for offices, hotels, clinics, schools, and developers in Karachi. Volume pricing up to 12% off, dedicated account manager, phased delivery, and priority after-sale support. Quote in 24 hours."
+        keywords="commercial appliances karachi, bulk ac purchase karachi, corporate procurement karachi, office ac installation karachi, commercial solar karachi, hotel appliances karachi"
       />
 
       {/* Hero */}
       <div className="bg-gray-900 text-white py-16 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <p className="text-blue-400 text-xs font-bold uppercase tracking-widest mb-3">B2B Procurement</p>
-          <h1 className="text-3xl md:text-5xl font-black mb-4">Corporate Solutions</h1>
-          <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-            Bulk pricing, a dedicated account manager, and enterprise-grade after-sale support
-            for businesses that expect more than a standard retailer can offer.
-          </p>
-          <div className="flex flex-wrap gap-4 justify-center mt-8">
-            <a href={waSales('Hi, I\'d like a corporate quote')} target="_blank" rel="noreferrer"
-              className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
-              <MessageCircle className="w-4 h-4" /> WhatsApp Corporate Team
-            </a>
-            <a href="tel:+923702578788"
-              className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold bg-white/10 hover:bg-white/20 transition-colors">
-              <Phone className="w-4 h-4" /> +92 370 2578788
-            </a>
+        <div className="max-w-5xl mx-auto">
+          <div className="max-w-2xl">
+            <p className="text-blue-400 text-xs font-bold uppercase tracking-widest mb-3">Commercial Solutions · B2B Procurement</p>
+            <h1 className="text-3xl md:text-5xl font-black mb-4 leading-tight">
+              Appliances &amp; Solar<br />
+              <span className="text-brand-400">for Businesses That Mean Business.</span>
+            </h1>
+            <p className="text-gray-400 text-lg mb-8 max-w-xl leading-relaxed">
+              Volume pricing up to 12% off, a dedicated account manager, phased delivery, and 4-hour breakdown response — for offices, hotels, clinics, schools, and developers across Karachi.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <a href={waSales("Hi, I'd like a commercial/B2B quote for my business")} target="_blank" rel="noreferrer"
+                className="flex items-center gap-2 px-6 py-3.5 rounded-2xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
+                <MessageCircle className="w-4 h-4" /> WhatsApp Corporate Team
+              </a>
+              <a href="mailto:sales@tajallis.com.pk"
+                className="flex items-center gap-2 px-6 py-3.5 rounded-2xl font-bold bg-white/10 hover:bg-white/20 border border-white/20 transition-colors">
+                <Mail className="w-4 h-4" /> sales@tajallis.com.pk
+              </a>
+              <a href="tel:+923702578788"
+                className="flex items-center gap-2 px-6 py-3.5 rounded-2xl font-bold bg-white/10 hover:bg-white/20 transition-colors">
+                <Phone className="w-4 h-4" /> +92 370 2578788
+              </a>
+            </div>
           </div>
         </div>
       </div>
 
+      {/* Stats strip */}
+      <div className="border-b border-gray-100 bg-gray-50">
+        <div className="max-w-5xl mx-auto px-4 py-6 grid grid-cols-2 sm:grid-cols-4 gap-6">
+          {[
+            { value: '11+ yrs', label: 'Serving Karachi businesses' },
+            { value: '24h',     label: 'Branded quote turnaround' },
+            { value: '4 hrs',   label: 'Corporate breakdown response' },
+            { value: '12%',     label: 'Volume discount on 20+ units' },
+          ].map(s => (
+            <div key={s.label} className="text-center">
+              <p className="text-2xl font-black text-gray-900">{s.value}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="max-w-5xl mx-auto px-4 py-14 space-y-16">
+
+        {/* Volume pricing table */}
+        <section>
+          <div className="text-center mb-10">
+            <h2 className="text-2xl font-black text-gray-900">Volume Pricing Tiers</h2>
+            <p className="text-gray-500 mt-1 text-sm">Applied per-item across your entire order. Discounts are off our standard list price.</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="bg-gray-900 text-white">
+                  <th className="text-left px-5 py-3 rounded-tl-2xl font-bold">Order Size</th>
+                  <th className="text-center px-5 py-3 font-bold">Discount</th>
+                  <th className="text-left px-5 py-3 rounded-tr-2xl font-bold">What You Get</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { qty: '1–4 units',  disc: 'Standard price', extras: 'Same-day delivery, professional installation, after-sale support' },
+                  { qty: '5–9 units',  disc: '4% off',         extras: '+ Account manager, priority scheduling, consolidated delivery' },
+                  { qty: '10–19 units',disc: '8% off',         extras: '+ Phased delivery, extended coordination, invoice billing available' },
+                  { qty: '20+ units',  disc: '12% off',        extras: '+ Dedicated on-site liaison, custom SLA, 4-hour breakdown response' },
+                ].map((row, i) => (
+                  <tr key={row.qty} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-5 py-3.5 font-bold text-gray-900 border-b border-gray-100">{row.qty}</td>
+                    <td className="px-5 py-3.5 text-center font-black text-brand-600 border-b border-gray-100">{row.disc}</td>
+                    <td className="px-5 py-3.5 text-gray-600 border-b border-gray-100">{row.extras}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-gray-400 mt-3 text-center">Discounts apply to standard retail prices. Subject to product availability and brand. Contact us for a custom quote.</p>
+        </section>
 
         {/* Benefits */}
         <section>
@@ -800,12 +886,29 @@ export function Corporate() {
             <h2 className="text-2xl font-black text-gray-900">Why Businesses Choose Tajalli's</h2>
             <p className="text-gray-500 mt-1 text-sm">Built for procurement teams that need reliability, not just a price list</p>
           </div>
-          <div className="grid sm:grid-cols-2 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {CORP_BENEFITS.map(b => (
-              <div key={b.title} className={`${b.bg} border rounded-2xl p-6`}>
-                <b.icon className={`w-8 h-8 ${b.fg} mb-4`} />
-                <h3 className="font-bold text-gray-900 mb-2">{b.title}</h3>
+              <div key={b.title} className={`${b.bg} border rounded-2xl p-5`}>
+                <b.icon className={`w-7 h-7 ${b.fg} mb-3`} />
+                <h3 className="font-bold text-gray-900 mb-1.5 text-sm">{b.title}</h3>
                 <p className="text-sm text-gray-600 leading-relaxed">{b.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Product categories */}
+        <section>
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-black text-gray-900">What We Supply Commercially</h2>
+            <p className="text-gray-500 mt-1 text-sm">All products are genuine, brand-warranted, and backed by our after-sale support</p>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {CORP_CATEGORIES.map(c => (
+              <div key={c.name} className="bg-gray-50 border border-gray-100 rounded-2xl p-4">
+                <span className="text-2xl block mb-2">{c.emoji}</span>
+                <h3 className="font-bold text-gray-900 text-sm mb-1">{c.name}</h3>
+                <p className="text-xs text-gray-500 leading-snug">{c.detail}</p>
               </div>
             ))}
           </div>
@@ -816,11 +919,14 @@ export function Corporate() {
           <div className="text-center mb-8">
             <h2 className="text-2xl font-black text-gray-900">Industries We Serve</h2>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {INDUSTRIES.map(i => (
-              <div key={i.name} className="flex items-center gap-3 bg-gray-50 rounded-2xl p-4 border border-gray-100">
-                <span className="text-2xl">{i.emoji}</span>
-                <span className="font-medium text-gray-800 text-sm">{i.name}</span>
+              <div key={i.name} className="flex items-start gap-3 bg-white border border-gray-100 rounded-2xl p-4 hover:border-brand-200 hover:shadow-sm transition-all">
+                <span className="text-2xl shrink-0">{i.emoji}</span>
+                <div>
+                  <p className="font-bold text-gray-900 text-sm">{i.name}</p>
+                  <p className="text-xs text-gray-500 mt-0.5 leading-snug">{i.desc}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -831,10 +937,10 @@ export function Corporate() {
           <h2 className="text-xl font-black text-gray-900 mb-8 text-center">How It Works</h2>
           <div className="grid sm:grid-cols-4 gap-6">
             {[
-              { num: '01', title: 'Send Requirements', desc: 'Share your product list, quantities, and timeline via WhatsApp or email.' },
-              { num: '02', title: 'Receive Custom Quote', desc: 'Your account manager sends a branded quotation within 24 hours.' },
-              { num: '03', title: 'Agree & Advance', desc: 'Confirm the order. Standard corporate terms available for pre-qualified buyers.' },
-              { num: '04', title: 'Phased Delivery', desc: 'We deliver and install in phases to match your project schedule.' },
+              { num: '01', title: 'Share Requirements', desc: 'Send your product list, quantities, delivery timeline, and site details via WhatsApp or email.' },
+              { num: '02', title: 'Receive Custom Quote', desc: 'Your account manager sends a branded, itemised quotation within 24 hours — no chasing required.' },
+              { num: '03', title: 'Confirm & Advance', desc: 'Approve the quote and place a 30% advance. Corporate payment terms available for pre-qualified accounts.' },
+              { num: '04', title: 'Phased Delivery', desc: 'We deliver and install to your project schedule — phase by phase, floor by floor, or all at once.' },
             ].map(step => (
               <div key={step.num} className="text-center">
                 <div className="w-10 h-10 bg-gray-900 text-white rounded-xl flex items-center justify-center mx-auto mb-3 font-black text-sm">{step.num}</div>
@@ -849,12 +955,12 @@ export function Corporate() {
         <section>
           <div className="grid sm:grid-cols-3 gap-4">
             {[
-              { icon: Clock, title: 'Quote in 24 Hours', desc: 'No back-and-forth. A full branded quotation delivered within one business day.' },
-              { icon: Truck, title: 'Phased Delivery Available', desc: 'We work around your project timeline — staggered delivery at no extra cost.' },
-              { icon: Zap, title: '4-Hour Breakdown Response', desc: 'Corporate clients receive guaranteed same-day response for any breakdown.' },
+              { icon: Clock, title: 'Quote in 24 Hours',           desc: 'A complete branded quotation with itemised pricing — delivered within one business day, every time.' },
+              { icon: Truck, title: 'Phased Delivery Available',   desc: 'We work around your project timeline — staggered delivery at no extra cost, with install coordination.' },
+              { icon: Zap,   title: '4-Hour Breakdown Response',   desc: 'Corporate accounts get guaranteed same-day response for any fault — your operations do not stop.' },
             ].map(g => (
               <div key={g.title} className="bg-white border border-gray-100 rounded-2xl p-5">
-                <g.icon className="w-5 h-5 text-blue-600 mb-3" />
+                <g.icon className="w-5 h-5 text-brand-600 mb-3" />
                 <h3 className="font-bold text-gray-900 mb-1 text-sm">{g.title}</h3>
                 <p className="text-xs text-gray-500 leading-relaxed">{g.desc}</p>
               </div>
@@ -863,25 +969,28 @@ export function Corporate() {
         </section>
 
         {/* CTA */}
-        <section className="bg-gray-900 rounded-3xl p-10 text-white text-center">
-          <h2 className="text-2xl font-black mb-2">Request a Corporate Quote</h2>
-          <p className="text-gray-400 mb-8 max-w-md mx-auto text-sm">
-            Tell us your requirements and your account manager will send a complete proposal within 24 hours.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href={waSales('Hi, I\'d like a corporate appliance quote for my business')} target="_blank" rel="noreferrer"
-              className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
-              <MessageCircle className="w-4 h-4" /> WhatsApp Corporate Team
-            </a>
-            <a href="tel:+923702578788"
-              className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-bold bg-white text-gray-900 hover:bg-gray-100 transition-colors">
-              <Phone className="w-4 h-4" /> +92 370 2578788
-            </a>
-          </div>
-          <div className="mt-6 flex flex-wrap gap-4 justify-center text-sm">
-            <Link to="/services" className="text-gray-400 hover:text-white underline">After-Sale Services</Link>
-            <Link to="/partner" className="text-gray-400 hover:text-white underline">Become a Partner</Link>
-            <Link to="/contact" className="text-gray-400 hover:text-white underline">Get in Touch</Link>
+        <section className="bg-gray-900 rounded-3xl p-8 sm:p-12 text-white">
+          <div className="max-w-2xl mx-auto text-center">
+            <h2 className="text-2xl sm:text-3xl font-black mb-3">Ready to get a commercial quote?</h2>
+            <p className="text-gray-400 mb-8 text-sm leading-relaxed">
+              Share your requirements — product list, quantities, delivery timeline, site location — and your account manager will send a complete itemised proposal within 24 hours.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <a href={waSales("Hi, I'd like a commercial/B2B appliance quote for my business")} target="_blank" rel="noreferrer"
+                className="flex items-center justify-center gap-2 px-8 py-4 rounded-2xl font-bold text-white bg-wa hover:bg-wa-hover transition-colors">
+                <MessageCircle className="w-4 h-4" /> WhatsApp Corporate Team
+              </a>
+              <a href="mailto:sales@tajallis.com.pk"
+                className="flex items-center justify-center gap-2 px-8 py-4 rounded-2xl font-bold bg-white text-gray-900 hover:bg-gray-100 transition-colors">
+                <Mail className="w-4 h-4" /> sales@tajallis.com.pk
+              </a>
+            </div>
+            <p className="text-gray-500 text-xs mt-6">Or call directly: <a href="tel:+923702578788" className="text-gray-400 hover:text-white underline">+92 370 2578788</a></p>
+            <div className="mt-6 flex flex-wrap gap-4 justify-center text-sm">
+              <Link to="/services" className="text-gray-400 hover:text-white underline">After-Sale Services</Link>
+              <Link to="/solar" className="text-gray-400 hover:text-white underline">Commercial Solar</Link>
+              <Link to="/partner" className="text-gray-400 hover:text-white underline">Become a Partner</Link>
+            </div>
           </div>
         </section>
 

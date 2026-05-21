@@ -17,7 +17,7 @@ import PortalReferrals from '@/components/portal/PortalReferrals'
 import PortalLoyalty from '@/components/portal/PortalLoyalty'
 import PortalAccount from '@/components/portal/PortalAccount'
 import PortalCarePlans from '@/components/portal/PortalCarePlans'
-import type { CustomerProfile, CustomerAppliance, CustomerCarePlan, LoyaltyTransaction, ReferralEarning, PortalOrder, PortalData } from '@/components/portal/portalTypes'
+import type { CustomerProfile, CustomerAppliance, CustomerCarePlan, LoyaltyTransaction, ReferralEarning, PortalOrder, PortalData, InvoicePurchase, InstallmentSlot, AccountVerification } from '@/components/portal/portalTypes'
 import toast from 'react-hot-toast'
 
 type Tab = 'overview' | 'orders' | 'appliances' | 'support' | 'payments' | 'recommendations' | 'referrals' | 'loyalty' | 'account' | 'care-plans'
@@ -102,6 +102,15 @@ function SetNewPasswordView() {
   )
 }
 
+function parseWarrantyMonths(text: string | null): number {
+  if (!text) return 12
+  const yr = text.match(/(\d+)\s*year/i)
+  if (yr) return parseInt(yr[1]) * 12
+  const mo = text.match(/(\d+)\s*month/i)
+  if (mo) return parseInt(mo[1])
+  return 12
+}
+
 // ── Authenticated dashboard ────────────────────────────────────────────────
 function DashboardView({ email }: { email: string }) {
   const [activeTab, setActiveTab] = useState<Tab>('overview')
@@ -110,8 +119,15 @@ function DashboardView({ email }: { email: string }) {
   const [appliances, setAppliances]             = useState<CustomerAppliance[]>([])
   const [loyaltyTxns, setLoyaltyTxns]           = useState<LoyaltyTransaction[]>([])
   const [referralEarnings, setReferralEarnings] = useState<ReferralEarning[]>([])
-  const [orders, setOrders]       = useState<PortalOrder[]>([])
-  const [carePlans, setCarePlans] = useState<CustomerCarePlan[]>([])
+  const [orders, setOrders]               = useState<PortalOrder[]>([])
+  const [carePlans, setCarePlans]         = useState<CustomerCarePlan[]>([])
+  const [invoicePurchases, setInvoicePurchases] = useState<InvoicePurchase[]>([])
+  const EMPTY_VERIFICATION: AccountVerification = {
+    isDefaulter: false, overdueCount: 0, totalOverdueAmount: 0,
+    paidCount: 0, totalMonthlySlots: 0,
+    nextDueDate: null, nextDueAmount: null, installmentSlots: [],
+  }
+  const [accountVerification, setAccountVerification] = useState<AccountVerification>(EMPTY_VERIFICATION)
 
   const fetchAll = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -141,18 +157,140 @@ function DashboardView({ email }: { email: string }) {
         ? `customer_email.eq.${email},customer_phone.eq.${profilePhone}`
         : `customer_email.eq.${email}`
 
-      const [aRes, lRes, rRes, oRes, cpRes] = await Promise.all([
+      const [aRes, lRes, rRes, oRes, cpRes, invRes] = await Promise.all([
         supabase.from('customer_appliances').select('*').eq('user_id', uid).eq('is_active', true).order('created_at', { ascending: false }),
         supabase.from('loyalty_transactions').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(50),
         supabase.from('referral_earnings').select('*').eq('referrer_user_id', uid).order('created_at', { ascending: false }),
         supabase.from('orders').select('*').or(orderFilter).order('created_at', { ascending: false }).limit(20),
         supabase.from('customer_care_plans').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
+        supabase
+          .from('invoices')
+          .select('id,ref_number,doc_type,created_at,grand_total,payment_status,sale_type,inst_months,inst_advance_amt,inst_monthly_amt,notes,portal_user_id,invoice_lines(name,model,category,qty,unit_price,warranty,product_id)')
+          .or(`portal_user_id.eq.${uid},customer_email.eq.${email}`)
+          .in('doc_type', ['invoice', 'installment-invoice'])
+          .order('created_at', { ascending: false })
+          .limit(30),
       ])
-      setAppliances(aRes.data || [])
+
+      const currentAppliances: CustomerAppliance[] = aRes.data || []
+      setAppliances(currentAppliances)
       setLoyaltyTxns(lRes.data || [])
       setReferralEarnings(rRes.data || [])
       setOrders(oRes.data || [])
       setCarePlans(cpRes.data || [])
+
+      // ── Invoice purchases ─────────────────────────────────────────────────
+      const rawInvoices = (invRes.data ?? []) as any[]
+      const purchases: InvoicePurchase[] = rawInvoices.map(inv => ({
+        id:               inv.id,
+        ref_number:       inv.ref_number,
+        doc_type:         inv.doc_type,
+        created_at:       inv.created_at,
+        grand_total:      inv.grand_total ?? 0,
+        payment_status:   inv.payment_status,
+        sale_type:        inv.sale_type,
+        inst_months:      inv.inst_months,
+        inst_advance_amt: inv.inst_advance_amt,
+        inst_monthly_amt: inv.inst_monthly_amt,
+        notes:            inv.notes,
+        lines:            (inv.invoice_lines ?? []).map((l: any) => ({
+          name: l.name, model: l.model, category: l.category,
+          qty: l.qty, unit_price: l.unit_price, warranty: l.warranty, product_id: l.product_id,
+        })),
+      }))
+      setInvoicePurchases(purchases)
+
+      // ── Installment payment verification (authoritative from admin ledger) ─
+      const installmentInvoiceIds = rawInvoices
+        .filter(inv => inv.doc_type === 'installment-invoice')
+        .map(inv => inv.id)
+
+      if (installmentInvoiceIds.length > 0) {
+        const { data: slotData } = await supabase
+          .from('installment_schedules')
+          .select('id,invoice_id,installment_no,due_date,amount_due,amount_paid,status,paid_at')
+          .in('invoice_id', installmentInvoiceIds)
+          .order('due_date', { ascending: true })
+
+        const slots = (slotData ?? []) as InstallmentSlot[]
+        const today = new Date()
+
+        // Monthly slots only (installment_no > 0 excludes the advance row)
+        const monthly = slots.filter(s => s.installment_no > 0)
+
+        // Overdue = explicitly marked overdue OR pending but past due date
+        const overdueSlots = monthly.filter(s =>
+          s.status === 'overdue' ||
+          (s.status === 'pending' && new Date(s.due_date) < today)
+        )
+        const upcomingSlots = monthly
+          .filter(s => s.status === 'pending' && new Date(s.due_date) >= today)
+
+        const totalOverdueAmount = overdueSlots.reduce(
+          (sum, s) => sum + Math.max(0, (s.amount_due ?? 0) - (s.amount_paid ?? 0)), 0
+        )
+
+        setAccountVerification({
+          isDefaulter:        overdueSlots.length > 0,
+          overdueCount:       overdueSlots.length,
+          totalOverdueAmount,
+          paidCount:          monthly.filter(s => s.status === 'paid').length,
+          totalMonthlySlots:  monthly.length,
+          nextDueDate:        upcomingSlots[0]?.due_date ?? null,
+          nextDueAmount:      upcomingSlots[0]?.amount_due ?? null,
+          installmentSlots:   slots,
+        })
+      } else {
+        setAccountVerification(EMPTY_VERIFICATION)
+      }
+
+      // ── Auto-populate appliances from admin-linked invoices ───────────────
+      // Only runs for invoices where admin explicitly linked this user account.
+      const linkedInvoices = rawInvoices.filter(inv => inv.portal_user_id === uid)
+      if (linkedInvoices.length > 0) {
+        const existingSerials = new Set(currentAppliances.map(a => a.serial_no).filter(Boolean))
+        const newAppliances: CustomerAppliance[] = []
+
+        for (const inv of linkedInvoices) {
+          for (const line of (inv.invoice_lines ?? []) as any[]) {
+            if (!line.model) continue
+            const serial = `${inv.ref_number}-${line.model.replace(/\s+/g, '')}`
+            if (existingSerials.has(serial)) continue
+
+            const warrantyMonths = parseWarrantyMonths(line.warranty)
+            const purchaseDate = new Date(inv.created_at)
+            const warrantyEnd = new Date(purchaseDate)
+            warrantyEnd.setMonth(warrantyEnd.getMonth() + warrantyMonths)
+            const brandGuess = (line.name ?? '').split(' ')[0] || 'Unknown'
+
+            const { data: created } = await supabase
+              .from('customer_appliances')
+              .upsert({
+                user_id:             uid,
+                brand:               brandGuess,
+                model:               line.model,
+                category:            line.category || 'Appliance',
+                purchase_year:       purchaseDate.getFullYear(),
+                purchase_source:     'tajallis',
+                warranty_start_date: purchaseDate.toISOString().slice(0, 10),
+                warranty_end_date:   warrantyEnd.toISOString().slice(0, 10),
+                serial_no:           serial,
+                notes:               `Invoice ${inv.ref_number}${line.warranty ? ` · ${line.warranty}` : ''}`,
+                is_active:           true,
+              }, { onConflict: 'user_id,serial_no' })
+              .select()
+              .single()
+
+            if (created) {
+              newAppliances.push(created as CustomerAppliance)
+              existingSerials.add(serial)
+            }
+          }
+        }
+        if (newAppliances.length > 0) {
+          setAppliances(prev => [...newAppliances, ...prev])
+        }
+      }
     } catch (err) {
       if (import.meta.env.DEV) console.error('[Portal]', err)
     } finally { setLoading(false) }
@@ -162,6 +300,7 @@ function DashboardView({ email }: { email: string }) {
 
   const portalData: PortalData = {
     profile, appliances, loyaltyTxns, referralEarnings, orders, carePlans,
+    invoicePurchases, accountVerification,
     reload: fetchAll,
     navigateTo: (tab: string) => setActiveTab(tab as Tab),
   }

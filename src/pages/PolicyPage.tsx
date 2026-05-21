@@ -2,7 +2,7 @@ import { useParams, Link, Navigate } from 'react-router-dom'
 import SEO from '@/components/ui/SEO'
 import { waSales } from '@/lib/whatsapp'
 
-type PolicyType = 'privacy' | 'terms' | 'warranty' | 'refund'
+type PolicyType = 'privacy' | 'terms' | 'warranty' | 'refund' | 'installment' | 'care-plan' | 'solar' | 'service'
 
 const POLICIES: Record<PolicyType, { title: string; description: string; content: Array<{ heading: string; body: string }> }> = {
   privacy: {
@@ -67,26 +67,30 @@ const POLICIES: Record<PolicyType, { title: string; description: string; content
   },
   warranty: {
     title: 'Warranty Policy',
-    description: "Understanding your warranty coverage when you buy from Tajalli's.",
+    description: "Understanding your warranty coverage when you buy from Tajalli's — both manufacturer warranty and our own service guarantees.",
     content: [
       {
         heading: 'Official Brand Warranty',
-        body: `All products sold by Tajalli's come with the official manufacturer's warranty. Warranty periods vary by brand and product category — for example, Haier AC compressors carry a 5-year warranty, while Dawlance refrigerator compressors carry a 10-year warranty. The specific warranty for each product is displayed on the product page.`,
+        body: `All products sold by Tajalli's come with the official manufacturer's warranty. Warranty periods vary by brand and product category — for example, Haier AC compressors carry a 5-year warranty, while Dawlance refrigerator compressors carry a 10-year warranty. The specific warranty period for each product is displayed on the product page.`,
       },
       {
         heading: 'What Is Covered',
-        body: `Warranty covers manufacturing defects and component failures under normal use conditions. This includes motor failures, compressor failures, electronic control issues, and other defects not caused by misuse.`,
+        body: `Manufacturer warranty covers manufacturing defects and component failures under normal use conditions. This includes motor failures, compressor failures, electronic control issues, and other defects not caused by misuse or external damage.`,
       },
       {
         heading: 'What Is Not Covered',
         body: `Warranty does not cover: physical damage caused by mishandling or accidents; damage caused by power surges or improper installation; consumable parts (filters, belts, etc.); damage caused by unauthorised repair or modification; and normal wear and tear.`,
       },
       {
-        heading: 'How to Claim Warranty',
-        body: `To claim warranty, WhatsApp us at +92 370 2578788 with your order reference number and a description / photo of the issue. We will coordinate with the brand's authorised service centre on your behalf. Most claims are processed within 3–7 working days.`,
+        heading: '90-Day Workmanship Guarantee (Repair Services)',
+        body: `This is separate from manufacturer warranty and applies only to repair and maintenance services performed by Tajalli's technicians. If the same fault recurs within 90 days of a completed repair, we return and fix it at no additional charge. This guarantee covers our labour and the specific fault repaired — it does not cover new or unrelated faults, nor does it replace the manufacturer's product warranty.`,
       },
       {
-        heading: 'Tajalli\'s After-Sale Support',
+        heading: 'How to Claim Warranty',
+        body: `To claim manufacturer warranty, WhatsApp us at +92 370 2578788 with your order reference number and a description or photo of the issue. We will coordinate with the brand's authorised service centre on your behalf. Most claims are processed within 3–7 working days.`,
+      },
+      {
+        heading: "Tajalli's After-Sale Support",
         body: `Beyond manufacturer warranty, we provide our own after-sale support. Our team follows up with customers after purchase, assists with service scheduling, and ensures warranty claims are handled efficiently. We act as your advocate with the brand.`,
       },
     ],
@@ -118,6 +122,146 @@ const POLICIES: Record<PolicyType, { title: string; description: string; content
       {
         heading: 'Contact for Returns',
         body: `For all return and refund enquiries, WhatsApp +92 370 2578788 or email support@tajallis.com.pk. Please have your order reference ready.`,
+      },
+    ],
+  },
+  installment: {
+    title: 'Installment Policy',
+    description: "How Tajalli's in-house installment plans work — terms, advance requirements, and payment conditions.",
+    content: [
+      {
+        heading: 'In-House Financing — No Bank Required',
+        body: `Tajalli's installment plans are offered directly by us, not through a bank or third-party finance company. No CNIC verification, no bank account, and no credit check required. Plans are available on most products including ACs, refrigerators, washing machines, televisions, and more.`,
+      },
+      {
+        heading: 'Plan Options',
+        body: `We offer 2, 3, 6, and 12-payment plans. Each plan includes an advance payment due at delivery, followed by equal monthly payments. The total installment cost is higher than the cash price — this difference (the financing charge) is shown upfront before you commit. There are no hidden fees.`,
+      },
+      {
+        heading: 'Advance Payment Requirement',
+        body: `An advance payment is required before delivery for all installment orders. The advance is typically 30–40% of the total installment cost depending on the plan and product. For solar systems, the minimum advance is 40% and systems above PKR 700,000 or 5kW must be paid in full (cash only).`,
+      },
+      {
+        heading: 'Payment Schedule & Due Dates',
+        body: `Your payment schedule is confirmed at the time of order. Monthly payments are due on the same date each month. We will send a reminder before each due date. Payments are accepted via cash, bank transfer, JazzCash, and EasyPaisa.`,
+      },
+      {
+        heading: 'Late or Missed Payments',
+        body: `If a payment is missed or significantly delayed, our team will contact you to arrange resolution. Repeated non-payment may result in recovery action and may affect your eligibility for future installment purchases. We are always willing to discuss payment difficulties before they escalate — please contact us early.`,
+      },
+      {
+        heading: 'Refund on Installment Orders',
+        body: `If a product is returned under our refund policy, the advance payment will be refunded and the installment plan cancelled. If the installment plan was arranged with a third-party financier on your behalf, refund terms may differ — we will advise at time of return.`,
+      },
+      {
+        heading: 'Installment Calculator',
+        body: `Use our free Installment Calculator at tajallis.com.pk/installments to see exact advance, monthly payment, and total cost for any product price before you buy.`,
+      },
+    ],
+  },
+  'care-plan': {
+    title: 'Care Plan Policy',
+    description: "Terms covering Tajalli's annual care plans — what's included, how to claim, and plan limitations.",
+    content: [
+      {
+        heading: 'What Is a Care Plan?',
+        body: `A Tajalli's Care Plan is an annual maintenance and protection agreement for your home appliances. It is separate from the manufacturer's product warranty. Care plans cover preventive maintenance visits, priority response, and — depending on your plan tier — parts and repair costs.`,
+      },
+      {
+        heading: 'Plan Tiers',
+        body: `Essential Care (from PKR 3,000/year): 1 preventive visit, basic inspection, 10% off repairs, 72-hour response. Plus Care (from PKR 6,500/year): 2 visits, covered parts, maintenance labour included, priority 48-hour response. Elite Care (from PKR 13,650/year): 3 visits, covered repairs and parts, replacement if non-repairable, priority 24-hour response. Exact pricing depends on appliance type and size.`,
+      },
+      {
+        heading: 'What Is Covered',
+        body: `Care plans cover scheduled preventive maintenance visits, labour for covered repairs, and (on Plus and Elite tiers) specified replacement parts. Elite plans include a like-for-like replacement if the appliance is determined non-repairable by our technician.`,
+      },
+      {
+        heading: 'What Is Not Covered',
+        body: `Care plans do not cover: physical damage from accidents or misuse; damage from power surges, flooding, or fire; cosmetic damage (dents, scratches); products modified by unauthorised technicians; consumable parts (filters, belts, light bulbs); and appliances that were already faulty at the time the plan was purchased.`,
+      },
+      {
+        heading: 'How to Raise a Care Plan Claim',
+        body: `WhatsApp us at +92 370 2578788 with your care plan reference number and a description of the fault. Our team will schedule a technician visit within your plan's response window. Please have your appliance serial number ready.`,
+      },
+      {
+        heading: 'Plan Period & Renewal',
+        body: `Care plans are valid for 12 months from the date of purchase. Plans do not renew automatically. We will contact you before expiry with a renewal option. Plans are non-transferable and apply to the specific appliance registered at time of purchase.`,
+      },
+      {
+        heading: 'Cancellation',
+        body: `Care plans may be cancelled within 14 days of purchase for a full refund, provided no service visit has been used. After 14 days or after the first visit, no refund is available for unused plan period. Cancellations must be requested in writing via WhatsApp or email.`,
+      },
+    ],
+  },
+  solar: {
+    title: 'Solar System Disclaimer',
+    description: "Important assumptions, limitations, and disclosures for Tajalli's solar system calculations and packages.",
+    content: [
+      {
+        heading: 'Calculation Assumptions',
+        body: `All solar savings estimates, payback periods, and system sizing recommendations on this website and in our calculators are based on standard assumptions: average Karachi peak sun hours of 5–5.5 hours per day; average grid electricity price of PKR 50–60 per unit; typical household load profiles for Pakistan. Actual results will vary based on your specific location, roof orientation, shading, appliance usage patterns, and local electricity tariff.`,
+      },
+      {
+        heading: 'These Are Estimates, Not Guarantees',
+        body: `Solar output estimates, savings projections, and payback periods shown in our Solar Calculator, Green Corridor pages, and package breakdowns are estimates for planning purposes only. Tajalli's does not guarantee any specific level of generation, savings, or payback period. An on-site assessment by our team is required before any firm commitment can be made.`,
+      },
+      {
+        heading: 'Panel Output Degradation',
+        body: `Solar panels degrade in output over time — typically 0.5% per year for premium panels. Our calculators do not factor in degradation. Year 1 output will be higher than Year 10 output. This does not affect the warranty or structural performance of the panels.`,
+      },
+      {
+        heading: 'Net Metering Eligibility',
+        body: `Net metering (selling surplus power to the grid) requires a minimum system size of 10 kW and is subject to NEPRA regulations and KESC/HESCO approval. Our net metering eligibility tool is indicative only. Tajalli's does not guarantee approval for net metering. Registration cost, processing time, and approval are outside our control.`,
+      },
+      {
+        heading: 'Package Pricing',
+        body: `Solar package prices shown on this website are current at the time of display but are subject to change due to exchange rate fluctuations and component price changes. The price valid at the time of your confirmed order is the price you will pay. Any price change after order confirmation and advance payment requires your agreement.`,
+      },
+      {
+        heading: 'Elevated Structure',
+        body: `Packages shown without an elevated structure assume a standard flat roof or ground mount. If an elevated/tilted structure is required for optimal angle, an additional cost applies (currently PKR 15,000 per panel or PKR 96,000 for a 3.6 kW system — confirm at time of order). Our team will advise during the site visit.`,
+      },
+      {
+        heading: 'Cash Only Above Threshold',
+        body: `Solar systems above 5 kW or above PKR 700,000 in total value are available on a cash-only basis. Installment plans for solar require a minimum 40% advance payment and are subject to approval. These terms reflect the financing risk on large, fixed-installation systems.`,
+      },
+      {
+        heading: 'After-Sale & Monitoring',
+        body: `Tajalli's provides after-installation support for systems we install. Manufacturer warranty on panels, inverters, and batteries is as stated by the respective brands. We coordinate warranty claims on your behalf. Remote monitoring availability depends on the inverter brand selected.`,
+      },
+    ],
+  },
+  service: {
+    title: 'Service Policy',
+    description: "How Tajalli's after-sale service and repair visits work — booking, pricing, and your rights.",
+    content: [
+      {
+        heading: 'How to Book a Service',
+        body: `All service bookings are made via WhatsApp at +92 370 2578788 or by calling +92 370 2578788. Share your appliance brand, model, and a description of the fault. We will confirm a technician visit within your requested timeframe.`,
+      },
+      {
+        heading: 'Technician Visit Fee',
+        body: `A visit fee of PKR 2,000 (standard, within 48 hours) or PKR 3,000 (urgent, same-day if booked by 12pm) applies to all service calls. This fee is charged regardless of whether repair work proceeds. If you decide not to proceed with repair after the diagnosis, the visit fee is forfeited — it covers the technician's time, transport, and diagnosis.`,
+      },
+      {
+        heading: 'Repair Pricing',
+        body: `All repair prices are fixed and shown upfront on our Services page. There are no hidden charges. If additional work beyond the initial diagnosis is required, the technician will inform you and obtain your approval before proceeding. You will not be charged for unauthorised additional work.`,
+      },
+      {
+        heading: '90-Day Workmanship Guarantee',
+        body: `If the same fault recurs within 90 days of a completed repair by Tajalli's technician, we return and fix it at no additional charge. This applies to the specific fault repaired only and does not cover new faults or product warranty claims.`,
+      },
+      {
+        heading: 'Genuine Parts',
+        body: `We use genuine or OEM-equivalent parts for all repairs. Where only aftermarket parts are available, we will advise you before fitting. Parts used in repairs carry a 30-day part defect guarantee (not to be confused with the 90-day workmanship guarantee on the repair itself).`,
+      },
+      {
+        heading: 'Annual Care Plans',
+        body: `For recurring maintenance needs, consider our annual Care Plans which bundle preventive visits, parts, and priority response at a lower per-visit cost. See our Care Plan Policy or visit tajallis.com.pk/services for plan options and pricing.`,
+      },
+      {
+        heading: 'Service Availability',
+        body: `Standard service is available across all major Karachi areas. Same-day urgent service is available in most areas if booked by 12pm. Service outside Karachi may incur a travel surcharge — ask when booking.`,
       },
     ],
   },

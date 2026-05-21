@@ -12,7 +12,7 @@ const NAV_LINKS: { label: string; href: string; eco?: boolean; business?: boolea
   { label: 'Build a Package', href: '/build-your-package' },
   { label: 'Installments',    href: '/installments' },
   { label: 'Solar & Backup',  href: '/solar' },
-  { label: 'For Business',    href: '/build-your-package', business: true },
+  { label: 'For Business',    href: '/corporate', business: true },
   { label: 'Green Corridor',  href: '/green-corridor', eco: true },
 ];
 
@@ -41,7 +41,7 @@ const MOBILE_GROUPS: { label: string; links: [string, string][] }[] = [
       ['Products',            '/products'],
       ['Build a Package 🎁', '/build-your-package'],
       ['Installments',        '/installments'],
-      ['For Business 🏢',    '/build-your-package'],
+      ['For Business 🏢',    '/corporate'],
     ],
   },
   {

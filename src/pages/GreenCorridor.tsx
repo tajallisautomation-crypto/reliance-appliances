@@ -813,6 +813,14 @@ export default function GreenCorridor() {
           </p>
         </div>
       </section>
+
+      {/* Solar disclaimer */}
+      <section className="max-w-5xl mx-auto px-4 pb-10">
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-800">
+          <p className="font-bold text-amber-900 mb-1">Savings &amp; Pricing Assumptions</p>
+          <p>All savings estimates assume Karachi average peak sun hours (5–5.5 hrs/day) and a PKR 50–60/unit electricity rate. Actual savings depend on your site, roof orientation, shading, appliance usage, and KESC tariff slab. Package prices are indicative and may vary with exchange rate and component availability. An on-site assessment is required before a firm price can be confirmed. Systems above 5kW or PKR 700,000 require cash payment. Installment plans require a minimum 40% advance. <Link to="/policy/solar" className="underline font-semibold hover:text-amber-900">Full solar disclaimer →</Link></p>
+        </div>
+      </section>
     </div>
   )
 }

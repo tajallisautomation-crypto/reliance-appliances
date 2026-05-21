@@ -88,14 +88,10 @@ const PLAN_OPTIONS = [
 ]
 
 const TOOLS = [
-  { icon: '🔢', title: 'Solar Calculator',        desc: 'Find out exactly what solar system you need.',              href: '/solar-calculator' },
-  { icon: '💡', title: 'Bill Savings Calc',       desc: 'Estimate your solar savings based on your actual load.',    href: '/tools' },
-  { icon: '🔋', title: 'UPS & Battery Calc',      desc: 'Calculate backup power needed for your home or shop.',      href: '/tools' },
-  { icon: '❄️', title: 'AC Consumption Calc',     desc: 'Estimate AC electricity usage and monthly running cost.',   href: '/tools' },
-  { icon: '📈', title: 'Payback Calculator',      desc: 'Calculate when your solar investment pays back.',            href: '/tools' },
-  { icon: '💳', title: 'Installment Calculator',  desc: 'See advance, monthly payment and total cost before you buy.',href: '/installments' },
-  { icon: '⚡', title: 'Net Metering Check',      desc: "Check if you're eligible to sell power to the grid.",       href: '/tools' },
-  { icon: '📦', title: 'Package Builder',         desc: 'Mix appliances and get an instant bundle price estimate.',   href: '/build-your-package' },
+  { icon: '🔢', title: 'Solar Calculator',       desc: 'Find out exactly what solar system size and cost you need.', href: '/solar-calculator' },
+  { icon: '📦', title: 'Package Builder',        desc: 'Mix appliances and get an instant bundle price estimate.',    href: '/build-your-package' },
+  { icon: '💳', title: 'Installment Calculator', desc: 'See advance, monthly payment and total cost before you buy.', href: '/installments' },
+  { icon: '🔋', title: 'UPS & Battery Calc',     desc: 'Calculate backup power needed for your home or shop.',       href: '/tools' },
 ]
 
 const FAQ_SCHEMA = {
@@ -307,23 +303,32 @@ export default function Home() {
                 From ACs and fridges to solar, UPS and batteries — Tajalli's delivers, installs and supports complete home and commercial solutions across Karachi.
               </p>
 
-              {/* CTAs: Build a Package → Shop Products → WhatsApp */}
-              {/* Mobile: 2-per-row (Build + Shop), WhatsApp full-width below */}
+              {/* Five primary CTAs */}
               <div className="flex flex-col gap-2">
                 <div className="flex gap-2">
+                  <Link to="/products"
+                    className="flex-1 inline-flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold text-sm px-4 py-3 rounded-2xl shadow-brand transition-all min-h-[48px]">
+                    Shop Products <ArrowRight className="w-4 h-4 shrink-0" />
+                  </Link>
                   <Link to="/build-your-package"
                     className="flex-1 inline-flex items-center justify-center gap-2 bg-gold-500 hover:bg-gold-600 text-white font-bold text-sm px-4 py-3 rounded-2xl shadow-sm transition-all min-h-[48px]">
                     <Package className="w-4 h-4 shrink-0" /> Build a Package
                   </Link>
-                  <Link to="/products"
-                    className="flex-1 inline-flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm px-4 py-3 rounded-2xl shadow-brand transition-all min-h-[48px]">
-                    Shop Products <ArrowRight className="w-4 h-4 shrink-0" />
-                  </Link>
                 </div>
-                <a href={waSales()} target="_blank" rel="noreferrer"
-                  className="inline-flex items-center justify-center gap-2 bg-eco-500 hover:bg-eco-600 text-white font-semibold text-sm px-5 py-3 rounded-2xl transition-all min-h-[44px]">
-                  <Phone className="w-4 h-4" /> WhatsApp Help
-                </a>
+                <div className="grid grid-cols-3 gap-2">
+                  <Link to="/solar"
+                    className="inline-flex items-center justify-center gap-1 bg-eco-500 hover:bg-eco-600 text-white font-semibold text-[11px] px-2 py-3 rounded-2xl transition-all min-h-[44px] text-center leading-tight">
+                    <Sun className="w-3.5 h-3.5 shrink-0" /> <span>Solar/UPS<br/>Quote</span>
+                  </Link>
+                  <Link to="/services"
+                    className="inline-flex items-center justify-center gap-1 bg-white border border-gray-200 hover:border-brand-300 text-gray-700 hover:text-brand-700 font-semibold text-[11px] px-2 py-3 rounded-2xl transition-all min-h-[44px] text-center leading-tight">
+                    <Wrench className="w-3.5 h-3.5 shrink-0" /> <span>Request<br/>Service</span>
+                  </Link>
+                  <a href={waSales('Hi, I need a commercial/B2B quote for my business')} target="_blank" rel="noreferrer"
+                    className="inline-flex items-center justify-center gap-1 bg-white border border-gray-200 hover:border-brand-300 text-gray-700 hover:text-brand-700 font-semibold text-[11px] px-2 py-3 rounded-2xl transition-all min-h-[44px] text-center leading-tight">
+                    <Building2 className="w-3.5 h-3.5 shrink-0" /> <span>Commercial<br/>Quote</span>
+                  </a>
+                </div>
               </div>
 
               {/* Stats — desktop only (shown after CTAs in left column) */}
@@ -346,37 +351,28 @@ export default function Home() {
             {/* ── RIGHT COLUMN: rotating installation collage ── */}
             <div className="relative">
               <div className="grid grid-cols-2 gap-3 md:gap-4">
-                {collageSlots.some(s => s.length > 0)
-                  ? collageSlots.map((slotUrls, slotIndex) => {
-                    const tile = HERO_TILES[slotIndex]
-                    return (
-                      <div key={slotIndex}
-                        className="aspect-square rounded-[1.75rem] overflow-hidden bg-gray-100 shadow-apple">
-                        {slotUrls.length > 0
-                          ? <BrandedImage
-                              src={slotUrls[activeIndexes[slotIndex]]}
-                              alt="Completed installation by Tajalli's Home & Commercial Solutions"
-                              className="w-full h-full"
-                              style={{
-                                transition: 'opacity 350ms ease, transform 350ms ease',
-                                opacity: fadingSlot === slotIndex ? 0 : 1,
-                                transform: fadingSlot === slotIndex ? 'scale(1.03)' : 'scale(1)',
-                              }}
-                              imageClassName="object-cover"
-                              imageStyle={{
-                                objectPosition: 'center 60%',
-                                filter: 'brightness(1.03) contrast(1.04) saturate(1.04)',
-                              }}
-                              loading={slotIndex === 0 ? 'eager' : 'lazy'}
-                            />
-                          : <div className={`w-full h-full bg-gradient-to-br ${tile.bg} flex flex-col items-center justify-center gap-2`}>
-                              <tile.Icon className={`w-10 h-10 ${tile.color}`} />
-                              <p className="text-xs font-bold text-gray-700 text-center leading-tight">{tile.label}</p>
-                            </div>
-                        }
-                      </div>
-                    )
-                  })
+                {collageSlots.every(s => s.length > 0)
+                  ? collageSlots.map((slotUrls, slotIndex) => (
+                    <div key={slotIndex}
+                      className="aspect-square rounded-[1.75rem] overflow-hidden bg-gray-100 shadow-apple">
+                      <BrandedImage
+                        src={slotUrls[activeIndexes[slotIndex]]}
+                        alt="Completed installation by Tajalli's Home & Commercial Solutions"
+                        className="w-full h-full"
+                        style={{
+                          transition: 'opacity 350ms ease, transform 350ms ease',
+                          opacity: fadingSlot === slotIndex ? 0 : 1,
+                          transform: fadingSlot === slotIndex ? 'scale(1.03)' : 'scale(1)',
+                        }}
+                        imageClassName="object-cover"
+                        imageStyle={{
+                          objectPosition: 'center 60%',
+                          filter: 'brightness(1.03) contrast(1.04) saturate(1.04)',
+                        }}
+                        loading={slotIndex === 0 ? 'eager' : 'lazy'}
+                      />
+                    </div>
+                  ))
                   : HERO_TILES.map(({ Icon, label, area, bg, color }, i) => (
                     <div key={label}
                       className={`aspect-square rounded-[1.75rem] bg-gradient-to-br ${bg} shadow-apple flex flex-col items-center justify-center gap-2 animate-fade-in`}
@@ -463,27 +459,6 @@ export default function Home() {
 
       {/* ── OFFER BANNERS ────────────────────────────────────────── */}
       <OfferBannerSlider />
-
-      {/* ── MOBILE EARLY PRODUCTS — shown only on mobile before heavy sections ── */}
-      {!loading && featured.length > 0 && (
-        <section className="sm:hidden max-w-7xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-black text-gray-900">Top Picks</h2>
-            <Link to="/products?featured=true" className="text-sm text-brand-600 font-semibold flex items-center gap-1">
-              All <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {featured.slice(0, 4).map(p => <ProductCard key={p.id} product={p} />)}
-          </div>
-          <div className="text-center mt-4">
-            <Link to="/products"
-              className="inline-flex items-center gap-2 border border-brand-500 text-brand-600 font-semibold text-sm px-5 py-2.5 rounded-2xl hover:bg-brand-50 transition-all">
-              Browse All Products <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-        </section>
-      )}
 
       {/* ── MYOP PROMO ───────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 md:pt-32 pb-20">
@@ -696,11 +671,15 @@ export default function Home() {
             </Link>
           ))}
         </div>
-        <div className="text-center">
-          <Link to="/build-your-package"
+        <div className="text-center flex flex-col sm:flex-row gap-3 justify-center">
+          <Link to="/corporate"
             className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-8 py-3.5 rounded-2xl transition-colors shadow-brand">
-            Get a Business Quote <ArrowRight className="w-4 h-4" />
+            Commercial Solutions <ArrowRight className="w-4 h-4" />
           </Link>
+          <a href={waSales('Hi, I need a commercial/B2B quote for my business')} target="_blank" rel="noreferrer"
+            className="inline-flex items-center gap-2 border-2 border-brand-500 text-brand-600 hover:bg-brand-50 font-bold px-8 py-3.5 rounded-2xl transition-colors">
+            <Phone className="w-4 h-4" /> Get a Business Quote
+          </a>
         </div>
       </section>
 
@@ -745,11 +724,16 @@ export default function Home() {
       {/* ── TOOLS ────────────────────────────────────────────────── */}
       <section className="bg-gray-50 py-10 sm:py-14">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-10">
-            <div className="text-brand-500 text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1 justify-center"><Zap className="w-4 h-4" /> Free Tools</div>
-            <h2 className="text-2xl md:text-3xl font-black text-gray-900">Make Smarter Decisions</h2>
+          <div className="flex items-end justify-between mb-10">
+            <div>
+              <div className="text-brand-500 text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1"><Zap className="w-4 h-4" /> Free Tools</div>
+              <h2 className="text-2xl md:text-3xl font-black text-gray-900">Make Smarter Decisions</h2>
+            </div>
+            <Link to="/tools" className="hidden sm:flex items-center gap-1 text-brand-600 font-semibold text-sm hover:text-brand-700">
+              All Tools <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
             {TOOLS.map(t => (
               <Link key={t.title} to={t.href}
                 className="group bg-white rounded-2xl border border-gray-100 hover:border-brand-300 hover:shadow-soft p-4 sm:p-6 transition-all">

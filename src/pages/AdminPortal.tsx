@@ -8647,6 +8647,8 @@ type InvoiceRow = {
   amount_paid: number | null;
   trade_ins_json: Array<{ description: string; value: number }> | null;
   discounts_json: Array<{ mode: 'percentage' | 'fixed'; amount: number; type: string; reason: string }> | null;
+  // portal link (migration 20260522)
+  portal_user_id: string | null;
   invoice_lines?: Array<{
     name: string;
     model: string | null;
@@ -9079,6 +9081,198 @@ function InstallmentLedgerTab() {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ── Portal Credential Panel ───────────────────────────────────────────────────
+// Shown in the expanded invoice row when customer_email is present.
+// Lets admin generate portal login credentials to share with the customer.
+
+interface CredentialState {
+  email: string;
+  temp_password: string;
+  created_at: string;
+  claimed_at: string | null;
+}
+
+function PortalCredentialPanel({
+  email, invoiceId, portalUserId, onLinked,
+}: {
+  email: string;
+  invoiceId: string;
+  portalUserId: string | null;
+  onLinked: () => void;
+}) {
+  const [checking, setChecking]   = useState(true);
+  const [existing, setExisting]   = useState<CredentialState | null>(null);
+  const [creating, setCreating]   = useState(false);
+  const [newCreds, setNewCreds]   = useState<{ tempPass: string } | null>(null);
+  const [error, setError]         = useState('');
+  const [copied, setCopied]       = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      setChecking(true);
+      const { data } = await supabase
+        .from('portal_credentials')
+        .select('email, temp_password, created_at, claimed_at')
+        .eq('email', email)
+        .maybeSingle();
+      setExisting(data as CredentialState | null);
+      setChecking(false);
+    })();
+  }, [email]);
+
+  async function createAccount() {
+    setCreating(true);
+    setError('');
+    try {
+      // Save admin session so we can restore if signUp auto-signs in the new user.
+      const { data: { session: adminSession } } = await supabase.auth.getSession();
+
+      // Generate a memorable temporary password
+      const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+      const tempPass = Array.from(crypto.getRandomValues(new Uint8Array(10)))
+        .map(b => chars[b % chars.length])
+        .join('');
+
+      const { data, error: signupErr } = await supabase.auth.signUp({ email, password: tempPass });
+
+      if (signupErr) {
+        if (signupErr.message?.toLowerCase().includes('already registered') ||
+            signupErr.message?.toLowerCase().includes('already been registered')) {
+          setError('This email already has a portal account. You can still link their invoices via the customer_email match — no new credentials needed. Ask them to use "Forgot Password" on the portal if they need access.');
+        } else {
+          setError(signupErr.message);
+        }
+        setCreating(false);
+        return;
+      }
+
+      // If Supabase auto-confirmed the user and returned a session, restore admin session.
+      if (data.session && adminSession) {
+        await supabase.auth.setSession({
+          access_token:  adminSession.access_token,
+          refresh_token: adminSession.refresh_token,
+        });
+      }
+
+      const userId = data.user?.id ?? null;
+
+      // Store credentials (upsert in case email already had a partial record)
+      await supabase.from('portal_credentials').upsert({
+        email,
+        temp_password: tempPass,
+        user_id:       userId,
+        created_at:    new Date().toISOString(),
+        claimed_at:    null,
+      }, { onConflict: 'email' });
+
+      // Link all invoices sharing this email to the new portal user
+      if (userId) {
+        await supabase.from('invoices')
+          .update({ portal_user_id: userId })
+          .eq('customer_email', email)
+          .is('portal_user_id', null);
+      }
+
+      setNewCreds({ tempPass });
+      onLinked();
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to create portal account.');
+    }
+    setCreating(false);
+  }
+
+  function copyText(text: string, key: string) {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(key);
+      setTimeout(() => setCopied(null), 2000);
+    });
+  }
+
+  function copyAll(tempPass: string) {
+    const msg = `Portal Login Details:\nEmail: ${email}\nPassword: ${tempPass}\nLogin at: ${window.location.origin}/portal`;
+    copyText(msg, 'all');
+  }
+
+  if (checking) {
+    return <p className="text-xs text-gray-400 italic">Checking portal account…</p>;
+  }
+
+  const creds = newCreds ?? (existing ? { tempPass: existing.temp_password } : null);
+
+  return (
+    <div className="space-y-3">
+      {creds ? (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-3">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-emerald-700">
+                Portal Account {newCreds ? 'Created' : 'Active'}
+              </p>
+              {existing?.claimed_at && (
+                <p className="text-[10px] text-emerald-500">Customer last logged in {new Date(existing.claimed_at).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+              )}
+              {!existing?.claimed_at && !newCreds && (
+                <p className="text-[10px] text-emerald-500">Not yet logged in</p>
+              )}
+            </div>
+          </div>
+          <div className="space-y-2">
+            {[
+              { label: 'Email',    value: email },
+              { label: 'Password', value: creds.tempPass },
+            ].map(item => (
+              <div key={item.label} className="flex items-center gap-2">
+                <span className="text-[10px] font-semibold text-gray-500 w-16 shrink-0">{item.label}</span>
+                <code className="flex-1 text-xs bg-white border border-gray-200 rounded-lg px-2 py-1 font-mono truncate min-w-0">{item.value}</code>
+                <button
+                  onClick={() => copyText(item.value, item.label)}
+                  className="text-[10px] px-2 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-lg font-bold shrink-0 transition-colors"
+                >
+                  {copied === item.label ? '✓' : 'Copy'}
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 pt-1">
+            <button
+              onClick={() => copyAll(creds.tempPass)}
+              className="text-xs px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-bold transition-colors"
+            >
+              {copied === 'all' ? '✓ Copied!' : 'Copy All for WhatsApp'}
+            </button>
+            {portalUserId && (
+              <span className="text-[10px] text-emerald-600 font-medium">✓ Invoices linked to portal</span>
+            )}
+          </div>
+          <p className="text-[10px] text-gray-400 leading-relaxed">
+            Share email + password with the customer. They log in at <span className="font-mono">/portal</span> and can change their password via Account settings.
+          </p>
+        </div>
+      ) : (
+        <div>
+          <button
+            onClick={createAccount}
+            disabled={creating}
+            className="flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white text-xs font-bold rounded-xl transition-colors"
+          >
+            {creating
+              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              : <Users className="w-3.5 h-3.5" />}
+            {creating ? 'Creating Account…' : 'Create Portal Account'}
+          </button>
+          <p className="text-[10px] text-gray-400 mt-1.5 leading-relaxed">
+            Creates a login for <span className="font-semibold text-gray-600">{email}</span>. A confirmation email may be sent. All invoices matching this email will be linked automatically.
+          </p>
+        </div>
+      )}
+      {error && (
+        <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-xl p-2 leading-relaxed">{error}</p>
+      )}
     </div>
   );
 }
@@ -9560,14 +9754,14 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
                   </tr>
                   {expanded === row.id && (
                     <tr key={`${row.id}-exp`} className="bg-brand-50/40">
-                      <td colSpan={7} className="px-6 py-4">
+                      <td colSpan={7} className="px-6 py-4 space-y-4">
                         <div className="grid md:grid-cols-2 gap-4">
                           <div>
                             <p className="text-xs font-bold text-gray-500 mb-2">LINE ITEMS</p>
                             <div className="space-y-1">
                               {(row.invoice_lines ?? []).map((l, i) => (
                                 <div key={i} className="flex justify-between text-xs text-gray-700">
-                                  <span>{l.name} × {l.qty}</span>
+                                  <span>{l.name} × {l.qty}{l.warranty ? <span className="ml-1 text-green-600">({l.warranty})</span> : null}</span>
                                   <span className="font-semibold">{PKR(l.qty * l.unit_price)}</span>
                                 </div>
                               ))}
@@ -9579,8 +9773,27 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
                               <p className="text-brand-600">{row.discount_type ?? 'Discount'}: {row.discount_pct}% — saving {PKR((row.subtotal ?? 0) * row.discount_pct / 100)}</p>
                             )}
                             {row.customer_email && <p className="text-gray-600">Email: {row.customer_email}</p>}
+                            {row.customer_address && <p className="text-gray-500">Address: {row.customer_address}</p>}
+                            {row.customer_cnic && <p className="text-gray-500">CNIC: {row.customer_cnic}</p>}
+                            {row.guarantor_name && <p className="text-gray-500">Guarantor: {row.guarantor_name} · {row.guarantor_phone}</p>}
+                            {row.notes && <p className="text-gray-500 italic">Notes: {row.notes}</p>}
+                            {row.portal_user_id && (
+                              <p className="text-emerald-600 font-semibold">✓ Linked to portal account</p>
+                            )}
                           </div>
                         </div>
+                        {/* ── Portal Account ── */}
+                        {row.customer_email && (
+                          <div className="border-t border-brand-100 pt-4">
+                            <p className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wider">Portal Account</p>
+                            <PortalCredentialPanel
+                              email={row.customer_email}
+                              invoiceId={row.id}
+                              portalUserId={row.portal_user_id}
+                              onLinked={fetchInvoices}
+                            />
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )}

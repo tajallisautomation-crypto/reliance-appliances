@@ -31,7 +31,7 @@ export default function About() {
     <div className="min-h-screen bg-white">
       <SEO
         title="About Us — Karachi's Trusted Appliance Partner"
-        description="Learn about Tajalli's Home And Commercial Solutions — Karachi's trusted appliance partner since 2015. 14,400+ clients served, 24,000+ orders fulfilled, genuine products & real after-sale support."
+        description="Learn about Tajalli's Home & Commercial Solutions — Karachi's trusted appliance partner since 2015. 14,400+ clients served, 24,000+ orders fulfilled, genuine products & real after-sale support."
         keywords="about tajallis karachi, home appliances karachi, trusted appliance store pakistan"
       />
 

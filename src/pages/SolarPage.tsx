@@ -541,6 +541,15 @@ export default function SolarPage() {
         </div>
       </div>
 
+      {/* Solar Disclaimer */}
+      <div className="max-w-7xl mx-auto px-4 pb-8">
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-800 space-y-1">
+          <p className="font-bold text-amber-900">Pricing &amp; Savings Assumptions</p>
+          <p>Package prices shown are indicative and may vary with exchange rate and component availability. Savings estimates assume Karachi peak sun hours (5–5.5 hrs/day) and PKR 50–60/unit grid electricity. Actual savings depend on your site, usage, shading, and KESC tariff. An on-site visit is required for a confirmed price.</p>
+          <p>Systems above <strong>5kW or PKR 700,000</strong> require full cash payment. Installment plans need a minimum <strong>40% advance</strong>. Net Metering eligibility requires 10kW+ system and KESC/HESCO approval. <Link to="/policy/solar" className="underline font-semibold hover:text-amber-900">Full solar disclaimer →</Link></p>
+        </div>
+      </div>
+
       {/* Products */}
       <div id="products" className="max-w-7xl mx-auto px-4 pb-14">
         <div className="flex items-baseline justify-between mb-6">

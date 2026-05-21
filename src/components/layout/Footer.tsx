@@ -84,9 +84,9 @@ export default function Footer() {
             {[
               ['Build a Package',    '/build-your-package'],
               ['Installment Plans',  '/installments'],
+              ['For Business',       '/corporate'],
+              ['Services & Repair',  '/services'],
               ['Customer Support',   '/support'],
-              ['Installation',       '/services'],
-              ['Warranty Claims',    '/support'],
               ['Green Corridor',     '/green-corridor'],
               ['Partner With Us',    '/partner'],
               ['Refer & Earn',       '/referral'],
@@ -142,7 +142,11 @@ export default function Footer() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-xs text-brand-300">© {year} Tajalli&#8217;s Home &amp; Commercial Solutions. All rights reserved.</p>
           <div className="flex gap-4">
-            {[['Privacy','/policy/privacy'],['Terms','/policy/terms'],['Warranty','/policy/warranty'],['Refund','/policy/refund']].map(([l,h]) => (
+            {[
+              ['Privacy','/policy/privacy'],['Terms','/policy/terms'],
+              ['Warranty','/policy/warranty'],['Refund','/policy/refund'],
+              ['Installments','/policy/installment'],['Solar Disclaimer','/policy/solar'],
+            ].map(([l,h]) => (
               <Link key={h} to={h} className="text-xs text-brand-300 hover:text-brand-200 transition-colors">{l}</Link>
             ))}
           </div>

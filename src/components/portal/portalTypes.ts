@@ -77,13 +77,62 @@ export interface PortalOrder {
   status:         string | null
 }
 
+export interface InstallmentSlot {
+  id:               string
+  invoice_id:       string
+  installment_no:   number
+  due_date:         string
+  amount_due:       number
+  amount_paid:      number
+  status:           'pending' | 'paid' | 'overdue'
+  paid_at:          string | null
+}
+
+export interface AccountVerification {
+  isDefaulter:        boolean   // any slot overdue or past-due-pending
+  overdueCount:       number    // count of overdue/past-due slots
+  totalOverdueAmount: number    // sum of unpaid overdue amounts
+  paidCount:          number    // slots paid on time
+  totalMonthlySlots:  number    // all monthly slots (excl. advance row)
+  nextDueDate:        string | null
+  nextDueAmount:      number | null
+  installmentSlots:   InstallmentSlot[]
+}
+
+export interface InvoicePurchaseLine {
+  name:       string
+  model:      string | null
+  category:   string | null
+  qty:        number
+  unit_price: number
+  warranty:   string | null
+  product_id: string | null
+}
+
+export interface InvoicePurchase {
+  id:               string
+  ref_number:       string
+  doc_type:         string
+  created_at:       string
+  grand_total:      number
+  payment_status:   string
+  sale_type:        string | null
+  inst_months:      number | null
+  inst_advance_amt: number | null
+  inst_monthly_amt: number | null
+  notes:            string | null
+  lines:            InvoicePurchaseLine[]
+}
+
 export interface PortalData {
-  profile:          CustomerProfile | null
-  appliances:       CustomerAppliance[]
-  loyaltyTxns:      LoyaltyTransaction[]
-  referralEarnings: ReferralEarning[]
-  orders:           PortalOrder[]
-  carePlans:        CustomerCarePlan[]
-  reload:           () => void
-  navigateTo?:      (tab: string) => void
+  profile:             CustomerProfile | null
+  appliances:          CustomerAppliance[]
+  loyaltyTxns:         LoyaltyTransaction[]
+  referralEarnings:    ReferralEarning[]
+  orders:              PortalOrder[]
+  carePlans:           CustomerCarePlan[]
+  invoicePurchases:    InvoicePurchase[]
+  accountVerification: AccountVerification
+  reload:              () => void
+  navigateTo?:         (tab: string) => void
 }
