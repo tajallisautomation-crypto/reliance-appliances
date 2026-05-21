@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import {
@@ -10,6 +10,22 @@ import {
 import { getProducts, getProductCount, type Product, formatPrice } from '../lib/api'
 import { waSales } from '../lib/whatsapp'
 import { SITE_URL } from '../lib/config'
+
+const RECENT_JOBS = [
+  { type: 'Installation completed', area: 'PECHS',         detail: 'Gree 1.5 Ton Inverter AC'    },
+  { type: 'Delivery completed',     area: 'North Karachi', detail: 'Dawlance Refrigerator'        },
+  { type: 'Backup setup completed', area: 'Gulshan',       detail: 'UPS + Battery Package'        },
+  { type: 'Installation completed', area: 'Nazimabad',     detail: 'Haier 2 Ton Inverter AC'      },
+  { type: 'Delivery completed',     area: 'F.B. Area',     detail: 'Westpoint Washing Machine'    },
+  { type: 'Solar setup completed',  area: 'DHA',           detail: '5kW Solar System'             },
+]
+
+const HERO_STATS = [
+  { Icon: CalendarDays, value: '11+ Years', label: 'In Business Since 2015',    iconColor: 'text-brand-600', iconBg: 'bg-brand-50'    },
+  { Icon: Users,        value: '14,400+',  label: 'Homes & Businesses Served', iconColor: 'text-blue-600',  iconBg: 'bg-blue-50'     },
+  { Icon: Package,      value: '24,000+',  label: 'Jobs Completed',            iconColor: 'text-eco-600',   iconBg: 'bg-eco-50'      },
+  { Icon: Star,         value: '75%',      label: 'Repeat Customers',          iconColor: 'text-gold-600',  iconBg: 'bg-gold-300/25' },
+]
 
 const HERO_TILES = [
   { Icon: AirVent,   label: 'AC Installation',  area: 'North Karachi',   bg: 'from-blue-50 to-blue-100',    color: 'text-blue-500'  },
@@ -143,6 +159,12 @@ export default function Home() {
   const [activePlan,     setActivePlan]    = useState<'2m'|'3m'|'6m'|'12m'>('3m')
   const [samplePrice,    setSamplePrice]   = useState(150000)
   const [galleryStrip,   setGalleryStrip]  = useState<MediaItem[]>([])
+  const [collageSlots,   setCollageSlots]  = useState<string[][]>([[], [], [], []])
+  const [activeIndexes,  setActiveIndexes] = useState([0, 0, 0, 0])
+  const [fadingSlot,     setFadingSlot]    = useState<number | null>(null)
+  const [toastIndex,     setToastIndex]    = useState(0)
+  const [toastVisible,   setToastVisible]  = useState(false)
+  const collageRef = useRef<string[][]>([[], [], [], []])
 
   // Preferred brands surfaced first in homepage featured section
   const PREFERRED_BRANDS = ['haier', 'crown', 'westpoint']
@@ -158,7 +180,51 @@ export default function Home() {
       setLoading(false)
     }).catch(() => setLoading(false))
     getProductCount().then(setTotalProducts)
-    getInstallationImages(6).then(setGalleryStrip)
+    getInstallationImages(20).then(items => {
+      setGalleryStrip(items.slice(0, 6))
+      const slots: string[][] = [[], [], [], []]
+      items.forEach((item, i) => slots[i % 4].push(item.public_url))
+      collageRef.current = slots
+      setCollageSlots(slots)
+    })
+  }, [])
+
+  // Rotate one collage slot at a time every 5s
+  useEffect(() => {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reduceMotion) return
+    const interval = setInterval(() => {
+      const slots = collageRef.current
+      const eligible = slots.map((s, i) => s.length > 1 ? i : -1).filter(i => i >= 0)
+      if (eligible.length === 0) return
+      const slot = eligible[Math.floor(Math.random() * eligible.length)]
+      setFadingSlot(slot)
+      setTimeout(() => {
+        setActiveIndexes(prev => {
+          const next = [...prev]
+          next[slot] = (next[slot] + 1) % slots[slot].length
+          return next
+        })
+        setFadingSlot(null)
+      }, 350)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Show toast after 3s, rotate every 9s
+  useEffect(() => {
+    const show = setTimeout(() => setToastVisible(true), 3000)
+    return () => clearTimeout(show)
+  }, [])
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setToastVisible(false)
+      setTimeout(() => {
+        setToastIndex(prev => (prev + 1) % RECENT_JOBS.length)
+        setToastVisible(true)
+      }, 600)
+    }, 9000)
+    return () => clearInterval(interval)
   }, [])
 
   const calc = calcPlan(samplePrice, activePlan)
@@ -178,91 +244,107 @@ export default function Home() {
 
       {/* ── HERO ─────────────────────────────────────────────────── */}
       <section className="relative bg-gradient-to-b from-brand-50/50 via-brand-50/20 to-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-10 md:pt-20 md:pb-24">
-          <div className="grid md:grid-cols-2 gap-12 lg:gap-20 items-center">
+        <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-7 sm:py-10 md:py-14">
+          {/* Mobile: stack. Desktop: 45/55 two-column grid */}
+          <div
+            className="flex flex-col gap-7 md:grid md:items-center md:gap-12"
+            style={{ gridTemplateColumns: '45% 55%' }}
+          >
 
-            {/* Left: text */}
-            <div>
-              {/* Trust badge pill */}
-              <div className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 bg-white border border-brand-100 shadow-sm rounded-full px-3 py-1 mb-4 md:mb-6">
-                <span className="text-brand-600 text-xs font-bold uppercase tracking-[0.18em]">Karachi</span>
+            {/* ── LEFT COLUMN ── */}
+            <div className="flex flex-col gap-4 md:gap-5">
+
+              {/* Trust badge */}
+              <div className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 bg-white border border-brand-100 shadow-sm rounded-full px-3 py-1 self-start">
+                <span className="text-brand-600 text-[0.72rem] font-bold uppercase tracking-[0.14em]">Karachi</span>
                 <span className="text-brand-300 text-xs">·</span>
-                <span className="text-brand-600 text-xs font-bold uppercase tracking-[0.18em]">Since 2015</span>
+                <span className="text-brand-600 text-[0.72rem] font-bold uppercase tracking-[0.14em]">Since 2015</span>
                 <span className="text-brand-300 text-xs">·</span>
-                <span className="text-brand-600 text-xs font-bold uppercase tracking-[0.18em] whitespace-nowrap">11+ Years of Trust</span>
+                <span className="text-brand-600 text-[0.72rem] font-bold uppercase tracking-[0.14em] whitespace-nowrap">24,000+ Jobs Completed</span>
               </div>
 
-              <h1 className="leading-[1.06] tracking-tight mb-4 md:mb-6">
-                <span className="block text-xl md:text-3xl lg:text-4xl font-bold text-gray-500 mb-1.5 tracking-normal">
+              {/* Headline */}
+              <h1 className="mb-0">
+                <span
+                  className="block font-bold text-gray-400 leading-[1.15] mb-2"
+                  style={{ fontSize: 'clamp(1.1rem, 2vw, 1.75rem)' }}
+                >
                   Appliances, Solar &amp; Backup Solutions
                 </span>
-                <span className="block text-3xl sm:text-4xl md:text-6xl lg:text-[4.5rem] font-black text-brand-500">
-                  Delivered. Installed.<br />
+                <span
+                  className="block font-black text-brand-500 leading-[0.95] tracking-[-0.04em]"
+                  style={{ fontSize: 'clamp(3rem, 6vw, 5.2rem)' }}
+                >
+                  Delivered.<br />Installed.<br />
                   <span className="text-gold-500">Supported.</span>
                 </span>
               </h1>
-              <p className="text-base md:text-lg text-gray-500 leading-relaxed mb-5 md:mb-8 max-w-md">
-                ACs, fridges, washing machines, UPS, batteries and solar systems — cash or installments.
-                Delivery, installation and after-sales support across Karachi.
+
+              {/* Body copy */}
+              <p className="text-base md:text-[1.05rem] text-gray-500 leading-relaxed max-w-[30rem]">
+                From ACs and fridges to solar, UPS and batteries — Tajalli's delivers, installs and supports complete home and commercial solutions across Karachi.
               </p>
-              <div className="flex flex-wrap lg:flex-nowrap gap-2.5">
+
+              {/* CTAs: Build a Package → Shop Products → WhatsApp */}
+              <div className="flex flex-col sm:flex-row flex-wrap gap-2.5">
+                <Link to="/build-your-package"
+                  className="inline-flex items-center justify-center gap-2 bg-gold-500 hover:bg-gold-600 text-white font-bold text-sm px-5 py-3 rounded-2xl shadow-sm transition-all min-h-[48px]">
+                  <Package className="w-4 h-4" /> Build a Package
+                </Link>
                 <Link to="/products"
-                  className="inline-flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm px-5 py-3 rounded-2xl shadow-brand transition-all">
+                  className="inline-flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm px-5 py-3 rounded-2xl shadow-brand transition-all min-h-[48px]">
                   Shop Products <ArrowRight className="w-4 h-4" />
                 </Link>
                 <a href={waSales()} target="_blank" rel="noreferrer"
-                  className="inline-flex items-center justify-center gap-2 bg-eco-500 hover:bg-eco-600 text-white font-semibold text-sm px-5 py-3 rounded-2xl transition-all">
+                  className="inline-flex items-center justify-center gap-2 bg-eco-500 hover:bg-eco-600 text-white font-semibold text-sm px-5 py-3 rounded-2xl transition-all min-h-[48px]">
                   <Phone className="w-4 h-4" /> WhatsApp Help
                 </a>
-                <Link to="/build-your-package"
-                  className="hidden sm:inline-flex items-center justify-center gap-2 bg-gold-500 hover:bg-gold-600 text-white font-semibold text-sm px-5 py-3 rounded-2xl transition-all">
-                  <Package className="w-4 h-4" /> Build a Package
-                </Link>
               </div>
-              <Link to="/build-your-package"
-                className="sm:hidden inline-flex items-center gap-1.5 text-gold-600 text-sm font-semibold mt-2 hover:text-gold-700">
-                <Package className="w-3.5 h-3.5" /> Build a Package
-              </Link>
 
-              {/* Stat cards — 2×2 grid on all screen sizes */}
-              <div className="mt-5 md:mt-6 pt-4 md:pt-5 border-t border-brand-100">
-                <div className="grid grid-cols-2 gap-2.5">
-                  {[
-                    { Icon: CalendarDays, value: '11+ Years',  label: 'Since 2015 · Karachi',       iconColor: 'text-brand-600',  iconBg: 'bg-brand-50'      },
-                    { Icon: Users,        value: '14,400+',   label: 'Homes & Businesses Served',  iconColor: 'text-blue-600',   iconBg: 'bg-blue-50'       },
-                    { Icon: Star,         value: '75%',       label: 'Repeat Customers',           iconColor: 'text-gold-600',   iconBg: 'bg-gold-300/25'   },
-                    { Icon: Package,      value: '24,000+',   label: 'Orders Fulfilled',           iconColor: 'text-eco-600',    iconBg: 'bg-eco-50'        },
-                  ].map(({ Icon, value, label, iconColor, iconBg }) => (
-                    <div key={label}
-                      className="flex items-center gap-2.5 bg-white border border-gray-100 shadow-apple rounded-2xl px-3 py-2.5 cursor-default">
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
-                        <Icon className={`w-4 h-4 ${iconColor}`} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-black text-gray-900 leading-none">{value}</p>
-                        <p className="text-[10px] text-gray-500 font-medium mt-0.5 leading-snug">{label}</p>
-                      </div>
+              {/* Stats — desktop only (shown after CTAs in left column) */}
+              <div className="hidden md:grid grid-cols-2 gap-2.5 pt-5 border-t border-brand-100">
+                {HERO_STATS.map(({ Icon, value, label, iconColor, iconBg }) => (
+                  <div key={label}
+                    className="flex items-center gap-2.5 bg-white border border-gray-100 shadow-apple rounded-2xl px-3 py-2.5 cursor-default">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
+                      <Icon className={`w-4 h-4 ${iconColor}`} />
                     </div>
-                  ))}
-                </div>
+                    <div>
+                      <p className="text-sm font-black text-gray-900 leading-none">{value}</p>
+                      <p className="text-[10px] text-gray-500 font-medium mt-0.5 leading-snug">{label}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* Right: installation montage — 2×2 grid */}
-            <div className="relative hidden md:block">
-              <div className="grid grid-cols-2 gap-3">
-                {galleryStrip.length >= 4
-                  ? galleryStrip.slice(0, 4).map((item, i) => (
-                    <div key={item.id}
-                      className="aspect-square rounded-3xl overflow-hidden bg-gray-100 shadow-apple animate-fade-in"
-                      style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}>
-                      <img src={item.public_url} alt={item.caption}
-                        className="w-full h-full object-cover" loading="eager" />
+            {/* ── RIGHT COLUMN: rotating installation collage ── */}
+            <div className="relative">
+              <div className="grid grid-cols-2 gap-3 md:gap-4">
+                {collageSlots.some(s => s.length > 0)
+                  ? collageSlots.map((slotUrls, slotIndex) => (
+                    <div key={slotIndex}
+                      className="aspect-square rounded-[1.75rem] overflow-hidden bg-gray-100 shadow-apple">
+                      {slotUrls.length > 0
+                        ? <img
+                            src={slotUrls[activeIndexes[slotIndex]]}
+                            alt="Completed installation by Tajalli's Home & Commercial Solutions"
+                            className="w-full h-full object-cover"
+                            style={{
+                              transition: 'opacity 350ms ease, transform 350ms ease',
+                              opacity: fadingSlot === slotIndex ? 0 : 1,
+                              transform: fadingSlot === slotIndex ? 'scale(1.03)' : 'scale(1)',
+                              filter: 'brightness(1.03) contrast(1.04) saturate(1.04)',
+                            }}
+                            loading={slotIndex === 0 ? 'eager' : 'lazy'}
+                          />
+                        : <div className="w-full h-full bg-gray-50" />
+                      }
                     </div>
                   ))
                   : HERO_TILES.map(({ Icon, label, area, bg, color }, i) => (
                     <div key={label}
-                      className={`aspect-square rounded-3xl bg-gradient-to-br ${bg} shadow-apple flex flex-col items-center justify-center gap-2 animate-fade-in`}
+                      className={`aspect-square rounded-[1.75rem] bg-gradient-to-br ${bg} shadow-apple flex flex-col items-center justify-center gap-2 animate-fade-in`}
                       style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}>
                       <Icon className={`w-10 h-10 ${color}`} />
                       <p className="text-xs font-bold text-gray-700 text-center leading-tight">{label}</p>
@@ -271,8 +353,8 @@ export default function Home() {
                   ))
                 }
               </div>
-              {/* Badge overlay */}
-              <div className="absolute -bottom-3 -right-3 bg-white border border-gray-100 shadow-apple-xl rounded-2xl px-4 py-2.5 flex items-center gap-2">
+              {/* Floating badge — desktop only */}
+              <div className="hidden md:flex absolute -bottom-3 -right-3 bg-white border border-gray-100 shadow-apple-xl rounded-2xl px-4 py-2.5 items-center gap-2">
                 <div className="w-8 h-8 bg-brand-50 rounded-xl flex items-center justify-center shrink-0">
                   <Package className="w-4 h-4 text-brand-600" />
                 </div>
@@ -282,9 +364,44 @@ export default function Home() {
                 </div>
               </div>
             </div>
+
+            {/* ── STATS: mobile only — after collage ── */}
+            <div className="md:hidden grid grid-cols-2 gap-2.5">
+              {HERO_STATS.map(({ Icon, value, label, iconColor, iconBg }) => (
+                <div key={label}
+                  className="flex items-center gap-2.5 bg-white border border-gray-100 shadow-apple rounded-2xl px-3 py-2.5 cursor-default">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
+                    <Icon className={`w-4 h-4 ${iconColor}`} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-gray-900 leading-none">{value}</p>
+                    <p className="text-[10px] text-gray-500 font-medium mt-0.5 leading-snug">{label}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
           </div>
         </div>
       </section>
+
+      {/* ── RECENT JOB TOAST — fixed bottom-left, desktop only ── */}
+      <div
+        className={`hidden sm:flex fixed bottom-6 left-6 z-40 items-start gap-3 bg-white/95 backdrop-blur-md border border-gray-100 shadow-apple-xl rounded-2xl px-4 py-3 max-w-[280px] pointer-events-none transition-all duration-500 ${
+          toastVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+        }`}
+        aria-hidden="true"
+      >
+        <div className="w-8 h-8 bg-brand-50 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+          <Wrench className="w-3.5 h-3.5 text-brand-600" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold text-brand-600 uppercase tracking-wider leading-none mb-0.5">
+            {RECENT_JOBS[toastIndex].type} · {RECENT_JOBS[toastIndex].area}
+          </p>
+          <p className="text-xs font-semibold text-gray-800 leading-snug">{RECENT_JOBS[toastIndex].detail}</p>
+        </div>
+      </div>
 
 
       {/* ── CATEGORY GRID ────────────────────────────────────────── */}

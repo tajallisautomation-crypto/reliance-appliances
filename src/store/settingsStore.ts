@@ -50,7 +50,18 @@ export const useSettingsStore = create<SettingsStore>(set => ({
 
   load: async () => {
     const { data } = await supabase.from('site_settings').select('key, value');
-    if (!data?.length) return;
+    if (!data?.length) {
+      // No DB rows — push the store's own defaults into plans.ts so that
+      // the calculation layer always matches what the admin UI displays.
+      setActivePlanRatios({
+        '2m':  { markup: SETTING_DEFAULTS.plan2mMarkup,  advRatio: SETTING_DEFAULTS.plan2mAdvance,  installments: 1  },
+        '3m':  { markup: SETTING_DEFAULTS.plan3mMarkup,  advRatio: SETTING_DEFAULTS.plan3mAdvance,  installments: 2  },
+        '6m':  { markup: SETTING_DEFAULTS.plan6mMarkup,  advRatio: SETTING_DEFAULTS.plan6mAdvance,  installments: 5  },
+        '12m': { markup: SETTING_DEFAULTS.plan12mMarkup, advRatio: SETTING_DEFAULTS.plan12mAdvance, installments: 11 },
+      });
+      set({ loaded: true });
+      return;
+    }
 
     const m: Record<string, string> = Object.fromEntries(data.map((r: any) => [r.key, r.value]));
     const n = (k: string, d: number) => (k in m ? Number(m[k]) : d);

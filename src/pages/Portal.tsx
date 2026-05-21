@@ -119,24 +119,35 @@ function DashboardView({ email }: { email: string }) {
     const uid = user.id
     setLoading(true)
     try {
-      const [pRes, aRes, lRes, rRes, oRes, cpRes] = await Promise.all([
-        supabase.from('customer_profiles').select('*').eq('user_id', uid).single(),
-        supabase.from('customer_appliances').select('*').eq('user_id', uid).eq('is_active', true).order('created_at', { ascending: false }),
-        supabase.from('loyalty_transactions').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(50),
-        supabase.from('referral_earnings').select('*').eq('referrer_user_id', uid).order('created_at', { ascending: false }),
-        supabase.from('orders').select('*').eq('customer_email', email).order('created_at', { ascending: false }).limit(20),
-        supabase.from('customer_care_plans').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
-      ])
+      // Fetch profile first so we can build an order filter that includes phone.
+      // Email is optional in checkout, so phone-only orders would be invisible
+      // if we filtered solely by customer_email.
+      let profileData: CustomerProfile | null = null
+      const pRes = await supabase.from('customer_profiles').select('*').eq('user_id', uid).single()
       if (pRes.data) {
+        profileData = pRes.data
         setProfile(pRes.data)
       } else {
-        // First login — create profile row
         const { data: np } = await supabase
           .from('customer_profiles')
           .upsert({ user_id: uid, full_name: user.user_metadata?.full_name || '' }, { onConflict: 'user_id' })
           .select().single()
-        if (np) setProfile(np)
+        if (np) { profileData = np; setProfile(np) }
       }
+
+      // Build order filter: match by auth email AND/OR profile phone
+      const profilePhone = profileData?.phone?.replace(/\D/g, '') || ''
+      const orderFilter = profilePhone
+        ? `customer_email.eq.${email},customer_phone.eq.${profilePhone}`
+        : `customer_email.eq.${email}`
+
+      const [aRes, lRes, rRes, oRes, cpRes] = await Promise.all([
+        supabase.from('customer_appliances').select('*').eq('user_id', uid).eq('is_active', true).order('created_at', { ascending: false }),
+        supabase.from('loyalty_transactions').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(50),
+        supabase.from('referral_earnings').select('*').eq('referrer_user_id', uid).order('created_at', { ascending: false }),
+        supabase.from('orders').select('*').or(orderFilter).order('created_at', { ascending: false }).limit(20),
+        supabase.from('customer_care_plans').select('*').eq('user_id', uid).order('created_at', { ascending: false }),
+      ])
       setAppliances(aRes.data || [])
       setLoyaltyTxns(lRes.data || [])
       setReferralEarnings(rRes.data || [])

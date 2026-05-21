@@ -49,14 +49,6 @@ export function calcPlan(retailPrice: number, plan: PlanKey): PlanBreakdown {
   };
 }
 
-export function calcAllPlans(retailPrice: number): Record<PlanKey, PlanBreakdown> {
-  return {
-    '2m':  calcPlan(retailPrice, '2m'),
-    '3m':  calcPlan(retailPrice, '3m'),
-    '6m':  calcPlan(retailPrice, '6m'),
-    '12m': calcPlan(retailPrice, '12m'),
-  };
-}
 
 export const PLAN_NAMES: Record<PlanKey, string> = {
   '2m':  '2 Payment Plan',

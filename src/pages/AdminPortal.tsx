@@ -10676,6 +10676,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
 
   async function generatePaymentInvoice() {
     if (!lines.length || instPayPdfState === 'generating') return;
+    if (!preparedBy.trim()) { alert('Please enter a name in the "Prepared By" field before generating.'); return; }
     setInstPayPdfState('generating');
     const timeout = setTimeout(() => setInstPayPdfState('error'), 15000);
     try {

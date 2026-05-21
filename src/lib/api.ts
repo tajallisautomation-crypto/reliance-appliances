@@ -216,7 +216,7 @@ function rowToProduct(r: any): Product {
   };
 }
 
-// ── 5-minute in-memory cache ──────────────────────────────────────────────────
+// ── 30-second in-memory cache ────────────────────────────────────────────────
 
 const _cache = new Map<string, { data: any; ts: number }>();
 function _fromCache(key: string) {
@@ -563,7 +563,7 @@ export async function getRelatedProducts(
 }
 
 /**
- * Returns alternative products in the same category within a ±40% price band,
+ * Returns alternative products in the same category within a −40%/+50% price band,
  * ordered by featured then by proximity to the reference price.
  * Used on PDP to show "Consider these alternatives".
  */
