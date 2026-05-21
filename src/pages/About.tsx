@@ -4,6 +4,7 @@ import { ShieldCheck, CreditCard, Truck, Headphones, MessageCircle, ChevronRight
 import SEO from '@/components/ui/SEO'
 import { waSales } from '@/lib/whatsapp'
 import { getInstallationImages, type MediaItem } from '@/lib/gallery'
+import { BrandedImage } from '@/components/common/BrandedImage'
 
 const STATS = [
   { value: '11',      label: 'Years in Business' },
@@ -127,11 +128,13 @@ export default function About() {
               {galleryStrip.map(item => (
                 <Link key={item.id} to="/gallery"
                   className="aspect-square rounded-2xl overflow-hidden block bg-gray-800 hover:opacity-90 transition-opacity">
-                  <img
+                  <BrandedImage
                     src={item.public_url}
                     alt={item.caption}
                     loading="lazy"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full"
+                    imageClassName="object-cover"
+                    compact
                   />
                 </Link>
               ))}

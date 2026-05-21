@@ -8,6 +8,7 @@ import {
 import { getProducts, getProduct, formatPrice, calcPlan, submitOrder, type Product } from '@/lib/api'
 import SEO from '@/components/ui/SEO'
 import { waSales } from '@/lib/whatsapp'
+import { BrandedImage } from '@/components/common/BrandedImage'
 import { useMyopStore } from '@/store/myopStore'
 import { checkCompatibility, parseBatteryVoltage, type CompatibilityResult } from '@/lib/compatibility'
 
@@ -509,10 +510,11 @@ function ProductTile({
       {/* Image — reduced aspect to leave more room for specs */}
       <div className="aspect-[4/3] bg-gray-50 overflow-hidden shrink-0">
         {product.thumbnail ? (
-          <img
+          <BrandedImage
             src={product.thumbnail}
             alt={product.simplified_name || product.model}
-            className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-200"
+            className="w-full h-full"
+            imageClassName="object-contain p-2 group-hover:scale-105 transition-transform duration-200"
             onError={e => { (e.currentTarget as HTMLImageElement).src = '/placeholder-product.svg' }}
             loading="lazy"
           />

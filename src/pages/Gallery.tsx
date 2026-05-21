@@ -4,6 +4,7 @@ import { X, ChevronLeft, ChevronRight, Play, Image, MessageCircle } from 'lucide
 import { getGallery, CATEGORY_LABELS, type MediaItem, type MediaCategory } from '../lib/gallery'
 import SEO from '../components/ui/SEO'
 import { waSales } from '../lib/whatsapp'
+import { BrandedImage } from '../components/common/BrandedImage'
 
 // ── Tab definitions ───────────────────────────────────────────────────────────
 
@@ -135,12 +136,13 @@ function MediaCard({ item, onClick }: { item: MediaItem; onClick: () => void }) 
         </>
       ) : (
         <>
-          <img
+          <BrandedImage
             src={item.public_url}
             alt={item.caption}
             loading="lazy"
             onLoad={() => setLoaded(true)}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            className="w-full h-full"
+            imageClassName="object-cover group-hover:scale-105 transition-transform duration-500"
           />
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
           {item.caption && (

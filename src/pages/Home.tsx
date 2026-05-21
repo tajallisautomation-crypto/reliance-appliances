@@ -67,6 +67,7 @@ import SEO from '../components/ui/SEO'
 import OfferBannerSlider from '../components/OfferBannerSlider'
 import { getInstallationImages, getFeaturedImages, type MediaItem } from '../lib/gallery'
 import SocialProofLoop from '../components/ui/SocialProofLoop'
+import { BrandedImage } from '../components/common/BrandedImage'
 
 // Brand list — preferred brands (Haier, Crown, Westpoint) listed first for merchandising visibility
 const BRANDS = [
@@ -352,15 +353,18 @@ export default function Home() {
                       <div key={slotIndex}
                         className="aspect-square rounded-[1.75rem] overflow-hidden bg-gray-100 shadow-apple">
                         {slotUrls.length > 0
-                          ? <img
+                          ? <BrandedImage
                               src={slotUrls[activeIndexes[slotIndex]]}
                               alt="Completed installation by Tajalli's Home & Commercial Solutions"
-                              className="w-full h-full object-cover"
+                              className="w-full h-full"
                               style={{
-                                objectPosition: 'center 60%',
                                 transition: 'opacity 350ms ease, transform 350ms ease',
                                 opacity: fadingSlot === slotIndex ? 0 : 1,
                                 transform: fadingSlot === slotIndex ? 'scale(1.03)' : 'scale(1)',
+                              }}
+                              imageClassName="object-cover"
+                              imageStyle={{
+                                objectPosition: 'center 60%',
                                 filter: 'brightness(1.03) contrast(1.04) saturate(1.04)',
                               }}
                               loading={slotIndex === 0 ? 'eager' : 'lazy'}
@@ -778,11 +782,13 @@ export default function Home() {
               <Link key={item.id} to="/gallery"
                 className="aspect-square rounded-2xl overflow-hidden block bg-gray-100 hover:opacity-90 transition-opacity animate-fade-in"
                 style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}>
-                <img
+                <BrandedImage
                   src={item.public_url}
                   alt={item.caption}
                   loading="lazy"
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                  className="w-full h-full"
+                  imageClassName="object-cover hover:scale-105 transition-transform duration-500"
+                  compact
                 />
               </Link>
             ))}

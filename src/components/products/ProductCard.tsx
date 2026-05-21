@@ -6,6 +6,7 @@ import { formatPrice } from '@/lib/api';
 import { waProduct } from '@/lib/whatsapp';
 import { useCartStore } from '@/store/cartStore';
 import CompareButton from '@/components/CompareButton';
+import { BrandedImage } from '@/components/common/BrandedImage';
 import toast from 'react-hot-toast';
 
 interface Props { product: Product; }
@@ -38,10 +39,11 @@ export default function ProductCard({ product: p }: Props) {
       {/* Image */}
       <div className="relative aspect-square bg-gray-50 overflow-hidden">
         {p.thumbnail && !imgError ? (
-          <img
+          <BrandedImage
             src={p.thumbnail}
             alt={`${p.brand} ${p.model}`}
-            className="w-full h-full object-contain p-5 group-hover:scale-[1.03] transition-transform duration-500 ease-out"
+            className="w-full h-full"
+            imageClassName="object-contain p-5 group-hover:scale-[1.03] transition-transform duration-500 ease-out"
             loading="lazy"
             onError={() => setImgError(true)}
           />

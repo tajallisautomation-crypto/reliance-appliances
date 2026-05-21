@@ -16,6 +16,7 @@ import CompareButton from '@/components/CompareButton';
 import SEO from '@/components/ui/SEO';
 import Spinner from '@/components/ui/Spinner';
 import SolarCompatibilityPanel from '@/components/products/SolarCompatibilityPanel';
+import { BrandedImage } from '@/components/common/BrandedImage';
 import { useCartStore } from '@/store/cartStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { requiresInstallation } from '@/lib/services';
@@ -299,8 +300,12 @@ export default function ProductDetail() {
             className="aspect-square rounded-2xl overflow-hidden bg-gray-50 mb-3 shadow-apple-lg relative group cursor-zoom-in"
             onClick={() => openLightbox(activeImg)}
           >
-            <img src={allImages[activeImg] || p.thumbnail} alt={`${p.brand} ${p.model}`}
-              className="w-full h-full object-contain p-4 transition-opacity duration-300" />
+            <BrandedImage
+              src={allImages[activeImg] || p.thumbnail}
+              alt={`${p.brand} ${p.model}`}
+              className="w-full h-full"
+              imageClassName="object-contain p-4 transition-opacity duration-300"
+            />
             {/* Overlay buttons */}
             <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
               <button onClick={e => { e.stopPropagation(); openLightbox(activeImg); }}
