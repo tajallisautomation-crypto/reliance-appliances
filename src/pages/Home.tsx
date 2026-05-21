@@ -247,12 +247,12 @@ export default function Home() {
         <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-7 sm:py-10 md:py-14">
           {/* Mobile: stack. Desktop: 45/55 two-column grid */}
           <div
-            className="flex flex-col gap-7 md:grid md:items-center md:gap-12"
+            className="flex flex-col gap-5 md:grid md:items-center md:gap-12"
             style={{ gridTemplateColumns: '45% 55%' }}
           >
 
             {/* ── LEFT COLUMN ── */}
-            <div className="flex flex-col gap-4 md:gap-5">
+            <div className="flex flex-col gap-3 md:gap-5">
 
               {/* Trust badge */}
               <div className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 bg-white border border-brand-100 shadow-sm rounded-full px-3 py-1 self-start">
@@ -286,17 +286,20 @@ export default function Home() {
               </p>
 
               {/* CTAs: Build a Package → Shop Products → WhatsApp */}
-              <div className="flex flex-col sm:flex-row flex-wrap gap-2.5">
-                <Link to="/build-your-package"
-                  className="inline-flex items-center justify-center gap-2 bg-gold-500 hover:bg-gold-600 text-white font-bold text-sm px-5 py-3 rounded-2xl shadow-sm transition-all min-h-[48px]">
-                  <Package className="w-4 h-4" /> Build a Package
-                </Link>
-                <Link to="/products"
-                  className="inline-flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm px-5 py-3 rounded-2xl shadow-brand transition-all min-h-[48px]">
-                  Shop Products <ArrowRight className="w-4 h-4" />
-                </Link>
+              {/* Mobile: 2-per-row (Build + Shop), WhatsApp full-width below */}
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <Link to="/build-your-package"
+                    className="flex-1 inline-flex items-center justify-center gap-2 bg-gold-500 hover:bg-gold-600 text-white font-bold text-sm px-4 py-3 rounded-2xl shadow-sm transition-all min-h-[48px]">
+                    <Package className="w-4 h-4 shrink-0" /> Build a Package
+                  </Link>
+                  <Link to="/products"
+                    className="flex-1 inline-flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm px-4 py-3 rounded-2xl shadow-brand transition-all min-h-[48px]">
+                    Shop Products <ArrowRight className="w-4 h-4 shrink-0" />
+                  </Link>
+                </div>
                 <a href={waSales()} target="_blank" rel="noreferrer"
-                  className="inline-flex items-center justify-center gap-2 bg-eco-500 hover:bg-eco-600 text-white font-semibold text-sm px-5 py-3 rounded-2xl transition-all min-h-[48px]">
+                  className="inline-flex items-center justify-center gap-2 bg-eco-500 hover:bg-eco-600 text-white font-semibold text-sm px-5 py-3 rounded-2xl transition-all min-h-[44px]">
                   <Phone className="w-4 h-4" /> WhatsApp Help
                 </a>
               </div>
@@ -366,10 +369,10 @@ export default function Home() {
             </div>
 
             {/* ── STATS: mobile only — after collage ── */}
-            <div className="md:hidden grid grid-cols-2 gap-2.5">
+            <div className="md:hidden grid grid-cols-2 gap-2">
               {HERO_STATS.map(({ Icon, value, label, iconColor, iconBg }) => (
                 <div key={label}
-                  className="flex items-center gap-2.5 bg-white border border-gray-100 shadow-apple rounded-2xl px-3 py-2.5 cursor-default">
+                  className="flex items-center gap-2 bg-white border border-gray-100 shadow-apple rounded-2xl px-2.5 py-2 cursor-default">
                   <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}>
                     <Icon className={`w-4 h-4 ${iconColor}`} />
                   </div>
