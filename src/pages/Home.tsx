@@ -65,7 +65,7 @@ import { calcPlan } from '../lib/plans'
 import ProductCard from '../components/products/ProductCard'
 import SEO from '../components/ui/SEO'
 import OfferBannerSlider from '../components/OfferBannerSlider'
-import { getInstallationImages, type MediaItem } from '../lib/gallery'
+import { getInstallationImages, getFeaturedImages, type MediaItem } from '../lib/gallery'
 import SocialProofLoop from '../components/ui/SocialProofLoop'
 
 // Brand list — preferred brands (Haier, Crown, Westpoint) listed first for merchandising visibility
@@ -164,7 +164,8 @@ export default function Home() {
   const [fadingSlot,     setFadingSlot]    = useState<number | null>(null)
   const [toastIndex,     setToastIndex]    = useState(0)
   const [toastVisible,   setToastVisible]  = useState(false)
-  const collageRef = useRef<string[][]>([[], [], [], []])
+  const collageRef  = useRef<string[][]>([[], [], [], []])
+  const indexesRef  = useRef([0, 0, 0, 0])
 
   // Preferred brands surfaced first in homepage featured section
   const PREFERRED_BRANDS = ['haier', 'crown', 'westpoint']
@@ -180,10 +181,15 @@ export default function Home() {
       setLoading(false)
     }).catch(() => setLoading(false))
     getProductCount().then(setTotalProducts)
-    getInstallationImages(20).then(items => {
-      setGalleryStrip(items.slice(0, 6))
+    // Strip uses chronological installation images; collage prefers featured (curated) quality
+    getInstallationImages(6).then(items => setGalleryStrip(items))
+    Promise.all([getFeaturedImages(16), getInstallationImages(16)]).then(([featured, installation]) => {
+      // Featured first; supplement with installation if fewer than 8 curated images exist
+      const pool = featured.length >= 8 ? featured : [...featured, ...installation]
+      // Shuffle so the initial 4 visible slots are visually diverse, not sequential
+      const shuffled = [...pool].sort(() => Math.random() - 0.5)
       const slots: string[][] = [[], [], [], []]
-      items.forEach((item, i) => slots[i % 4].push(item.public_url))
+      shuffled.forEach((item, i) => slots[i % 4].push(item.public_url))
       collageRef.current = slots
       setCollageSlots(slots)
     })
@@ -194,15 +200,30 @@ export default function Home() {
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (reduceMotion) return
     const interval = setInterval(() => {
-      const slots = collageRef.current
+      const slots   = collageRef.current
+      const indexes = indexesRef.current
       const eligible = slots.map((s, i) => s.length > 1 ? i : -1).filter(i => i >= 0)
       if (eligible.length === 0) return
+
       const slot = eligible[Math.floor(Math.random() * eligible.length)]
+
+      // URLs currently visible in the OTHER three slots (so we never show a duplicate)
+      const otherShown = new Set<string>()
+      slots.forEach((s, i) => { if (i !== slot && s.length > 0) otherShown.add(s[indexes[i]]) })
+
+      // Advance to next image; skip any URL already visible in another slot
+      let nextIndex = (indexes[slot] + 1) % slots[slot].length
+      for (let attempt = 0; attempt < slots[slot].length; attempt++) {
+        if (!otherShown.has(slots[slot][nextIndex])) break
+        nextIndex = (nextIndex + 1) % slots[slot].length
+      }
+
       setFadingSlot(slot)
       setTimeout(() => {
         setActiveIndexes(prev => {
           const next = [...prev]
-          next[slot] = (next[slot] + 1) % slots[slot].length
+          next[slot] = nextIndex
+          indexesRef.current = next   // keep ref in sync for next interval tick
           return next
         })
         setFadingSlot(null)
@@ -325,26 +346,33 @@ export default function Home() {
             <div className="relative">
               <div className="grid grid-cols-2 gap-3 md:gap-4">
                 {collageSlots.some(s => s.length > 0)
-                  ? collageSlots.map((slotUrls, slotIndex) => (
-                    <div key={slotIndex}
-                      className="aspect-square rounded-[1.75rem] overflow-hidden bg-gray-100 shadow-apple">
-                      {slotUrls.length > 0
-                        ? <img
-                            src={slotUrls[activeIndexes[slotIndex]]}
-                            alt="Completed installation by Tajalli's Home & Commercial Solutions"
-                            className="w-full h-full object-cover"
-                            style={{
-                              transition: 'opacity 350ms ease, transform 350ms ease',
-                              opacity: fadingSlot === slotIndex ? 0 : 1,
-                              transform: fadingSlot === slotIndex ? 'scale(1.03)' : 'scale(1)',
-                              filter: 'brightness(1.03) contrast(1.04) saturate(1.04)',
-                            }}
-                            loading={slotIndex === 0 ? 'eager' : 'lazy'}
-                          />
-                        : <div className="w-full h-full bg-gray-50" />
-                      }
-                    </div>
-                  ))
+                  ? collageSlots.map((slotUrls, slotIndex) => {
+                    const tile = HERO_TILES[slotIndex]
+                    return (
+                      <div key={slotIndex}
+                        className="aspect-square rounded-[1.75rem] overflow-hidden bg-gray-100 shadow-apple">
+                        {slotUrls.length > 0
+                          ? <img
+                              src={slotUrls[activeIndexes[slotIndex]]}
+                              alt="Completed installation by Tajalli's Home & Commercial Solutions"
+                              className="w-full h-full object-cover"
+                              style={{
+                                objectPosition: 'center 60%',
+                                transition: 'opacity 350ms ease, transform 350ms ease',
+                                opacity: fadingSlot === slotIndex ? 0 : 1,
+                                transform: fadingSlot === slotIndex ? 'scale(1.03)' : 'scale(1)',
+                                filter: 'brightness(1.03) contrast(1.04) saturate(1.04)',
+                              }}
+                              loading={slotIndex === 0 ? 'eager' : 'lazy'}
+                            />
+                          : <div className={`w-full h-full bg-gradient-to-br ${tile.bg} flex flex-col items-center justify-center gap-2`}>
+                              <tile.Icon className={`w-10 h-10 ${tile.color}`} />
+                              <p className="text-xs font-bold text-gray-700 text-center leading-tight">{tile.label}</p>
+                            </div>
+                        }
+                      </div>
+                    )
+                  })
                   : HERO_TILES.map(({ Icon, label, area, bg, color }, i) => (
                     <div key={label}
                       className={`aspect-square rounded-[1.75rem] bg-gradient-to-br ${bg} shadow-apple flex flex-col items-center justify-center gap-2 animate-fade-in`}
