@@ -275,10 +275,8 @@ const SPEC_FILTERS: Record<string, SpecFilter[]> = {
           match: p => {
             const src = (p.simplified_name || '') + ' ' + (p.tags || '');
             if (/inverter/i.test(src)) return true;
-            // Product intelligence: Gree Airy series = inverter (not always labeled)
-            if (/gree/i.test(p.brand) && /\bairy\b/i.test(p.simplified_name || '')) return true;
-            // Product intelligence: Haier HFT/HFAB series = T3 inverter
-            if (/haier/i.test(p.brand) && /\bHFT\b|\bHFAB\b/.test(p.model || '')) return true;
+            // Primary: check specs.Inverter directly — most reliable after DB enrichment
+            if (String(p.specs?.Inverter || '').startsWith('Yes')) return true;
             return false;
           },
         },
@@ -287,9 +285,7 @@ const SPEC_FILTERS: Record<string, SpecFilter[]> = {
           match: p => {
             const src = (p.simplified_name || '') + ' ' + (p.tags || '');
             if (/inverter/i.test(src)) return false;
-            // Gree Airy and Haier HFT/HFAB are inverter — exclude from non-inverter
-            if (/gree/i.test(p.brand) && /\bairy\b/i.test(p.simplified_name || '')) return false;
-            if (/haier/i.test(p.brand) && /\bHFT\b|\bHFAB\b/.test(p.model || '')) return false;
+            if (String(p.specs?.Inverter || '').startsWith('Yes')) return false;
             return true;
           },
         },
