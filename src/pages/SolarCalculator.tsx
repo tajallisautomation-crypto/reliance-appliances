@@ -354,7 +354,7 @@ export default function SolarCalculator() {
 
   // Reactive nighttime load estimate — used as the battery sizing input (hybrid / off-grid).
   // Appliance mode: sum load that runs beyond peak sun hours.
-  // Bill mode: 40% of estimated daily kWh. Direct mode: 40% of expected solar production.
+  // Bill/direct mode: 65% of daily kWh — Pakistan default (ACs + fridge run overnight).
   const afterDarkEstimate = useMemo(() => {
     if (items.length > 0) {
       const fromItems = items.reduce((s, i) => {
@@ -363,10 +363,10 @@ export default function SolarCalculator() {
       }, 0)
       if (fromItems > 0) return +fromItems.toFixed(2)
     }
-    if (effectiveDailyU > 0) return +(effectiveDailyU * 0.4).toFixed(2)
-    // Direct kW mode: invert sizing formula (load = sysKW × peakHrs ÷ 1.25) then take 40% as nighttime
+    if (effectiveDailyU > 0) return +(effectiveDailyU * 0.65).toFixed(2)
+    // Direct kW mode: invert sizing formula (load = sysKW × peakHrs ÷ 1.25) then take 65% as nighttime
     const kw = parseFloat(directKW) || 0
-    return kw > 0 ? +(kw * peakHrs / 1.25 * 0.4).toFixed(2) : 0
+    return kw > 0 ? +(kw * peakHrs / 1.25 * 0.65).toFixed(2) : 0
   }, [items, peakHrs, effectiveDailyU, directKW])
 
   const addItem = (app: typeof APPLIANCES[0]) => setItems(prev => {
@@ -412,7 +412,7 @@ export default function SolarCalculator() {
 
       // ── After-dark kWh — basis for battery sizing (hybrid / off-grid) ───────
       // Uses the user-set nighttime override when provided; otherwise falls back to
-      // afterDarkEstimate (appliance hours > peakHrs, or 40% of daily in bill/direct mode).
+      // afterDarkEstimate (appliance hours > peakHrs, or 65% of daily in bill/direct mode).
       const afterDarkKWh = nightKWhOverride !== null ? nightKWhOverride : afterDarkEstimate
 
       // Partially off-grid: battery covers nighttime only
@@ -992,7 +992,7 @@ export default function SolarCalculator() {
                 <div className="flex items-center justify-between mt-2">
                   <p className="text-xs text-gray-400">
                     {items.length === 0
-                      ? 'Default is 40% of daily usage. Raise if you run ACs or fridges at night.'
+                      ? 'Default is 65% of daily usage — typical for Pakistan (ACs + fridge overnight). Lower if you use minimal appliances at night.'
                       : 'Appliances running beyond your solar window automatically count toward this.'}
                   </p>
                   {nightKWhOverride !== null && (
@@ -1156,7 +1156,7 @@ export default function SolarCalculator() {
                       <div className="text-[11px] text-blue-600 mt-0.5">
                         {items.length > 0
                           ? `Load running beyond your ${peakHrs}h solar window`
-                          : 'Estimated from your daily usage (40% assumed after dark)'}
+                          : 'Estimated from your daily usage (65% assumed after dark — Pakistan default)'}
                       </div>
                     </div>
                     <div className="text-lg font-bold text-blue-700">{quote.afterDarkKWh} kWh/night</div>
