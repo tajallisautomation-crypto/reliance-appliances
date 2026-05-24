@@ -30,6 +30,7 @@ import {
 } from '@/lib/solarRules';
 import { GC_PACKAGES, type GCPackage } from './GreenCorridor';
 import { PACKAGES as SOLAR_PACKAGES, type SolarPackage } from './SolarPage';
+import { SERVICES_CATALOG } from '@/lib/services';
 import {
   LogOut, Plus, Pencil, Trash2, Upload, Search, X, Check,
   ChevronDown, ChevronUp, Package, FileUp, Loader2, Sparkles, Image as ImageIcon,
@@ -9993,6 +9994,8 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
   const [srFaultDesc,     setSrFaultDesc]     = useState('');
   const [srWarrantyDays,  setSrWarrantyDays]  = useState(0);
   const [srJobLines,      setSrJobLines]      = useState<Array<{id: string; type: 'work'|'part'; description: string; qty: number; unitPrice: number}>>([]);
+  const [srCatalogOpen,   setSrCatalogOpen]   = useState(false);
+  const [srSvcTiers,      setSrSvcTiers]      = useState<Record<string, number>>({});
 
   const autosaveRef                        = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -11821,6 +11824,79 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
             </div>
           )}
         </div>
+
+        {/* ── Service Catalog picker (service_receipt only) ── */}
+        {docType === 'service_receipt' && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Service Catalog</p>
+              <button onClick={() => setSrCatalogOpen(o => !o)}
+                className="px-3 py-1.5 text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg transition-colors">
+                {srCatalogOpen ? 'Hide' : 'Browse Catalog'}
+              </button>
+            </div>
+            {srCatalogOpen && (
+              <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
+                {(['maintenance', 'repair', 'installation', 'gas_refill', 'package', 'delivery', 'consultation', 'warranty_support'] as const).map(cat => {
+                  const entries = SERVICES_CATALOG.filter(s => s.category === cat);
+                  if (!entries.length) return null;
+                  const catLabel: Record<string, string> = {
+                    maintenance: 'Maintenance', repair: 'Repair', installation: 'Installation',
+                    gas_refill: 'Gas Refill', package: 'Packages', delivery: 'Delivery',
+                    consultation: 'Consultation', warranty_support: 'Warranty Support',
+                  };
+                  return (
+                    <div key={cat}>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-1.5">{catLabel[cat]}</p>
+                      <div className="space-y-1">
+                        {entries.map(svc => {
+                          const hasTiers = !!(svc.price.tiers?.length);
+                          const defaultAmt = hasTiers ? svc.price.tiers![0].amount : (svc.price.amount ?? svc.price.min ?? 0);
+                          const selectedAmt = srSvcTiers[svc.id] ?? defaultAmt;
+                          return (
+                            <div key={svc.id} className="flex items-center gap-2 p-2 rounded-lg border border-gray-100 hover:border-brand-200 hover:bg-brand-50/20 transition-all">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-gray-800 truncate">{svc.name}</p>
+                                {hasTiers ? (
+                                  <select
+                                    value={selectedAmt}
+                                    onChange={e => setSrSvcTiers(prev => ({ ...prev, [svc.id]: Number(e.target.value) }))}
+                                    className="mt-0.5 text-[10px] border border-gray-200 rounded px-1.5 py-0.5 bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-400 max-w-full">
+                                    {svc.price.tiers!.map(t => (
+                                      <option key={t.label} value={t.amount}>{t.label} — PKR {t.amount.toLocaleString('en-PK')}</option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <p className="text-[10px] text-gray-500">{svc.price.display}</p>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => {
+                                  const label = hasTiers
+                                    ? svc.price.tiers!.find(t => t.amount === selectedAmt)?.label ?? ''
+                                    : '';
+                                  setSrJobLines(prev => [...prev, {
+                                    id: crypto.randomUUID(),
+                                    type: 'work',
+                                    description: svc.name + (label ? ` (${label})` : ''),
+                                    qty: 1,
+                                    unitPrice: selectedAmt,
+                                  }]);
+                                }}
+                                className="px-2.5 py-1 text-[10px] font-bold bg-gray-900 hover:bg-brand-500 text-white rounded-lg transition-colors shrink-0">
+                                + Add
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Service Job Lines panel (service_receipt only) ── */}
         {docType === 'service_receipt' && (
