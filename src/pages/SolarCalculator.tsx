@@ -680,10 +680,10 @@ export default function SolarCalculator() {
                       </div>
                     )}
 
-                    <button onClick={async () => { await calc() }}
-                      disabled={loading || !(parseFloat(directKW) > 0)}
+                    <button onClick={() => setStep(2)}
+                      disabled={!(parseFloat(directKW) > 0)}
                       className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl py-3 font-semibold shadow-lg disabled:opacity-50 text-sm">
-                      {loading ? 'Calculating…' : `Get Quote for ${directKW || '—'}kW System`}
+                      Next: Preferences →
                     </button>
                   </div>
                 )}
@@ -1061,7 +1061,7 @@ export default function SolarCalculator() {
                 className="flex-1 border border-gray-300 text-gray-600 rounded-xl py-3 font-medium hover:bg-gray-50 text-sm">
                 Back
               </button>
-              <button onClick={calc} disabled={loading || (!effectiveDailyU && !items.length)}
+              <button onClick={calc} disabled={loading || (!effectiveDailyU && !items.length && !(inputMode === 'direct' && parseFloat(directKW) > 0))}
                 className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl py-3 font-semibold shadow-lg disabled:opacity-50 text-sm">
                 {loading ? 'Calculating…' : 'Generate Quote'}
               </button>
