@@ -963,7 +963,7 @@ export default function SolarCalculator() {
                   <div>
                     <div className="text-sm font-semibold text-gray-700">Elevated / Tilted Frame</div>
                     <div className="text-xs text-gray-500 mt-0.5">
-                      Required if roof is flat or mounting on a stand. Adds Rs.28/watt (Rs.{(28 * effectiveDailyU * 1.25 / peakHrs * 1000 / 1000).toFixed(0) || '—'}k estimated).
+                      Required if roof is flat or mounting on a stand. Adds Rs.{Math.round(ELEVATED_FRAME_W)}/watt (Rs.{(ELEVATED_FRAME_W * (inputMode === 'direct' ? (parseFloat(directKW) || 0) : effectiveDailyU * 1.25 / peakHrs)).toFixed(0) || '—'}k estimated).
                     </div>
                   </div>
                 </label>
@@ -981,7 +981,7 @@ export default function SolarCalculator() {
                     : ' Adjust if you know your typical after-dark usage.'}
                 </p>
                 <div className="flex items-center gap-4">
-                  <input type="range" min={0} max={Math.max(2, Math.ceil(effectiveDailyU || (parseFloat(directKW) || 5) * peakHrs / 2))} step={0.1}
+                  <input type="range" min={0} max={Math.max(2, Math.ceil(effectiveDailyU > 0 ? effectiveDailyU : (parseFloat(directKW) || 5) * peakHrs / 1.25))} step={0.1}
                     value={nightKWhOverride ?? afterDarkEstimate}
                     onChange={e => setNightKWhOverride(parseFloat(e.target.value))}
                     className="flex-1 accent-brand-500"/>
@@ -1051,7 +1051,7 @@ export default function SolarCalculator() {
                 {[
                   { v: effectiveDailyU > 0 ? `${effectiveDailyU.toFixed(1)} kWh` : '—', l: 'Daily Usage' },
                   { v: effectiveDailyU > 0 ? `${(effectiveDailyU*30).toFixed(0)} kWh` : '—', l: 'Monthly' },
-                  { v: effectiveDailyU > 0 ? `${+(effectiveDailyU*1.25/peakHrs).toFixed(1)} kW` : '—', l: 'Est. System Size' },
+                  { v: inputMode === 'direct' ? `${parseFloat(directKW) || 0} kW` : effectiveDailyU > 0 ? `${+(effectiveDailyU*1.25/peakHrs).toFixed(1)} kW` : '—', l: 'Est. System Size' },
                 ].map((x,i) => (
                   <div key={i} className="bg-white rounded-xl p-3">
                     <div className="text-xl font-bold text-brand-600">{x.v}</div>
@@ -1145,7 +1145,9 @@ export default function SolarCalculator() {
                   <Zap className="w-4 h-4 text-blue-500"/> Battery Requirement Breakdown
                 </h3>
                 <p className="text-xs text-gray-500 mb-4">
-                  Your battery bank is sized from <strong>actual after-dark consumption</strong> — not an arbitrary percentage.
+                  {items.length > 0
+                    ? <>Battery sized from <strong>actual appliance hours</strong> beyond your solar window — not a flat percentage.</>
+                    : <>Battery sized from <strong>estimated after-dark consumption</strong> (65% of daily load — Pakistan default for AC households).</>}
                 </p>
 
                 {/* After-dark load */}
@@ -1183,7 +1185,7 @@ export default function SolarCalculator() {
                       </div>
                       {quote.batBank && quote.type === 'hybrid' && (
                         <div className="flex justify-between">
-                          <span className="text-gray-500">Crown battery bank</span>
+                          <span className="text-gray-500">{quote.batBank.product.brand} battery bank</span>
                           <span className="font-bold text-brand-600">{fmtPKR(quote.costs.battery)}</span>
                         </div>
                       )}
@@ -1208,7 +1210,7 @@ export default function SolarCalculator() {
                       </div>
                       {quote.batBank && quote.type === 'off-grid' && (
                         <div className="flex justify-between">
-                          <span className="text-gray-500">Crown battery bank</span>
+                          <span className="text-gray-500">{quote.batBank.product.brand} battery bank</span>
                           <span className="font-bold text-brand-600">{fmtPKR(quote.costs.battery)}</span>
                         </div>
                       )}
@@ -1437,7 +1439,7 @@ export default function SolarCalculator() {
             {/* Disclaimer */}
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-800 space-y-1.5">
               <p className="font-bold text-amber-900">Important — Calculator Assumptions</p>
-              <p>This estimate assumes <strong>5–5.5 peak sun hours/day</strong> (Karachi average), <strong>PKR 50–60/unit</strong> electricity rate, and standard roof orientation. Actual output and savings will vary based on your site, shading, usage pattern, and local tariff.</p>
+              <p>This estimate uses <strong>{peakHrs} peak sun hours/day</strong> (adjustable in Step 2; Karachi default 7h) and <strong>PKR {UNIT_RATE}/kWh</strong> electricity rate (K-Electric blended average). Actual output and savings will vary based on your site, shading, usage pattern, and local tariff.</p>
               <p>Prices are indicative. Final price is confirmed after a site visit. Panel degradation (~0.5%/year), elevated frame costs, and any special structural requirements are not included in this estimate.</p>
               <p>Solar systems above <strong>5kW or PKR 700,000</strong> require full cash payment. Installment plans require a minimum <strong>40% advance</strong> and are subject to approval. <a href="/policy/solar" className="underline font-semibold hover:text-amber-900">Full solar disclaimer →</a></p>
             </div>
