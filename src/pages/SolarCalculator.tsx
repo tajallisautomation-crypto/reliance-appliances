@@ -364,9 +364,9 @@ export default function SolarCalculator() {
       if (fromItems > 0) return +fromItems.toFixed(2)
     }
     if (effectiveDailyU > 0) return +(effectiveDailyU * 0.4).toFixed(2)
-    // Direct kW mode with no items/bill: 40% of estimated daily production
+    // Direct kW mode: invert sizing formula (load = sysKW × peakHrs ÷ 1.25) then take 40% as nighttime
     const kw = parseFloat(directKW) || 0
-    return kw > 0 ? +(kw * peakHrs * 0.4).toFixed(2) : 0
+    return kw > 0 ? +(kw * peakHrs / 1.25 * 0.4).toFixed(2) : 0
   }, [items, peakHrs, effectiveDailyU, directKW])
 
   const addItem = (app: typeof APPLIANCES[0]) => setItems(prev => {
@@ -404,6 +404,11 @@ export default function SolarCalculator() {
     try {
       const activeType = mode === 'ups' ? 'ups-only' : sysType
       const refU = effectiveDailyU || dailyU
+      // In direct mode there are no appliances/bill so refU is 0; estimate daily load by
+      // inverting the panel-sizing formula: dailyLoad = sysKW × peakHrs ÷ 1.25
+      const refUEff = refU > 0 ? refU
+        : inputMode === 'direct' ? +(Math.max(0.5, parseFloat(directKW) || 5) * peakHrs / 1.25).toFixed(2)
+        : 0
 
       // ── After-dark kWh — basis for battery sizing (hybrid / off-grid) ───────
       // Uses the user-set nighttime override when provided; otherwise falls back to
@@ -413,7 +418,7 @@ export default function SolarCalculator() {
       // Partially off-grid: battery covers nighttime only
       const partialOffGridBatKWh = Math.max(0.5, Math.ceil(afterDarkKWh / 0.85 * 1.2 * 10) / 10)
       // Completely off-grid: full daily autonomy (1.5× for cloudy-day reserve)
-      const fullOffGridBatKWh   = Math.max(1, Math.ceil(refU / 0.85 * 1.5 * 10) / 10)
+      const fullOffGridBatKWh   = Math.max(1, Math.ceil(+refUEff / 0.85 * 1.5 * 10) / 10)
 
       // ── UPS mode: size by load × backup hours ──────────────────────────────
       if (mode === 'ups') {
@@ -494,7 +499,7 @@ export default function SolarCalculator() {
       // production offsets the bill. Use (refU − afterDarkKWh) as the effectively saved daily kWh.
       // Hybrid / off-grid / on-grid with net metering: full savings (battery or grid export covers remainder).
       const isOnGridNoNM = activeType === 'on-grid' && !(netMetering && sysKW >= NET_METERING_MIN_KW)
-      const savedDailyU  = isOnGridNoNM ? Math.max(0, refU - afterDarkKWh) : refU
+      const savedDailyU  = isOnGridNoNM ? Math.max(0, +refUEff - afterDarkKWh) : +refUEff
       const monthlyUnits = activeType === 'ups-only' ? 0 : +(savedDailyU * 30).toFixed(0)
       const mSave        = r100(monthlyUnits * UNIT_RATE)
       const paybackYrs   = mSave > 0 ? +(total / mSave / 12).toFixed(1) : 99
@@ -509,7 +514,7 @@ export default function SolarCalculator() {
         type: activeType,
         costs: { panels: panelCost, inverter: invCost, battery: batCost, wiring: wiringCost, labor: 0, frame: frameCost, total },
         savings: { unitsPerMonth: monthlyUnits, monthlySaving: mSave, annualSaving: r100(mSave * 12), paybackYears: paybackYrs },
-        plans, totalW, dailyU: +refU.toFixed(2),
+        plans, totalW, dailyU: +refUEff.toFixed(2),
         withInstallments: Object.keys(plans).length > 0,
         noInstallReason: noInstallReason(total, sysKW),
         afterDarkKWh: +afterDarkKWh.toFixed(2),
