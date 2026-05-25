@@ -316,7 +316,163 @@ export const TEMPLATES = {
     `Yeh details se main aapko exact system size aur ROI calculate kar ke batata hoon!\n` +
     `90% customers ka bill 60%+ kam ho jaata hai ☀️`,
 
-  // ── 13. BOT AUTO-RESPONSES (any query) ────────────────────────────
+  // ── 13. AC LIFECYCLE JOURNEY ──────────────────────────────────────
+  lifecycle_ac_install: (name: string, product: string) =>
+    `Salam ${name}! 🎉\n\n` +
+    `*${product}* deliver ho gaya — Mubarak ho!\n\n` +
+    `Hamari team installation ke liye ready hai. Kab convenient time hai?\n` +
+    `• Aaj\n• Kal subah\n• Kal dopahar ke baad\n\n` +
+    `Installation mein shamil hai:\n` +
+    `✅ Professional wiring & gas charge\n` +
+    `✅ Test run + cooling check\n` +
+    `✅ Remote aur features ka demonstration\n\n` +
+    `Ek message mein batain — schedule kar dete hain! ⚡`,
+
+  lifecycle_ac_day7: (name: string, product: string) =>
+    `Salam ${name}! 😊\n\n` +
+    `*${product}* install hue 7 din ho gaye — sab theek chal raha hai?\n\n` +
+    `Quick check:\n` +
+    `❄️ Cooling satisfactory hai?\n` +
+    `🔇 Koi unusual sound toh nahi?\n` +
+    `💧 Drainage theek hai?\n\n` +
+    `Agar koi bhi cheez ajeeb lage — *abhi batain*. Warranty period mein hain, sab free fix ho jaega.\n\n` +
+    `Satisfied hain toh bhi batain — sunna acha lagta hai! 😄\n` +
+    `0370-2578788`,
+
+  lifecycle_ac_month3: (name: string, product: string) =>
+    `Salam ${name}! 🌟\n\n` +
+    `*${product}* ko 3 mahine ho gaye — waqt kaise guzra?\n\n` +
+    `3 tips jo AC ki life barha denge:\n` +
+    `🧹 *Filter clean karein* — mahine mein ek baar (dust blocking = 15% extra bijli)\n` +
+    `❄️ *Set temp 24-26°C* — best efficiency zone\n` +
+    `🔌 *Night mode use karein* — auto temperature control\n\n` +
+    `Professional *filter + coil service* karwana chahein?\n` +
+    `PKR 2,500–3,500 mein complete service — appointment le lain!\n\n` +
+    `0370-2578788`,
+
+  lifecycle_ac_presummer: (name: string, product: string) =>
+    `Salam ${name}! ☀️\n\n` +
+    `Garmiyaan aa rahi hain — kya aapka *${product}* ready hai?\n\n` +
+    `*Pre-Summer Deep Clean Package:*\n` +
+    `🧼 Indoor + outdoor coil wash\n` +
+    `❄️ Gas pressure check\n` +
+    `⚡ Electrical connections tighten\n` +
+    `🔧 Drain pipe flush\n` +
+    `━━━━━━━━━━━━━━━━\n` +
+    `PKR *3,500* (limited time — May se pehle book karein)\n\n` +
+    `Cleaned AC:\n` +
+    `✅ 20-30% energy saving\n` +
+    `✅ Better cooling from day one of summer\n` +
+    `✅ Reduces risk of breakdown in peak heat\n\n` +
+    `Appointment chahiye? Reply karein! 🗓️`,
+
+  lifecycle_ac_care_plan: (name: string, product: string) =>
+    `Salam ${name}! 🛡️\n\n` +
+    `*${product}* ka pehla saal poora hone wala hai — Mubarak!\n\n` +
+    `Aapke liye ek khas offer: *Annual AC Care Plan*\n\n` +
+    `*Essential Plan — PKR 7,500/year:*\n` +
+    `✅ 2 full service visits\n` +
+    `✅ Filter + coil cleaning\n` +
+    `✅ Gas pressure check\n` +
+    `✅ Priority booking\n` +
+    `✅ 10% off spare parts\n\n` +
+    `Loyalty customers ko *extra 10% discount* milti hai 🎁\n\n` +
+    `Enroll karna chahein? 1 call mein sab arrange ho jaega!\n` +
+    `0370-2578788`,
+
+  lifecycle_ac_solar: (name: string, product: string) =>
+    `Salam ${name}! ☀️\n\n` +
+    `Aap *${product}* ke saath bohot bijli bachat kar rahe hain — aur zyada karna chahein?\n\n` +
+    `*Solar + AC Combination — Karachi ka Best Investment:*\n` +
+    `💡 3-5 kW system aapka AC + ghar ka load cover kar sakta hai\n` +
+    `📉 Bill 60-80% kam ho jaata hai\n` +
+    `💰 System 3-4 saal mein ROI de deta hai\n` +
+    `🌱 Net metering se WAPDA ko bijli bhi bech sakte hain\n\n` +
+    `*Free Solar Assessment:*\n` +
+    `✅ Site visit\n` +
+    `✅ Load calculation\n` +
+    `✅ Exact system size + cost quote\n` +
+    `✅ ROI timeline\n\n` +
+    `Interested? Reply *SOLAR* — hum call karenge! ☀️`,
+
+  // ── 14. BUNDLE OFFERS ──────────────────────────────────────────────
+  bundle_ac_package: (name = 'Customer') =>
+    `Salam ${name}! ❄️\n\n` +
+    `*AC Complete Package* — sab ek jagah:\n\n` +
+    `📦 Inverter AC (brand + model aap chunein)\n` +
+    `🔧 Professional installation (wiring + gas charge)\n` +
+    `⚡ Voltage stabilizer (AC protection)\n` +
+    `☀️ Free solar suitability consultation\n\n` +
+    `*5% bundle discount* automatically apply hoga!\n\n` +
+    `Kaunsa AC size chahiye? 1 ton, 1.5 ton ya 2 ton?\n` +
+    `Reply karein — complete quote 10 min mein 🎁`,
+
+  bundle_fridge: (name = 'Customer') =>
+    `Salam ${name}! 🧊\n\n` +
+    `*Fridge & Home Bundle:*\n\n` +
+    `🧊 Inverter refrigerator (model aap chunein)\n` +
+    `🛡️ Anti-vibration fridge mat\n` +
+    `🚚 Free white-glove delivery\n` +
+    `📋 1-year Essential Care Plan option\n\n` +
+    `*4% bundle saving + free delivery!*\n\n` +
+    `Kitne litre ki zaroorat hai? Family kitni hai?\n` +
+    `Reply karein — best model recommend karta hoon! 😊`,
+
+  bundle_washer: (name = 'Customer') =>
+    `Salam ${name}! 👕\n\n` +
+    `*Laundry Starter Pack — sab ready:*\n\n` +
+    `🫧 Automatic washing machine\n` +
+    `🦯 Heavy-duty adjustable stand\n` +
+    `🔧 Professional installation (drain + inlet)\n` +
+    `📋 1-year service plan\n\n` +
+    `*5% bundle discount + everything set up on day one!*\n\n` +
+    `Top load ya front load prefer karein?\n` +
+    `Reply karein — hum arrange kar dete hain! 🚀`,
+
+  bundle_solar: (name = 'Customer') =>
+    `Salam ${name}! ☀️\n\n` +
+    `*Solar Power Bundle — Complete System:*\n\n` +
+    `☀️ Solar panels (3–5 kW, size TBD on site)\n` +
+    `⚡ Hybrid inverter (net metering ready)\n` +
+    `🔋 Lithium battery bank (6-8 hrs backup)\n` +
+    `❄️ Free AC compatibility & load check\n\n` +
+    `*Bill 60%+ kam · 3-4 saal ROI · 25 yr panel warranty*\n\n` +
+    `*Free site assessment* — koi commitment nahi.\n` +
+    `Reply *SOLAR* ya call: 0370-2578788 ☀️`,
+
+  // ── 15. SEGMENT CAMPAIGNS ─────────────────────────────────────────
+  segment_repeat_buyer: (name: string, purchaseCount: number) =>
+    `Salam ${name}! 🌟\n\n` +
+    `Aap hamare *${purchaseCount}× repeat customer* hain — shukriya bharose ke liye! 🙏\n\n` +
+    `*Loyalty Early Access — Sirf Aapke Liye:*\n` +
+    `🎁 Naaye models show hone se pehle aapko bataya jaega\n` +
+    `💰 Exclusive pricing before public sale\n` +
+    `🚚 Express delivery priority\n` +
+    `📞 Dedicated WhatsApp line\n\n` +
+    `Koi bhi cheez zaroorat ho — seedha message karein.\n` +
+    `Aap hamare VIP hain 👑`,
+
+  segment_high_value: (name: string, tier: string) =>
+    `Salam ${name}! 💎\n\n` +
+    `Aap hamare *${tier} Tier* member hain — aapki loyalty hum appreciate karte hain.\n\n` +
+    `*Aapke exclusive benefits:*\n` +
+    `✅ ${tier === 'Platinum' ? '15%' : tier === 'Gold' ? '10%' : '5%'} discount on all service visits\n` +
+    `✅ ${tier === 'Gold' || tier === 'Platinum' ? 'Free annual AC service' : 'Priority service scheduling'}\n` +
+    `✅ ${tier === 'Platinum' ? 'Dedicated account manager' : 'Early sale access'}\n\n` +
+    `Koi naya appliance ya service chahiye? Seedha message karein — aapka deal pakka hoga! 🎁`,
+
+  segment_solar_prospect: (name: string, applianceCount: number) =>
+    `Salam ${name}! ☀️\n\n` +
+    `Aapke ghar mein *${applianceCount} appliances* registered hain — bohot accha setup hai!\n\n` +
+    `Ek smart upgrade jo sab ko cover kar sakta hai:\n` +
+    `💡 *Solar system* — aapka poora load free bijli pe\n` +
+    `📉 WAPDA bill 60-80% reduce\n` +
+    `🔋 Battery backup — load shedding se azaadi\n` +
+    `💰 3-4 saal mein full ROI\n\n` +
+    `*Free assessment + zero commitment* — bas ek call.\n` +
+    `Reply karein ya call: 0370-2578788 ☀️`,
+
+  // ── 16. BOT AUTO-RESPONSES (any query) ────────────────────────────
   bot: {
     price_ur: (product: string, cashPrice: number) =>
       `*${product}* ki price:\n💵 Cash: PKR ${cashPrice.toLocaleString()}\n📅 Installment plans bhi available!\nDetails ke liye reply karein.`,
@@ -376,3 +532,45 @@ export const waWarrantyClaim = (product: string) =>
 
 export const waComplaint = () =>
   wa(WA_SALES, TEMPLATES.complaint_ur('Customer'));
+
+// ── Lifecycle convenience exports ──────────────────────────────────
+export const waLifecycleInstall = (name: string, product: string) =>
+  wa(WA_SALES, TEMPLATES.lifecycle_ac_install(name, product));
+
+export const waLifecycleDay7 = (name: string, product: string) =>
+  wa(WA_SALES, TEMPLATES.lifecycle_ac_day7(name, product));
+
+export const waLifecycleMonth3 = (name: string, product: string) =>
+  wa(WA_SALES, TEMPLATES.lifecycle_ac_month3(name, product));
+
+export const waLifecyclePresummer = (name: string, product: string) =>
+  wa(WA_SALES, TEMPLATES.lifecycle_ac_presummer(name, product));
+
+export const waLifecycleCarePlan = (name: string, product: string) =>
+  wa(WA_SALES, TEMPLATES.lifecycle_ac_care_plan(name, product));
+
+export const waLifecycleSolar = (name: string, product: string) =>
+  wa(WA_SALES, TEMPLATES.lifecycle_ac_solar(name, product));
+
+// ── Bundle convenience exports ─────────────────────────────────────
+export const waBundleAC = (name?: string) =>
+  wa(WA_SALES, TEMPLATES.bundle_ac_package(name));
+
+export const waBundleFridge = (name?: string) =>
+  wa(WA_SALES, TEMPLATES.bundle_fridge(name));
+
+export const waBundleWasher = (name?: string) =>
+  wa(WA_SALES, TEMPLATES.bundle_washer(name));
+
+export const waBundleSolar = (name?: string) =>
+  wa(WA_SALES, TEMPLATES.bundle_solar(name));
+
+// ── Segment campaign exports ────────────────────────────────────────
+export const waSegmentRepeat = (name: string, count: number) =>
+  wa(WA_SALES, TEMPLATES.segment_repeat_buyer(name, count));
+
+export const waSegmentHighValue = (name: string, tier: string) =>
+  wa(WA_SALES, TEMPLATES.segment_high_value(name, tier));
+
+export const waSegmentSolarProspect = (name: string, count: number) =>
+  wa(WA_SALES, TEMPLATES.segment_solar_prospect(name, count));

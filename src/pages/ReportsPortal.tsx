@@ -8,7 +8,7 @@ import {
   TrendingUp, TrendingDown, DollarSign, ShoppingBag, Users, Zap,
   AlertTriangle, CheckCircle, Target, BarChart2, Activity, RefreshCw,
   Plus, Save, Trash2, Lightbulb, ArrowUp, ArrowDown, Package,
-  MessageCircle, FileText, Sun, Calendar, Settings,
+  MessageCircle, FileText, Sun, Calendar, Settings, Shield, Tag, Percent,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { formatPrice } from '@/lib/api';
@@ -65,7 +65,7 @@ interface InstallmentLedgerRow {
   paid_slots?: number; payment_status: string;
 }
 
-type Tab = 'summary' | 'revenue' | 'sales' | 'seasonality' | 'customers' | 'leads' | 'insights' | 'studio';
+type Tab = 'summary' | 'revenue' | 'sales' | 'seasonality' | 'customers' | 'leads' | 'credit' | 'insights' | 'studio';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const ADMIN_PASS = (import.meta as any).env?.VITE_ADMIN_PASS || 'reliance2025';
@@ -79,6 +79,7 @@ const REPORT_TABS: { key: Tab; label: string; icon: any }[] = [
   { key: 'seasonality',label: 'Seasonality', icon: Calendar    },
   { key: 'customers',  label: 'Customers',   icon: Users       },
   { key: 'leads',      label: 'Leads',       icon: Zap         },
+  { key: 'credit',     label: 'Credit',      icon: Shield      },
   { key: 'insights',   label: 'Insights',    icon: Lightbulb   },
   { key: 'studio',     label: 'Data Studio', icon: Settings    },
 ];
@@ -404,6 +405,136 @@ export default function ReportsPortal({ embedded = false }: { embedded?: boolean
     const topEvents = Array.from(eventMap.entries()).sort(([, a], [, b]) => b - a)
       .map(([event, count], i) => ({ event, count, color: C[i % C.length] }));
 
+    // ── New KPIs ──────────────────────────────────────────────────────────────
+
+    // Average order value by category
+    const aovByCategory = (() => {
+      const catMap = new Map<string, { revenue: number; invIds: Set<string> }>();
+      for (const l of filtLines) {
+        const cat = l.category || 'Other';
+        if (!catMap.has(cat)) catMap.set(cat, { revenue: 0, invIds: new Set() });
+        catMap.get(cat)!.revenue += Number(l.line_total) || 0;
+        catMap.get(cat)!.invIds.add(l.invoice_id);
+      }
+      return Array.from(catMap.entries())
+        .map(([cat, v], i) => ({ cat, aov: v.invIds.size ? Math.round(v.revenue / v.invIds.size) : 0, invoices: v.invIds.size, color: C[i % C.length] }))
+        .sort((a, b) => b.aov - a.aov);
+    })();
+
+    // COGS lookup map (shared by brand/category/invoice margin)
+    const costByName = new Map(productCosts.map(c => [c.product_name.toLowerCase(), Number(c.cost_price)]));
+
+    // Brand-wise margin
+    const brandMargin = (() => {
+      const bMap = new Map<string, { revenue: number; cost: number; units: number }>();
+      for (const l of filtLines) {
+        const brand = l.brand || 'Other';
+        const cost = costByName.get((l.name || '').toLowerCase());
+        if (!bMap.has(brand)) bMap.set(brand, { revenue: 0, cost: 0, units: 0 });
+        bMap.get(brand)!.revenue += Number(l.line_total) || 0;
+        if (cost) bMap.get(brand)!.cost += cost * (Number(l.qty) || 1);
+        bMap.get(brand)!.units += Number(l.qty) || 1;
+      }
+      return Array.from(bMap.entries())
+        .map(([brand, v], i) => ({
+          brand, revenue: v.revenue, units: v.units,
+          margin: v.revenue > 0 && v.cost > 0 ? Math.round(((v.revenue - v.cost) / v.revenue) * 100) : null,
+          color: C[i % C.length],
+        }))
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 12);
+    })();
+
+    // Category margin
+    const categoryMargin = (() => {
+      const cMap = new Map<string, { revenue: number; cost: number }>();
+      for (const l of filtLines) {
+        const cat = l.category || 'Other';
+        const cost = costByName.get((l.name || '').toLowerCase());
+        if (!cMap.has(cat)) cMap.set(cat, { revenue: 0, cost: 0 });
+        cMap.get(cat)!.revenue += Number(l.line_total) || 0;
+        if (cost) cMap.get(cat)!.cost += cost * (Number(l.qty) || 1);
+      }
+      return Array.from(cMap.entries())
+        .map(([cat, v], i) => ({
+          cat, revenue: v.revenue,
+          margin: v.revenue > 0 && v.cost > 0 ? Math.round(((v.revenue - v.cost) / v.revenue) * 100) : null,
+          color: C[i % C.length],
+        }))
+        .sort((a, b) => b.revenue - a.revenue);
+    })();
+
+    // Gross margin per invoice
+    const invoiceMargins = (() => {
+      if (!productCosts.length) return [];
+      const invMeta = new Map(filtInv.map(i => [i.id, { ref: i.ref_number, customer: i.customer_name || '—', date: i.created_at }]));
+      const invMap = new Map<string, { ref: string; customer: string; revenue: number; cost: number; date: string }>();
+      for (const l of filtLines) {
+        const cost = costByName.get((l.name || '').toLowerCase());
+        if (!invMap.has(l.invoice_id)) {
+          const m = invMeta.get(l.invoice_id);
+          invMap.set(l.invoice_id, { ref: m?.ref || l.invoice_id.slice(0, 8), customer: m?.customer || '—', revenue: 0, cost: 0, date: m?.date || '' });
+        }
+        invMap.get(l.invoice_id)!.revenue += Number(l.line_total) || 0;
+        if (cost) invMap.get(l.invoice_id)!.cost += cost * (Number(l.qty) || 1);
+      }
+      return Array.from(invMap.values())
+        .filter(v => v.cost > 0 && v.revenue > 0)
+        .map(v => ({ ...v, margin: Math.round(((v.revenue - v.cost) / v.revenue) * 100) }))
+        .sort((a, b) => a.margin - b.margin);
+    })();
+
+    // Service attachment rate
+    const svcInvCount = filtInv.filter(i => i.service_level && i.service_level !== '' && i.service_level !== 'none').length;
+    const serviceAttachRate = filtInv.length > 0 ? Math.round((svcInvCount / filtInv.length) * 100) : 0;
+
+    // Installment aging buckets (1 overdue slot ≈ 30 days)
+    const instAging = ledger.map(r => {
+      const overdue = Number(r.overdue_slots) || 0;
+      const daysOD = overdue * 30;
+      return { ...r, daysOD, bucket: daysOD === 0 ? 'Current' : daysOD <= 30 ? '1–30d' : daysOD <= 60 ? '31–60d' : daysOD <= 90 ? '61–90d' : '90+d' };
+    });
+    const agingBuckets = ['Current', '1–30d', '31–60d', '61–90d', '90+d'].map(b => ({
+      bucket: b,
+      count: instAging.filter(r => r.bucket === b).length,
+      balance: instAging.filter(r => r.bucket === b).reduce((s, r) => s + (Number(r.balance_outstanding) || 0), 0),
+    }));
+    const badDebtBalance = instAging.filter(r => r.daysOD > 90).reduce((s, r) => s + (Number(r.balance_outstanding) || 0), 0);
+    const badDebtRate = instOutstanding > 0 ? Math.round((badDebtBalance / instOutstanding) * 100) : 0;
+
+    // Complaint events from analytics
+    const complaintEvents = filtEvents.filter(e => /complaint|complain/i.test(e.event || ''));
+    const complaintRate = filtInv.length > 0 ? +((complaintEvents.length / filtInv.length) * 100).toFixed(1) : 0;
+
+    // Category seasonality — top-5 cats × all months (all-time, not period-filtered)
+    const topCats = categoryBreakdown.slice(0, 5).map(c => c.name);
+    const invMonthIdx = new Map(invoices.filter(i => i.doc_type !== 'quotation').map(i => [i.id, new Date(i.created_at).getMonth()]));
+    const catMonthRev = new Map<string, number[]>();
+    for (const l of lines) {
+      const m = invMonthIdx.get(l.invoice_id);
+      if (m === undefined) continue;
+      const cat = l.category || 'Other';
+      if (!catMonthRev.has(cat)) catMonthRev.set(cat, new Array(12).fill(0));
+      catMonthRev.get(cat)![m] += Number(l.line_total) || 0;
+    }
+    const catSeasonality = MONTHS.map((month, mi) => {
+      const entry: any = { month };
+      for (const cat of topCats) entry[cat] = catMonthRev.get(cat)?.[mi] || 0;
+      return entry;
+    });
+
+    // Solar funnel stage-to-stage conversion rates
+    const solarStageKeys = ['new', 'contacted', 'quoted', 'closed'];
+    const solarStageCounts = solarStageKeys.map(s => solarLeads.filter(l => l.status === s).length);
+    const solarFunnelConv = solarStageKeys.map((stage, i) => ({
+      stage: stage.charAt(0).toUpperCase() + stage.slice(1),
+      count: solarStageCounts[i],
+      pctTotal: solarLeads.length ? Math.round((solarStageCounts[i] / solarLeads.length) * 100) : 0,
+      dropRate: i > 0 && solarStageCounts[i - 1] > 0
+        ? Math.round(((solarStageCounts[i - 1] - solarStageCounts[i]) / solarStageCounts[i - 1]) * 100)
+        : null,
+    }));
+
     return {
       monthlyRevenue, totalRevenue, thisMonthRev, lastMonthRev, revenueGrowth,
       totalOrders, avgOrderValue, sourceIsInvoices, categoryBreakdown, topProducts, paymentMethods,
@@ -411,6 +542,12 @@ export default function ReportsPortal({ embedded = false }: { embedded?: boolean
       solarFunnel, solarByCity,
       seasonalData, uniqueCustomers, repeatCustomers, topCustomers, customerAreas, customerTypes,
       orderStatuses, grossMarginData, totalExpenses, monthlyExpenses, topEvents,
+      aovByCategory, brandMargin, categoryMargin, invoiceMargins,
+      serviceAttachRate, svcInvCount,
+      instAging, agingBuckets, badDebtBalance, badDebtRate,
+      complaintEvents, complaintRate,
+      topCats, catSeasonality,
+      solarFunnelConv,
     };
   }, [invoices, orders, lines, solarLeads, analyticsEvents, ledger, offlineSales, targets, expenses, productCosts, cutoff]);
 
@@ -770,13 +907,98 @@ export default function ReportsPortal({ embedded = false }: { embedded?: boolean
 
       {/* Gross margin */}
       {metrics.grossMarginData.length > 0 && (
-        <Section title="Gross Margin" sub="based on product cost entries">
+        <Section title="Overall Gross Margin" sub="blended margin across all products with cost entries">
           <div className="flex items-center gap-4">
             <div className="text-4xl font-black text-emerald-600">{metrics.grossMarginData[0]?.value}%</div>
             <div className="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden">
               <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${metrics.grossMarginData[0]?.value}%` }} />
             </div>
             <span className="text-sm text-gray-500">Target: 25–35%</span>
+          </div>
+        </Section>
+      )}
+
+      {/* Category margin */}
+      {metrics.categoryMargin.some(c => c.margin !== null) && (
+        <Section title="Margin % by Category" sub="requires product cost entries in Data Studio — categories without cost data show N/A">
+          <div className="space-y-3">
+            {metrics.categoryMargin.map((c, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <span className="text-xs text-gray-600 w-32 truncate">{c.cat}</span>
+                <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+                  {c.margin !== null ? (
+                    <div className="h-full rounded-full flex items-center pl-2 text-white text-[10px] font-bold transition-all"
+                      style={{ width: `${Math.max(15, c.margin)}%`, background: c.margin >= 30 ? '#2E7D32' : c.margin >= 20 ? '#FFC107' : '#ef4444' }}>
+                      {c.margin}%
+                    </div>
+                  ) : (
+                    <div className="h-full w-full flex items-center pl-2 text-gray-400 text-[10px]">No cost data</div>
+                  )}
+                </div>
+                <span className="text-xs text-gray-500 w-20 text-right">{pk(c.revenue)}</span>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {/* Brand margin */}
+      {metrics.brandMargin.some(b => b.margin !== null) && (
+        <Section title="Brand-wise Margin" sub="revenue and gross margin % per brand — requires COGS data">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead><tr className="border-b border-gray-100">
+                {['Brand', 'Revenue', 'Units Sold', 'Gross Margin %'].map(h => (
+                  <th key={h} className="text-left py-2 px-3 text-gray-400 font-semibold uppercase tracking-wide text-[10px]">{h}</th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {metrics.brandMargin.map((b, i) => (
+                  <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="py-2 px-3 font-semibold text-gray-800">{b.brand}</td>
+                    <td className="py-2 px-3 font-bold text-gray-900">{pk(b.revenue)}</td>
+                    <td className="py-2 px-3 text-gray-600">{b.units}</td>
+                    <td className="py-2 px-3">
+                      {b.margin !== null ? (
+                        <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${b.margin >= 30 ? 'bg-emerald-100 text-emerald-700' : b.margin >= 20 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-600'}`}>
+                          {b.margin}%
+                        </span>
+                      ) : <span className="text-gray-300">—</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+      )}
+
+      {/* Per-invoice margin */}
+      {metrics.invoiceMargins.length > 0 && (
+        <Section title="Gross Margin by Invoice" sub="lowest-margin invoices first — enter product costs in Data Studio to populate">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead><tr className="border-b border-gray-100">
+                {['Invoice', 'Customer', 'Revenue', 'Gross Margin', 'Date'].map(h => (
+                  <th key={h} className="text-left py-2 px-3 text-gray-400 font-semibold uppercase tracking-wide text-[10px]">{h}</th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {metrics.invoiceMargins.map((v, i) => (
+                  <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="py-2 px-3 font-mono text-gray-600">{v.ref}</td>
+                    <td className="py-2 px-3 text-gray-700 truncate max-w-[140px]">{v.customer}</td>
+                    <td className="py-2 px-3 font-bold text-gray-900">{pk(v.revenue)}</td>
+                    <td className="py-2 px-3">
+                      <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${v.margin >= 30 ? 'bg-emerald-100 text-emerald-700' : v.margin >= 20 ? 'bg-yellow-100 text-yellow-700' : v.margin >= 0 ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}`}>
+                        {v.margin}%
+                      </span>
+                    </td>
+                    <td className="py-2 px-3 text-gray-400">{v.date ? new Date(v.date).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' }) : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </Section>
       )}
@@ -883,6 +1105,23 @@ export default function ReportsPortal({ embedded = false }: { embedded?: boolean
           </div>
         </Section>
       )}
+
+      {/* AOV by category */}
+      {metrics.aovByCategory.length > 0 && (
+        <Section title="Avg Order Value by Category" sub="average invoice value per category — higher AOV = higher-ticket purchases">
+          <ResponsiveContainer width="100%" height={Math.max(200, metrics.aovByCategory.length * 36)}>
+            <BarChart data={metrics.aovByCategory} layout="vertical" margin={{ left: 10 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+              <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={v => `${Math.round(v / 1000)}K`} />
+              <YAxis type="category" dataKey="cat" tick={{ fontSize: 10 }} width={120} />
+              <Tooltip formatter={(v: any) => pk(v)} />
+              <Bar dataKey="aov" name="Avg Order Value" radius={[0, 4, 4, 0]}>
+                {metrics.aovByCategory.map((e, i) => <Cell key={i} fill={e.color} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </Section>
+      )}
     </div>
   );
 
@@ -957,6 +1196,27 @@ export default function ReportsPortal({ embedded = false }: { embedded?: boolean
             ))}
           </div>
         </Section>
+
+        {/* Category seasonality chart */}
+        {metrics.topCats.length > 0 && metrics.catSeasonality.some((m: any) => metrics.topCats.some((c: string) => m[c] > 0)) && (
+          <Section title="Category Seasonality" sub="monthly revenue per top-5 category — all-time pattern">
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={metrics.catSeasonality}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: number) => `${Math.round(v / 1000)}K`} />
+                <Tooltip formatter={(v: any) => pk(v)} />
+                <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
+                {metrics.topCats.map((cat: string, i: number) => (
+                  <Line key={cat} type="monotone" dataKey={cat} stroke={C[i % C.length]} strokeWidth={2} dot={false} />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+            <p className="text-xs text-gray-400 mt-2">
+              Use this to time promotions — e.g. AC campaigns in Feb–May, heater campaigns in Oct–Dec.
+            </p>
+          </Section>
+        )}
       </div>
     );
   };
@@ -1056,23 +1316,36 @@ export default function ReportsPortal({ embedded = false }: { embedded?: boolean
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Section title="Solar Lead Funnel" sub="new → contacted → quoted → closed">
+          <Section title="Solar Lead Funnel" sub="stage count · % of total · drop-off from previous stage">
             {solarLeads.length === 0 ? <Empty msg="No solar leads yet" /> : (
               <div className="space-y-3 py-2">
-                {metrics.solarFunnel.map((s, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <span className="text-xs text-gray-500 w-20 text-right">{s.stage}</span>
-                    <div className="flex-1 bg-gray-100 rounded-full h-7 overflow-hidden">
-                      <div className="h-full rounded-full flex items-center pl-3 transition-all"
-                        style={{ width: `${solarLeads.length ? Math.max(8, (s.count / solarLeads.length) * 100) : 0}%`, background: s.color }}>
-                        <span className="text-white text-xs font-bold">{s.count}</span>
+                {metrics.solarFunnelConv.map((s, i) => (
+                  <div key={i} className="space-y-1">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-gray-500 w-20 text-right font-medium">{s.stage}</span>
+                      <div className="flex-1 bg-gray-100 rounded-full h-7 overflow-hidden">
+                        <div className="h-full rounded-full flex items-center pl-3 transition-all"
+                          style={{ width: `${solarLeads.length ? Math.max(8, (s.count / solarLeads.length) * 100) : 0}%`, background: C[i] }}>
+                          <span className="text-white text-xs font-bold">{s.count}</span>
+                        </div>
                       </div>
+                      <span className="text-xs font-bold text-gray-700 w-8">{s.pctTotal}%</span>
                     </div>
-                    <span className="text-xs font-bold text-gray-700 w-8">
-                      {solarLeads.length ? `${((s.count / solarLeads.length) * 100).toFixed(0)}%` : '0%'}
-                    </span>
+                    {s.dropRate !== null && (
+                      <p className="text-[10px] text-red-400 text-right pr-10">
+                        {s.dropRate}% drop-off from previous stage
+                      </p>
+                    )}
                   </div>
                 ))}
+                <div className="border-t border-gray-100 pt-2 flex justify-between text-xs text-gray-500">
+                  <span>Overall conversion (new → closed)</span>
+                  <span className="font-bold text-gray-800">
+                    {solarLeads.length > 0
+                      ? `${Math.round((solarLeads.filter(l => l.status === 'closed').length / solarLeads.length) * 100)}%`
+                      : '0%'}
+                  </span>
+                </div>
               </div>
             )}
           </Section>
@@ -1142,6 +1415,141 @@ export default function ReportsPortal({ embedded = false }: { embedded?: boolean
             </div>
           </Section>
         )}
+      </div>
+    );
+  };
+
+  const renderCredit = () => {
+    const collectionPct = metrics.instTotal > 0 ? ((metrics.instCollected / metrics.instTotal) * 100).toFixed(1) : '0';
+    const agingColors = ['bg-emerald-400', 'bg-yellow-400', 'bg-orange-400', 'bg-red-400', 'bg-red-700'];
+    return (
+      <div className="space-y-6">
+        {/* KPI row */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <KpiCard label="Inst. Outstanding" value={`PKR ${formatPrice(metrics.instOutstanding / 1000)}K`}
+            sub={`${ledger.length} active contracts`} icon={FileText} color="text-amber-600" />
+          <KpiCard label="Overdue Slots" value={String(metrics.instOverdue)}
+            sub={metrics.instOverdue > 0 ? `≈ up to ${metrics.instOverdue * 30} days` : 'All payments current'}
+            up={metrics.instOverdue === 0} change={metrics.instOverdue > 0 ? 'Action required' : 'All clear'}
+            icon={AlertTriangle} color={metrics.instOverdue > 0 ? 'text-red-500' : 'text-emerald-600'} />
+          <KpiCard label="Bad Debt (90+d)" value={`PKR ${formatPrice(metrics.badDebtBalance / 1000)}K`}
+            sub={`${metrics.badDebtRate}% of portfolio`}
+            icon={TrendingDown} color={metrics.badDebtRate > 10 ? 'text-red-600' : metrics.badDebtRate > 5 ? 'text-amber-500' : 'text-emerald-600'} />
+          <KpiCard label="Collection Rate" value={`${collectionPct}%`}
+            sub="of total contracted value" icon={CheckCircle} color={Number(collectionPct) > 70 ? 'text-emerald-600' : 'text-amber-500'} />
+        </div>
+
+        {/* Aging buckets + per-customer table */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Section title="Installment Aging Buckets" sub="outstanding balance grouped by how long overdue (1 slot ≈ 30 days)">
+            {ledger.length === 0 ? <Empty msg="No installment contracts yet" /> : (
+              <div className="space-y-4 py-1">
+                {metrics.agingBuckets.map((b, i) => {
+                  const pct = metrics.instOutstanding > 0 ? (b.balance / metrics.instOutstanding) * 100 : 0;
+                  return (
+                    <div key={i} className="space-y-1.5">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-semibold text-gray-700 w-16">{b.bucket}</span>
+                        <span className="text-gray-500">{b.count} customers</span>
+                        <span className="font-bold text-gray-900">{pk(b.balance)}</span>
+                      </div>
+                      <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full transition-all ${agingColors[i]}`}
+                          style={{ width: `${Math.max(b.balance > 0 ? 3 : 0, pct)}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+                <p className="text-xs text-gray-400 pt-1 border-t border-gray-100">
+                  Total outstanding: <strong className="text-gray-700">{pk(metrics.instOutstanding)}</strong> across {ledger.length} contracts
+                </p>
+              </div>
+            )}
+          </Section>
+
+          <Section title="Per-Customer Aging" sub="sorted by most overdue first">
+            {ledger.length === 0 ? <Empty msg="No installment contracts yet" /> : (
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {[...metrics.instAging].sort((a: any, b: any) => b.daysOD - a.daysOD).map((r: any, i: number) => (
+                  <div key={i} className={`flex items-center justify-between p-2.5 rounded-xl text-xs gap-3
+                    ${r.daysOD > 90 ? 'bg-red-50 border border-red-100' : r.daysOD > 30 ? 'bg-amber-50' : 'bg-gray-50'}`}>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-800 truncate">{r.customer_name || '—'}</p>
+                      <p className="text-gray-400">{r.ref_number} · {r.inst_months || '?'}mo plan</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="font-bold text-gray-900">{pk(Number(r.balance_outstanding) || 0)}</p>
+                      {r.daysOD > 0
+                        ? <p className="text-red-500 font-medium">~{r.daysOD}d overdue</p>
+                        : <p className="text-emerald-500">Current</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+        </div>
+
+        {/* Bad debt warning */}
+        {metrics.badDebtRate > 10 && (
+          <div className="bg-red-50 border border-red-100 rounded-2xl p-4 flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-bold text-red-700">High Bad Debt Rate: {metrics.badDebtRate}%</p>
+              <p className="text-sm text-red-600 mt-0.5">
+                PKR {formatPrice(metrics.badDebtBalance / 1000)}K outstanding for 90+ days. Consider legal recovery or
+                negotiated settlements before scaling installments further. Industry target is under 5%.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Service attachment */}
+        <Section title="Service Attachment Rate" sub="% of invoices that include a service level (installation / care plan)">
+          <div className="flex items-center gap-6">
+            <div className="text-5xl font-black" style={{ color: metrics.serviceAttachRate > 50 ? '#2E7D32' : metrics.serviceAttachRate > 25 ? '#FFC107' : '#ef4444' }}>
+              {metrics.serviceAttachRate}%
+            </div>
+            <div className="flex-1">
+              <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-full bg-emerald-400 rounded-full transition-all"
+                  style={{ width: `${metrics.serviceAttachRate}%` }} />
+              </div>
+              <p className="text-xs text-gray-400 mt-1.5">
+                {metrics.svcInvCount} of {invoices.filter(i => i.doc_type !== 'quotation').length} invoices have a service level recorded.
+                Target: 60%+.
+              </p>
+            </div>
+          </div>
+        </Section>
+
+        {/* Complaint tracker */}
+        <Section title="Installation Complaint Rate" sub="complaint events / total invoices — from analytics table">
+          <div className="flex items-center gap-6">
+            <div className={`text-5xl font-black ${metrics.complaintRate > 5 ? 'text-red-500' : metrics.complaintRate > 2 ? 'text-amber-500' : 'text-emerald-600'}`}>
+              {metrics.complaintRate}%
+            </div>
+            <div className="flex-1">
+              <p className="text-sm text-gray-600">
+                {metrics.complaintEvents.length} complaint event{metrics.complaintEvents.length !== 1 ? 's' : ''} recorded in this period.
+                Target: under 2%.
+              </p>
+              {metrics.complaintEvents.length === 0 && (
+                <p className="text-xs text-gray-400 mt-1">Log complaints as analytics events with event name containing "complaint" to track this metric.</p>
+              )}
+            </div>
+          </div>
+          {metrics.complaintEvents.length > 0 && (
+            <div className="mt-3 space-y-1.5 max-h-40 overflow-y-auto border-t border-gray-100 pt-3">
+              {metrics.complaintEvents.map((e, i) => (
+                <div key={i} className="flex items-center justify-between text-xs">
+                  <span className="text-gray-700 font-medium">{e.customer_name || e.subject || e.event}</span>
+                  <span className="text-gray-400">{new Date(e.created_at).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' })}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Section>
       </div>
     );
   };
@@ -1440,7 +1848,7 @@ export default function ReportsPortal({ embedded = false }: { embedded?: boolean
   const tabContent: Record<Tab, () => React.ReactNode> = {
     summary: renderSummary, revenue: renderRevenue, sales: renderSales,
     seasonality: renderSeasonality, customers: renderCustomers,
-    leads: renderLeads, insights: renderInsights, studio: renderStudio,
+    leads: renderLeads, credit: renderCredit, insights: renderInsights, studio: renderStudio,
   };
 
   // ─── Embedded toolbar (when inside AdminPortal) ────────────────────────────
