@@ -4394,6 +4394,40 @@ async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<string 
       const { error: schedErr } = await supabase.from('installment_schedules').insert(scheduleRows);
       if (schedErr) console.warn('[invoice-log] Failed to log installment schedule:', schedErr.message);
     }
+
+    // ── Auto-create lifecycle flow for trackable categories ────────────────────
+    if (payload.docType !== 'quotation' && payload.customerPhone?.trim()) {
+      const resolveLifecycleCat = (cat: string): string | null => {
+        const c = (cat || '').toLowerCase();
+        if (c.includes('air') || c.includes('ac') || c === 'air-conditioners') return 'air-conditioners';
+        if (c.includes('solar'))                                                  return 'solar';
+        if (c.includes('refrig') || c.includes('fridge'))                        return 'refrigerators';
+        if (c.includes('wash'))                                                   return 'washing-machines';
+        if (c.includes('ups') || c.includes('inverter'))                          return 'ups-inverters';
+        return null;
+      };
+      const seenCats = new Set<string>();
+      for (const line of payload.lines) {
+        const lcCat = resolveLifecycleCat(line.category || '');
+        if (!lcCat || seenCats.has(lcCat)) continue;
+        seenCats.add(lcCat);
+        const today = new Date().toISOString().slice(0, 10);
+        const { error: lfErr } = await supabase.from('customer_lifecycle_flows').insert({
+          customer_name:     payload.customerName || '',
+          customer_phone:    payload.customerPhone,
+          product_name:      line.name,
+          product_category:  lcCat,
+          purchase_date:     today,
+          current_stage:     'installation_pending',
+          next_action_at:    today,
+          linked_invoice_id: payload.refNumber,
+          staff_notes:       '',
+          segment:           'new_customer',
+        });
+        if (lfErr) console.warn('[lifecycle] Auto-create failed:', lfErr.message);
+      }
+    }
+
     return inv.id;
   } catch (e) {
     console.warn('[invoice-log] Unexpected error:', e);

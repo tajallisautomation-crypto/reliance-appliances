@@ -8,6 +8,7 @@ import {
 import {
   MessageCircle, Plus, ChevronDown, ChevronRight, AlertTriangle,
   Clock, CheckCircle, User, Phone, Package, Filter, X, RefreshCw,
+  Trash2, Pencil, Save,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -226,6 +227,8 @@ export default function LifecycleAdmin() {
   const [stageFilter, setStageFilter] = useState<LifecycleStage | 'all'>('all');
   const [showAdd, setShowAdd] = useState(false);
   const [advancing, setAdvancing] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingNotes, setEditingNotes] = useState<{ id: string; value: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -238,6 +241,20 @@ export default function LifecycleAdmin() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  async function deleteFlow(id: string) {
+    if (!window.confirm('Remove this customer from the lifecycle? This cannot be undone.')) return;
+    setDeletingId(id);
+    await supabase.from('customer_lifecycle_flows').delete().eq('id', id);
+    setDeletingId(null);
+    await load();
+  }
+
+  async function saveNotes(id: string, notes: string) {
+    await supabase.from('customer_lifecycle_flows').update({ staff_notes: notes, updated_at: new Date().toISOString() }).eq('id', id);
+    setEditingNotes(null);
+    await load();
+  }
 
   async function advanceStage(flow: LifecycleFlow) {
     setAdvancing(flow.id);
@@ -377,8 +394,27 @@ export default function LifecycleAdmin() {
                         <Phone className="w-3 h-3" />
                         {flow.customer_phone}
                       </div>
-                      {flow.staff_notes && (
-                        <div className="text-xs text-gray-400 mt-0.5 italic truncate max-w-[180px]">{flow.staff_notes}</div>
+                      {editingNotes?.id === flow.id ? (
+                        <div className="mt-1.5 flex gap-1" onClick={e => e.stopPropagation()}>
+                          <input
+                            autoFocus
+                            value={editingNotes.value}
+                            onChange={e => setEditingNotes({ id: flow.id, value: e.target.value })}
+                            onKeyDown={e => { if (e.key === 'Enter') saveNotes(flow.id, editingNotes.value); if (e.key === 'Escape') setEditingNotes(null); }}
+                            className="border border-gray-300 rounded px-1.5 py-0.5 text-xs w-full focus:outline-none focus:ring-1 focus:ring-brand-400"
+                            placeholder="Staff note…"
+                          />
+                          <button onClick={() => saveNotes(flow.id, editingNotes.value)} className="text-green-600 hover:text-green-700 shrink-0"><Save className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => setEditingNotes(null)} className="text-gray-400 hover:text-gray-600 shrink-0"><X className="w-3.5 h-3.5" /></button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setEditingNotes({ id: flow.id, value: flow.staff_notes || '' })}
+                          className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 mt-0.5 group"
+                          title="Click to edit note">
+                          <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <span className="italic truncate max-w-[180px]">{flow.staff_notes || 'Add note…'}</span>
+                        </button>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -442,6 +478,13 @@ export default function LifecycleAdmin() {
                             Done
                           </span>
                         )}
+                        <button
+                          onClick={() => deleteFlow(flow.id)}
+                          disabled={deletingId === flow.id}
+                          title="Remove from lifecycle"
+                          className="p-1.5 text-gray-300 hover:text-red-500 transition-colors disabled:opacity-40">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -455,7 +498,8 @@ export default function LifecycleAdmin() {
       {/* Legend */}
       <div className="bg-blue-50 rounded-xl p-4 text-xs text-blue-700 space-y-1">
         <p className="font-semibold">How it works</p>
-        <p>Each customer enters at <strong>Installation</strong> stage when a sale is logged. Click <strong>Send</strong> to open the correct WhatsApp template, then <strong>Advance</strong> to move to the next stage. The engine auto-calculates the next action date based on installation date.</p>
+        <p>Customers are <strong>auto-enrolled</strong> when an invoice is saved for ACs, solar systems, refrigerators, washing machines, or UPS/inverters. You can also add manually above.</p>
+        <p>Click <strong>Send</strong> to open the correct WhatsApp template for the current stage, then <strong>Advance</strong> to move to the next stage. Dates auto-calculate from the installation date. Click a note to edit it inline.</p>
         <p className="mt-1">Stages: Installation → 7-Day Check → 3-Month Service → Pre-Summer Clean → Annual Care Plan → Solar Offer → Completed</p>
       </div>
     </div>
