@@ -41,6 +41,7 @@ CREATE INDEX IF NOT EXISTS clf_phone_idx
 
 ALTER TABLE customer_lifecycle_flows ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "clf_auth" ON customer_lifecycle_flows;
 CREATE POLICY "clf_auth" ON customer_lifecycle_flows
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
