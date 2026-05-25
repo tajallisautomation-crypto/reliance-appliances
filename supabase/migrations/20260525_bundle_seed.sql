@@ -1,11 +1,38 @@
--- Seed bundle package templates for the invoice/quotation tool.
--- Lines use the QuoteLine shape: id, name, model, qty, unitPrice, category,
---   warranty, keySpec, kwhPerMonth, savingsPct, minPrice, floorPrice,
---   overrideReason, displayPrefix, packageNote, isPackage, packageComponents.
--- Prices below are placeholder guidance — staff overrides in the quotation tool.
+-- Bundle package templates: table + seed data (self-contained, safe to re-run).
+-- Lines use the QuoteLine shape stored in JSONB. Prices are guidance — staff overrides in quotation tool.
 
+-- ─── Ensure table exists (idempotent) ────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS package_templates (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name          text NOT NULL,
+  description   text,
+  category_tag  text,
+  lines         jsonb NOT NULL DEFAULT '[]',
+  discount      numeric(5,2) DEFAULT 0,
+  discount_type text DEFAULT 'Promotional',
+  is_active     boolean DEFAULT true,
+  sort_order    int DEFAULT 0,
+  created_at    timestamptz DEFAULT now(),
+  updated_at    timestamptz DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS pkg_templates_active_idx ON package_templates (is_active, sort_order);
+
+ALTER TABLE package_templates ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'package_templates' AND policyname = 'Authenticated users only'
+  ) THEN
+    CREATE POLICY "Authenticated users only" ON package_templates
+      FOR ALL TO authenticated USING (true) WITH CHECK (true);
+  END IF;
+END $$;
+
+-- ─── Seed bundles (skip if name already exists) ───────────────────────────────
 INSERT INTO package_templates (name, description, category_tag, discount, discount_type, sort_order, lines)
-VALUES
+SELECT name, description, category_tag, discount, discount_type, sort_order, lines::jsonb
+FROM (VALUES
 
 -- ── 1. AC Complete Package ────────────────────────────────────────────────────
 (
@@ -70,5 +97,7 @@ VALUES
     {"id":"ac-compat","name":"AC Compatibility & Load Check","model":"Included","qty":1,"unitPrice":0,"category":"service","warranty":"","keySpec":"Inverter AC sizing + load audit","kwhPerMonth":0,"savingsPct":0,"minPrice":0,"floorPrice":0,"overrideReason":"","displayPrefix":"","packageNote":"Ensures solar system can power existing and planned ACs without oversizing","isPackage":false,"packageComponents":[]}
   ]'
 )
-
-ON CONFLICT DO NOTHING;
+) AS v(name, description, category_tag, discount, discount_type, sort_order, lines)
+WHERE NOT EXISTS (
+  SELECT 1 FROM package_templates pt WHERE pt.name = v.name
+);

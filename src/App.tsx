@@ -38,6 +38,7 @@ const Support         = lazy(() => import('./pages/Support'))
 const MYOP            = lazy(() => import('./pages/MYOP'))
 const Gallery         = lazy(() => import('./pages/Gallery'))
 const ReportsPortal   = lazy(() => import('./pages/ReportsPortal'))
+const BundlesPage     = lazy(() => import('./pages/BundlesPage'))
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -83,6 +84,7 @@ export default function App() {
             <Route path="/referral"                         element={<Referral />} />
             <Route path="/support"                          element={<Support />} />
             <Route path="/catalog"                          element={<Navigate to="/admin" replace />} />
+            <Route path="/bundles"                          element={<BundlesPage />} />
             <Route path="/gallery"                          element={<Gallery />} />
             <Route path="/reports"                          element={<ErrorBoundary><ReportsPortal /></ErrorBoundary>} />
             <Route path="/policy/:type"                     element={<PolicyPage />} />

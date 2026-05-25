@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useDeferredValue, useCallback } from 'react';
 import AdminDashboard from './AdminDashboard';
+import LifecycleAdmin from '@/components/admin/LifecycleAdmin';
 import ReportsPortal from './ReportsPortal';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -14740,8 +14741,8 @@ export default function AdminPortal() {
   const [deleteId, setDeleteId]   = useState<string | null>(null);
   const [deleting, setDeleting]   = useState(false);
   const [quickImg, setQuickImg]   = useState<Product | null>(null);
-  type AdminTab = 'dashboard' | 'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'quotation' | 'invoices' | 'installment_ledger' | 'customers' | 'settings' | 'schema' | 'audit' | 'catalog' | 'solar' | 'compatibility' | 'reports';
-  const VALID_TABS: AdminTab[] = ['dashboard','products','images','import','tools','qc','reviews','leads','orders','enquiries','quotation','invoices','installment_ledger','customers','settings','schema','audit','catalog','solar','compatibility','reports'];
+  type AdminTab = 'dashboard' | 'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'quotation' | 'invoices' | 'installment_ledger' | 'customers' | 'lifecycle' | 'settings' | 'schema' | 'audit' | 'catalog' | 'solar' | 'compatibility' | 'reports';
+  const VALID_TABS: AdminTab[] = ['dashboard','products','images','import','tools','qc','reviews','leads','orders','enquiries','quotation','invoices','installment_ledger','customers','lifecycle','settings','schema','audit','catalog','solar','compatibility','reports'];
   const tabFromHash = (): AdminTab => {
     const h = window.location.hash.slice(1) as AdminTab;
     return VALID_TABS.includes(h) ? h : 'dashboard';
@@ -15074,10 +15075,11 @@ export default function AdminPortal() {
             <div>
               <p className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400">CRM</p>
               {([
-                { id: 'customers' as const, label: 'Customers',   icon: Users },
-                { id: 'reviews'   as const, label: 'Reviews',     icon: Star },
-                { id: 'solar'     as const, label: 'Solar Leads', icon: Sun },
-                { id: 'leads'     as const, label: 'Partners',    icon: Building2 },
+                { id: 'customers'  as const, label: 'Customers',   icon: Users },
+                { id: 'lifecycle'  as const, label: 'Lifecycle',    icon: CalendarDays },
+                { id: 'reviews'    as const, label: 'Reviews',      icon: Star },
+                { id: 'solar'      as const, label: 'Solar Leads',  icon: Sun },
+                { id: 'leads'      as const, label: 'Partners',     icon: Building2 },
               ]).map(({ id, label, icon: Icon }) => (
                 <button key={id} onClick={() => { changeTab(id); setSidebarOpen(false); }}
                   className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors text-left
@@ -15143,6 +15145,8 @@ export default function AdminPortal() {
           <InstallmentLedgerTab />
         ) : tab === 'customers' ? (
           <CustomerCrmTab />
+        ) : tab === 'lifecycle' ? (
+          <LifecycleAdmin />
         ) : tab === 'reviews' ? (
           <ReviewsTab />
         ) : tab === 'solar' ? (

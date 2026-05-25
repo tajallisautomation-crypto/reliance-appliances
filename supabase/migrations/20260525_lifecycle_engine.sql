@@ -44,15 +44,19 @@ ALTER TABLE customer_lifecycle_flows ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "clf_auth" ON customer_lifecycle_flows
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- ─── Extend customer_profiles ─────────────────────────────────────────────────
-ALTER TABLE customer_profiles
-  ADD COLUMN IF NOT EXISTS segment           text    NOT NULL DEFAULT 'new_customer'
-                                               CHECK (segment IN (
-                                                 'new_customer', 'repeat_buyer',
-                                                 'high_value', 'at_risk', 'solar_prospect'
-                                               )),
-  ADD COLUMN IF NOT EXISTS purchase_count    integer NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS last_purchase_date date;
+-- ─── Extend customer_profiles (only if table exists) ─────────────────────────
+DO $$ BEGIN
+  ALTER TABLE customer_profiles
+    ADD COLUMN IF NOT EXISTS segment           text    NOT NULL DEFAULT 'new_customer'
+                                                 CHECK (segment IN (
+                                                   'new_customer', 'repeat_buyer',
+                                                   'high_value', 'at_risk', 'solar_prospect'
+                                                 )),
+    ADD COLUMN IF NOT EXISTS purchase_count    integer NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS last_purchase_date date;
+EXCEPTION WHEN undefined_table THEN
+  RAISE NOTICE 'customer_profiles not found — run 20260518_customer_portal_tables.sql first to get segment/purchase columns';
+END $$;
 
 -- ─── View: customers needing action today or overdue ─────────────────────────
 CREATE OR REPLACE VIEW lifecycle_action_queue AS

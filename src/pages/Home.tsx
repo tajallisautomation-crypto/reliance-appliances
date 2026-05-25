@@ -67,6 +67,7 @@ import SEO from '../components/ui/SEO'
 import OfferBannerSlider from '../components/OfferBannerSlider'
 import { getInstallationImages, getFeaturedImages, type MediaItem } from '../lib/gallery'
 import SocialProofLoop from '../components/ui/SocialProofLoop'
+import BundleSection from '../components/BundleSection'
 import { BrandedImage } from '../components/common/BrandedImage'
 
 // Brand list — preferred brands (Haier, Crown, Westpoint) listed first for merchandising visibility
@@ -747,6 +748,8 @@ export default function Home() {
         </div>
       </section>
 
+
+      <BundleSection />
 
       {/* ── PROOF OF WORK ────────────────────────────────────────── */}
       {galleryStrip.length > 0 && (
