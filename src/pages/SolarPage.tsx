@@ -3,9 +3,24 @@ import { Link } from 'react-router-dom'
 import { Sun, ArrowRight, Calculator, CheckCircle2, MessageCircle, Shield, CalendarCheck, ChevronDown } from 'lucide-react'
 import { getProducts, getProduct, type Product, formatPrice } from '../lib/api'
 import ProductCard from '../components/products/ProductCard'
+import SEO from '@/components/ui/SEO'
+import { Helmet } from 'react-helmet-async'
 import { wa } from '../lib/whatsapp'
 import { WA_SALES } from '../lib/config'
 import BookingModal, { type BookingContext } from '../components/BookingModal'
+
+const SOLAR_FAQ_SCHEMA = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    { '@type': 'Question', name: 'How much does a solar system cost in Karachi?', acceptedAnswer: { '@type': 'Answer', text: 'A typical 5kW on-grid solar system in Karachi costs between PKR 650,000 and PKR 900,000 fully installed. Off-grid systems with battery backup start from PKR 800,000. Prices vary by brand, inverter type, and installation complexity. Easy installment plans are available.' } },
+    { '@type': 'Question', name: 'How long does solar installation take in Karachi?', acceptedAnswer: { '@type': 'Answer', text: 'A standard residential installation takes 1–2 days. Larger commercial systems may take 3–5 days. Our team handles all permits, cabling, and commissioning.' } },
+    { '@type': 'Question', name: 'Can I get solar on installments?', acceptedAnswer: { '@type': 'Answer', text: 'Yes. Solar systems up to 5kW and up to PKR 700,000 qualify for easy installment plans up to 12 payments. No bank account is required — bring your CNIC and a guarantor.' } },
+    { '@type': 'Question', name: 'What is the payback period for solar in Pakistan?', acceptedAnswer: { '@type': 'Answer', text: 'Typical payback for a Karachi on-grid system is 3–5 years at current WAPDA tariffs. Off-grid systems with batteries have a slightly longer payback of 4–6 years, but provide power independence.' } },
+    { '@type': 'Question', name: 'Do you offer net metering in Karachi?', acceptedAnswer: { '@type': 'Answer', text: 'Yes. We handle the complete net metering application process with HESCO/KESC for systems above 3kW. Net metering allows you to sell surplus power back to the grid and reduce your electricity bill to near zero.' } },
+    { '@type': 'Question', name: 'Which solar brands do you supply?', acceptedAnswer: { '@type': 'Answer', text: 'We supply tier-1 solar panels from Longi, Jinko, and Canadian Solar. Inverters from Growatt, Solis, and Huawei. Batteries from BYD, Ritar, and local lithium options.' } },
+  ],
+}
 
 const SOLAR_BENEFITS = [
   { icon:'☀️', title:'25 Year Performance Warranty', desc:'Panels guaranteed at 80% output for 25 years.' },
@@ -23,15 +38,21 @@ interface ComponentOption {
   slug?:  string;
   /** Hardcoded retail price for Ziewnic (Crown price comes from DB) */
   price?: number;
+  /** Unit multiplier for stacked Crown components (e.g. 2 × 5.12kWh battery bank). Default 1. */
+  qty?:   number;
 }
 
 // ── Crown component definitions (prices fetched from DB at runtime) ──────────
 
-const CROWN_INV_36:  ComponentOption = { label: 'Crown Yorker 3.6kW Inverter',    brand: 'Crown', slug: 'crown-yorker-3-6kw'               }
-const CROWN_INV_5:   ComponentOption = { label: 'Crown Yorker 5kW Inverter',       brand: 'Crown', slug: 'crown-yorker-5kw'                 }
-const CROWN_INV_8:   ComponentOption = { label: 'Crown 8kW Hybrid Inverter',       brand: 'Crown', slug: 'crown-nexus-8kw'                  }
-const CROWN_BAT_24:  ComponentOption = { label: 'Crown 2.4kWh LiFePO4 Battery',   brand: 'Crown', slug: 'crown-elektra-boost-pro-2-4kw'    }
-const CROWN_BAT_512: ComponentOption = { label: 'Crown 5.12kWh LiFePO4 Battery',  brand: 'Crown', slug: 'crown-elektra-boost-pro-5-12kw'   }
+const CROWN_INV_12:  ComponentOption = { label: 'Crown 1.2kW Pure Sine Inverter',         brand: 'Crown', slug: 'crown-ups-1-2kw'                  }
+const CROWN_INV_2K:  ComponentOption = { label: 'Crown 2kW Pure Sine Inverter',            brand: 'Crown', slug: 'crown-ups-2kw'                    }
+const CROWN_INV_36:  ComponentOption = { label: 'Crown Yorker 3.6kW Inverter',             brand: 'Crown', slug: 'crown-yorker-3-6kw'               }
+const CROWN_INV_5:   ComponentOption = { label: 'Crown Yorker 5kW Inverter',               brand: 'Crown', slug: 'crown-yorker-5kw'                 }
+const CROWN_INV_8:   ComponentOption = { label: 'Crown 8kW Hybrid Inverter',               brand: 'Crown', slug: 'crown-nexus-8kw'                  }
+const CROWN_INV_10K: ComponentOption = { label: 'Crown 10kW Hybrid Inverter',              brand: 'Crown', slug: 'crown-nexus-10kw'                 }
+const CROWN_BAT_24:  ComponentOption = { label: 'Crown 2.4kWh LiFePO4 Battery',           brand: 'Crown', slug: 'crown-elektra-boost-pro-2-4kw'    }
+const CROWN_BAT_512: ComponentOption = { label: 'Crown 5.12kWh LiFePO4 Battery',          brand: 'Crown', slug: 'crown-elektra-boost-pro-5-12kw'   }
+const CROWN_BAT_10K: ComponentOption = { label: 'Crown 10.24kWh LiFePO4 Battery (2×5.12)', brand: 'Crown', slug: 'crown-elektra-boost-pro-5-12kw', qty: 2 }
 
 // ── Ziewnic component definitions (Ziewnic Jan 2026 catalog + 15% Tajalli's margin, rounded) ─
 
@@ -39,18 +60,22 @@ function zn(label: string, catalogPrice: number): ComponentOption {
   return { label, brand: 'Ziewnic', price: Math.round(catalogPrice * 1.15 / 1000) * 1000 }
 }
 
-const ZN_INV_MINI35:  ComponentOption = zn('Ziewnic RouX Mini 3.5kW',     85_000)   //  98,000
-const ZN_INV_MAX35:   ComponentOption = zn('Ziewnic MAX 3.5kW',           95_000)   // 110,000
-const ZN_INV_MAX55:   ComponentOption = zn('Ziewnic MAX 5.5kW',          110_000)   // 127,000
-const ZN_INV_LITE59:  ComponentOption = zn('Ziewnic RouX Lite 5.9kW',    135_000)   // 156,000
-const ZN_INV_ROUX67:  ComponentOption = zn('Ziewnic RouX 6.7kW',         167_000)   // 193,000
-const ZN_INV_ULTRA85: ComponentOption = zn('Ziewnic RouX Ultra 8.5kW',   250_000)   // 288,000
-const ZN_INV_ROUX12:  ComponentOption = zn('Ziewnic RouX Ultra 12kW',    380_000)   // 437,000
+const ZN_INV_NANO12:  ComponentOption = zn('Ziewnic RouX Nano 1.2kW',       32_000)   //  37,000
+const ZN_INV_MINI20:  ComponentOption = zn('Ziewnic RouX Mini 2.0kW',       48_000)   //  55,000
+const ZN_INV_MINI35:  ComponentOption = zn('Ziewnic RouX Mini 3.5kW',       85_000)   //  98,000
+const ZN_INV_MAX35:   ComponentOption = zn('Ziewnic MAX 3.5kW',             95_000)   // 110,000
+const ZN_INV_MAX55:   ComponentOption = zn('Ziewnic MAX 5.5kW',            110_000)   // 127,000
+const ZN_INV_LITE59:  ComponentOption = zn('Ziewnic RouX Lite 5.9kW',      135_000)   // 156,000
+const ZN_INV_ROUX67:  ComponentOption = zn('Ziewnic RouX 6.7kW',           167_000)   // 193,000
+const ZN_INV_ULTRA85: ComponentOption = zn('Ziewnic RouX Ultra 8.5kW',     250_000)   // 288,000
+const ZN_INV_ROUX12:  ComponentOption = zn('Ziewnic RouX Ultra 12kW',      380_000)   // 437,000
 
-const ZN_BAT_LW256:  ComponentOption = zn('Ziewnic LI-WALL 2.0 2.56kWh',  134_000)  // 154,000
-const ZN_BAT_LW512:  ComponentOption = zn('Ziewnic LI-WALL 2.0 5.12kWh',  223_000)  // 257,000
-const ZN_BAT_ZB256:  ComponentOption = zn('Ziewnic Z Box European 2.56kWh',163_000)  // 188,000
-const ZN_BAT_ZB512:  ComponentOption = zn('Ziewnic Z Box European 5.12kWh',250_000)  // 288,000
+const ZN_BAT_LW256:   ComponentOption = zn('Ziewnic LI-WALL 2.0 2.56kWh',    134_000)  // 154,000
+const ZN_BAT_LW512:   ComponentOption = zn('Ziewnic LI-WALL 2.0 5.12kWh',    223_000)  // 257,000
+const ZN_BAT_LW1024:  ComponentOption = zn('Ziewnic LI-WALL 2.0 10.24kWh (2×5.12)', 446_000) // 513,000
+const ZN_BAT_ZB256:   ComponentOption = zn('Ziewnic Z Box European 2.56kWh',  163_000)  // 188,000
+const ZN_BAT_ZB512:   ComponentOption = zn('Ziewnic Z Box European 5.12kWh',  250_000)  // 288,000
+const ZN_BAT_ZB1024:  ComponentOption = zn('Ziewnic Z Box European 10.24kWh (2×5.12)', 500_000) // 575,000
 
 // ── Package definitions ───────────────────────────────────────────────────────
 
@@ -74,12 +99,61 @@ export interface SolarPackage {
 }
 
 export const PACKAGES: SolarPackage[] = [
+  // ── NEW: 1.2kW UPS ─────────────────────────────────────────────────────────
+  {
+    id: 'ups-1.2kw', name: '1.2kW UPS System', kw: '1.2kW',
+    type: 'ups', badge: 'Essential Backup', badgeColor: 'bg-sky-600 text-white', popular: false,
+    includes: [
+      'No rooftop needed — works in any flat or apartment',
+      'Runs 2 fans + LED lights + phone/laptop charging',
+      'All wiring & electrical equipment',
+      'Professional installation & transport',
+    ],
+    warranties: ['2-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
+    // Total = ZN_INV_NANO12 (37k) + CROWN_BAT_24 (DB ~93k) + overhead (20k) ≈ 150k
+    total: 150000, frameDeduction: 0,
+    inverterOptions: [ZN_INV_NANO12, CROWN_INV_12],
+    batteryOptions:  [CROWN_BAT_24, ZN_BAT_LW256, ZN_BAT_ZB256],
+  },
+  // ── NEW: 2kW UPS ───────────────────────────────────────────────────────────
+  {
+    id: 'ups-2kw', name: '2kW UPS System', kw: '2kW',
+    type: 'ups', badge: 'Home Essentials', badgeColor: 'bg-blue-500 text-white', popular: false,
+    includes: [
+      'No rooftop needed — works in any flat or apartment',
+      'Runs fridge + fans + lights + small TV',
+      'All wiring & electrical equipment',
+      'Professional installation & transport',
+    ],
+    warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
+    // Total = ZN_INV_MINI20 (55k) + CROWN_BAT_24 (DB ~93k) + overhead (29k) ≈ 177k
+    total: 177000, frameDeduction: 0,
+    inverterOptions: [ZN_INV_MINI20, CROWN_INV_2K, ZN_INV_MINI35],
+    batteryOptions:  [CROWN_BAT_24, CROWN_BAT_512, ZN_BAT_LW256],
+  },
   {
     id: 'ups-3.6kw', name: '3.6kW UPS System', kw: '3.6kW',
     type: 'ups', badge: 'Apartment Friendly', badgeColor: 'bg-blue-600 text-white', popular: false,
     includes: ['No rooftop needed — works in flats & apartments', 'All wiring & electrical equipment', 'Professional installation & transport'],
     warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
     total: 285000, frameDeduction: 0,
+    inverterOptions: [CROWN_INV_36, ZN_INV_MINI35, ZN_INV_MAX35],
+    batteryOptions:  [CROWN_BAT_24, ZN_BAT_LW256, ZN_BAT_ZB256],
+  },
+  // ── NEW: 2kW Solar + 2.4kWh Battery ────────────────────────────────────────
+  {
+    id: 'solar-2kw', name: '2kW Solar System', kw: '2kW',
+    type: 'solar', badge: 'Starter Solar', badgeColor: 'bg-amber-500 text-white', popular: false,
+    includes: [
+      'Crown Bi-Facial 620W Solar Plates ×4 (2.48kW peak)',
+      'All wiring & electrical equipment',
+      'Professional installation & transport',
+      'Elevated Solar Frame (optional)',
+    ],
+    warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
+    // 4 panels: overhead = 4×30k + 2000W×18 + 5k = 161k; Crown inv+bat same as 3.6kW package
+    // no-frame ≈ 391k; with frame (+70k) = 461k
+    total: 461000, frameDeduction: 70000, frameLabel: 'Elevated Solar Frame',
     inverterOptions: [CROWN_INV_36, ZN_INV_MINI35, ZN_INV_MAX35],
     batteryOptions:  [CROWN_BAT_24, ZN_BAT_LW256, ZN_BAT_ZB256],
   },
@@ -121,6 +195,39 @@ export const PACKAGES: SolarPackage[] = [
     inverterOptions: [CROWN_INV_5, ZN_INV_MAX55, ZN_INV_LITE59, ZN_INV_ROUX67],
     batteryOptions:  [CROWN_BAT_512, ZN_BAT_LW512, ZN_BAT_ZB512],
   },
+  // ── NEW: 6kW Solar + 5.12kWh Battery ────────────────────────────────────────
+  {
+    id: 'solar-6kw', name: '6kW Solar System', kw: '6kW',
+    type: 'solar', badge: 'Premium Power', badgeColor: 'bg-orange-600 text-white', popular: false,
+    includes: [
+      'Crown Bi-Facial 620W Solar Plates ×10 (6.2kW peak)',
+      'All wiring & electrical equipment',
+      'Professional installation & transport',
+      'Elevated Solar Frame (optional)',
+    ],
+    warranties: ['5-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
+    // Default: ZN_INV_ROUX67 (193k) + ZN_BAT_LW512 (257k) + overhead 419k = 869k; +frame 175k = 1,044k
+    total: 1044000, frameDeduction: 175000, frameLabel: 'Elevated Solar Frame',
+    inverterOptions: [ZN_INV_ROUX67, CROWN_INV_8, ZN_INV_ULTRA85],
+    batteryOptions:  [ZN_BAT_LW512, CROWN_BAT_512, ZN_BAT_ZB512],
+  },
+  // ── NEW: 7kW Solar + 5.12kWh Battery ────────────────────────────────────────
+  {
+    id: 'solar-7kw', name: '7kW Solar System', kw: '7kW',
+    type: 'solar', badge: 'High Capacity', badgeColor: 'bg-purple-600 text-white', popular: false,
+    includes: [
+      'Crown Bi-Facial 620W Solar Plates ×12 (7.44kW peak)',
+      'All wiring & electrical equipment',
+      'Professional installation & transport',
+      'Elevated Solar Frame (optional)',
+    ],
+    warranties: ['5-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
+    // Default: CROWN_INV_8 + CROWN_BAT_512 (both existing DB products). Overhead 12 panels ≈ 501k
+    // Crown components ~557k → no-frame 1,058k; +frame 210k = 1,268k
+    total: 1268000, frameDeduction: 210000, frameLabel: 'Elevated Solar Frame',
+    inverterOptions: [CROWN_INV_8, ZN_INV_ULTRA85],
+    batteryOptions:  [CROWN_BAT_512, ZN_BAT_LW512, ZN_BAT_ZB512],
+  },
   {
     id: 'solar-8kw', name: '8kW Solar System', kw: '8kW',
     type: 'solar', badge: 'Maximum Power', badgeColor: 'bg-blue-600 text-white', popular: false,
@@ -135,9 +242,26 @@ export const PACKAGES: SolarPackage[] = [
     inverterOptions: [CROWN_INV_8, ZN_INV_ULTRA85],
     batteryOptions:  [CROWN_BAT_512, ZN_BAT_LW512, ZN_BAT_ZB512],
   },
+  // ── NEW: 10kW Solar + 10.24kWh Battery (Net Metering) ────────────────────
+  {
+    id: 'solar-10kw', name: '10kW Solar System', kw: '10kW',
+    type: 'solar', badge: 'Net Metering Ready', badgeColor: 'bg-teal-600 text-white', popular: false,
+    includes: [
+      'Crown Bi-Facial 620W Solar Plates ×17 (10.54kW peak)',
+      'All wiring & electrical equipment',
+      'Professional installation & transport',
+      'Elevated Solar Frame (optional)',
+      'Net Metering eligible (10kW minimum) — K-Electric approval required',
+    ],
+    warranties: ['5-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
+    // Default: ZN_INV_ROUX12 (437k) + ZN_BAT_ZB1024 (575k) + overhead 710k = 1,722k; +frame 298k = 2,020k
+    total: 2020000, frameDeduction: 298000, frameLabel: 'Elevated Solar Frame',
+    inverterOptions: [ZN_INV_ROUX12, CROWN_INV_10K],
+    batteryOptions:  [ZN_BAT_ZB1024, CROWN_BAT_10K, ZN_BAT_LW1024],
+  },
   {
     id: 'solar-12kw', name: '12kW Solar System', kw: '12kW',
-    type: 'solar', badge: 'Net Metering Ready', badgeColor: 'bg-green-600 text-white', popular: false,
+    type: 'solar', badge: 'Industrial Grade', badgeColor: 'bg-green-600 text-white', popular: false,
     includes: [
       'Crown Bi-Facial 620W Solar Plates ×20',
       'All wiring & electrical equipment',
@@ -157,7 +281,7 @@ export const PACKAGES: SolarPackage[] = [
 /** Resolve the retail price for an option, using fetched Crown prices when needed. */
 function optionPrice(opt: ComponentOption, crownPrices: Record<string, number>): number {
   if (opt.brand === 'Ziewnic') return opt.price ?? 0
-  return crownPrices[opt.slug ?? ''] ?? 0
+  return (crownPrices[opt.slug ?? ''] ?? 0) * (opt.qty ?? 1)
 }
 
 /** Overhead = wiring + panels (if solar) + labor + transport for this package tier.
@@ -449,6 +573,15 @@ export default function SolarPage() {
 
   return (
     <div className="min-h-screen bg-white">
+      <SEO
+        path="/solar"
+        title="Solar Systems Karachi — On-Grid & Off-Grid Solar Solutions"
+        description="Get a complete solar system in Karachi. On-grid, off-grid, and hybrid setups with tier-1 panels, inverters & batteries. Easy installments. Free site assessment."
+        keywords="solar system karachi, solar panels karachi price, on grid solar karachi, off grid solar, solar inverter pakistan, net metering karachi"
+      />
+      <Helmet>
+        <script type="application/ld+json">{JSON.stringify(SOLAR_FAQ_SCHEMA)}</script>
+      </Helmet>
       <BookingModal open={bookingOpen} onClose={() => setBookingOpen(false)} context={bookingContext} />
 
       {/* Hero */}

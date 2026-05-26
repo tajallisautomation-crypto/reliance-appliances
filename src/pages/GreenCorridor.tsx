@@ -6,8 +6,8 @@ import AnimatedCounter from '@/components/ui/AnimatedCounter'
 import { calcPlan, formatPrice } from '@/lib/api'
 import { waSales } from '@/lib/whatsapp'
 import {
-  BILL_THRESHOLD_SMALL, BILL_THRESHOLD_LARGE, BILL_THRESHOLD_INDUSTRIAL,
-  SAVING_PCT_3KW, SAVING_PCT_5KW, SAVING_PCT_8KW,
+  BILL_THRESHOLD_SMALL, BILL_THRESHOLD_LARGE, BILL_THRESHOLD_6KW, BILL_THRESHOLD_7KW, BILL_THRESHOLD_8KW, BILL_THRESHOLD_INDUSTRIAL,
+  SAVING_PCT_3KW, SAVING_PCT_5KW, SAVING_PCT_6KW, SAVING_PCT_7KW, SAVING_PCT_8KW, SAVING_PCT_10KW,
   SAVING_PCT_BATTERY_ADDON,
   INSTALLMENT_MAX_PKR,
   NET_METERING_MIN_KW, NET_METERING_COST_PKR,
@@ -155,6 +155,70 @@ export const GC_PACKAGES: GCPackage[] = [
     workmanshipWarranty: '1-year',
   },
   {
+    id: 'advanced',
+    name: 'Advanced',
+    tagline: '3-bedroom+ home with 3 ACs — premium efficiency',
+    solarKw: 6,
+    panelWatts: 620,
+    panelCount: 10,
+    inverterModel: 'Ziewnic RouX 6.7kW Hybrid Inverter',
+    inverterWarranty: '3-year',
+    batteryKwh: 5.12,
+    batteryModel: 'Ziewnic LI-WALL 2.0 5.12kWh (48V)',
+    batteryWarranty: '5-year',
+    acCount: 3,
+    acTonnage: '1.5 ton each',
+    acBrands: 'Haier or Dawlance',
+    monthlyUnitsMin: 700,
+    monthlyUnitsMax: 820,
+    billReduction: '75–85%',
+    includes: [
+      '10 × Crown Bi-Facial 620W Solar Panels (6.2kW peak)',
+      'Ziewnic RouX 6.7kW Hybrid Inverter (3-yr warranty)',
+      'Ziewnic LI-WALL 2.0 5.12kWh Battery — 48V, 8–10 hrs backup (5-yr warranty)',
+      '3 Haier or Dawlance Inverter ACs (1.5 ton each)',
+      'All wiring, electrical equipment & transport',
+      'Professional installation & commissioning',
+    ],
+    price: 1300000,
+    popular: false,
+    color: 'border-gray-200',
+    badgeColor: 'bg-orange-100 text-orange-700',
+    workmanshipWarranty: '1-year',
+  },
+  {
+    id: 'premium',
+    name: 'Premium',
+    tagline: 'Large home with 4 ACs — near-zero evening bills',
+    solarKw: 7,
+    panelWatts: 620,
+    panelCount: 12,
+    inverterModel: 'Crown 8kW Hybrid Inverter',
+    inverterWarranty: '2-year',
+    batteryKwh: 5.12,
+    batteryModel: 'Crown LiFePO4 5.12kWh (48V, 100Ah)',
+    batteryWarranty: '5-year',
+    acCount: 4,
+    acTonnage: 'mixed (1.5 + 1.5 + 1.5 + 2 ton)',
+    acBrands: 'Haier or Dawlance',
+    monthlyUnitsMin: 820,
+    monthlyUnitsMax: 960,
+    billReduction: '80–90%',
+    includes: [
+      '12 × Crown Bi-Facial 620W Solar Panels (7.44kW peak)',
+      'Crown 8kW Hybrid Inverter (2-yr warranty)',
+      'Crown LiFePO4 5.12kWh Battery — 48V, 8–12 hrs backup (5-yr warranty)',
+      '4 Haier or Dawlance Inverter ACs (mixed tonnage)',
+      'All wiring, electrical equipment & transport',
+      'Professional installation & commissioning',
+    ],
+    price: 1600000,
+    popular: false,
+    color: 'border-gray-200',
+    badgeColor: 'bg-purple-100 text-purple-700',
+    workmanshipWarranty: '1-year',
+  },
+  {
     id: 'total-freedom',
     name: 'Total Freedom',
     tagline: 'Larger homes — full backup, no load-shedding impact',
@@ -185,6 +249,40 @@ export const GC_PACKAGES: GCPackage[] = [
     color: 'border-gray-200',
     badgeColor: 'bg-gray-100 text-gray-700',
     workmanshipWarranty: '1-year',
+  },
+  {
+    id: 'ultimate',
+    name: 'Ultimate',
+    tagline: '5 ACs + net metering — sell surplus power to K-Electric',
+    solarKw: 10,
+    panelWatts: 620,
+    panelCount: 17,
+    inverterModel: 'Ziewnic RouX Ultra 12kW Hybrid Inverter',
+    inverterWarranty: '3-year',
+    batteryKwh: 10.24,
+    batteryModel: '2 × Ziewnic Z Box European 5.12kWh (48V)',
+    batteryWarranty: '5-year',
+    acCount: 5,
+    acTonnage: 'mixed (1.5 + 1.5 + 2 + 2 + 2 ton)',
+    acBrands: 'Haier or Dawlance',
+    monthlyUnitsMin: 1100,
+    monthlyUnitsMax: 1300,
+    billReduction: '85–95%',
+    includes: [
+      '17 × Crown Bi-Facial 620W Solar Panels (10.54kW peak)',
+      'Ziewnic RouX Ultra 12kW Hybrid Inverter (3-yr warranty)',
+      '2 × Ziewnic Z Box European 5.12kWh Battery — 48V, 10–16 hrs backup (5-yr warranty)',
+      'Elevated 14-gauge galvanised steel mounting structure',
+      'K-Electric Net Metering application & approved metering hardware',
+      '5 Haier or Dawlance Inverter ACs (mixed tonnage)',
+      'All wiring, electrical equipment & transport',
+      'Professional installation & commissioning',
+    ],
+    price: 2500000,
+    popular: false,
+    color: 'border-teal-300',
+    badgeColor: 'bg-teal-100 text-teal-700',
+    workmanshipWarranty: '2-year',
   },
   {
     id: 'industrial-freedom',
@@ -233,10 +331,13 @@ export default function GreenCorridor() {
 
   // Bill is the primary signal for system size — avoids over-recommending large systems to low-bill users
   const matchedPackage = (() => {
-    if (monthlyBill < BILL_THRESHOLD_SMALL)      return GC_PACKAGES.find(p => p.solarKw === 3)  ?? GC_PACKAGES[0]
-    if (monthlyBill < BILL_THRESHOLD_LARGE)      return GC_PACKAGES.find(p => p.solarKw === 5)  ?? GC_PACKAGES[1]
-    if (monthlyBill < BILL_THRESHOLD_INDUSTRIAL) return GC_PACKAGES.find(p => p.solarKw === 8)  ?? GC_PACKAGES[2]
-    return GC_PACKAGES.find(p => p.solarKw === 12) ?? GC_PACKAGES[3]
+    if (monthlyBill < BILL_THRESHOLD_SMALL)      return GC_PACKAGES.find(p => p.id === 'starter')         ?? GC_PACKAGES[0]
+    if (monthlyBill < BILL_THRESHOLD_LARGE)      return GC_PACKAGES.find(p => p.id === 'home-complete')   ?? GC_PACKAGES[1]
+    if (monthlyBill < BILL_THRESHOLD_6KW)        return GC_PACKAGES.find(p => p.id === 'advanced')        ?? GC_PACKAGES[2]
+    if (monthlyBill < BILL_THRESHOLD_7KW)        return GC_PACKAGES.find(p => p.id === 'premium')         ?? GC_PACKAGES[3]
+    if (monthlyBill < BILL_THRESHOLD_8KW)        return GC_PACKAGES.find(p => p.id === 'total-freedom')   ?? GC_PACKAGES[4]
+    if (monthlyBill < BILL_THRESHOLD_INDUSTRIAL) return GC_PACKAGES.find(p => p.id === 'ultimate')        ?? GC_PACKAGES[5]
+    return GC_PACKAGES.find(p => p.id === 'industrial-freedom') ?? GC_PACKAGES[GC_PACKAGES.length - 1]
   })()
 
   // Input sanity: flag combos that don't make physical sense
@@ -251,9 +352,12 @@ export default function GreenCorridor() {
   // All Green Corridor packages now bundle LiFePO4 battery as standard.
   // Saving % always uses battery-inclusive midpoint (solar midpoint + SAVING_PCT_BATTERY_ADDON).
   const systemCost     = matchedPackage.price
-  const baseSavingPct  = matchedPackage.solarKw === 3 ? SAVING_PCT_3KW
-                       : matchedPackage.solarKw === 5 ? SAVING_PCT_5KW
-                       : matchedPackage.solarKw === 8 ? SAVING_PCT_8KW
+  const baseSavingPct  = matchedPackage.solarKw === 3  ? SAVING_PCT_3KW
+                       : matchedPackage.solarKw === 5  ? SAVING_PCT_5KW
+                       : matchedPackage.solarKw === 6  ? SAVING_PCT_6KW
+                       : matchedPackage.solarKw === 7  ? SAVING_PCT_7KW
+                       : matchedPackage.solarKw === 8  ? SAVING_PCT_8KW
+                       : matchedPackage.solarKw === 10 ? SAVING_PCT_10KW
                        : 0.875 // 12kW: midpoint of 85–100%, net metering caps grid draw near zero
   const solarSavingPct = Math.min(0.95, baseSavingPct + SAVING_PCT_BATTERY_ADDON)
   // round monthlySaving to nearest PKR 100
@@ -540,7 +644,7 @@ export default function GreenCorridor() {
             <p className="text-gray-500 mt-3">All packages include delivery, installation, wiring &amp; workmanship warranty.</p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {GC_PACKAGES.map(pkg => {
               const plan3mPkg = calcPlan(pkg.price, '3m')
               return (
@@ -673,8 +777,9 @@ export default function GreenCorridor() {
             </p>
             <p>
               K-Electric (KE) only approves Net Metering for systems of <strong>{NET_METERING_MIN_KW}kW or above</strong>.
-              The 3kW, 5kW, and 8kW packages operate as standard grid-tied systems — they offset your consumption in real-time but cannot sell surplus back.
-              The <strong>12kW Industrial Freedom</strong> package includes the KE net metering application and approved metering hardware
+              Packages below 10kW operate as standard grid-tied systems — they offset your consumption in real-time but cannot sell surplus back.
+              The <strong>10kW Ultimate</strong> and <strong>12kW Industrial Freedom</strong> packages are net metering eligible.
+              The 12kW package includes the KE net metering application and approved metering hardware
               (valued at PKR {formatPrice(NET_METERING_ADDON_PRICE)}) — bundled into the package price.
             </p>
           </div>

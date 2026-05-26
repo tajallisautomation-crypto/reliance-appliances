@@ -95,7 +95,16 @@ export const BILL_THRESHOLD_SMALL = 15_000;
 /** Monthly bill (PKR) above which we recommend the 8kW Total Freedom package. */
 export const BILL_THRESHOLD_LARGE = 40_000;
 
-/** Monthly bill (PKR) above which we recommend the 12kW Industrial Freedom package. */
+/** Monthly bill (PKR) above which we recommend the 6kW Advanced package (between 5kW and 8kW). */
+export const BILL_THRESHOLD_6KW = 45_000;
+
+/** Monthly bill (PKR) above which we recommend the 7kW Premium package. */
+export const BILL_THRESHOLD_7KW = 60_000;
+
+/** Monthly bill (PKR) above which we recommend the 8kW Total Freedom package. */
+export const BILL_THRESHOLD_8KW = 75_000;
+
+/** Monthly bill (PKR) above which we recommend the 10kW Ultimate package (net metering zone). */
 export const BILL_THRESHOLD_INDUSTRIAL = 80_000;
 
 // ── Per-system saving percentages ────────────────────────────────────────────
@@ -110,7 +119,10 @@ export const BILL_THRESHOLD_INDUSTRIAL = 80_000;
 
 export const SAVING_PCT_3KW  = 0.575;
 export const SAVING_PCT_5KW  = 0.725;
+export const SAVING_PCT_6KW  = 0.775; // 75–80% midpoint
+export const SAVING_PCT_7KW  = 0.800; // 80–85% midpoint
 export const SAVING_PCT_8KW  = 0.825;
+export const SAVING_PCT_10KW = 0.850; // 85–90% midpoint (net-metering eligible)
 export const SAVING_PCT_12KW = 0.875;
 
 /** Additional saving percentage from battery storage (LiFePO4 peak shaving).
