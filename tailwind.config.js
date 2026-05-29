@@ -1,6 +1,9 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  content: [
+    './app/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/**/*.{js,ts,jsx,tsx}',
+  ],
   theme: {
     extend: {
       fontFamily: {
@@ -33,6 +36,8 @@ export default {
           500: '#FFC107',
           600: '#FFA000',
           700: '#FF8F00',
+          800: '#B45309', // WCAG AA on white (4.7:1) — use for text labels on light backgrounds
+          900: '#78350F', // WCAG AAA on white (9.3:1)
         },
         softgray: '#F2F4F7',
         wa: {

@@ -1,5 +1,7 @@
+'use client'
+
 import { X, Plus, Minus, Trash2, ShoppingBag } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { useCartStore } from '@/store/cartStore';
 import { formatPrice } from '@/lib/api';
 
@@ -72,11 +74,11 @@ export default function CartDrawer({ open, onClose }: Props) {
               <span>Total</span>
               <span className="text-brand-600">PKR {formatPrice(total())}</span>
             </div>
-            <Link to="/checkout" onClick={onClose}
+            <Link href="/checkout" onClick={onClose}
               className="flex items-center justify-center gap-2 w-full bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-white py-3.5 rounded-xl font-bold text-sm transition-colors">
               Proceed to Checkout
             </Link>
-            <Link to="/cart" onClick={onClose}
+            <Link href="/cart" onClick={onClose}
               className="flex items-center justify-center w-full text-sm text-gray-500 hover:text-gray-800 py-2.5 font-medium transition-colors">
               View Full Cart
             </Link>

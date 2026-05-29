@@ -1,3 +1,5 @@
+'use client'
+
 import { useEffect, useState, type FormEvent } from 'react';
 import { Star, CheckCircle, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -90,6 +92,8 @@ export default function ReviewSection({ productId, productName }: Props) {
         .from('reviews')
         .select('*')
         .eq('product_id', productId)
+        .eq('status', 'approved')
+        .order('is_featured', { ascending: false })
         .order('created_at', { ascending: false })
     ).then(({ data }) => {
       setReviews((data as Review[]) ?? []);
@@ -112,9 +116,8 @@ export default function ReviewSection({ productId, productName }: Props) {
       }).select().single();
 
       if (error) throw error;
+      void data; // review is pending moderation — not added to public list
 
-      // Optimistic update
-      setReviews(prev => [data as Review, ...prev]);
       setSubmitted(true);
       setShowForm(false);
       setName(''); setCity(''); setRating(0); setComment('');
@@ -150,7 +153,7 @@ export default function ReviewSection({ productId, productName }: Props) {
       {submitted && (
         <div className="flex items-center gap-3 bg-eco-50 border border-eco-200 rounded-2xl p-4 mb-6">
           <CheckCircle className="w-5 h-5 text-eco-500 flex-shrink-0" />
-          <p className="text-sm text-eco-800 font-medium">Thank you — your review has been published.</p>
+          <p className="text-sm text-eco-800 font-medium">Thank you! Your review has been submitted and will appear after a brief moderation check.</p>
         </div>
       )}
 

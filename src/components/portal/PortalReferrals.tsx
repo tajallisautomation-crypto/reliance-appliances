@@ -1,3 +1,5 @@
+'use client'
+
 import { useState } from 'react'
 import { Copy, CheckCircle, MessageCircle, Gift, TrendingUp } from 'lucide-react'
 import { waSales } from '@/lib/whatsapp'

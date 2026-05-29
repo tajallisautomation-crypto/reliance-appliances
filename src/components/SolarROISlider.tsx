@@ -1,3 +1,5 @@
+'use client'
+
 /**
  * SolarROISlider — homepage standalone component.
  * Maps "Monthly Electricity Bill" → Recommended kW system + Estimated Cost + ROI.

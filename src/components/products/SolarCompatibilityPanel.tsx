@@ -1,5 +1,7 @@
+'use client'
+
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
 import { Sun, Zap, Battery, TrendingDown, ChevronRight, ArrowRight, Leaf, Droplets } from 'lucide-react'
 import { getProducts, formatPrice } from '@/lib/api'
 import { calcPlan } from '@/lib/plans'
@@ -322,7 +324,7 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
           <p className="text-amber-100 text-xs mt-0.5">Run this {load.label} on clean solar power</p>
         </div>
         <Link
-          to="/solar-calculator"
+          href="/solar-calculator"
           className="ml-auto text-xs font-semibold bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-full flex items-center gap-1 transition-colors whitespace-nowrap"
         >
           Full calculator <ChevronRight className="w-3 h-3" />
@@ -346,7 +348,7 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
               </div>
             </div>
             <Link
-              to={`/products/${efficientAlt.id}`}
+              href={`/products/${efficientAlt.id}`}
               className="shrink-0 text-xs font-bold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 whitespace-nowrap"
             >
               View product <ArrowRight className="w-3 h-3" />
@@ -453,7 +455,7 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
                 Recommended Battery Backup
               </p>
               <Link
-                to="/products?category=solar-battery"
+                href="/products?category=solar-battery"
                 className="text-[11px] text-brand-600 hover:text-brand-700 font-semibold flex items-center gap-0.5"
               >
                 See all <ChevronRight className="w-3 h-3" />
@@ -465,7 +467,7 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
                 return (
                   <Link
                     key={bat.id}
-                    to={`/products/${bat.id}`}
+                    href={`/products/${bat.id}`}
                     className="group relative flex gap-3 bg-white hover:bg-blue-50 border border-blue-100 hover:border-blue-300 rounded-xl p-3.5 transition-all"
                   >
                     {i === 0 && (
@@ -512,7 +514,7 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
                 return (
                   <Link
                     key={inv.id}
-                    to={`/products/${inv.id}`}
+                    href={`/products/${inv.id}`}
                     className="group flex flex-col gap-1.5 bg-white hover:bg-amber-50 border border-amber-100 hover:border-amber-300 rounded-xl p-3.5 transition-all"
                   >
                     {inv.thumbnail && (
@@ -542,7 +544,7 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
         <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl px-4 py-3 text-white">
           <p className="text-sm font-semibold">Need a full household quote?</p>
           <Link
-            to="/solar-calculator"
+            href="/solar-calculator"
             className="shrink-0 inline-flex items-center gap-1.5 bg-white text-brand-600 text-xs font-bold px-4 py-2 rounded-lg hover:bg-brand-50 transition-colors"
           >
             Solar Calculator <ArrowRight className="w-3.5 h-3.5" />
@@ -555,9 +557,9 @@ export default function SolarCompatibilityPanel({ product }: { product: Product 
           and PKR {(WIRING_PER_W + LABOR_PER_W)}/W for wiring, equipment &amp; installation (PKR {WIRING_PER_W}/W equipment + PKR {LABOR_PER_W}/W labor).
           Monthly units reflect this appliance's consumption only. Battery recommendation sorted by best kWh-per-rupee value.
           Actual sizing may vary. Use our{' '}
-          <Link to="/solar-calculator" className="underline hover:text-brand-500">Solar Calculator</Link>{' '}
+          <Link href="/solar-calculator" className="underline hover:text-brand-500">Solar Calculator</Link>{' '}
           for a full household assessment, or{' '}
-          <Link to="/products?group=solar" className="underline hover:text-brand-500">browse all solar products</Link>.
+          <Link href="/products?group=solar" className="underline hover:text-brand-500">browse all solar products</Link>.
         </p>
       </div>
     </div>

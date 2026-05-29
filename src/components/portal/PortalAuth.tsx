@@ -1,5 +1,7 @@
+'use client'
+
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
 import { LogIn, UserPlus, Star, Zap, Gift, Bell, Search, Package, MessageCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { waSales } from '@/lib/whatsapp'
@@ -153,7 +155,7 @@ export default function PortalAuth({ onLogin, onSignup }: Props) {
         {/* Quick links */}
         <div className="grid grid-cols-3 gap-3 mt-6">
           {[['Browse Products', '/products', '🛍️'], ['Installment Plans', '/installments', '💳'], ['Solar Calculator', '/solar-calculator', '☀️']].map(([label, href, emoji]) => (
-            <Link key={href} to={href}
+            <Link key={href} href={href}
               className="flex flex-col items-center gap-2 bg-white rounded-2xl border border-gray-100 hover:border-brand-200 p-4 text-center transition-all">
               <span className="text-2xl">{emoji}</span>
               <span className="text-xs font-medium text-gray-600">{label}</span>

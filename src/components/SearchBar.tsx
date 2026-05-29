@@ -1,10 +1,13 @@
+'use client'
+
 // ── SearchBar.tsx — Amazon-like autocomplete search bar ──────────────────────
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { Search, X, Package, Tag, ArrowRight, Loader2 } from 'lucide-react';
 import { getProducts } from '@/lib/api';
 import { buildSearchIndex, autocomplete, type SearchIndex, type SearchSuggestion } from '@/lib/search';
+import { trackSearchQuery } from '@/lib/analytics';
 
 // ── Shared index cache (so multiple SearchBar instances share one load) ────────
 let _cachedIndex: SearchIndex | null = null;
@@ -58,7 +61,7 @@ export default function SearchBar({
   defaultValue = '',
   onSearch,
 }: SearchBarProps) {
-  const navigate                        = useNavigate();
+  const router                          = useRouter();
   const [query,       setQuery]         = useState(defaultValue);
   const [suggestions, setSuggestions]   = useState<SearchSuggestion[]>([]);
   const [open,        setOpen]          = useState(false);
@@ -106,8 +109,9 @@ export default function SearchBar({
   function submit(q: string) {
     if (!q.trim()) return;
     setOpen(false); setSuggestions([]); setActiveIdx(-1);
+    trackSearchQuery(q.trim());
     if (onSearch) { onSearch(q.trim()); }
-    else { navigate(`/search?q=${encodeURIComponent(q.trim())}`); }
+    else { router.push(`/search?q=${encodeURIComponent(q.trim())}`); }
   }
 
   function handleKey(e: React.KeyboardEvent) {

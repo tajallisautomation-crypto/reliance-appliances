@@ -1,4 +1,6 @@
-import { Link } from 'react-router-dom';
+'use client'
+
+import Link from 'next/link';
 import { AirVent, Refrigerator, Shirt, Sun, CheckCircle, MessageCircle, ArrowRight } from 'lucide-react';
 import { waBundleAC, waBundleFridge, waBundleWasher, waBundleSolar, openWhatsApp } from '@/lib/whatsapp';
 
@@ -53,7 +55,7 @@ export default function BundleSection() {
             <h2 className="text-2xl sm:text-3xl font-black text-gray-900">Popular Bundles</h2>
             <p className="text-gray-500 mt-1 text-sm">Installation, accessories & service plans — included from day one.</p>
           </div>
-          <Link to="/bundles"
+          <Link href="/bundles"
             className="inline-flex items-center gap-2 text-brand-600 font-semibold text-sm hover:text-brand-700 whitespace-nowrap">
             See all bundles <ArrowRight className="w-4 h-4" />
           </Link>

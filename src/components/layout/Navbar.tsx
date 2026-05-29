@@ -1,5 +1,8 @@
+'use client'
+
 import { useState, useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { ShoppingCart, Menu, X, Phone, User, Leaf, Search, ChevronDown, Building2 } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { useAuthStore } from '@/store/authStore';
@@ -23,15 +26,15 @@ const RESOURCES_LINKS = [
 ];
 
 const CATEGORY_NAV = [
-  { href: '/products?category=air-conditioners',  label: 'Air Conditioners',   icon: '❄️' },
-  { href: '/products?category=refrigerators',     label: 'Refrigerators',      icon: '🧊' },
-  { href: '/products?category=freezers',          label: 'Freezers',           icon: '🥶' },
-  { href: '/products?category=washing-machines',  label: 'Washing Machines',   icon: '👕' },
-  { href: '/products?category=televisions',       label: 'Televisions',        icon: '📺' },
+  { href: '/products/category/air-conditioners',  label: 'Air Conditioners',   icon: '❄️' },
+  { href: '/products/category/refrigerators',     label: 'Refrigerators',      icon: '🧊' },
+  { href: '/products/category/freezers',          label: 'Freezers',           icon: '🥶' },
+  { href: '/products/category/washing-machines',  label: 'Washing Machines',   icon: '👕' },
+  { href: '/products/category/televisions',       label: 'Televisions',        icon: '📺' },
   { href: '/solar',                               label: 'Solar',              icon: '☀️' },
-  { href: '/products?category=kitchen-appliances',label: 'Kitchen Appliances', icon: '🍳' },
-  { href: '/products?category=water-dispensers',  label: 'Water Dispensers',   icon: '💧' },
-  { href: '/products?category=small-appliances',  label: 'Small Appliances',   icon: '🔌' },
+  { href: '/products/category/kitchen-appliances',label: 'Kitchen Appliances', icon: '🍳' },
+  { href: '/products/category/water-dispensers',  label: 'Water Dispensers',   icon: '💧' },
+  { href: '/products/category/small-appliances',  label: 'Small Appliances',   icon: '🔌' },
 ];
 
 const MOBILE_GROUPS: { label: string; links: [string, string][] }[] = [
@@ -84,7 +87,7 @@ export default function Navbar() {
   const [openGroup,     setOpenGroup]     = useState<string>('Shop');
   const productsTimeoutRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resourcesTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const location = useLocation();
+  const pathname = usePathname() ?? '';
   const totalItems = useCartStore(s => s.items.reduce((n, i) => n + i.qty, 0));
   const isLoggedIn = useAuthStore(s => s.isLoggedIn);
 
@@ -100,9 +103,9 @@ export default function Navbar() {
   }, []);
 
   // Close mobile menu / search on route change
-  useEffect(() => { setMobileOpen(false); setSearchOpen(false); }, [location.pathname]);
+  useEffect(() => { setMobileOpen(false); setSearchOpen(false); }, [pathname]);
 
-  const isActive = (href: string) => location.pathname === href;
+  const isActive = (href: string) => pathname === href;
 
   return (
     <>
@@ -114,7 +117,7 @@ export default function Navbar() {
             <div className={`flex items-center gap-2 sm:gap-4 transition-all duration-200 ${scrolled ? 'h-11' : 'h-14'} sm:h-16`}>
 
               {/* Logo */}
-              <Link to="/" className="flex items-center gap-1.5 sm:gap-2 shrink-0 group" aria-label="Tajalli's — Home page">
+              <Link href="/" className="flex items-center gap-1.5 sm:gap-2 shrink-0 group" aria-label="Tajalli's — Home page">
                 <img
                   src="/tajallis-logo-icon.svg"
                   alt=""
@@ -133,7 +136,7 @@ export default function Navbar() {
                     <span className="text-white/30 mx-0.5">·</span>
                     <span className="text-gold-400">Installed</span>
                     <span className="text-white/30 mx-0.5">·</span>
-                    <span className="text-eco-400">Supported</span>
+                    <span className="text-eco-300">Supported</span>
                   </span>
                 </span>
               </Link>
@@ -149,7 +152,7 @@ export default function Navbar() {
               {/* Right icons */}
               <div className="flex items-center gap-1 sm:gap-2 ml-auto sm:ml-0 shrink-0">
 
-                {/* Mobile: search toggle — hidden sm+ where inline bar is shown */}
+                {/* Mobile: search toggle */}
                 <button
                   onClick={() => { setSearchOpen(s => !s); setMobileOpen(false); }}
                   aria-label="Search"
@@ -159,11 +162,11 @@ export default function Navbar() {
                 </button>
 
                 <a href={waSales()} target="_blank" rel="noreferrer" aria-label="WhatsApp"
-                  className="flex w-9 h-9 items-center justify-center rounded-full text-eco-400 hover:bg-brand-600 transition-colors">
+                  className="flex w-9 h-9 items-center justify-center rounded-full text-eco-300 hover:bg-brand-600 transition-colors">
                   <Phone className="h-4 w-4" />
                 </a>
 
-                <Link to="/portal" aria-label="My Account"
+                <Link href="/portal" aria-label="My Account"
                   className={`relative flex w-9 h-9 items-center justify-center rounded-full transition-colors ${isLoggedIn ? 'bg-brand-600 text-white hover:bg-brand-700' : 'hover:bg-brand-600 text-white/80 hover:text-white'}`}>
                   <User className="h-4 w-4" />
                   {isLoggedIn && (
@@ -181,7 +184,7 @@ export default function Navbar() {
                   )}
                 </button>
 
-                {/* Hamburger — hidden on lg+ where nav row is visible */}
+                {/* Hamburger */}
                 <button
                   onClick={() => { setMobileOpen(m => !m); setSearchOpen(false); }}
                   aria-label="Menu"
@@ -204,7 +207,7 @@ export default function Navbar() {
                     onMouseEnter={openProducts}
                     onMouseLeave={closeProducts}
                   >
-                    <Link to={href}
+                    <Link href={href}
                       className={`inline-btn px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
                         isActive(href) ? 'bg-brand-600 text-white font-semibold' : 'text-white/80 hover:text-white hover:bg-brand-600'
                       }`}>
@@ -221,7 +224,7 @@ export default function Navbar() {
                       >
                         <div className="max-w-7xl mx-auto px-6 lg:px-8 py-4 grid grid-cols-3 lg:grid-cols-9 gap-2">
                           {CATEGORY_NAV.map(cat => (
-                            <Link key={cat.href} to={cat.href}
+                            <Link key={cat.href} href={cat.href}
                               onClick={() => setProductsOpen(false)}
                               className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl hover:bg-brand-50 transition-colors text-center group">
                               <span className="text-2xl leading-none">{cat.icon}</span>
@@ -233,7 +236,7 @@ export default function Navbar() {
                     )}
                   </div>
                 ) : (
-                  <Link key={label} to={href}
+                  <Link key={label} href={href}
                     className={`inline-btn px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1.5 ${
                       isActive(href)
                         ? 'bg-brand-600 text-white font-semibold'
@@ -250,41 +253,41 @@ export default function Navbar() {
                 )
               )}
 
-            {/* Resources dropdown (Gallery, Buying Guide, Services) */}
-            <div className="relative h-full flex items-center"
-              onMouseEnter={openResources}
-              onMouseLeave={closeResources}
-            >
-              <button
-                className={`inline-btn px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
-                  RESOURCES_LINKS.some(r => isActive(r.href))
-                    ? 'bg-brand-600 text-white font-semibold'
-                    : 'text-white/80 hover:text-white hover:bg-brand-600'
-                }`}>
-                Resources
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-150 ${resourcesOpen ? 'rotate-180' : ''}`} />
-              </button>
+              {/* Resources dropdown */}
+              <div className="relative h-full flex items-center"
+                onMouseEnter={openResources}
+                onMouseLeave={closeResources}
+              >
+                <button
+                  className={`inline-btn px-3 py-1.5 rounded-full text-sm font-medium transition-colors flex items-center gap-1 ${
+                    RESOURCES_LINKS.some(r => isActive(r.href))
+                      ? 'bg-brand-600 text-white font-semibold'
+                      : 'text-white/80 hover:text-white hover:bg-brand-600'
+                  }`}>
+                  Resources
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-150 ${resourcesOpen ? 'rotate-180' : ''}`} />
+                </button>
 
-              {resourcesOpen && (
-                <div
-                  className="absolute top-full left-0 mt-1 z-50 bg-white border border-gray-100 rounded-2xl shadow-apple-lg py-1 min-w-[160px]"
-                  onMouseEnter={openResources}
-                  onMouseLeave={closeResources}
-                >
-                  {RESOURCES_LINKS.map(r => (
-                    <Link key={r.href} to={r.href}
-                      onClick={() => setResourcesOpen(false)}
-                      className={`flex items-center px-4 py-2.5 text-sm font-medium transition-colors ${
-                        isActive(r.href)
-                          ? 'text-brand-600 bg-brand-50'
-                          : 'text-gray-600 hover:text-brand-600 hover:bg-brand-50'
-                      }`}>
-                      {r.label}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
+                {resourcesOpen && (
+                  <div
+                    className="absolute top-full left-0 mt-1 z-50 bg-white border border-gray-100 rounded-2xl shadow-apple-lg py-1 min-w-[160px]"
+                    onMouseEnter={openResources}
+                    onMouseLeave={closeResources}
+                  >
+                    {RESOURCES_LINKS.map(r => (
+                      <Link key={r.href} href={r.href}
+                        onClick={() => setResourcesOpen(false)}
+                        className={`flex items-center px-4 py-2.5 text-sm font-medium transition-colors ${
+                          isActive(r.href)
+                            ? 'text-brand-600 bg-brand-50'
+                            : 'text-gray-600 hover:text-brand-600 hover:bg-brand-50'
+                        }`}>
+                        {r.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
             </nav>
           </div>
         </div>
@@ -312,7 +315,7 @@ export default function Navbar() {
                   {openGroup === group.label && (
                     <div className="space-y-0.5 mb-1">
                       {group.links.map(([label, href]) => (
-                        <Link key={href} to={href} onClick={() => setMobileOpen(false)}
+                        <Link key={href} href={href} onClick={() => setMobileOpen(false)}
                           className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[15px] font-medium transition-colors min-h-[48px] ${
                             isActive(href)
                               ? 'bg-brand-600 text-white font-semibold'
@@ -320,7 +323,7 @@ export default function Navbar() {
                                 ? 'text-eco-300 hover:bg-brand-600 active:bg-brand-500'
                                 : 'text-white/85 hover:bg-brand-600 active:bg-brand-500'
                           }`}>
-                          {href === '/green-corridor' && <Leaf className="w-4 h-4 text-eco-400 flex-shrink-0" />}
+                          {href === '/green-corridor' && <Leaf className="w-4 h-4 text-eco-300 flex-shrink-0" />}
                           {label}
                         </Link>
                       ))}
@@ -332,7 +335,7 @@ export default function Navbar() {
             <div className="pt-3 mt-2 border-t border-brand-400/30 space-y-1">
               <a href="tel:+923702578788"
                 className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-[15px] text-white/80 font-medium hover:bg-brand-600 active:bg-brand-500 min-h-[52px]">
-                <Phone className="h-4 w-4 text-eco-400 flex-shrink-0" /> +92 370 2578788
+                <Phone className="h-4 w-4 text-eco-300 flex-shrink-0" /> +92 370 2578788
               </a>
             </div>
           </div>

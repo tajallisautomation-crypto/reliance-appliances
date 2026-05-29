@@ -10,6 +10,11 @@ interface BrandedImageProps {
   imageClassName?: string;
   imageStyle?: CSSProperties;
   loading?: 'lazy' | 'eager';
+  fetchPriority?: 'high' | 'low' | 'auto';
+  /** Explicit width — pass together with height to let the browser reserve space and prevent CLS */
+  width?: number;
+  /** Explicit height — pass together with width to let the browser reserve space and prevent CLS */
+  height?: number;
   watermarkPosition?: WatermarkPosition;
   watermarkOpacity?: number;
   compact?: boolean;
@@ -40,6 +45,9 @@ export function BrandedImage({
   imageClassName = '',
   imageStyle,
   loading = 'lazy',
+  fetchPriority,
+  width,
+  height,
   watermarkPosition = 'bottom-right',
   watermarkOpacity = 0.22,
   compact = false,
@@ -55,6 +63,10 @@ export function BrandedImage({
         src={src}
         alt={alt}
         loading={loading}
+        fetchPriority={fetchPriority}
+        decoding={fetchPriority === 'high' ? 'sync' : 'async'}
+        width={width}
+        height={height}
         className={`h-full w-full ${imageClassName}`}
         style={imageStyle}
         onError={onError}
@@ -69,6 +81,8 @@ export function BrandedImage({
         <img
           src="/tajallis-logo-icon.svg"
           alt=""
+          width={compact ? 12 : 16}
+          height={compact ? 12 : 16}
           className={compact ? 'h-3 w-auto' : 'h-4 w-auto'}
           draggable={false}
         />

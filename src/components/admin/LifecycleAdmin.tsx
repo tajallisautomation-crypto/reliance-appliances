@@ -1,8 +1,11 @@
+'use client'
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import {
   waLifecycleInstall, waLifecycleDay7, waLifecycleMonth3,
   waLifecyclePresummer, waLifecycleCarePlan, waLifecycleSolar,
+  waSegmentRepeat, waSegmentHighValue, waSegmentSolarProspect,
   openWhatsApp,
 } from '@/lib/whatsapp';
 import {
@@ -229,6 +232,8 @@ export default function LifecycleAdmin() {
   const [advancing, setAdvancing] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingNotes, setEditingNotes] = useState<{ id: string; value: string } | null>(null);
+  // flow_id → ISO string of last WA send
+  const [lastSent, setLastSent] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -236,7 +241,26 @@ export default function LifecycleAdmin() {
       .from('customer_lifecycle_flows')
       .select('*')
       .order('next_action_at', { ascending: true });
-    setFlows((data as LifecycleFlow[]) ?? []);
+    const flows = (data as LifecycleFlow[]) ?? [];
+    setFlows(flows);
+
+    // Load most-recent WA log entry per flow
+    if (flows.length > 0) {
+      const ids = flows.map(f => f.id);
+      const { data: logs } = await supabase
+        .from('wa_message_log')
+        .select('flow_id,created_at')
+        .in('flow_id', ids)
+        .order('created_at', { ascending: false });
+      if (logs) {
+        const map: Record<string, string> = {};
+        for (const log of logs as { flow_id: string; created_at: string }[]) {
+          if (!map[log.flow_id]) map[log.flow_id] = log.created_at;
+        }
+        setLastSent(map);
+      }
+    }
+
     setLoading(false);
   }, []);
 
@@ -316,23 +340,65 @@ export default function LifecycleAdmin() {
         <AddFlowForm onSaved={() => { setShowAdd(false); load(); }} onCancel={() => setShowAdd(false)} />
       )}
 
-      {/* Alert bar */}
-      {(overdueCount > 0 || dueCount > 0) && (
-        <div className="flex gap-3">
-          {overdueCount > 0 && (
-            <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-700">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              <span><strong>{overdueCount}</strong> overdue action{overdueCount > 1 ? 's' : ''}</span>
+      {/* Today's reminders — compact action list for overdue + due flows */}
+      {(overdueCount > 0 || dueCount > 0) && (() => {
+        const urgent = flows.filter(f => {
+          const d = daysUntil(f.next_action_at);
+          return f.current_stage !== 'completed' && d !== null && d <= 3;
+        });
+        return (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <p className="text-sm font-semibold text-amber-800">
+                {overdueCount > 0 ? `${overdueCount} overdue` : ''}{overdueCount > 0 && dueCount > 0 ? ' · ' : ''}{dueCount > 0 ? `${dueCount} due within 3 days` : ''}
+              </p>
             </div>
-          )}
-          {dueCount > 0 && (
-            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-sm text-amber-700">
-              <Clock className="w-4 h-4 shrink-0" />
-              <span><strong>{dueCount}</strong> due within 3 days</span>
+            <div className="space-y-1.5">
+              {urgent.slice(0, 8).map(f => {
+                const d = daysUntil(f.next_action_at);
+                const waUrl = waForStage(f.current_stage, f.customer_name || 'Customer', f.product_name);
+                const alreadySentToday = lastSent[f.id]
+                  ? new Date(lastSent[f.id]).toDateString() === new Date().toDateString()
+                  : false;
+                return (
+                  <div key={f.id} className="flex items-center justify-between gap-3 bg-white rounded-lg px-3 py-2">
+                    <div className="min-w-0">
+                      <span className="text-xs font-semibold text-gray-800">{f.customer_name || f.customer_phone}</span>
+                      <span className="text-xs text-gray-500 ml-2">{f.product_name} · {STAGES[f.current_stage].label}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`text-xs font-medium ${d !== null && d < 0 ? 'text-red-600' : 'text-amber-600'}`}>
+                        {urgencyLabel(d)}
+                      </span>
+                      {alreadySentToday ? (
+                        <span className="text-xs text-green-600 flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" /> Sent today
+                        </span>
+                      ) : (
+                        <button onClick={() => {
+                          openWhatsApp(waUrl);
+                          const now = new Date().toISOString();
+                          supabase.from('wa_message_log').insert({
+                            flow_id: f.id, customer_phone: f.customer_phone,
+                            customer_name: f.customer_name || null, stage: f.current_stage, message_type: 'lifecycle',
+                          }).then(() => setLastSent(prev => ({ ...prev, [f.id]: now })));
+                        }}
+                          className="text-xs font-medium text-green-700 hover:text-green-900 flex items-center gap-1">
+                          <MessageCircle className="w-3 h-3" /> Send
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {urgent.length > 8 && (
+                <p className="text-xs text-amber-600 text-center">+{urgent.length - 8} more — scroll down</p>
+              )}
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        );
+      })()}
 
       {/* Stage summary pills */}
       <div className="flex flex-wrap gap-2">
@@ -448,13 +514,32 @@ export default function LifecycleAdmin() {
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center gap-2 justify-end">
                         {!isCompleted && waUrl && (
-                          <button
-                            onClick={() => openWhatsApp(waUrl)}
-                            title="Send WhatsApp message"
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors">
-                            <MessageCircle className="w-3.5 h-3.5" />
-                            Send
-                          </button>
+                          <div className="flex flex-col items-end gap-0.5">
+                            <button
+                              onClick={() => {
+                                openWhatsApp(waUrl);
+                                const now = new Date().toISOString();
+                                supabase.from('wa_message_log').insert({
+                                  flow_id: flow.id,
+                                  customer_phone: flow.customer_phone,
+                                  customer_name: flow.customer_name || null,
+                                  stage: flow.current_stage,
+                                  message_type: 'lifecycle',
+                                }).then(() => {
+                                  setLastSent(prev => ({ ...prev, [flow.id]: now }));
+                                });
+                              }}
+                              title="Send WhatsApp message"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors">
+                              <MessageCircle className="w-3.5 h-3.5" />
+                              Send
+                            </button>
+                            {lastSent[flow.id] && (
+                              <span className="text-[10px] text-gray-400">
+                                Sent {new Date(lastSent[flow.id]).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' })}
+                              </span>
+                            )}
+                          </div>
                         )}
                         {!isCompleted && (
                           <button
@@ -495,6 +580,9 @@ export default function LifecycleAdmin() {
         </div>
       )}
 
+      {/* Segment campaigns */}
+      <SegmentCampaignPanel />
+
       {/* Legend */}
       <div className="bg-blue-50 rounded-xl p-4 text-xs text-blue-700 space-y-1">
         <p className="font-semibold">How it works</p>
@@ -502,6 +590,189 @@ export default function LifecycleAdmin() {
         <p>Click <strong>Send</strong> to open the correct WhatsApp template for the current stage, then <strong>Advance</strong> to move to the next stage. Dates auto-calculate from the installation date. Click a note to edit it inline.</p>
         <p className="mt-1">Stages: Installation → 7-Day Check → 3-Month Service → Pre-Summer Clean → Annual Care Plan → Solar Offer → Completed</p>
       </div>
+    </div>
+  );
+}
+
+// ─── Segment Campaign Panel ────────────────────────────────────────────────────
+
+interface SegmentCustomer {
+  full_name: string | null;
+  phone: string | null;
+  segment: string;
+  loyalty_tier: string | null;
+  purchase_count: number | null;
+}
+
+const SEGMENT_CAMPAIGNS: {
+  segment: Segment;
+  label: string;
+  color: string;
+  description: string;
+  buildMsg: (c: SegmentCustomer) => string;
+}[] = [
+  {
+    segment: 'repeat_buyer',
+    label: 'Repeat Buyers',
+    color: 'bg-green-100 text-green-700',
+    description: 'Customers with 2+ purchases — loyalty appreciation + exclusive offer.',
+    buildMsg: c => waSegmentRepeat(c.full_name || 'valued customer', c.purchase_count || 2),
+  },
+  {
+    segment: 'high_value',
+    label: 'High Value',
+    color: 'bg-purple-100 text-purple-700',
+    description: 'Gold & Platinum tier customers — VIP treatment + personal follow-up.',
+    buildMsg: c => waSegmentHighValue(c.full_name || 'valued customer', c.loyalty_tier || 'Gold'),
+  },
+  {
+    segment: 'solar_prospect',
+    label: 'Solar Prospects',
+    color: 'bg-amber-100 text-amber-700',
+    description: 'Customers who bought ACs or asked about solar — targeted solar offer.',
+    buildMsg: c => waSegmentSolarProspect(c.full_name || 'valued customer', c.purchase_count || 1),
+  },
+];
+
+function SegmentCampaignPanel() {
+  const [activeSegment, setActiveSegment] = useState<Segment | null>(null);
+  const [customers, setCustomers]         = useState<SegmentCustomer[]>([]);
+  const [loading, setLoading]             = useState(false);
+  const [open, setOpen]                   = useState(false);
+  const [lastSent, setLastSent]           = useState<Record<string, string>>({});
+
+  async function loadSegment(seg: Segment) {
+    setActiveSegment(seg);
+    setLoading(true);
+    const { data } = await supabase
+      .from('customer_profiles')
+      .select('full_name,phone,segment,loyalty_tier,purchase_count')
+      .eq('segment', seg)
+      .not('phone', 'is', null)
+      .order('purchase_count', { ascending: false })
+      .limit(200);
+    const loaded = (data ?? []) as SegmentCustomer[];
+    setCustomers(loaded);
+
+    // Fetch last-sent timestamps for these phones
+    const phones = loaded.map(c => c.phone).filter(Boolean) as string[];
+    if (phones.length) {
+      const { data: logs } = await supabase
+        .from('wa_message_log')
+        .select('customer_phone,created_at')
+        .in('customer_phone', phones)
+        .order('created_at', { ascending: false });
+      if (logs) {
+        const map: Record<string, string> = {};
+        for (const l of logs as { customer_phone: string; created_at: string }[]) {
+          if (!map[l.customer_phone]) map[l.customer_phone] = l.created_at;
+        }
+        setLastSent(map);
+      }
+    }
+    setLoading(false);
+  }
+
+  function logAndSend(phone: string, name: string | null, msg: string, segment: string) {
+    const raw = phone.replace(/\D/g, '');
+    window.open(`https://wa.me/${raw}?text=${encodeURIComponent(msg)}`, '_blank', 'noreferrer');
+    const now = new Date().toISOString();
+    supabase.from('wa_message_log').insert({
+      customer_phone: phone,
+      customer_name:  name || null,
+      stage:          segment,
+      message_type:   'manual',
+    }).then(() => setLastSent(prev => ({ ...prev, [phone]: now })));
+  }
+
+  const campaign = SEGMENT_CAMPAIGNS.find(c => c.segment === activeSegment);
+
+  return (
+    <div className="border border-gray-200 rounded-2xl overflow-hidden">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-5 py-4 bg-white hover:bg-gray-50 transition-colors text-left">
+        <div>
+          <p className="font-semibold text-gray-900 text-sm">WhatsApp Segment Campaigns</p>
+          <p className="text-xs text-gray-400 mt-0.5">Send targeted messages to repeat buyers, high-value, and solar prospects</p>
+        </div>
+        {open ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
+      </button>
+
+      {open && (
+        <div className="border-t border-gray-100 p-5 space-y-4 bg-gray-50">
+          {/* Segment selector */}
+          <div className="flex gap-2 flex-wrap">
+            {SEGMENT_CAMPAIGNS.map(s => (
+              <button key={s.segment} onClick={() => loadSegment(s.segment)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
+                  activeSegment === s.segment
+                    ? `${s.color} border-current`
+                    : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400'
+                }`}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+
+          {campaign && (
+            <div className="text-xs text-gray-500">{campaign.description}</div>
+          )}
+
+          {loading && (
+            <div className="flex justify-center py-6">
+              <svg className="w-5 h-5 animate-spin text-brand-400" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"/>
+              </svg>
+            </div>
+          )}
+
+          {!loading && campaign && customers.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-gray-500">{customers.length} customer{customers.length !== 1 ? 's' : ''} — click WA icon to send</p>
+              </div>
+              <div className="max-h-72 overflow-y-auto space-y-1.5 pr-1">
+                {customers.map((c, i) => {
+                  const phone = (c.phone || '').replace(/\D/g, '');
+                  const msg   = campaign.buildMsg(c);
+                  return (
+                    <div key={i} className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 px-3 py-2.5">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{c.full_name || 'Unknown'}</p>
+                        <p className="text-xs text-gray-400">{c.phone}</p>
+                        {lastSent[c.phone!] && (
+                          <p className="text-[10px] text-amber-600 mt-0.5">
+                            Sent {new Date(lastSent[c.phone!]).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' })}
+                          </p>
+                        )}
+                      </div>
+                      {c.loyalty_tier && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 shrink-0">{c.loyalty_tier}</span>
+                      )}
+                      {phone && (
+                        <button
+                          onClick={() => logAndSend(c.phone!, c.full_name ?? null, msg, activeSegment!)}
+                          className={`shrink-0 p-2 text-white rounded-xl transition-colors ${
+                            lastSent[c.phone!] ? 'bg-amber-400 hover:bg-amber-500' : 'bg-green-500 hover:bg-green-600'
+                          }`}
+                          title={lastSent[c.phone!] ? 'Already contacted — send again?' : 'Send WhatsApp message'}>
+                          <MessageCircle className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {!loading && campaign && customers.length === 0 && (
+            <p className="text-xs text-gray-400 text-center py-4">No customers in this segment yet.</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

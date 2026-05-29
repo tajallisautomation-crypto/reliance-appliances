@@ -1,8 +1,10 @@
+'use client'
+
 import { useState } from 'react'
 import { Shield, ChevronDown, ChevronUp, Check, X, ExternalLink } from 'lucide-react'
 import { waSales } from '@/lib/whatsapp'
 import type { PortalData, CustomerAppliance, CustomerCarePlan } from './portalTypes'
-import { CATEGORY_ICONS, CATEGORY_TO_PLAN_CATEGORY, CARE_PLAN_STARTS, CARE_PLAN_LABELS } from './portalConstants'
+import { CATEGORY_ICONS, CATEGORY_TO_PLAN_CATEGORY, CARE_PLAN_STARTS, CARE_PLAN_LABELS, CARE_PLAN_SUB_TIERS, detectCarePlanSubTier } from './portalConstants'
 
 const fmtPKR  = (n: number) => 'PKR ' + Math.round(n).toLocaleString('en-PK')
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -106,7 +108,12 @@ function AppliancePlanRow({ appliance, plan, defaultOpen = false }: AppliancePla
   const [expanded, setExpanded] = useState(defaultOpen)
   const icon = CATEGORY_ICONS[appliance.category] ?? '🔌'
   const planCategory = CATEGORY_TO_PLAN_CATEGORY[appliance.category]
-  const starts = planCategory ? CARE_PLAN_STARTS[planCategory] : null
+
+  // Try to use sub-tier pricing first (more accurate), fall back to category starts
+  const subTierKey = detectCarePlanSubTier(appliance.category, appliance.model)
+  const subTierMeta = subTierKey ? CARE_PLAN_SUB_TIERS[subTierKey] : null
+  const starts = subTierMeta?.prices ?? (planCategory ? CARE_PLAN_STARTS[planCategory] : null)
+  const pricingLabel = subTierMeta?.label ?? planCategory
 
   const planLabel = plan ? CARE_PLAN_LABELS[plan.status] : null
   const isActive  = plan && ['active', 'expiring_soon'].includes(plan.status)
@@ -121,7 +128,7 @@ function AppliancePlanRow({ appliance, plan, defaultOpen = false }: AppliancePla
         <span className="text-2xl w-9 text-center flex-shrink-0">{icon}</span>
         <div className="flex-1 min-w-0">
           <p className="font-bold text-gray-900 text-sm leading-none">{appliance.brand} {appliance.model}</p>
-          <p className="text-xs text-gray-400 mt-0.5">{planCategory ?? appliance.category}</p>
+          <p className="text-xs text-gray-400 mt-0.5">{pricingLabel ?? appliance.category}</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {planLabel ? (

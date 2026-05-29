@@ -1,3 +1,5 @@
+'use client'
+
 import { useState } from 'react'
 import { Save, Lock, LogOut, Loader2, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '@/lib/supabase'

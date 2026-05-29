@@ -4,10 +4,12 @@ Allow: /
 # Admin / private routes
 Disallow: /portal
 Disallow: /admin
+Disallow: /reports
 Disallow: /checkout
 Disallow: /cart
 
-# API endpoints — not indexable content (sitemap is declared separately below)
+# API endpoints — not indexable content (sitemap is the exception)
+Allow: /api/sitemap.xml
 Disallow: /api/
 
 # Block paginated / faceted filter URLs — thin duplicate content

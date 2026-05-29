@@ -1,5 +1,7 @@
+'use client'
+
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import Link from 'next/link'
 import { CreditCard, Copy, CheckCircle, MessageCircle, Package, Upload, Loader2, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { waSales } from '@/lib/whatsapp'
@@ -330,7 +332,7 @@ export default function PortalPayments({ orders }: PortalData) {
           <Package className="w-12 h-12 mx-auto mb-3 opacity-30" />
           <p className="font-semibold text-gray-600">No orders linked to your account</p>
           <p className="text-sm mt-1">Orders placed with your email appear here automatically.</p>
-          <Link to="/products" className="inline-block mt-4 bg-brand-500 hover:bg-brand-600 text-white font-bold px-6 py-2.5 rounded-xl text-sm">Shop Now</Link>
+          <Link href="/products" className="inline-block mt-4 bg-brand-500 hover:bg-brand-600 text-white font-bold px-6 py-2.5 rounded-xl text-sm">Shop Now</Link>
         </div>
       )}
     </div>

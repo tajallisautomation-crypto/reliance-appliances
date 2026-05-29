@@ -1,6 +1,8 @@
+'use client'
+
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ShoppingCart, MessageCircle, Star, CheckCircle } from 'lucide-react';
+import Link from 'next/link';
+import { ShoppingCart, MessageCircle, Star, CheckCircle, Zap, Wrench } from 'lucide-react';
 import type { Product } from '@/lib/types';
 import { formatPrice } from '@/lib/api';
 import { waProduct } from '@/lib/whatsapp';
@@ -8,6 +10,32 @@ import { useCartStore } from '@/store/cartStore';
 import CompareButton from '@/components/CompareButton';
 import { BrandedImage } from '@/components/common/BrandedImage';
 import toast from 'react-hot-toast';
+import { trackAddToCart, trackProductCardClick, trackWhatsAppClick } from '@/lib/analytics';
+
+function getBestFor(p: Product): string | null {
+  const name = (p.simplified_name || p.model || '').toLowerCase();
+  const cat  = (p.category || '').toLowerCase();
+  if (cat.includes('air condition')) {
+    if (name.includes('2 ton') || name.includes('2ton') || name.includes('24000')) return 'Large rooms & halls';
+    if (name.includes('1.5') || name.includes('18000')) return 'Most bedrooms & living rooms';
+    if (name.includes('1 ton') || name.includes('12000')) return 'Small bedrooms';
+    return 'Home & office cooling';
+  }
+  if (cat.includes('refrigerat')) {
+    if (name.includes('large') || name.includes('20 cu') || name.includes('22 cu') || name.includes('24 cu')) return 'Large families';
+    if (name.includes('small') || name.includes('compact')) return 'Small kitchens';
+    return 'Family kitchens';
+  }
+  if (cat.includes('washing') || cat.includes('washer')) {
+    if (name.includes('front') || name.includes('front-load')) return 'Large families & frequent use';
+    if (name.includes('semi')) return 'Budget-conscious buyers';
+    return 'Everyday laundry';
+  }
+  if (cat.includes('freezer')) return 'Bulk storage & shops';
+  if (cat.includes('solar') || cat.includes('inverter') || cat.includes('ups') || cat.includes('battery')) return 'Load-shedding relief';
+  if (cat.includes('television') || cat.includes('tv') || cat.includes('led')) return 'Home entertainment';
+  return null;
+}
 
 interface Props { product: Product; }
 
@@ -24,6 +52,7 @@ export default function ProductCard({ product: p }: Props) {
     addItem(p);
     setAdded(true);
     toast.success(`${p.brand} ${p.model} added to cart`);
+    trackAddToCart(`${p.brand} ${p.model}`, p.price.cash_floor);
     setTimeout(() => setAdded(false), 1500);
   };
 
@@ -31,10 +60,16 @@ export default function ProductCard({ product: p }: Props) {
     ? Math.round((1 - p.price.cash_floor / p.price.retail) * 100)
     : 0;
 
-  const bestPlan = p.installments['12m'] ?? p.installments['6m'] ?? p.installments['3m'];
+  const bestPlan  = p.installments['12m'] ?? p.installments['6m'] ?? p.installments['3m'];
+  const nameLower = (p.simplified_name || p.model || '').toLowerCase();
+  const isInverter = nameLower.includes('inverter');
+  const isT3       = nameLower.includes('t3') || nameLower.includes(' t3');
+  const cat        = (p.category || '').toLowerCase();
+  const hasInstall = cat.includes('air condition') || cat.includes('washing') || cat.includes('solar') || cat.includes('ups');
+  const bestFor    = getBestFor(p);
 
   return (
-    <Link to={`/products/${p.slug}`} className="group flex flex-col bg-white rounded-2xl border border-gray-100 hover:border-gray-200 hover:shadow-apple-lg active:scale-[0.99] transition-all duration-200 overflow-hidden">
+    <Link href={`/products/${p.slug}`} onClick={() => trackProductCardClick(`${p.brand} ${p.model}`, p.category)} className="group flex flex-col bg-white rounded-2xl border border-gray-100 hover:border-gray-200 hover:shadow-apple-lg active:scale-[0.99] transition-all duration-200 overflow-hidden">
 
       {/* Image */}
       <div className="relative aspect-square bg-gray-50 overflow-hidden">
@@ -63,6 +98,16 @@ export default function ProductCard({ product: p }: Props) {
           {p.featured && (
             <span className="inline-flex items-center gap-0.5 bg-gold-500 text-brand-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full">
               <Star className="w-2 h-2 fill-current" /> Featured
+            </span>
+          )}
+          {isT3 && (
+            <span className="inline-flex items-center gap-0.5 bg-orange-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+              T3 Rated
+            </span>
+          )}
+          {isInverter && !isT3 && (
+            <span className="inline-flex items-center gap-0.5 bg-eco-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+              <Zap className="w-2 h-2" /> Inverter
             </span>
           )}
           {savingsPct >= 5 && (
@@ -108,11 +153,26 @@ export default function ProductCard({ product: p }: Props) {
           </p>
         ) : <div className="mb-2" />}
 
+        {/* Best for */}
+        {bestFor && (
+          <p className="text-[10px] text-brand-600 font-semibold mb-1.5 leading-snug">
+            Best for: {bestFor}
+          </p>
+        )}
+
         {/* Warranty */}
         {p.warranty && (
-          <div className="flex items-center gap-1 pb-3 border-b border-gray-50">
+          <div className="flex items-center gap-1 pb-2 border-b border-gray-50">
             <CheckCircle className="w-3 h-3 text-emerald-500 flex-shrink-0" />
-            <p className="text-[10px] text-gray-400 line-clamp-2 leading-snug">{p.warranty}</p>
+            <p className="text-[10px] text-gray-400 line-clamp-1 leading-snug">{p.warranty}</p>
+          </div>
+        )}
+
+        {/* Installation available */}
+        {hasInstall && isAvailable && (
+          <div className="flex items-center gap-1 mt-1.5 pb-2 border-b border-gray-50">
+            <Wrench className="w-3 h-3 text-brand-400 flex-shrink-0" />
+            <p className="text-[10px] text-gray-400 leading-snug">Delivery + installation in Karachi</p>
           </div>
         )}
 

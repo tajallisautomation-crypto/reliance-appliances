@@ -116,3 +116,78 @@ export const BANK = {
   branch:  'F.B Area Branch, Karachi',
   title:   "Tajalli's Home Collection / Tajalli's Home & Commercial Solutions",
 }
+
+// ── Product-type pricing tiers ────────────────────────────────────────────────
+// More accurate pricing based on product capacity / type rather than just category.
+
+export const CARE_PLAN_SUB_TIERS: Record<string, {
+  label: string;
+  prices: { essential: number; plus: number; elite: number };
+}> = {
+  // Air Conditioners
+  ac_1t:   { label: '1 Ton AC',         prices: { essential: 5500,  plus: 13000, elite: 30000 } },
+  ac_1_5t: { label: '1.5 Ton AC',       prices: { essential: 7500,  plus: 16500, elite: 38500 } },
+  ac_2t:   { label: '2 Ton AC',         prices: { essential: 9500,  plus: 20500, elite: 46500 } },
+  ac_2_5t: { label: '2.5 Ton+ AC',      prices: { essential: 11000, plus: 24000, elite: 54000 } },
+  // Refrigerators
+  fridge_small:  { label: 'Small Fridge (≤9 Cu.Ft)',    prices: { essential: 4500, plus: 10000, elite: 23000 } },
+  fridge_medium: { label: 'Medium Fridge (10–14 Cu.Ft)', prices: { essential: 6000, plus: 13500, elite: 31200 } },
+  fridge_large:  { label: 'Large Fridge (15+ Cu.Ft)',   prices: { essential: 7500, plus: 16500, elite: 38500 } },
+  // Washing Machines
+  wm_semi: { label: 'Semi-Automatic Washing Machine', prices: { essential: 4500, plus: 10000, elite: 23000 } },
+  wm_auto: { label: 'Fully-Automatic Washing Machine', prices: { essential: 6000, plus: 13500, elite: 31200 } },
+}
+
+/**
+ * Detect the care-plan sub-tier key from the appliance's category and model number.
+ * Returns null when the sub-tier cannot be determined — callers fall back to CARE_PLAN_STARTS.
+ */
+export function detectCarePlanSubTier(category: string, model: string): string | null {
+  const m   = model.toUpperCase();
+  const cat = category.toLowerCase();
+
+  // Air Conditioners — detect tonnage from standard 2-digit BTU prefix in model
+  if (cat === 'air-conditioners' || cat.includes('air condition')) {
+    if (/(?:^|[-\s_])09(?:\d{3})?(?:$|[-\s_/])/.test(m)) return 'ac_1t';
+    if (/(?:^|[-\s_])12(?:\d{3})?(?:$|[-\s_/])/.test(m)) return 'ac_1t';
+    if (/(?:^|[-\s_])18(?:\d{3})?(?:$|[-\s_/])/.test(m)) return 'ac_1_5t';
+    if (/(?:^|[-\s_])24(?:\d{3})?(?:$|[-\s_/])/.test(m)) return 'ac_2t';
+    if (/(?:^|[-\s_])30(?:\d{3})?(?:$|[-\s_/])/.test(m)) return 'ac_2_5t';
+  }
+
+  // Refrigerators — detect from capacity digits in common Pakistani model numbers
+  // e.g. Haier HR-138EBS (≈13.8 cu.ft), Dawlance 9160 (≈16 cu.ft), PEL PRAS-22 (≈22 cu.ft)
+  if (cat === 'refrigerators' || cat.includes('refrigerat')) {
+    // Dawlance 9-series: last 2 digits ≈ cu.ft
+    const dawlance9 = m.match(/^9(\d{2})/);
+    if (dawlance9) {
+      const cuft = parseInt(dawlance9[1], 10);
+      if (cuft <= 9)  return 'fridge_small';
+      if (cuft <= 14) return 'fridge_medium';
+      return 'fridge_large';
+    }
+    // Haier HR-XXX series: 3-digit number ≈ cu.ft × 10
+    const haierHR = m.match(/HR[-\s]?(\d{3})/);
+    if (haierHR) {
+      const cuft = Math.round(parseInt(haierHR[1], 10) / 10);
+      if (cuft <= 9)  return 'fridge_small';
+      if (cuft <= 14) return 'fridge_medium';
+      return 'fridge_large';
+    }
+    // Generic: look for explicit capacity text in notes/model
+    if (/\b([6-9])\s*cu/i.test(model))  return 'fridge_small';
+    if (/\b(1[0-4])\s*cu/i.test(model)) return 'fridge_medium';
+    if (/\b(1[5-9]|2\d)\s*cu/i.test(model)) return 'fridge_large';
+  }
+
+  // Washing Machines — semi-auto vs fully-auto
+  if (cat === 'washing-machines' || cat.includes('washing')) {
+    if (/SWM|SEMI|TWIN\s*TUB/.test(m)) return 'wm_semi';
+    if (/AWM|FULLY|WM[-\s]|AUTO/.test(m)) return 'wm_auto';
+    // Haier pattern: HWMS = semi, HWM = fully auto
+    if (/HWMS/.test(m)) return 'wm_semi';
+    if (/HWM[^S]|^HWM\d/.test(m)) return 'wm_auto';
+  }
+
+  return null;
+}

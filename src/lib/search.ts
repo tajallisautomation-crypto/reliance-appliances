@@ -130,6 +130,37 @@ const CAT_KEYWORDS: Array<[string, string[]]> = [
   ['Small Appliances',  ['ceiling fan','fans','iron','heater','air cooler','trimmer','hair dryer','hand mixer','small appliance']],
 ];
 
+// ── Roman Urdu synonym expansion ─────────────────────────────────────────────
+// Translates common Pakistani search terms (Roman Urdu) into English equivalents
+// so the existing category/brand detection picks them up correctly.
+// Applied in parseQuery BEFORE price, brand, and category detection.
+
+const ROMAN_URDU_SYNONYMS: Array<[RegExp, string]> = [
+  [/\bchool[ae]?\b/gi,                 'hob'],                // choola/chula → gas hob/range
+  [/\bfar[ij]+\b/gi,                   'refrigerator'],       // farij/frij → fridge
+  [/\bkapra[iy]?\s+dhon[ae]\b/gi,      'washing machine'],    // kapray dhona → washing machine
+  [/\bkapra[iy]?\s+dhone?\s+wali?\b/gi,'washing machine'],    // kapray dhone wali
+  [/\binverter\s+wala?\b/gi,           'inverter'],           // inverter wala
+  [/\bbijli\s+(?:wala?|saver)\b/gi,    'inverter'],           // bijli wala/saver
+  [/\bload\s*shedding\b/gi,            'solar ups inverter'], // load shedding
+  [/\bbad[ie]\s+fridge\b/gi,           'large refrigerator'], // badi fridge
+  [/\bchot[ie]\s+fridge\b/gi,          'small refrigerator'], // choti fridge
+  [/\bgaram\s+pani\b/gi,               'water heater geyser'],// garam pani
+];
+
+// ── Brand typo correction ─────────────────────────────────────────────────────
+// Common misspellings in Pakistani e-commerce searches.
+// Mapped before brand-hint detection so they resolve to KNOWN_BRANDS entries.
+
+const BRAND_TYPOS: Array<[RegExp, string]> = [
+  [/\bhaire\b/gi,                           'haier'],     // haire (not "hire" — too common)
+  [/\bda[wo]lance\b|\bdawlence\b|\bdolwance\b|\bdawalance\b/gi, 'dawlance'],
+  [/\bgreee+\b/gi,                          'gree'],      // greee
+  [/\boriant\b/gi,                          'orient'],    // oriant
+  [/\bwestr?point\b/gi,                     'westpoint'], // westrpoint
+  [/\bsamsang\b/gi,                         'samsung'],   // samsang
+];
+
 // ── Normalization helpers ──────────────────────────────────────────────────────
 
 function norm(s: string): string {
@@ -313,6 +344,24 @@ export function parseQuery(raw: string): ParsedQuery {
   if (/missing.*(desc|description)/i.test(working)) {
     missingDesc = true;
     working = working.replace(/missing.*(desc|description)\w*/gi, '').trim();
+  }
+
+  // Roman Urdu synonym expansion
+  for (const [pattern, replacement] of ROMAN_URDU_SYNONYMS) {
+    working = working.replace(pattern, replacement);
+  }
+  // Brand typo correction
+  for (const [pattern, replacement] of BRAND_TYPOS) {
+    working = working.replace(pattern, replacement);
+  }
+  // Numeric unit hints — expand ambiguous units into searchable phrases
+  // "5kw" → "5kw solar"  (kW is unambiguously solar in this context)
+  if (/\b\d+(?:\.\d+)?\s*kw\b/i.test(working) && !working.includes('solar')) {
+    working = working.replace(/\b(\d+(?:\.\d+)?)\s*kw\b/gi, '$1kw solar');
+  }
+  // "10kg" / "7 kg" → "10kg washing machine" (unless fridge context already present)
+  if (/\b\d+\s*kg\b/i.test(working) && !/(fridge|refrigerator|ref\b|farij)/i.test(working)) {
+    working = working.replace(/\b(\d+)\s*kg\b/gi, '$1kg washing machine');
   }
 
   // Price: "between X and Y"

@@ -1,3 +1,5 @@
+'use client'
+
 /**
  * InstallmentCalculator — interactive down-payment slider with 4 tenures.
  * Standalone component; embed in ProductDetail, Installments page, or modals.

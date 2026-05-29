@@ -111,6 +111,26 @@ export interface Product {
   warranty:     string;
   stock_status: string;
   featured:     boolean;
+  cost_price?:  number;
+  updated_at?:  string;
+  // ── Power / quality ───────────────────────────────────────────────────────
+  power_consumption_w?: number;
+  data_quality_score?:  number;
+  // ── Solar / battery compatibility (from 20260402_compatibility_columns) ──
+  system_role?:                   string;   // 'inverter'|'battery'|'panel'|'pump'|'system'|'accessory'|'none'
+  inverter_power_kw?:             number;
+  inverter_type?:                 string;   // 'hybrid'|'off-grid'|'on-grid'|'grid-tie'
+  supported_battery_voltages?:    string[];
+  battery_voltage?:               number;   // 24 or 48
+  battery_capacity_kwh?:          number;
+  battery_type?:                  string;   // 'lifepo4'|'tubular'|'agm'|'gel'|'lithium'
+  voltage_class?:                 string;   // '24v'|'48v'|'dual'|'unknown'
+  compatibility_group?:           string;
+  compatible_inverter_min_kw?:    number;
+  compatible_inverter_max_kw?:    number;
+  compatibility_status?:          string;
+  requires_compatibility_review?: boolean;
+  compatibility_notes?:           string;
   thumbnail:    string;
   gallery:      string[];
   seo: { title: string; description: string; keywords: string };
@@ -156,7 +176,7 @@ export const CATEGORIES = DEFAULT_CATEGORIES;
 
 // ── DB row → Product ──────────────────────────────────────────────────────────
 
-function rowToProduct(r: any): Product {
+export function rowToProduct(r: any): Product {
   const retail    = Number(r.retail_price || 0);
   const cashFloor = Number(r.cash_floor   || retail);
   const minPrice  = Number(r.min_price    || 0);
@@ -206,6 +226,24 @@ function rowToProduct(r: any): Product {
     warranty:        String(r.warranty      || ''),
     stock_status:    String(r.stock_status  || 'In Stock'),
     featured:        !!r.featured,
+    cost_price:      r.cost_price ? Number(r.cost_price) : undefined,
+    updated_at:      r.updated_at ? String(r.updated_at) : undefined,
+    power_consumption_w: r.power_consumption_w ? Number(r.power_consumption_w) : undefined,
+    data_quality_score:  r.data_quality_score != null ? Number(r.data_quality_score) : undefined,
+    system_role:                   r.system_role         ? String(r.system_role)         : undefined,
+    inverter_power_kw:             r.inverter_power_kw   != null ? Number(r.inverter_power_kw)   : undefined,
+    inverter_type:                 r.inverter_type       ? String(r.inverter_type)       : undefined,
+    supported_battery_voltages:    Array.isArray(r.supported_battery_voltages) ? r.supported_battery_voltages : undefined,
+    battery_voltage:               r.battery_voltage     != null ? Number(r.battery_voltage)     : undefined,
+    battery_capacity_kwh:          r.battery_capacity_kwh != null ? Number(r.battery_capacity_kwh) : undefined,
+    battery_type:                  r.battery_type        ? String(r.battery_type)        : undefined,
+    voltage_class:                 r.voltage_class       ? String(r.voltage_class)       : undefined,
+    compatibility_group:           r.compatibility_group ? String(r.compatibility_group) : undefined,
+    compatible_inverter_min_kw:    r.compatible_inverter_min_kw != null ? Number(r.compatible_inverter_min_kw) : undefined,
+    compatible_inverter_max_kw:    r.compatible_inverter_max_kw != null ? Number(r.compatible_inverter_max_kw) : undefined,
+    compatibility_status:          r.compatibility_status ? String(r.compatibility_status) : undefined,
+    requires_compatibility_review: r.requires_compatibility_review ? Boolean(r.requires_compatibility_review) : undefined,
+    compatibility_notes:           r.compatibility_notes ? String(r.compatibility_notes) : undefined,
     thumbnail:       thumb,
     gallery,
     seo: {
@@ -409,6 +447,15 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
         'pv-inverters':           ['pv inverter'],
         'string-inverter':        ['string inverter', 'grid inverter'],
         'string-inverters':       ['string inverter', 'grid inverter'],
+        // ── SEO deep subcategory landing pages ────────────────────
+        '1-ton-inverter-ac':           ['1 ton air'],
+        '1-5-ton-inverter-ac':         ['1.5 ton air'],
+        't3-inverter-ac':              ['air condition'],
+        'inverter-refrigerators':      ['refrigerat'],
+        'front-load-washing-machines': ['washing'],
+        'chest-freezers':              ['deep freezer', 'freezer'],
+        '5kw-solar-system':            ['solar inverter', 'hybrid inverter'],
+        'ups-backup-system':           ['solar inverter', 'hybrid inverter', 'solar converter'],
       };
       const terms = CAT_TERMS[params.category.toLowerCase()];
       if (terms) {
@@ -4391,8 +4438,19 @@ export interface SolarLead {
   battery_kwh: number;
   est_savings: number;
   status?: 'new' | 'contacted' | 'quoted' | 'closed';
+  lead_score?: 'HOT' | 'WARM' | 'COOL' | null;
+  notes?: string | null;
   proposal_url?: string | null;
   created_at?: string;
+}
+
+/** Derive lead_score from a notes string (e.g. "Lead:HOT | ..."). */
+export function parseleadScore(notes: string | null | undefined): 'HOT' | 'WARM' | 'COOL' | null {
+  if (!notes) return null;
+  if (notes.includes('Lead:HOT'))  return 'HOT';
+  if (notes.includes('Lead:WARM')) return 'WARM';
+  if (notes.includes('Lead:COOL')) return 'COOL';
+  return null;
 }
 
 export async function submitSolarLead(lead: Omit<SolarLead, 'id' | 'created_at'>): Promise<void> {
@@ -4434,6 +4492,35 @@ const _FALLBACK_TAXONOMY_DEFAULTS = {
   category_family: '', comparison_group: '', frontend_browse_group: '',
   seo_category_slug: '', seo_subcategory_slug: '', taxonomy_status: 'live',
 };
+
+// ── Homepage featured reviews ─────────────────────────────────────────────────
+
+export interface FeaturedReview {
+  name: string;
+  area: string;
+  service: string;
+  text: string;
+  rating: number;
+}
+
+/** Returns up to 6 approved+featured reviews for the homepage testimonial grid. */
+export async function getFeaturedReviews(): Promise<FeaturedReview[]> {
+  const { data } = await supabase
+    .from('reviews')
+    .select('customer_name, city, service_label, comment, rating')
+    .eq('status', 'approved')
+    .eq('is_featured', true)
+    .order('created_at', { ascending: false })
+    .limit(6);
+  if (!data || data.length === 0) return [];
+  return data.map((r: any) => ({
+    name:    r.customer_name,
+    area:    r.city    || '',
+    service: r.service_label || '',
+    text:    r.comment,
+    rating:  r.rating,
+  }));
+}
 
 export const FALLBACK_PRODUCTS: Product[] = [
   {

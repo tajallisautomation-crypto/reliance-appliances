@@ -1,0 +1,713 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { Sun, ArrowRight, Calculator, CheckCircle2, MessageCircle, Shield, CalendarCheck, ChevronDown } from 'lucide-react'
+import { getProducts, getProduct, type Product, formatPrice } from '../lib/api'
+import ProductCard from '../components/products/ProductCard'
+import SEO from '@/components/ui/SEO'
+import { wa } from '../lib/whatsapp'
+import { WA_SALES } from '../lib/config'
+import BookingModal, { type BookingContext } from '../components/BookingModal'
+
+const SOLAR_FAQ_SCHEMA = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    { '@type': 'Question', name: 'How much does a solar system cost in Karachi?', acceptedAnswer: { '@type': 'Answer', text: 'A typical 5kW on-grid solar system in Karachi costs between PKR 650,000 and PKR 900,000 fully installed. Off-grid systems with battery backup start from PKR 800,000. Prices vary by brand, inverter type, and installation complexity. Easy installment plans are available.' } },
+    { '@type': 'Question', name: 'How long does solar installation take in Karachi?', acceptedAnswer: { '@type': 'Answer', text: 'A standard residential installation takes 1–2 days. Larger commercial systems may take 3–5 days. Our team handles all permits, cabling, and commissioning.' } },
+    { '@type': 'Question', name: 'Can I get solar on installments?', acceptedAnswer: { '@type': 'Answer', text: 'Yes. Solar systems up to 5kW and up to PKR 700,000 qualify for easy installment plans up to 12 payments. No bank account is required — bring your CNIC and a guarantor.' } },
+    { '@type': 'Question', name: 'What is the payback period for solar in Pakistan?', acceptedAnswer: { '@type': 'Answer', text: 'Typical payback for a Karachi on-grid system is 3–5 years at current WAPDA tariffs. Off-grid systems with batteries have a slightly longer payback of 4–6 years, but provide power independence.' } },
+    { '@type': 'Question', name: 'Do you offer net metering in Karachi?', acceptedAnswer: { '@type': 'Answer', text: 'Yes. We handle the complete net metering application process with HESCO/KESC for systems above 3kW. Net metering allows you to sell surplus power back to the grid and reduce your electricity bill to near zero.' } },
+    { '@type': 'Question', name: 'Which solar brands do you supply?', acceptedAnswer: { '@type': 'Answer', text: 'We supply tier-1 solar panels from Longi, Jinko, and Canadian Solar. Inverters from Growatt, Solis, and Huawei. Batteries from BYD, Ritar, and local lithium options.' } },
+  ],
+}
+
+const SOLAR_BENEFITS = [
+  { icon:'☀️', title:'25 Year Performance Warranty', desc:'Panels guaranteed at 80% output for 25 years.' },
+  { icon:'💰', title:'80% Bill Reduction', desc:'Average customer saves PKR 8,000–25,000/month.' },
+  { icon:'🔋', title:'Backup Power', desc:'Hybrid systems keep your home running during outages.' },
+  { icon:'🌿', title:'Net Metering', desc:'Sell excess power back to the grid and earn credits (KE requires 10kW+ for Net Metering).' },
+]
+
+// ── Component option types ────────────────────────────────────────────────────
+
+interface ComponentOption {
+  label:  string;
+  brand:  'Crown' | 'Ziewnic';
+  /** DB slug for Crown — used to look up fetched price */
+  slug?:  string;
+  /** Hardcoded retail price for Ziewnic (Crown price comes from DB) */
+  price?: number;
+  /** Unit multiplier for stacked Crown components (e.g. 2 × 5.12kWh battery bank). Default 1. */
+  qty?:   number;
+}
+
+// ── Crown component definitions (prices fetched from DB at runtime) ──────────
+
+const CROWN_INV_12:  ComponentOption = { label: 'Crown 1.2kW Pure Sine Inverter',         brand: 'Crown', slug: 'crown-ups-1-2kw'                  }
+const CROWN_INV_2K:  ComponentOption = { label: 'Crown 2kW Pure Sine Inverter',            brand: 'Crown', slug: 'crown-ups-2kw'                    }
+const CROWN_INV_36:  ComponentOption = { label: 'Crown Yorker 3.6kW Inverter',             brand: 'Crown', slug: 'crown-yorker-3-6kw'               }
+const CROWN_INV_5:   ComponentOption = { label: 'Crown Yorker 5kW Inverter',               brand: 'Crown', slug: 'crown-yorker-5kw'                 }
+const CROWN_INV_8:   ComponentOption = { label: 'Crown 8kW Hybrid Inverter',               brand: 'Crown', slug: 'crown-nexus-8kw'                  }
+const CROWN_INV_10K: ComponentOption = { label: 'Crown 10kW Hybrid Inverter',              brand: 'Crown', slug: 'crown-nexus-10kw'                 }
+const CROWN_BAT_24:  ComponentOption = { label: 'Crown 2.4kWh LiFePO4 Battery',           brand: 'Crown', slug: 'crown-elektra-boost-pro-2-4kw'    }
+const CROWN_BAT_512: ComponentOption = { label: 'Crown 5.12kWh LiFePO4 Battery',          brand: 'Crown', slug: 'crown-elektra-boost-pro-5-12kw'   }
+const CROWN_BAT_10K: ComponentOption = { label: 'Crown 10.24kWh LiFePO4 Battery (2×5.12)', brand: 'Crown', slug: 'crown-elektra-boost-pro-5-12kw', qty: 2 }
+
+// ── Ziewnic component definitions (Ziewnic Jan 2026 catalog + 15% Tajalli's margin, rounded) ─
+
+function zn(label: string, catalogPrice: number): ComponentOption {
+  return { label, brand: 'Ziewnic', price: Math.round(catalogPrice * 1.15 / 1000) * 1000 }
+}
+
+const ZN_INV_NANO12:  ComponentOption = zn('Ziewnic RouX Nano 1.2kW',       32_000)   //  37,000
+const ZN_INV_MINI20:  ComponentOption = zn('Ziewnic RouX Mini 2.0kW',       48_000)   //  55,000
+const ZN_INV_MINI35:  ComponentOption = zn('Ziewnic RouX Mini 3.5kW',       85_000)   //  98,000
+const ZN_INV_MAX35:   ComponentOption = zn('Ziewnic MAX 3.5kW',             95_000)   // 110,000
+const ZN_INV_MAX55:   ComponentOption = zn('Ziewnic MAX 5.5kW',            110_000)   // 127,000
+const ZN_INV_LITE59:  ComponentOption = zn('Ziewnic RouX Lite 5.9kW',      135_000)   // 156,000
+const ZN_INV_ROUX67:  ComponentOption = zn('Ziewnic RouX 6.7kW',           167_000)   // 193,000
+const ZN_INV_ULTRA85: ComponentOption = zn('Ziewnic RouX Ultra 8.5kW',     250_000)   // 288,000
+const ZN_INV_ROUX12:  ComponentOption = zn('Ziewnic RouX Ultra 12kW',      380_000)   // 437,000
+
+const ZN_BAT_LW256:   ComponentOption = zn('Ziewnic LI-WALL 2.0 2.56kWh',    134_000)  // 154,000
+const ZN_BAT_LW512:   ComponentOption = zn('Ziewnic LI-WALL 2.0 5.12kWh',    223_000)  // 257,000
+const ZN_BAT_LW1024:  ComponentOption = zn('Ziewnic LI-WALL 2.0 10.24kWh (2×5.12)', 446_000) // 513,000
+const ZN_BAT_ZB256:   ComponentOption = zn('Ziewnic Z Box European 2.56kWh',  163_000)  // 188,000
+const ZN_BAT_ZB512:   ComponentOption = zn('Ziewnic Z Box European 5.12kWh',  250_000)  // 288,000
+const ZN_BAT_ZB1024:  ComponentOption = zn('Ziewnic Z Box European 10.24kWh (2×5.12)', 500_000) // 575,000
+
+// ── Package definitions ───────────────────────────────────────────────────────
+
+export interface SolarPackage {
+  id:              string;
+  name:            string;
+  kw:              string;
+  type:            'ups' | 'solar';
+  badge:           string;
+  badgeColor:      string;
+  popular:         boolean;
+  includes:        string[];   // non-component line items (panels, wiring, etc.)
+  warranties:      string[];
+  /** Total with default Crown components and (for solar) with elevated frame.
+   *  Used only to back-calculate overhead once Crown prices are fetched. */
+  total:           number;
+  frameDeduction:  number;
+  frameLabel?:     string;
+  inverterOptions: ComponentOption[];   // [0] = Crown default
+  batteryOptions:  ComponentOption[];   // [0] = Crown default
+}
+
+export const PACKAGES: SolarPackage[] = [
+  // ── NEW: 1.2kW UPS ─────────────────────────────────────────────────────────
+  {
+    id: 'ups-1.2kw', name: '1.2kW UPS System', kw: '1.2kW',
+    type: 'ups', badge: 'Essential Backup', badgeColor: 'bg-sky-600 text-white', popular: false,
+    includes: [
+      'No rooftop needed — works in any flat or apartment',
+      'Runs 2 fans + LED lights + phone/laptop charging',
+      'All wiring & electrical equipment',
+      'Professional installation & transport',
+    ],
+    warranties: ['2-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
+    // Total = ZN_INV_NANO12 (37k) + CROWN_BAT_24 (DB ~93k) + overhead (20k) ≈ 150k
+    total: 150000, frameDeduction: 0,
+    inverterOptions: [ZN_INV_NANO12, CROWN_INV_12],
+    batteryOptions:  [CROWN_BAT_24, ZN_BAT_LW256, ZN_BAT_ZB256],
+  },
+  // ── NEW: 2kW UPS ───────────────────────────────────────────────────────────
+  {
+    id: 'ups-2kw', name: '2kW UPS System', kw: '2kW',
+    type: 'ups', badge: 'Home Essentials', badgeColor: 'bg-blue-500 text-white', popular: false,
+    includes: [
+      'No rooftop needed — works in any flat or apartment',
+      'Runs fridge + fans + lights + small TV',
+      'All wiring & electrical equipment',
+      'Professional installation & transport',
+    ],
+    warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
+    // Total = ZN_INV_MINI20 (55k) + CROWN_BAT_24 (DB ~93k) + overhead (29k) ≈ 177k
+    total: 177000, frameDeduction: 0,
+    inverterOptions: [ZN_INV_MINI20, CROWN_INV_2K, ZN_INV_MINI35],
+    batteryOptions:  [CROWN_BAT_24, CROWN_BAT_512, ZN_BAT_LW256],
+  },
+  {
+    id: 'ups-3.6kw', name: '3.6kW UPS System', kw: '3.6kW',
+    type: 'ups', badge: 'Apartment Friendly', badgeColor: 'bg-blue-600 text-white', popular: false,
+    includes: ['No rooftop needed — works in flats & apartments', 'All wiring & electrical equipment', 'Professional installation & transport'],
+    warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
+    total: 285000, frameDeduction: 0,
+    inverterOptions: [CROWN_INV_36, ZN_INV_MINI35, ZN_INV_MAX35],
+    batteryOptions:  [CROWN_BAT_24, ZN_BAT_LW256, ZN_BAT_ZB256],
+  },
+  // ── NEW: 2kW Solar + 2.4kWh Battery ────────────────────────────────────────
+  {
+    id: 'solar-2kw', name: '2kW Solar System', kw: '2kW',
+    type: 'solar', badge: 'Starter Solar', badgeColor: 'bg-amber-500 text-white', popular: false,
+    includes: [
+      'Crown Bi-Facial 620W Solar Plates ×4 (2.48kW peak)',
+      'All wiring & electrical equipment',
+      'Professional installation & transport',
+      'Elevated Solar Frame (optional)',
+    ],
+    warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
+    // 4 panels: overhead = 4×30k + 2000W×18 + 5k = 161k; Crown inv+bat same as 3.6kW package
+    // no-frame ≈ 391k; with frame (+70k) = 461k
+    total: 461000, frameDeduction: 70000, frameLabel: 'Elevated Solar Frame',
+    inverterOptions: [CROWN_INV_36, ZN_INV_MINI35, ZN_INV_MAX35],
+    batteryOptions:  [CROWN_BAT_24, ZN_BAT_LW256, ZN_BAT_ZB256],
+  },
+  {
+    id: 'solar-3.6kw', name: '3.6kW Solar System', kw: '3.6kW',
+    type: 'solar', badge: 'Solar + Backup', badgeColor: 'bg-gold-500 text-brand-700', popular: false,
+    includes: [
+      'Crown Bi-Facial 620W Solar Plates ×6',
+      'All wiring & electrical equipment',
+      'Professional installation & transport',
+      'Elevated Solar Frame (optional)',
+    ],
+    warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
+    // PKR 480,000 without frame | PKR 576,000 with frame
+    total: 576000, frameDeduction: 96000, frameLabel: 'Elevated Solar Frame',
+    inverterOptions: [CROWN_INV_36, ZN_INV_MINI35, ZN_INV_MAX35],
+    batteryOptions:  [CROWN_BAT_24, ZN_BAT_LW256, ZN_BAT_ZB256],
+  },
+  {
+    id: 'ups-5kw', name: '5kW UPS System', kw: '5kW',
+    type: 'ups', badge: 'Apartment Friendly', badgeColor: 'bg-blue-600 text-white', popular: false,
+    includes: ['No rooftop needed — works in flats & apartments', 'All wiring & electrical equipment', 'Professional installation & transport'],
+    warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
+    total: 475000, frameDeduction: 0,
+    inverterOptions: [CROWN_INV_5, ZN_INV_MAX55, ZN_INV_LITE59, ZN_INV_ROUX67],
+    batteryOptions:  [CROWN_BAT_512, ZN_BAT_LW512, ZN_BAT_ZB512],
+  },
+  {
+    id: 'solar-5kw', name: '5kW Solar System', kw: '5kW',
+    type: 'solar', badge: 'Most Popular', badgeColor: 'bg-brand-500 text-white', popular: true,
+    includes: [
+      'Crown Bi-Facial 620W Solar Plates ×8',
+      'All wiring & electrical equipment',
+      'Professional installation & transport',
+      'Elevated Solar Frame (optional)',
+    ],
+    warranties: ['3-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
+    total: 875000, frameDeduction: 140000, frameLabel: 'Elevated Solar Frame',
+    inverterOptions: [CROWN_INV_5, ZN_INV_MAX55, ZN_INV_LITE59, ZN_INV_ROUX67],
+    batteryOptions:  [CROWN_BAT_512, ZN_BAT_LW512, ZN_BAT_ZB512],
+  },
+  // ── NEW: 6kW Solar + 5.12kWh Battery ────────────────────────────────────────
+  {
+    id: 'solar-6kw', name: '6kW Solar System', kw: '6kW',
+    type: 'solar', badge: 'Premium Power', badgeColor: 'bg-orange-600 text-white', popular: false,
+    includes: [
+      'Crown Bi-Facial 620W Solar Plates ×10 (6.2kW peak)',
+      'All wiring & electrical equipment',
+      'Professional installation & transport',
+      'Elevated Solar Frame (optional)',
+    ],
+    warranties: ['5-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
+    // Default: ZN_INV_ROUX67 (193k) + ZN_BAT_LW512 (257k) + overhead 419k = 869k; +frame 175k = 1,044k
+    total: 1044000, frameDeduction: 175000, frameLabel: 'Elevated Solar Frame',
+    inverterOptions: [ZN_INV_ROUX67, CROWN_INV_8, ZN_INV_ULTRA85],
+    batteryOptions:  [ZN_BAT_LW512, CROWN_BAT_512, ZN_BAT_ZB512],
+  },
+  // ── NEW: 7kW Solar + 5.12kWh Battery ────────────────────────────────────────
+  {
+    id: 'solar-7kw', name: '7kW Solar System', kw: '7kW',
+    type: 'solar', badge: 'High Capacity', badgeColor: 'bg-purple-600 text-white', popular: false,
+    includes: [
+      'Crown Bi-Facial 620W Solar Plates ×12 (7.44kW peak)',
+      'All wiring & electrical equipment',
+      'Professional installation & transport',
+      'Elevated Solar Frame (optional)',
+    ],
+    warranties: ['5-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
+    // Default: CROWN_INV_8 + CROWN_BAT_512 (both existing DB products). Overhead 12 panels ≈ 501k
+    // Crown components ~557k → no-frame 1,058k; +frame 210k = 1,268k
+    total: 1268000, frameDeduction: 210000, frameLabel: 'Elevated Solar Frame',
+    inverterOptions: [CROWN_INV_8, ZN_INV_ULTRA85],
+    batteryOptions:  [CROWN_BAT_512, ZN_BAT_LW512, ZN_BAT_ZB512],
+  },
+  {
+    id: 'solar-8kw', name: '8kW Solar System', kw: '8kW',
+    type: 'solar', badge: 'Maximum Power', badgeColor: 'bg-blue-600 text-white', popular: false,
+    includes: [
+      'Crown Bi-Facial 620W Solar Plates ×14',
+      'All wiring & electrical equipment',
+      'Professional installation & transport',
+      'Elevated Solar Frame (optional)',
+    ],
+    warranties: ['5-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
+    total: 1364000, frameDeduction: 224000, frameLabel: 'Elevated Solar Frame',
+    inverterOptions: [CROWN_INV_8, ZN_INV_ULTRA85],
+    batteryOptions:  [CROWN_BAT_512, ZN_BAT_LW512, ZN_BAT_ZB512],
+  },
+  // ── NEW: 10kW Solar + 10.24kWh Battery (Net Metering) ────────────────────
+  {
+    id: 'solar-10kw', name: '10kW Solar System', kw: '10kW',
+    type: 'solar', badge: 'Net Metering Ready', badgeColor: 'bg-teal-600 text-white', popular: false,
+    includes: [
+      'Crown Bi-Facial 620W Solar Plates ×17 (10.54kW peak)',
+      'All wiring & electrical equipment',
+      'Professional installation & transport',
+      'Elevated Solar Frame (optional)',
+      'Net Metering eligible (10kW minimum) — K-Electric approval required',
+    ],
+    warranties: ['5-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
+    // Default: ZN_INV_ROUX12 (437k) + ZN_BAT_ZB1024 (575k) + overhead 710k = 1,722k; +frame 298k = 2,020k
+    total: 2020000, frameDeduction: 298000, frameLabel: 'Elevated Solar Frame',
+    inverterOptions: [ZN_INV_ROUX12, CROWN_INV_10K],
+    batteryOptions:  [ZN_BAT_ZB1024, CROWN_BAT_10K, ZN_BAT_LW1024],
+  },
+  {
+    id: 'solar-12kw', name: '12kW Solar System', kw: '12kW',
+    type: 'solar', badge: 'Industrial Grade', badgeColor: 'bg-green-600 text-white', popular: false,
+    includes: [
+      'Crown Bi-Facial 620W Solar Plates ×20',
+      'All wiring & electrical equipment',
+      'Professional installation & transport',
+      'Elevated Solar Frame (optional)',
+      'Net Metering eligible — K-Electric approval required',
+    ],
+    warranties: ['5-Year Replacement Warranty — Inverter', '10-Year Replacement Warranty — Battery'],
+    total: 1820000, frameDeduction: 336000, frameLabel: 'Elevated Solar Frame',
+    inverterOptions: [ZN_INV_ROUX12],
+    batteryOptions:  [CROWN_BAT_512, ZN_BAT_LW512, ZN_BAT_ZB512],
+  },
+]
+
+// ── Price helpers ─────────────────────────────────────────────────────────────
+
+/** Resolve the retail price for an option, using fetched Crown prices when needed. */
+function optionPrice(opt: ComponentOption, crownPrices: Record<string, number>): number {
+  if (opt.brand === 'Ziewnic') return opt.price ?? 0
+  return (crownPrices[opt.slug ?? ''] ?? 0) * (opt.qty ?? 1)
+}
+
+/** Overhead = wiring + panels (if solar) + labor + transport for this package tier.
+ *  Computed once per package after Crown prices arrive:
+ *    overhead = pkg.total(no-frame) - defaultInverterPrice - defaultBatteryPrice */
+function computeOverhead(pkg: SolarPackage, crownPrices: Record<string, number>): number {
+  const baseTotal = pkg.total - pkg.frameDeduction
+  const invPrice  = optionPrice(pkg.inverterOptions[0], crownPrices)
+  const batPrice  = optionPrice(pkg.batteryOptions[0],  crownPrices)
+  return baseTotal - invPrice - batPrice
+}
+
+// ── WA message ────────────────────────────────────────────────────────────────
+
+function buildWAMsg(
+  pkg:      SolarPackage,
+  withFrame: boolean,
+  invOpt:   ComponentOption,
+  batOpt:   ComponentOption,
+  total:    number,
+): string {
+  const isCustom = invOpt.label !== pkg.inverterOptions[0].label || batOpt.label !== pkg.batteryOptions[0].label
+  return (
+    `Hello! I'm interested in the *${pkg.name}* package.\n\n` +
+    `🔌 Inverter: ${invOpt.label}\n` +
+    `🔋 Battery: ${batOpt.label}\n` +
+    (pkg.frameDeduction > 0 ? `🏗️ Elevated Frame: ${withFrame ? 'Included' : 'Not required'}\n` : '') +
+    `💰 Total: *PKR ${total.toLocaleString()}*\n` +
+    (isCustom ? `\n⚠️ Custom configuration — please confirm final price.\n` : '') +
+    `\nCould you confirm availability and share details?`
+  )
+}
+
+// ── ComponentSelector ─────────────────────────────────────────────────────────
+
+function ComponentSelector({
+  label, options, value, crownPrices, onChange,
+}: {
+  label:       string;
+  options:     ComponentOption[];
+  value:       string;
+  crownPrices: Record<string, number>;
+  onChange:    (v: string) => void;
+}) {
+  const pricesLoaded = options.every(o => o.brand === 'Ziewnic' || (crownPrices[o.slug ?? ''] ?? 0) > 0)
+
+  return (
+    <div className="mb-3">
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5">{label}</p>
+      <div className="flex flex-col gap-1.5">
+        {options.map(opt => {
+          const price  = optionPrice(opt, crownPrices)
+          const active = value === opt.label
+          return (
+            <button
+              key={opt.label}
+              type="button"
+              onClick={() => onChange(opt.label)}
+              className={`w-full text-left px-3 py-2 rounded-xl border text-sm transition-colors ${
+                active
+                  ? 'border-brand-400 bg-brand-50 text-brand-900 font-semibold'
+                  : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <span className={`inline-block w-3 h-3 rounded-full border-2 mr-2 align-middle shrink-0 ${
+                active ? 'border-brand-500 bg-brand-500' : 'border-gray-300'
+              }`} />
+              <span className="flex-1">{opt.label}</span>
+              {pricesLoaded && price > 0 && (
+                <span className={`ml-1 text-xs ${active ? 'text-brand-700' : 'text-gray-400'}`}>
+                  PKR {formatPrice(price)}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── PackageCard ───────────────────────────────────────────────────────────────
+
+function PackageCard({
+  pkg, crownPrices, onBook,
+}: {
+  pkg:         SolarPackage;
+  crownPrices: Record<string, number>;
+  onBook:      (ctx: BookingContext) => void;
+}) {
+  const [withFrame,        setWithFrame]       = useState(pkg.frameDeduction > 0)
+  const [selectedInvLabel, setInvLabel]        = useState(pkg.inverterOptions[0].label)
+  const [selectedBatLabel, setBatLabel]        = useState(pkg.batteryOptions[0].label)
+  const [includesOpen,     setIncludesOpen]    = useState(false)
+  const [warrantiesOpen,   setWarrantiesOpen]  = useState(false)
+
+  const invOpt = pkg.inverterOptions.find(o => o.label === selectedInvLabel) ?? pkg.inverterOptions[0]
+  const batOpt = pkg.batteryOptions.find(o => o.label === selectedBatLabel) ?? pkg.batteryOptions[0]
+
+  const overhead = computeOverhead(pkg, crownPrices)
+  const pricesReady = overhead > 0   // true once Crown prices have loaded
+
+  const invPrice     = optionPrice(invOpt, crownPrices)
+  const batPrice     = optionPrice(batOpt, crownPrices)
+  const frameAdd     = withFrame ? pkg.frameDeduction : 0
+  // Use dynamic price when Crown prices are loaded; fall back to static pkg.total
+  const displayPrice = pricesReady
+    ? invPrice + batPrice + overhead + frameAdd
+    : (withFrame ? pkg.total : pkg.total - pkg.frameDeduction)
+
+  const isDefault    = invOpt.label === pkg.inverterOptions[0].label && batOpt.label === pkg.batteryOptions[0].label
+  const allIncludes  = [invOpt.label, batOpt.label, ...pkg.includes]
+
+  const handleBook = () => {
+    onBook({
+      packageName:    pkg.name,
+      estimatedPrice: displayPrice,
+      notes: [
+        `Inverter: ${invOpt.label}`,
+        `Battery: ${batOpt.label}`,
+        pkg.frameDeduction > 0 ? `Elevated frame: ${withFrame ? 'Yes' : 'No'}` : '',
+        !isDefault ? 'Custom config — price subject to confirmation' : '',
+      ].filter(Boolean).join(' | '),
+    })
+  }
+
+  return (
+    <div className={`relative bg-white rounded-3xl border-2 flex flex-col overflow-hidden shadow-sm ${
+      pkg.popular ? 'border-brand-400 shadow-brand-100 shadow-lg' : 'border-gray-100'
+    }`}>
+      {pkg.popular && (
+        <div className="bg-brand-500 text-white text-xs font-bold text-center py-1.5 tracking-wide">
+          ⭐ MOST POPULAR CHOICE
+        </div>
+      )}
+
+      <div className="p-6 flex flex-col flex-1">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <span className={`inline-block text-xs font-semibold px-2.5 py-1 rounded-full mb-2 ${pkg.badgeColor}`}>
+              {pkg.badge}
+            </span>
+            <h3 className="text-xl font-black text-gray-900 leading-tight">{pkg.name}</h3>
+          </div>
+          <div className="text-3xl">{pkg.type === 'solar' ? '☀️' : '🔋'}</div>
+        </div>
+
+        {/* Component selectors */}
+        <ComponentSelector label="Inverter" options={pkg.inverterOptions} value={selectedInvLabel}
+          crownPrices={crownPrices} onChange={setInvLabel} />
+        <ComponentSelector label="Battery"  options={pkg.batteryOptions}  value={selectedBatLabel}
+          crownPrices={crownPrices} onChange={setBatLabel} />
+
+        {/* Frame toggle — shown immediately after component selection */}
+        {pkg.frameDeduction > 0 && (
+          <label className="flex items-center justify-between gap-3 bg-gold-300/20 border border-gold-500/40 rounded-2xl px-4 py-3 mb-4 cursor-pointer">
+            <div>
+              <p className="text-sm font-semibold text-brand-700">{pkg.frameLabel}</p>
+              <p className="text-xs text-brand-500">
+                {withFrame
+                  ? `Remove to save PKR ${formatPrice(pkg.frameDeduction)}`
+                  : `Add for PKR ${formatPrice(pkg.frameDeduction)} more`}
+              </p>
+            </div>
+            <input type="checkbox" checked={withFrame} onChange={e => setWithFrame(e.target.checked)}
+              className="w-4 h-4 accent-brand-500 cursor-pointer" />
+          </label>
+        )}
+
+        {/* What's Included — collapsible */}
+        <div className="mb-4">
+          <button
+            onClick={() => setIncludesOpen(o => !o)}
+            className="w-full flex items-center justify-between text-xs font-bold text-gray-400 uppercase tracking-widest mb-2"
+          >
+            What&apos;s Included
+            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${includesOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {includesOpen && (
+            <ul className="space-y-1.5">
+              {allIncludes.map(item => (
+                <li key={item} className="flex items-start gap-2 text-sm text-gray-600">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-green-500 mt-0.5 shrink-0" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Warranties — collapsible */}
+        <div className="bg-blue-50 rounded-2xl px-4 py-3 mb-4">
+          <button
+            onClick={() => setWarrantiesOpen(o => !o)}
+            className="w-full flex items-center justify-between"
+          >
+            <div className="flex items-center gap-1.5">
+              <Shield className="w-3.5 h-3.5 text-blue-600" />
+              <span className="text-xs font-bold text-blue-700">Warranties</span>
+            </div>
+            <ChevronDown className={`w-4 h-4 text-blue-400 transition-transform duration-200 ${warrantiesOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {warrantiesOpen && (
+            <div className="mt-1.5">
+              <p className="text-xs text-blue-600 leading-relaxed font-semibold">✓ 1-Year Installation Warranty</p>
+              {pkg.warranties.map(w => (
+                <p key={w} className="text-xs text-blue-600 leading-relaxed">✓ {w}</p>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Price + CTAs */}
+        <div className="mt-auto">
+          <div className="text-center mb-4">
+            <p className="text-xs text-gray-400 mb-0.5">Starting from</p>
+            {pricesReady ? (
+              <p className="text-3xl font-black text-gray-900">PKR {formatPrice(displayPrice)}</p>
+            ) : (
+              <div className="h-9 bg-gray-100 rounded-xl animate-pulse mx-auto w-48 mt-1" />
+            )}
+            <p className="text-xs text-gray-400 mt-1">All-inclusive · labor · transport · equipment</p>
+            {!isDefault && pricesReady && (
+              <p className="text-xs text-brand-600 mt-1 font-medium">
+                Custom config — final price confirmed on WhatsApp
+              </p>
+            )}
+          </div>
+
+          {/* Site-assessment note */}
+          <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-3 text-center leading-snug">
+            Solar packages require a site assessment. Final pricing is confirmed after the site visit.
+          </p>
+
+          <div className="space-y-2">
+            {/* Primary: WhatsApp quote — no commitment, preferred first step */}
+            <a href={wa(WA_SALES, buildWAMsg(pkg, withFrame, invOpt, batOpt, displayPrice))}
+              target="_blank" rel="noreferrer"
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-white text-sm bg-[#25D366] hover:bg-[#1da84e] transition-colors">
+              <MessageCircle className="w-4 h-4" /> Get Final WhatsApp Quote
+            </a>
+            {/* Secondary: Book site visit */}
+            <button
+              onClick={handleBook}
+              className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-2xl border border-gray-200 text-gray-600 text-xs font-semibold hover:bg-gray-50 transition-colors">
+              <CalendarCheck className="w-3.5 h-3.5" /> Book Site Visit
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+
+/** All Crown component slugs we need to fetch (deduped). */
+const CROWN_SLUGS_TO_FETCH = Array.from(new Set(
+  PACKAGES.flatMap(pkg => [
+    ...pkg.inverterOptions.filter(o => o.brand === 'Crown').map(o => o.slug!),
+    ...pkg.batteryOptions.filter(o => o.brand === 'Crown').map(o => o.slug!),
+  ])
+))
+
+export default function SolarPage() {
+  const [products,       setProducts]       = useState<Product[]>([])
+  const [loading,        setLoading]        = useState(true)
+  const [bookingOpen,    setBookingOpen]    = useState(false)
+  const [bookingContext, setBookingContext] = useState<BookingContext>({ packageName: 'Solar Package' })
+  const [crownPrices,    setCrownPrices]   = useState<Record<string, number>>({})
+
+  const openBooking = (ctx: BookingContext) => { setBookingContext(ctx); setBookingOpen(true) }
+
+  // Fetch Crown component prices from DB
+  useEffect(() => {
+    Promise.all(CROWN_SLUGS_TO_FETCH.map(slug => getProduct(slug))).then(results => {
+      const map: Record<string, number> = {}
+      results.forEach((product, i) => {
+        if (product) map[CROWN_SLUGS_TO_FETCH[i]] = product.price.cash_floor
+      })
+      setCrownPrices(map)
+    })
+  }, [])
+
+  useEffect(() => {
+    getProducts({ category: 'solar' }).then(d => { setProducts(d.products); setLoading(false) })
+  }, [])
+
+  return (
+    <div className="min-h-screen bg-white">
+      <SEO
+        path="/solar"
+        title="Solar Systems Karachi — On-Grid & Off-Grid Solar Solutions"
+        description="Get a complete solar system in Karachi. On-grid, off-grid, and hybrid setups with tier-1 panels, inverters & batteries. Easy installments. Free site assessment."
+        keywords="solar system karachi, solar panels karachi price, on grid solar karachi, off grid solar, solar inverter pakistan, net metering karachi"
+      />
+      
+      <BookingModal open={bookingOpen} onClose={() => setBookingOpen(false)} context={bookingContext} />
+
+      {/* Hero */}
+      <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-yellow-400 text-white py-20 px-4">
+        <div className="max-w-5xl mx-auto text-center">
+          <h1 className="text-4xl md:text-6xl font-black mb-4">Power Your Life with Solar</h1>
+          <p className="text-xl text-amber-100 max-w-2xl mx-auto mb-8">Complete solar systems. Cut your electricity bill by up to 80%.</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
+            <a href="#packages" className="inline-flex items-center gap-2 bg-white text-brand-600 font-bold px-8 py-4 rounded-2xl hover:bg-brand-50 shadow-lg">
+              ☀️ View Packages
+            </a>
+            <Link href="/solar-calculator" className="inline-flex items-center gap-2 bg-black/30 border border-white/40 text-white font-bold px-8 py-4 rounded-2xl hover:bg-black/50 shadow-lg">
+              <Calculator className="w-5 h-5" /> Grid-Tie Calculator
+            </Link>
+            <Link href="/solar/off-grid" className="inline-flex items-center gap-2 border border-white/50 text-white font-medium px-8 py-4 rounded-2xl hover:bg-white/10">
+              🔋 Off-Grid Independence <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Benefits */}
+      <div className="bg-gradient-to-b from-amber-50/50 to-white">
+        <div className="max-w-5xl mx-auto px-4 py-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {SOLAR_BENEFITS.map(b => (
+            <div key={b.title} className="bg-white border border-amber-100 rounded-2xl p-6 shadow-sm text-center">
+              <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl">{b.icon}</div>
+              <div className="font-bold text-gray-800 mb-2">{b.title}</div>
+              <div className="text-sm text-gray-500 leading-relaxed">{b.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── PACKAGES SECTION ─────────────────────────────────────────── */}
+      <div id="packages" className="bg-gray-50 py-16 px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-4">
+            <div className="inline-flex items-center gap-2 bg-brand-100 text-brand-700 text-sm font-semibold px-4 py-1.5 rounded-full mb-4">
+              ☀️ Ready-to-Install Packages
+            </div>
+            <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-3">Solar & UPS Packages</h2>
+            <p className="text-gray-500 max-w-xl mx-auto">
+              All-inclusive prices — inverter, battery, panels, wiring, labor &amp; transport.
+              Choose Crown or Ziewnic components to suit your budget.
+            </p>
+          </div>
+
+          {/* Customisation note */}
+          <div className="max-w-2xl mx-auto mb-10 bg-white border border-blue-100 rounded-2xl px-5 py-4 text-sm text-blue-700 text-center shadow-sm">
+            <strong>Mix Crown and Ziewnic components freely.</strong> Select your inverter and battery below —
+            the price updates live. Custom configurations are confirmed on WhatsApp before booking.
+          </div>
+
+          {/* Package cards */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+            {PACKAGES.map(pkg => (
+              <PackageCard key={pkg.id} pkg={pkg} crownPrices={crownPrices} onBook={openBooking} />
+            ))}
+          </div>
+
+          <p className="text-center text-xs text-gray-400 mt-8">
+            Prices include all components, electrical equipment, labor &amp; transport within Karachi.
+            Crown warranties are replacement (not repair) warranties.
+            Ziewnic prices are based on official Jan 2026 price list.
+          </p>
+        </div>
+      </div>
+
+      {/* Calculator cards */}
+      <div className="max-w-5xl mx-auto px-4 py-12 grid sm:grid-cols-2 gap-4">
+        <div className="bg-gradient-to-r from-orange-100 to-amber-100 rounded-3xl p-6 flex flex-col justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-black text-gray-900 mb-1">Grid-Tie / Hybrid</h2>
+            <p className="text-gray-600 text-sm">Calculate your system size, add appliances, get a quote with net-metering savings.</p>
+          </div>
+          <Link href="/solar-calculator" className="self-start bg-brand-500 hover:bg-brand-600 text-white font-bold px-6 py-3 rounded-2xl inline-flex items-center gap-2 text-sm">
+            <Calculator className="w-4 h-4" /> Try Calculator
+          </Link>
+        </div>
+        <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white rounded-3xl p-6 flex flex-col justify-between gap-4">
+          <div>
+            <div className="text-xs font-medium text-brand-400 uppercase tracking-wider mb-1">New</div>
+            <h2 className="text-xl font-black mb-1">Off-Grid Independence</h2>
+            <p className="text-gray-400 text-sm">Battery-backed power. No KESC bill. No load shedding. Enter your bill — we size your system.</p>
+          </div>
+          <Link href="/solar/off-grid" className="self-start bg-brand-500 hover:bg-brand-400 text-white font-bold px-6 py-3 rounded-2xl inline-flex items-center gap-2 text-sm">
+            🔋 Go Off-Grid
+          </Link>
+        </div>
+      </div>
+
+      {/* Solar Disclaimer */}
+      <div className="max-w-7xl mx-auto px-4 pb-8">
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-800 space-y-1">
+          <p className="font-bold text-amber-900">Pricing &amp; Savings Assumptions</p>
+          <p>Package prices shown are indicative and may vary with exchange rate and component availability. Savings estimates assume Karachi peak sun hours (5–5.5 hrs/day) and PKR 50–60/unit grid electricity. Actual savings depend on your site, usage, shading, and KESC tariff. An on-site visit is required for a confirmed price.</p>
+          <p>Systems above <strong>5kW or PKR 700,000</strong> require full cash payment. Installment plans need a minimum <strong>40% advance</strong>. Net Metering eligibility requires 10kW+ system and KESC/HESCO approval. <Link href="/policy/solar" className="underline font-semibold hover:text-amber-900">Full solar disclaimer →</Link></p>
+        </div>
+      </div>
+
+      {/* Products */}
+      <div id="products" className="max-w-7xl mx-auto px-4 pb-14">
+        <div className="flex items-baseline justify-between mb-6">
+          <div>
+            <p className="text-amber-600 text-xs font-bold uppercase tracking-widest mb-1">Individual Components</p>
+            <h2 className="text-2xl font-black text-gray-900">Solar Products</h2>
+          </div>
+        </div>
+        {loading ? (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {Array.from({length:8}).map((_,i) => <div key={i} className="bg-gray-100 rounded-2xl h-72 animate-pulse"/>)}
+          </div>
+        ) : products.length === 0 ? (
+          <div className="text-center py-16 text-gray-400">
+            <Sun className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p>Solar products coming soon.</p>
+            <a href={wa(WA_SALES, 'Hello! I need a solar quote.')} className="mt-4 inline-block bg-green-500 text-white px-6 py-2.5 rounded-xl font-medium">
+              WhatsApp for Solar Quote
+            </a>
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {products.map(p => <ProductCard key={p.id} product={p}/>)}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

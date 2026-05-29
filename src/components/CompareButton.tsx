@@ -1,4 +1,6 @@
-import { Link } from 'react-router-dom';
+'use client'
+
+import Link from 'next/link';
 import { GitCompareArrows, X, CheckSquare } from 'lucide-react';
 import { useCompareStore, MAX_COMPARE_ITEMS } from '@/store/compareStore';
 import type { Product } from '@/lib/api';
@@ -89,7 +91,7 @@ export function CompareBar() {
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={clear} className="text-xs text-gray-400 hover:text-white">Clear</button>
           <Link
-            to="/compare"
+            href="/compare"
             className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors"
           >
             <GitCompareArrows className="w-3.5 h-3.5" />

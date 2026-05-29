@@ -1,3 +1,5 @@
+'use client'
+
 import { useState } from 'react'
 import { X, Mail, Lock, User, Phone, Eye, EyeOff, CheckCircle, Loader2 } from 'lucide-react'
 import { signIn, signUp, resetPasswordForEmail } from '@/lib/auth'
@@ -116,20 +118,21 @@ export default function AuthModal({ open, onClose, onSuccess, defaultMode = 'log
         {/* ── Login form ── */}
         {mode === 'login' && (
           <form onSubmit={handleLogin} className="space-y-4">
-            <Field label="Email Address">
+            <Field label="Email Address" id="login-email">
               <InputWrap icon={<Mail className="w-4 h-4 text-gray-400" />}>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
+                <input id="login-email" type="email" value={email} onChange={e => setEmail(e.target.value)} required
                   placeholder="you@example.com" autoComplete="email"
                   className="w-full pl-10 pr-4 py-3 text-sm focus:outline-none" />
               </InputWrap>
             </Field>
 
-            <Field label="Password">
+            <Field label="Password" id="login-password">
               <InputWrap icon={<Lock className="w-4 h-4 text-gray-400" />}>
-                <input type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required
+                <input id="login-password" type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required
                   placeholder="••••••••" autoComplete="current-password"
                   className="w-full pl-10 pr-10 py-3 text-sm focus:outline-none" />
                 <button type="button" onClick={() => setShowPw(s => !s)}
+                  aria-label={showPw ? 'Hide password' : 'Show password'}
                   className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
                   {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -156,36 +159,37 @@ export default function AuthModal({ open, onClose, onSuccess, defaultMode = 'log
         {mode === 'signup' && (
           <form onSubmit={handleSignup} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Full Name">
+              <Field label="Full Name" id="signup-name">
                 <InputWrap icon={<User className="w-4 h-4 text-gray-400" />}>
-                  <input type="text" value={name} onChange={e => setName(e.target.value)} required
+                  <input id="signup-name" type="text" value={name} onChange={e => setName(e.target.value)} required
                     placeholder="Ali Hassan" autoComplete="name"
                     className="w-full pl-10 pr-4 py-3 text-sm focus:outline-none" />
                 </InputWrap>
               </Field>
-              <Field label="Phone">
+              <Field label="Phone" id="signup-phone">
                 <InputWrap icon={<Phone className="w-4 h-4 text-gray-400" />}>
-                  <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+                  <input id="signup-phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)}
                     placeholder="03XX XXXXXXX" autoComplete="tel"
                     className="w-full pl-10 pr-4 py-3 text-sm focus:outline-none" />
                 </InputWrap>
               </Field>
             </div>
 
-            <Field label="Email Address">
+            <Field label="Email Address" id="signup-email">
               <InputWrap icon={<Mail className="w-4 h-4 text-gray-400" />}>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
+                <input id="signup-email" type="email" value={email} onChange={e => setEmail(e.target.value)} required
                   placeholder="you@example.com" autoComplete="email"
                   className="w-full pl-10 pr-4 py-3 text-sm focus:outline-none" />
               </InputWrap>
             </Field>
 
-            <Field label="Password">
+            <Field label="Password" id="signup-password">
               <InputWrap icon={<Lock className="w-4 h-4 text-gray-400" />}>
-                <input type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required
+                <input id="signup-password" type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required
                   placeholder="Min. 8 characters" minLength={8} autoComplete="new-password"
                   className="w-full pl-10 pr-10 py-3 text-sm focus:outline-none" />
                 <button type="button" onClick={() => setShowPw(s => !s)}
+                  aria-label={showPw ? 'Hide password' : 'Show password'}
                   className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
                   {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -206,9 +210,9 @@ export default function AuthModal({ open, onClose, onSuccess, defaultMode = 'log
         {/* ── Forgot password form ── */}
         {mode === 'forgot' && (
           <form onSubmit={handleForgot} className="space-y-4">
-            <Field label="Email Address">
+            <Field label="Email Address" id="forgot-email">
               <InputWrap icon={<Mail className="w-4 h-4 text-gray-400" />}>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
+                <input id="forgot-email" type="email" value={email} onChange={e => setEmail(e.target.value)} required
                   placeholder="you@example.com" autoComplete="email"
                   className="w-full pl-10 pr-4 py-3 text-sm focus:outline-none" />
               </InputWrap>
@@ -231,10 +235,10 @@ export default function AuthModal({ open, onClose, onSuccess, defaultMode = 'log
 
 // ── Shared primitives ──────────────────────────────────────────────────────
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, id, children }: { label: string; id: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="text-xs font-semibold text-gray-600 block mb-1.5">{label}</label>
+      <label htmlFor={id} className="text-xs font-semibold text-gray-600 block mb-1.5">{label}</label>
       {children}
     </div>
   )

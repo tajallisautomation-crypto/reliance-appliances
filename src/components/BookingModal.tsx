@@ -1,3 +1,5 @@
+'use client'
+
 /**
  * BookingModal — lightweight website-native booking form.
  * Used for solar/package/service bookings that don't go through the cart.
@@ -138,10 +140,12 @@ export default function BookingModal({ open, onClose, context }: Props) {
             <div className="space-y-4">
               {/* Name */}
               <div>
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider block mb-1.5">Full Name *</label>
+                <label htmlFor="booking-name" className="text-xs font-semibold text-gray-600 uppercase tracking-wider block mb-1.5">Full Name *</label>
                 <input
+                  id="booking-name"
                   type="text"
                   placeholder="Your name"
+                  autoComplete="name"
                   {...field('name')}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-eco-500 focus:ring-1 focus:ring-eco-500 transition-colors"
                 />
@@ -149,10 +153,12 @@ export default function BookingModal({ open, onClose, context }: Props) {
 
               {/* Phone */}
               <div>
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider block mb-1.5">Mobile Number *</label>
+                <label htmlFor="booking-phone" className="text-xs font-semibold text-gray-600 uppercase tracking-wider block mb-1.5">Mobile Number *</label>
                 <input
+                  id="booking-phone"
                   type="tel"
                   placeholder="03XX-XXXXXXX"
+                  autoComplete="tel"
                   {...field('phone')}
                   className={`w-full border rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none transition-colors ${
                     form.phone && !phoneValid
@@ -169,10 +175,12 @@ export default function BookingModal({ open, onClose, context }: Props) {
 
               {/* City/Area */}
               <div>
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider block mb-1.5">City / Area *</label>
+                <label htmlFor="booking-city" className="text-xs font-semibold text-gray-600 uppercase tracking-wider block mb-1.5">City / Area *</label>
                 <input
+                  id="booking-city"
                   type="text"
                   placeholder="e.g. Karachi, DHA Phase 6"
+                  autoComplete="address-level2"
                   {...field('city')}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-eco-500 focus:ring-1 focus:ring-eco-500 transition-colors"
                 />
@@ -180,8 +188,9 @@ export default function BookingModal({ open, onClose, context }: Props) {
 
               {/* Notes (optional) */}
               <div>
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider block mb-1.5">Notes <span className="text-gray-400 font-normal normal-case">(optional)</span></label>
+                <label htmlFor="booking-notes" className="text-xs font-semibold text-gray-600 uppercase tracking-wider block mb-1.5">Notes <span className="text-gray-400 font-normal normal-case">(optional)</span></label>
                 <textarea
+                  id="booking-notes"
                   placeholder="Any specific requirements, load details, or questions…"
                   rows={2}
                   value={form.notes}

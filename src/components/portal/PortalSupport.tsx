@@ -1,3 +1,5 @@
+'use client'
+
 import { useState, useEffect } from 'react'
 import { Loader2, Plus, MessageCircle, CheckCircle, Clock, AlertCircle, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -38,6 +40,18 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })
+
+const SLA_HOURS: Record<string, number> = { urgent: 4, high: 8, medium: 24, low: 72 }
+
+function slaStatus(priority: string, createdAt: string, resolved: boolean) {
+  if (resolved) return null
+  const limit = SLA_HOURS[priority] ?? 24
+  const hoursAgo = (Date.now() - new Date(createdAt).getTime()) / 3600000
+  const remaining = limit - hoursAgo
+  if (remaining <= 0) return { label: 'Response overdue', cls: 'text-red-600' }
+  if (remaining < limit * 0.3) return { label: `Response expected within ${Math.round(remaining)}h`, cls: 'text-amber-600' }
+  return { label: `Response within ${Math.round(remaining)}h`, cls: 'text-gray-400' }
+}
 
 // Quick-action chips that pre-fill the form
 const QUICK_ACTIONS = [
@@ -243,6 +257,7 @@ export default function PortalSupport({ appliances, orders }: PortalData) {
           {tickets.map(t => {
             const catInfo = CATEGORIES.find(c => c.value === t.category)
             const isResolved = ['resolved', 'rejected'].includes(t.status)
+            const sla = slaStatus(t.priority, t.created_at, isResolved)
             return (
               <div key={t.id} className={`bg-white rounded-2xl border p-4 ${isResolved ? 'border-gray-100 opacity-80' : 'border-gray-100 hover:border-brand-200'}`}>
                 <div className="flex items-start justify-between gap-3 mb-2">
@@ -251,6 +266,7 @@ export default function PortalSupport({ appliances, orders }: PortalData) {
                     <div>
                       <p className="font-semibold text-gray-900 text-sm">{t.subject}</p>
                       <p className="text-xs text-gray-400 font-mono">{t.ticket_ref} · {fmtDate(t.created_at)}</p>
+                      {sla && <p className={`text-xs mt-0.5 ${sla.cls}`}>{sla.label}</p>}
                     </div>
                   </div>
                   <span className={`text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${STATUS_STYLES[t.status] ?? 'bg-gray-100 text-gray-600'}`}>

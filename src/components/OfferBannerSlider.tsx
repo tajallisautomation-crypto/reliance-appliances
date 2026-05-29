@@ -1,5 +1,7 @@
+'use client'
+
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import { useSettingsStore } from '@/store/settingsStore';
 
@@ -78,7 +80,7 @@ export default function OfferBannerSlider() {
               )}
               {b.cta && b.ctaLink && (
                 <Link
-                  to={b.ctaLink}
+                  href={b.ctaLink}
                   className="inline-flex items-center gap-2 bg-white text-gray-900 font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-gray-100 transition-colors"
                 >
                   {b.cta} <ArrowRight className="w-3.5 h-3.5" />

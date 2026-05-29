@@ -1,3 +1,5 @@
+'use client'
+
 import { useState, useEffect, useRef } from 'react'
 import { Plus, Trash2, Wrench, CheckCircle, Loader2, Calendar, Hash, MoreVertical, Shield, ChevronLeft, Download, AlertCircle, ArrowRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase'

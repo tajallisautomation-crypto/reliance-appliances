@@ -1,4 +1,6 @@
-import { Link } from 'react-router-dom'
+'use client'
+
+import Link from 'next/link'
 import { Bell, CreditCard, Package, ChevronRight, Wrench, Calendar, Shield, Zap, RefreshCw, Star, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { waSales } from '@/lib/whatsapp'
 import type { PortalData } from './portalTypes'
@@ -476,11 +478,11 @@ export default function PortalOverview({ profile, appliances, loyaltyTxns, order
 
       {/* Shop CTAs */}
       <div className="grid grid-cols-2 gap-3">
-        <Link to="/products" className="flex items-center justify-between bg-brand-500 hover:bg-brand-600 text-white rounded-2xl px-5 py-4 transition-colors">
+        <Link href="/products" className="flex items-center justify-between bg-brand-500 hover:bg-brand-600 text-white rounded-2xl px-5 py-4 transition-colors">
           <span className="font-bold text-sm">Shop Products</span>
           <ChevronRight className="w-4 h-4" />
         </Link>
-        <Link to="/solar" className="flex items-center justify-between bg-gray-900 hover:bg-gray-800 text-white rounded-2xl px-5 py-4 transition-colors">
+        <Link href="/solar" className="flex items-center justify-between bg-gray-900 hover:bg-gray-800 text-white rounded-2xl px-5 py-4 transition-colors">
           <span className="font-bold text-sm">Solar & Backup</span>
           <ChevronRight className="w-4 h-4" />
         </Link>

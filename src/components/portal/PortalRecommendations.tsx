@@ -1,4 +1,6 @@
-import { Link } from 'react-router-dom'
+'use client'
+
+import Link from 'next/link'
 import { Sun, Battery, Zap, TrendingDown, ChevronRight, MessageCircle, ChevronLeft } from 'lucide-react'
 import { waSales } from '@/lib/whatsapp'
 import type { PortalData } from './portalTypes'
@@ -187,7 +189,7 @@ export default function PortalRecommendations({ appliances, profile, navigateTo 
               You have a UPS/inverter — pairing it with solar panels eliminates electricity costs during daylight hours and charges your batteries for free. For your {totalKW}kW load, a {recSize} system is ideal.
             </p>
             <div className="flex gap-2 mt-3">
-              <Link to={recHref} className="flex items-center gap-1.5 bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-bold px-4 py-2 rounded-xl">
+              <Link href={recHref} className="flex items-center gap-1.5 bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-bold px-4 py-2 rounded-xl">
                 <Sun className="w-4 h-4" /> View {recPkg}
               </Link>
               <a href={waSales(`Hi! I have a UPS and want to add solar panels. My load is ${totalKW}kW.`)} target="_blank" rel="noreferrer"
@@ -216,7 +218,7 @@ export default function PortalRecommendations({ appliances, profile, navigateTo 
               <p className="text-sm font-semibold text-brand-600 mt-2">{recPrice}</p>
               <p className="text-xs text-gray-400 mt-1">Estimate based on registered appliance load. Actual sizing may vary after on-site assessment.</p>
               <div className="flex gap-2 mt-3">
-                <Link to={recHref} className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-white text-sm font-bold px-4 py-2 rounded-xl">
+                <Link href={recHref} className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-white text-sm font-bold px-4 py-2 rounded-xl">
                   <ChevronRight className="w-4 h-4" /> View {recPkg}
                 </Link>
                 <a href={waSales(`Hi! I'd like a solar consultation. My home load is about ${totalKW}kW.`)} target="_blank" rel="noreferrer"
@@ -238,7 +240,7 @@ export default function PortalRecommendations({ appliances, profile, navigateTo 
             <p className="text-sm text-blue-700 mt-1">
               During load-shedding your {loadAppliances.length} appliance{loadAppliances.length > 1 ? 's are' : ' is'} unprotected. A UPS or inverter keeps essentials running.
             </p>
-            <Link to="/solar" className="inline-flex items-center gap-1 mt-2 text-sm font-bold text-blue-700 hover:underline">
+            <Link href="/solar" className="inline-flex items-center gap-1 mt-2 text-sm font-bold text-blue-700 hover:underline">
               View UPS & Inverter options <ChevronRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -254,7 +256,7 @@ export default function PortalRecommendations({ appliances, profile, navigateTo 
             <p className="text-sm text-green-700 mt-1">
               {oldACs.map(a => `${a.brand}${a.model ? ' ' + a.model : ''} (${a.purchase_year})`).join(', ')} — {oldACs.length > 1 ? 'these are' : 'this is'} over {OLD_AC_THRESHOLD} years old. Older ACs consume 30–50% more electricity than modern inverter models.
             </p>
-            <Link to="/products?category=air-conditioners" className="inline-flex items-center gap-1 mt-2 text-sm font-bold text-green-700 hover:underline">
+            <Link href="/products?category=air-conditioners" className="inline-flex items-center gap-1 mt-2 text-sm font-bold text-green-700 hover:underline">
               Browse inverter ACs <ChevronRight className="w-3.5 h-3.5" />
             </Link>
           </div>

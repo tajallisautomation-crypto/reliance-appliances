@@ -1,6 +1,8 @@
+'use client'
+
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Phone, Mail, MapPin, Leaf, Facebook, ChevronDown } from 'lucide-react';
+import Link from 'next/link';
+import { Phone, Mail, MapPin, Leaf, Facebook, Instagram, MessageCircle, ChevronDown } from 'lucide-react';
 
 function CollapsibleSection({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -46,15 +48,26 @@ export default function Footer() {
             <span className="text-white/30 mx-0.5">•</span>
             <span className="text-gold-400">Installed</span>
             <span className="text-white/30 mx-0.5">•</span>
-            <span className="text-eco-400">Supported</span>
+            <span className="text-eco-300">Supported</span>
           </p>
           <p className="text-sm text-brand-200 leading-relaxed mb-4">
             Karachi's most trusted appliance partner since 2015. Serving 14,400+ clients — homes, offices &amp; businesses — with genuine products and real after-sales support.
           </p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <a href="https://www.facebook.com/tajallishomecollection/" target="_blank" rel="noreferrer"
+              aria-label="Tajalli's on Facebook"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors">
               <Facebook className="h-4 w-4" /> Facebook
+            </a>
+            <a href="https://www.instagram.com/tajallis.pk/" target="_blank" rel="noreferrer"
+              aria-label="Tajalli's on Instagram"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 transition-colors">
+              <Instagram className="h-4 w-4" /> Instagram
+            </a>
+            <a href="https://wa.me/923702578788" target="_blank" rel="noreferrer"
+              aria-label="Chat with Tajalli's on WhatsApp"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white bg-green-600 hover:bg-green-700 transition-colors">
+              <MessageCircle className="h-4 w-4" /> WhatsApp
             </a>
           </div>
         </div>
@@ -63,16 +76,36 @@ export default function Footer() {
         <CollapsibleSection title="Products">
           <ul className="space-y-2">
             {[
-              { label: 'Air Conditioners',   to: '/products?category=air-conditioners'   },
-              { label: 'Refrigerators',      to: '/products?category=refrigerators'      },
-              { label: 'Freezers',           to: '/products?category=freezers'           },
-              { label: 'Washing Machines',   to: '/products?category=washing-machines'   },
-              { label: 'Televisions',        to: '/products?category=televisions'        },
+              { label: 'Air Conditioners',   to: '/products/category/air-conditioners'   },
+              { label: 'Refrigerators',      to: '/products/category/refrigerators'      },
+              { label: 'Freezers',           to: '/products/category/freezers'           },
+              { label: 'Washing Machines',   to: '/products/category/washing-machines'   },
+              { label: 'Televisions',        to: '/products/category/televisions'        },
               { label: 'Solar Solutions',    to: '/solar'                                },
-              { label: 'Kitchen Appliances', to: '/products?category=kitchen-appliances' },
+              { label: 'Kitchen Appliances', to: '/products/category/kitchen-appliances' },
             ].map(({ label, to }) => (
               <li key={label}>
-                <Link to={to} className="text-sm text-brand-300 hover:text-white transition-colors">{label}</Link>
+                <Link href={to} className="text-sm text-brand-300 hover:text-white transition-colors">{label}</Link>
+              </li>
+            ))}
+          </ul>
+        </CollapsibleSection>
+
+        {/* Brands */}
+        <CollapsibleSection title="Brands">
+          <ul className="space-y-2">
+            {[
+              { label: 'Haier',     to: '/brands/haier'     },
+              { label: 'Dawlance',  to: '/brands/dawlance'  },
+              { label: 'Gree',      to: '/brands/gree'      },
+              { label: 'EcoStar',   to: '/brands/ecostar'   },
+              { label: 'Crown',     to: '/brands/crown'     },
+              { label: 'Westpoint', to: '/brands/westpoint' },
+              { label: 'PEL',       to: '/brands/pel'       },
+              { label: 'TCL',       to: '/brands/tcl'       },
+            ].map(({ label, to }) => (
+              <li key={label}>
+                <Link href={to} className="text-sm text-brand-300 hover:text-white transition-colors">{label}</Link>
               </li>
             ))}
           </ul>
@@ -94,8 +127,8 @@ export default function Footer() {
               ['Customer Portal',    '/portal'],
             ].map(([l, h]) => (
               <li key={l}>
-                <Link to={h}
-                  className={`text-sm transition-colors flex items-center gap-1.5 ${h === '/green-corridor' ? 'text-eco-400 hover:text-eco-300' : 'text-brand-300 hover:text-white'}`}>
+                <Link href={h}
+                  className={`text-sm transition-colors flex items-center gap-1.5 ${h === '/green-corridor' ? 'text-eco-300 hover:text-eco-200' : 'text-brand-300 hover:text-white'}`}>
                   {h === '/green-corridor' && <Leaf className="w-3 h-3" />}{l}
                 </Link>
               </li>
@@ -147,7 +180,7 @@ export default function Footer() {
               ['Warranty','/policy/warranty'],['Refund','/policy/refund'],
               ['Installments','/policy/installment'],['Solar Disclaimer','/policy/solar'],
             ].map(([l,h]) => (
-              <Link key={h} to={h} className="text-xs text-brand-300 hover:text-brand-200 transition-colors">{l}</Link>
+              <Link key={h} href={h} className="text-xs text-brand-300 hover:text-brand-200 transition-colors">{l}</Link>
             ))}
           </div>
         </div>
