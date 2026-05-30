@@ -33,10 +33,10 @@ export const SETTING_DEFAULTS: SiteSettings = {
   announcementText:      '',
   announcementEnabled:   false,
   offerBanners:          DEFAULT_BANNERS,
-  plan2mMarkup: 1.10,  plan2mAdvance: 0.50,
-  plan3mMarkup: 1.15,  plan3mAdvance: 0.45,
-  plan6mMarkup: 1.25,  plan6mAdvance: 0.40,
-  plan12mMarkup: 1.40, plan12mAdvance: 0.30,
+  plan2mMarkup: 1.08,  plan2mAdvance: 0.50,
+  plan3mMarkup: 1.13,  plan3mAdvance: 0.45,
+  plan6mMarkup: 1.20,  plan6mAdvance: 0.40,
+  plan12mMarkup: 1.35, plan12mAdvance: 0.30,
 };
 
 interface SettingsStore extends SiteSettings {

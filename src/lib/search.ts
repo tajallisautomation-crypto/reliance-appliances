@@ -244,11 +244,12 @@ export function buildSearchIndex(products: Product[]): SearchIndex {
     const brandLow = p.brand.toLowerCase();
     if (
       (brandLow === 'gree' && /\bairy\b/i.test(nameForIntel)) ||
-      (brandLow === 'haier' && /\bHFT\b|\bHFAB\b/.test(modelUpper))
+      (brandLow === 'haier' && /\bHFT\b|\bHFAB\b|\bHFS\b/.test(modelUpper))
     ) {
       tokens.add('inverter');
     }
-    if (brandLow === 'haier' && /\bHFT\b|\bHFAB\b/.test(modelUpper)) {
+    // HFT/HFAB = T3 series; HFS = Super T3 Pro (confirmed per Haier PK website, model omits "T3")
+    if (brandLow === 'haier' && /\bHFT\b|\bHFAB\b|\bHFS\b/.test(modelUpper)) {
       tokens.add('t3');
     }
 

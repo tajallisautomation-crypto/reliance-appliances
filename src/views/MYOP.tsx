@@ -884,7 +884,7 @@ export default function MYOPPage() {
     setLoading(true)
     setProducts([])
     try {
-      const { products } = await getProducts({ category: tabId, sort: 'price_asc' })
+      const { products } = await getProducts({ category: tabId, sort: 'price_asc', quality_gated: 'true' })
       setProducts(products)
     } catch { /* silent — show empty state */ }
     finally { setLoading(false) }

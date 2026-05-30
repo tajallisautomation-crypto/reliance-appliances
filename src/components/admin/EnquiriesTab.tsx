@@ -102,7 +102,53 @@ export default function EnquiriesTab() {
           <p className="text-xs text-gray-400 mt-1">Contact form and product enquiries appear here</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <>
+        {/* Mobile card view */}
+        <div className="md:hidden space-y-2">
+          {filtered.map(item => (
+            <div key={item.id} className="bg-white rounded-xl border border-gray-100 p-4 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-semibold text-gray-900 text-sm truncate">{item.name || '—'}</p>
+                  {item.phone && <a href={`tel:${item.phone}`} className="text-xs text-blue-500 block">{item.phone}</a>}
+                  {item.email && <a href={`mailto:${item.email}`} className="text-xs text-gray-400 block truncate">{item.email}</a>}
+                </div>
+                <span className={`shrink-0 text-[10px] font-bold px-2 py-1 rounded-full capitalize ${
+                  item.event === 'contact' ? 'bg-purple-100 text-purple-700' : 'bg-brand-100 text-brand-700'
+                }`}>{item.event}</span>
+              </div>
+              <p className="text-xs text-gray-600 line-clamp-2">
+                {item.brand && item.model ? `${item.brand} ${item.model}` : item.message || '—'}
+              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] text-gray-400">{new Date(item.created_at).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                <div className="flex gap-1">
+                  {item.phone && (
+                    <a href={`https://wa.me/${item.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${item.name || ''}, thank you for contacting Tajalli's!`)}`}
+                      target="_blank" rel="noreferrer"
+                      className="p-2 hover:bg-green-50 text-green-600 rounded-lg">
+                      <MessageCircle className="w-4 h-4" />
+                    </a>
+                  )}
+                  {item.email && (
+                    <a href={`mailto:${item.email}`} className="p-2 hover:bg-blue-50 text-blue-500 rounded-lg">
+                      <Mail className="w-4 h-4" />
+                    </a>
+                  )}
+                  <button onClick={() => setConfirmDel(item)} className="p-2 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-lg">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+          {filtered.length < items.length && (
+            <p className="text-center text-xs text-gray-400 pt-1">Showing {filtered.length} of {items.length} entries</p>
+          )}
+        </div>
+
+        {/* Desktop table view */}
+        <div className="hidden md:block bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-100">
@@ -171,6 +217,7 @@ export default function EnquiriesTab() {
             </div>
           )}
         </div>
+        </>
       )}
 
       {confirmDel && (

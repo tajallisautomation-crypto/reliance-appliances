@@ -305,6 +305,12 @@ export async function getProducts(params?: Record<string, string>): Promise<{ pr
     if (params?.brand)        q = q.ilike('brand', params.brand);
     if (params?.stock_status) q = q.eq('stock_status', params.stock_status);
     if (params?.featured === 'true') q = q.eq('featured', true);
+    // Quality gate: on featured/MYOP/bundle surfaces block products scored below 40.
+    // Products with no score yet (NULL) are allowed through so newly-added products
+    // still appear before the first QC rescan.
+    if (params?.admin !== 'true' && (params?.featured === 'true' || params?.quality_gated === 'true')) {
+      q = q.or('data_quality_score.is.null,data_quality_score.gte.40');
+    }
     if (params?.min_price)    q = q.gte('cash_floor', Number(params.min_price));
     if (params?.max_price)    q = q.lte('cash_floor', Number(params.max_price));
     if (params?.category) {
@@ -1821,13 +1827,16 @@ function _buildSpecs(brand: string, model: string, category: string, cc: string)
         specs['Recommended Room'] = '200–350 sq.ft | e.g. 14×14 to 18×20 ft room | Volume ~1,800–3,200 cu.ft (9 ft ceiling)';
       }
     }
-    const isInv = /HNF|PITH|CITH|FAIRY|LOMO|UFLY|ULTRA|INVERTER|\bINV\b|\bDC\b|LF\b|LFW|HFT|HFP|HPM|RFP/.test(m);
-    const isHC  = /HFC|HFAB|HFTEX|HPU|PRIMA|GALLANT|HEAT|H&C/.test(m);
+    const isInv = /HNF|PITH|CITH|FAIRY|LOMO|UFLY|ULTRA|INVERTER|\bINV\b|\bDC\b|LF\b|LFW|HFT|HFP|HPM|RFP|\bHFS\b/.test(m);
+    const isHC  = /HFC|HFAB|HFTEX|HPU|PRIMA|GALLANT|HEAT|H&C|\bHFS\b/.test(m);
     const isT3  = isTrueT3(m); // Governance: only model-name "T3" qualifies — see isTrueT3()
+    // Product intelligence: Haier HFS = "Super T3 Pro" series — T3 confirmed per Haier PK website,
+    // but model name omits "T3" so isTrueT3() misses it. This is a manufacturer naming inconsistency.
+    const isT3Haier = b === 'haier' && /\bHFS\b/.test(m);
     specs['Type']             = isHC ? 'Split AC (Heat & Cool)' : 'Split Air Conditioner';
     specs['Inverter']         = isInv ? 'Yes' : 'No';
     specs['Compressor']       = isInv ? 'DC Inverter (Variable Speed)' : 'Conventional Rotary';
-    if (isT3) specs['T3 Rating'] = 'Yes — T3 Tropical Rated (operates up to 52°C ambient)';
+    if (isT3 || isT3Haier) specs['T3 Rating'] = 'Yes — T3 Tropical Rated (operates up to 52°C ambient)';
     specs['Gas Type']         = 'R32 (Eco-Friendly, Low GWP)';
     if (ton) {
       const tonNum   = parseFloat(ton);

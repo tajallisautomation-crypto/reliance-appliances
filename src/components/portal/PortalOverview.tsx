@@ -35,7 +35,7 @@ interface Action {
   border: string
 }
 
-export default function PortalOverview({ profile, appliances, loyaltyTxns, orders, referralEarnings, carePlans, accountVerification, navigateTo }: PortalData) {
+export default function PortalOverview({ profile, appliances, loyaltyTxns, orders, referralEarnings, carePlans, invoicePurchases, accountVerification, navigateTo }: PortalData) {
   const tier = TIERS[profile?.loyalty_tier ?? 'bronze']
   const pts  = profile?.loyalty_points ?? 0
 
@@ -224,6 +224,79 @@ export default function PortalOverview({ profile, appliances, loyaltyTxns, order
     })
   }
 
+  // Advance payment pending — installment invoice not yet activated
+  const pendingAdvanceInvoices = invoicePurchases.filter(
+    inv => inv.inst_advance_amt && inv.inst_advance_amt > 0 && inv.payment_status === 'pending'
+  )
+  if (pendingAdvanceInvoices.length > 0) {
+    const inv = pendingAdvanceInvoices[0]
+    actions.push({
+      priority: 1.5,
+      icon: <CreditCard className="w-4 h-4" />,
+      label: 'Advance Payment Pending',
+      detail: `Invoice ${inv.ref_number} requires an advance of ${fmtPKR(inv.inst_advance_amt!)} to activate your installment plan.`,
+      cta: 'Pay Advance',
+      ctaHref: waSales(`Hi! I'd like to pay the advance for invoice ${inv.ref_number}. Amount: PKR ${Math.round(inv.inst_advance_amt!).toLocaleString('en-PK')}.`),
+      color: 'text-red-700',
+      bg: 'bg-red-50',
+      border: 'border-red-200',
+    })
+  }
+
+  // Care plan inspection required — plan cannot activate until inspection is done
+  const inspectionRequired = carePlans.filter(
+    cp => cp.status === 'inspection_required' || cp.status === 'pending_inspection'
+  )
+  if (inspectionRequired.length > 0) {
+    const count = inspectionRequired.length
+    actions.push({
+      priority: 4.5,
+      icon: <Wrench className="w-4 h-4" />,
+      label: 'Care Plan Inspection Required',
+      detail: `${count} care plan${count > 1 ? 's' : ''} need${count === 1 ? 's' : ''} an inspection visit before activation. Book a slot to get covered.`,
+      cta: 'Schedule Inspection',
+      ctaHref: waSales(`Hi! I need to schedule a care plan inspection for my appliance.`),
+      color: 'text-purple-700',
+      bg: 'bg-purple-50',
+      border: 'border-purple-200',
+    })
+  }
+
+  // Feedback prompt — delivered order older than 7 days with no review txn yet
+  const deliveredOld = orders.filter(
+    o => o.status?.toLowerCase() === 'delivered' && daysAgo(o.created_at) >= 7
+  )
+  const hasReviewTxn = loyaltyTxns.some(t => t.type === 'review' || t.type === 'feedback')
+  if (deliveredOld.length > 0 && !hasReviewTxn && actions.length < 4) {
+    actions.push({
+      priority: 7.5,
+      icon: <Star className="w-4 h-4" />,
+      label: 'Share Your Experience',
+      detail: `How was your recent purchase? Leave a quick review and earn loyalty points.`,
+      cta: 'Leave Review',
+      ctaHref: waSales(`Hi! I'd like to share feedback on my recent purchase from Tajalli's.`),
+      color: 'text-yellow-700',
+      bg: 'bg-yellow-50',
+      border: 'border-yellow-200',
+    })
+  }
+
+  // Loyalty milestone nudge — within 200 pts of next tier
+  const ptsToNextTier = tier.nextMin !== Infinity ? tier.nextMin - pts : Infinity
+  if (ptsToNextTier > 0 && ptsToNextTier <= 200 && tier.nextLabel && actions.length < 4) {
+    actions.push({
+      priority: 8,
+      icon: <Star className="w-4 h-4" />,
+      label: `Almost ${tier.nextLabel}!`,
+      detail: `Just ${ptsToNextTier} point${ptsToNextTier !== 1 ? 's' : ''} to go before you unlock ${tier.nextLabel} status and better discounts.`,
+      cta: 'View Benefits',
+      ctaOnClick: () => navigateTo?.('loyalty'),
+      color: 'text-yellow-700',
+      bg: 'bg-yellow-50',
+      border: 'border-yellow-200',
+    })
+  }
+
   const topActions = actions.sort((a, b) => a.priority - b.priority).slice(0, 4)
 
   return (
@@ -313,6 +386,20 @@ export default function PortalOverview({ profile, appliances, loyaltyTxns, order
             <p className="text-xs text-gray-500">loyalty points</p>
           </div>
         </div>
+        {tier.nextMin !== Infinity && tier.nextLabel && pts < tier.nextMin && (
+          <div className="mt-3 pt-3 border-t border-black/10">
+            <div className="flex justify-between text-xs mb-1.5">
+              <span className="font-medium text-gray-500">{tier.label}</span>
+              <span className="font-bold text-gray-700">{(tier.nextMin - pts).toLocaleString()} pts to {tier.nextLabel}</span>
+            </div>
+            <div className="h-1.5 bg-black/10 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gray-700/50 rounded-full transition-all"
+                style={{ width: `${Math.min(100, Math.round(((pts - tier.min) / (tier.nextMin - tier.min)) * 100))}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Next Best Actions */}

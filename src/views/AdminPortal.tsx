@@ -8,6 +8,7 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { useAutoRefresh } from '@/components/admin/useAutoRefresh';
 import OpsQueueTab from '@/components/admin/OpsQueueTab';
 import PricingGovernanceTab from '@/components/admin/PricingGovernanceTab';
+import CompetitorBenchmarksTab from '@/components/admin/CompetitorBenchmarksTab';
 import ReviewsTab from '@/components/admin/ReviewsTab';
 import OrdersTab from '@/components/admin/OrdersTab';
 import EnquiriesTab from '@/components/admin/EnquiriesTab';
@@ -4667,6 +4668,7 @@ interface InvoiceLogPayload {
   preparedBy?:         string;
   customerArea?:       string;
   paymentStatus?:      string;
+  paymentDate?:        string;
   discountMode?:       'percentage' | 'fixed';
   isExistingCustomer?: boolean | null;
   stockStatus?:        string;
@@ -4747,6 +4749,7 @@ async function logInvoiceToSupabase(payload: InvoiceLogPayload): Promise<string 
       amount_paid:          payload.amountPaid ?? null,
       trade_ins_json:       payload.tradeIns?.length ? payload.tradeIns : null,
       discounts_json:       payload.discounts?.length ? payload.discounts : null,
+      payment_date:         payload.paymentDate || null,
     }).eq('id', inv.id);
 
     // â”€â”€ invoice_lines â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -4970,6 +4973,7 @@ async function updateInvoiceInSupabase(invoiceId: string, payload: InvoiceLogPay
       amount_paid:            payload.amountPaid ?? null,
       trade_ins_json:         payload.tradeIns?.length ? payload.tradeIns : null,
       discounts_json:         payload.discounts?.length ? payload.discounts : null,
+      payment_date:           payload.paymentDate || null,
     }).eq('id', invoiceId);
     if (extErr) console.warn('[invoice-update] extended fields failed:', extErr.message);
 
@@ -5271,6 +5275,7 @@ async function generateQuotationPdf(opts: {
   instScheduleRows?: Array<{ no: number; label: string; dueDate: string; amount: number }>;
   invoiceDate?: string;
   paymentStatus?: string;
+  paymentDate?: string;
   amountPaid?: number;
   tradeIns?: Array<{ description: string; value: number }>;
   discounts?: Array<{ mode: 'percentage' | 'fixed'; amount: number; type: string; reason: string }>;
@@ -5455,6 +5460,7 @@ async function generateQuotationPdf(opts: {
   const metaFields: Array<[string, string]> = [
     ['REF', opts.refNumber],
     ['DATE', dateStr],
+    ...(opts.paymentDate ? [['PAYMENT DATE', new Date(opts.paymentDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })] as [string, string]] : []),
     ['PREPARED BY', opts.preparedBy || 'System'],
     ['SALE TYPE', opts.saleType === 'cash' ? 'Cash' : 'Installment'],
     ...(opts.docType !== 'invoice' ? [['VALID', `${validUntilStr} (${opts.validityHours}h)`] as [string, string]] : []),
@@ -6943,9 +6949,18 @@ async function generateInstallmentAdvancePdf(opts: {
     : Math.round(productSubtotal * opts.discount / 100);
   const cashPrice = productSubtotal - discountAmt;
 
+  // Deduplicate lines: merge identical products (same name+model+unitPrice+category) so re-edits don't double-print rows
+  const _dedupMap = new Map<string, QuoteLine>();
+  for (const _dl of opts.lines) {
+    const _dk = `${_dl.name}||${_dl.model ?? ''}||${_dl.unitPrice}||${_dl.category ?? ''}`;
+    const _ex = _dedupMap.get(_dk);
+    if (_ex) { _ex.qty += _dl.qty; } else { _dedupMap.set(_dk, { ..._dl }); }
+  }
+  const _dedupedLines = Array.from(_dedupMap.values());
+
   const categoryOrder: string[] = [];
   const grouped: Record<string, QuoteLine[]> = {};
-  for (const line of opts.lines) {
+  for (const line of _dedupedLines) {
     const cat = line.category || 'Other';
     if (!grouped[cat]) { grouped[cat] = []; categoryOrder.push(cat); }
     grouped[cat].push(line);
@@ -7033,7 +7048,9 @@ async function generateInstallmentAdvancePdf(opts: {
   const finBoxX = _finBoxX; const finBoxW = _finBoxW;
   const finRows: Array<[string, string, boolean]> = [
     ['Cash Price',        PKR(cashPrice),              false],
-    ['Financing Charge',  `+ ${PKR(financingCharge)}`, false],
+    [financingCharge >= 0 ? 'Financing Charge' : 'Installment Discount',
+     financingCharge >= 0 ? `+ ${PKR(financingCharge)}` : `- ${PKR(-financingCharge)}`,
+     false],
     ['Installment Total', PKR(opts.instTotalPrice),    true ],
     [_advIsPaid ? 'Advance Paid' : 'Advance Due', PKR(opts.instAdvanceAmt), false],
     ['Remaining Balance', PKR(remainingBalance),       false],
@@ -7108,6 +7125,9 @@ async function generateInstallmentAdvancePdf(opts: {
   y = (doc as any).lastAutoTable.finalY + 4;
 
   // â”€â”€ Tables 2 & 3: Payment schedule â€” 2 column split â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Force a new page if there isn't enough room for the schedule (prevents two-column split misalignment)
+  const _schedHalf = Math.ceil(monthlyRows.length / 2) + 2;
+  if (y + _schedHalf * 6.5 + 30 > 270) { doc.addPage(); y = 15; }
   doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(100, 116, 139);
   doc.text('PAYMENT SCHEDULE', margin, y + 2);
   y += 5;
@@ -9167,6 +9187,7 @@ type InvoiceRow = {
   amount_paid: number | null;
   trade_ins_json: Array<{ description: string; value: number }> | null;
   discounts_json: Array<{ mode: 'percentage' | 'fixed'; amount: number; type: string; reason: string }> | null;
+  payment_date: string | null;
   // portal link (migration 20260522)
   portal_user_id: string | null;
   invoice_lines?: Array<{
@@ -9812,6 +9833,20 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
   const [loadingEdit, setLoadingEdit] = useState<string | null>(null);
   const [confirmDel, setConfirmDel]   = useState<InvoiceRow | null>(null);
   const [deleting, setDeleting]       = useState<string | null>(null);
+  const [converting, setConverting]   = useState<string | null>(null);
+
+  async function convertToInvoice(row: InvoiceRow) {
+    setConverting(row.id);
+    try {
+      await supabase.from('invoices').update({ doc_type: 'invoice' }).eq('id', row.id);
+      const updated = { ...row, doc_type: 'invoice' };
+      setRows(rs => rs.map(r => r.id === row.id ? updated : r));
+      await reprintInvoice(updated);
+    } catch (e) {
+      console.error('[convertToInvoice]', e);
+    }
+    setConverting(null);
+  }
 
   async function reprintInvoice(row: InvoiceRow) {
     setReprinting(row.id);
@@ -10014,10 +10049,11 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
           instMonthlyAmt: row.inst_monthly_amt ?? undefined,
           instFirstDate: row.inst_first_date ?? undefined,
           instScheduleRows: Array.isArray(row.inst_schedule_json) ? row.inst_schedule_json : undefined,
-          instTeaserMonthly: grandTotal > 0 ? Math.round(grandTotal * 1.25 / 12) : undefined,
+          instTeaserMonthly: grandTotal > 0 ? calcPlan(grandTotal, '12m').monthly : undefined,
           instTeaserMonths: 12,
           invoiceDate: row.created_at,
           amountPaid: row.amount_paid ?? undefined,
+          paymentDate: row.payment_date ?? undefined,
           tradeIns: Array.isArray(row.trade_ins_json) ? row.trade_ins_json : undefined,
           discounts: Array.isArray(row.discounts_json) ? row.discounts_json : undefined,
         });
@@ -10086,8 +10122,13 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
 
   async function updateStatus(id: string, status: string) {
     setUpdatingId(id);
-    await supabase.from('invoices').update({ payment_status: status }).eq('id', id);
-    setRows(rs => rs.map(r => r.id === id ? { ...r, payment_status: status } : r));
+    const row = rows.find(r => r.id === id);
+    const update: Record<string, unknown> = { payment_status: status };
+    if (status === 'paid' && row && row.grand_total > 0 && !row.amount_paid) {
+      update.amount_paid = row.grand_total;
+    }
+    await supabase.from('invoices').update(update).eq('id', id);
+    setRows(rs => rs.map(r => r.id === id ? { ...r, payment_status: status, ...(update.amount_paid ? { amount_paid: update.amount_paid as number } : {}) } : r));
     setUpdatingId(null);
   }
 
@@ -10244,11 +10285,30 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
                             </svg>
                           )}
                         </button>
+                        {row.doc_type === 'quotation' && (
+                          <button
+                            onClick={e => { e.stopPropagation(); convertToInvoice(row); }}
+                            disabled={converting === row.id}
+                            title="Convert to Invoice — updates record and downloads invoice PDF"
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold transition-colors disabled:opacity-40 flex-shrink-0 whitespace-nowrap">
+                            {converting === row.id ? (
+                              <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                              </svg>
+                            ) : (
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            )}
+                            {converting === row.id ? 'Converting…' : 'Convert to Invoice'}
+                          </button>
+                        )}
                         {onEditRequest && (
                           <button
                             onClick={e => { e.stopPropagation(); editInvoice(row); }}
                             disabled={loadingEdit === row.id}
-                            title="Edit invoice"
+                            title="Edit document"
                             className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 transition-colors disabled:opacity-40 flex-shrink-0">
                             {loadingEdit === row.id ? (
                               <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -10265,7 +10325,7 @@ function InvoiceHistoryTab({ onEditRequest }: { onEditRequest?: (row: InvoiceRow
                         <button
                           onClick={e => { e.stopPropagation(); setConfirmDel(row); }}
                           disabled={deleting === row.id}
-                          title="Delete invoice"
+                          title="Delete document"
                           className="p-1.5 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-lg transition-colors disabled:opacity-40 flex-shrink-0">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -10468,6 +10528,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
   const [preparedBy, setPreparedBy]       = useState('');
   const [stockStatus, setStockStatus]     = useState('In stock Â· confirm before payment');
   const [advancePaid, setAdvancePaid]     = useState(false);
+  const [paymentDate, setPaymentDate]     = useState('');
   const [amountPaid, setAmountPaid]       = useState(0);
   const [amountPaidRaw, setAmountPaidRaw] = useState('0');
   const [tradeIns, setTradeIns]           = useState<Array<{id: string; description: string; value: number}>>([]);
@@ -10559,7 +10620,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       .then(({ data }) => {
         if (!data?.length) { setRefNumber(`${prefix}0001`); return; }
         const seq = parseInt(data[0].ref_number.replace(prefix, ''), 10);
-        setRefNumber(`${prefix}${String(isNaN(seq) ? 1 : seq + 1).padStart(4, '0')}`);
+        setRefNumber(`${prefix}${String(isNaN(seq) ? 1 : seq + 3).padStart(4, '0')}`);
       });
   }, []);
 
@@ -10673,7 +10734,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           serviceLevel, elevatedStructureOn, elevatedStructureAmt, wiringAmt, laborAmt,
           customerType,
           advancePct, advanceMode, advanceFixedAmt, cashPaySchedule, balanceNote,
-          saleType, deliveryEta, preparedBy, stockStatus, advancePaid, amountPaid, amountPaidRaw, tradeIns, customerArea, isExistingCustomer, validityHours,
+          saleType, deliveryEta, preparedBy, stockStatus, advancePaid, paymentDate, amountPaid, amountPaidRaw, tradeIns, customerArea, isExistingCustomer, validityHours,
           instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber,
           customCharges, guarantorName, guarantorPhone, guarantorCnic, invoiceNotes,
           srDeviceBrand, srDeviceModel, srFaultDesc, srWarrantyDays, srJobLines,
@@ -10687,7 +10748,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       serviceLevel, elevatedStructureOn, elevatedStructureAmt, wiringAmt, laborAmt,
       advancePct, advanceMode, advanceFixedAmt, cashPaySchedule, balanceNote,
       customerType,
-      saleType, deliveryEta, preparedBy, stockStatus, advancePaid, amountPaid, amountPaidRaw, tradeIns,
+      saleType, deliveryEta, preparedBy, stockStatus, advancePaid, paymentDate, amountPaid, amountPaidRaw, tradeIns,
       customerArea, isExistingCustomer, validityHours,
       instTotalPrice, instAdvanceAmt, instMonths, instMonthlyAmt, instFirstDate, instPaymentNumber,
       customCharges, guarantorName, guarantorPhone, guarantorCnic, invoiceNotes,
@@ -10713,6 +10774,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       if (draft.preparedBy !== undefined) setPreparedBy(draft.preparedBy);
       if (draft.stockStatus) setStockStatus(draft.stockStatus);
       if (typeof draft.advancePaid === 'boolean') setAdvancePaid(draft.advancePaid);
+      if (draft.paymentDate !== undefined) setPaymentDate(draft.paymentDate);
       if (typeof draft.amountPaid === 'number') { setAmountPaid(draft.amountPaid); setAmountPaidRaw(String(draft.amountPaid)); }
       if (Array.isArray(draft.tradeIns)) setTradeIns(draft.tradeIns);
       if (draft.customerArea !== undefined) setCustomerArea(draft.customerArea);
@@ -10795,6 +10857,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
     }
     setAdvancePct(row.advance_pct ?? 70);
     setAdvancePaid(row.payment_status === 'paid' || row.payment_status === 'advance_paid' || row.payment_status === 'partial');
+    setPaymentDate(row.payment_date ?? '');
     setAmountPaid(row.amount_paid ?? 0);
     setAmountPaidRaw(String(row.amount_paid ?? 0));
     setAdvanceMode((row.advance_mode ?? 'pct') as 'pct' | 'fixed');
@@ -11257,8 +11320,10 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
       customerArea,
       paymentStatus: amountPaid > 0 && amountPaid >= effectiveTotal ? 'paid'
         : amountPaid > 0 ? 'partial'
+        : advancePct >= 100 ? 'paid'
         : advancePaid ? 'advance_paid'
         : 'pending',
+      paymentDate: paymentDate || undefined,
       amountPaid: amountPaid > 0 ? amountPaid : undefined,
       isExistingCustomer,
       stockStatus,
@@ -11385,12 +11450,14 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
           instMonthlyAmt: saleType === 'installment' ? instMonthlyAmt : undefined,
           instFirstDate: saleType === 'installment' ? instFirstDate : undefined,
           instScheduleRows: saleType === 'installment' && customInstSchedule.length > 0 ? customInstSchedule.map(({ no, label, dueDate, amount }) => ({ no, label, dueDate, amount })) : undefined,
-          instTeaserMonthly: saleType !== 'installment' && grandTotal > 0 ? Math.round(grandTotal * 1.25 / 12) : undefined,
+          instTeaserMonthly: saleType !== 'installment' && grandTotal > 0 ? calcPlan(grandTotal, '12m').monthly : undefined,
           instTeaserMonths: 12,
           paymentStatus: amountPaid > 0 && amountPaid >= effectiveTotal ? 'paid'
             : amountPaid > 0 ? 'partial'
+            : advancePct >= 100 ? 'paid'
             : advancePaid ? 'advance_paid'
             : 'pending',
+          paymentDate: paymentDate || undefined,
           amountPaid: amountPaid > 0 ? amountPaid : undefined,
           tradeIns: tradeIns.filter(t => t.description && t.value > 0).map(({ description, value }) => ({ description, value })),
           invoiceDate,
@@ -11536,7 +11603,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
     })
   );
   const waErrorText = encodeURIComponent(
-    `Invoice #${refNumber} â€” ${customerName || 'Customer'}\n` +
+    `${waDocLabel} #${refNumber} â€” ${customerName || 'Customer'}\n` +
     `Items: ${lines.length}\nGrand Total: PKR ${grandTotal.toLocaleString('en-PK')}\n\nContact Tajalli's for PDF`
   );
   const waErrorHref = waFallbackPhone
@@ -11578,7 +11645,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
             <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
-            <span><span className="font-bold">Editing</span> invoice <span className="font-mono">{refNumber}</span> â€” save without re-generating PDF, or generate to update both.</span>
+            <span><span className=”font-bold”>Editing</span> {docType === 'quotation' ? 'quotation' : 'invoice'} <span className=”font-mono”>{refNumber}</span> â€” save without re-generating PDF, or generate to update both.</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button
@@ -11797,7 +11864,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Invoice Date</label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Document Date</label>
               <input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
@@ -11875,7 +11942,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               <label className="flex items-center gap-2 cursor-pointer shrink-0">
                 <input type="checkbox" checked={advancePaid} onChange={e => {
                   setAdvancePaid(e.target.checked);
-                  if (!e.target.checked) { setAmountPaid(0); setAmountPaidRaw('0'); }
+                  if (!e.target.checked) { setAmountPaid(0); setAmountPaidRaw('0'); setPaymentDate(''); }
                 }} className="w-4 h-4 accent-brand-500 rounded" />
                 <span className="text-xs font-semibold text-gray-600">Advance received</span>
               </label>
@@ -11901,6 +11968,16 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                 </>
               )}
             </div>
+            {(advancePaid || advancePct >= 100) && (
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-semibold text-gray-500 shrink-0">Payment date</label>
+                <input
+                  type="date" value={paymentDate}
+                  onChange={e => setPaymentDate(e.target.value)}
+                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+                />
+              </div>
+            )}
           </div>
           </>)}
           {docType === 'service_receipt' && (
@@ -12153,11 +12230,11 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
                         <button key={key} onClick={() => {
                           setInstTotalPrice(plan.total);
                           setInstAdvanceAmt(plan.advance);
-                          setInstMonths(plan.months);
+                          setInstMonths(plan.monthlyPayments);
                           setInstMonthlyAmt(plan.monthly);
                         }}
                           className="px-3 py-1.5 text-xs font-semibold bg-brand-50 hover:bg-brand-500 hover:text-white text-brand-700 border border-brand-200 rounded-lg transition-colors">
-                          {key} Â· PKR {plan.monthly.toLocaleString('en-PK')}/mo
+                          {key} Â· PKR {plan.monthly.toLocaleString('en-PK')}/mo × {plan.monthlyPayments}
                         </button>
                       ))}
                     </div>
@@ -13203,7 +13280,7 @@ function QuotationTab({ products, editRequest, onEditConsumed }: { products: Pro
               className="flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-60 transition-colors whitespace-nowrap">
               {savingEdits
                 ? <><Loader2 className="w-4 h-4 animate-spin" /> Savingâ€¦</>
-                : <>Save Invoice Changes</>}
+                : <>Save {docType === 'quotation' ? 'Quotation' : 'Invoice'} Changes</>}
             </button>
           )}
           <button
@@ -14878,8 +14955,20 @@ export default function AdminPortal() {
   const [deleteId, setDeleteId]   = useState<string | null>(null);
   const [deleting, setDeleting]   = useState(false);
   const [quickImg, setQuickImg]   = useState<Product | null>(null);
-  type AdminTab = 'dashboard' | 'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'quotation' | 'invoices' | 'installment_ledger' | 'customers' | 'lifecycle' | 'referrals' | 'settings' | 'schema' | 'audit' | 'catalog' | 'solar' | 'compatibility' | 'reports' | 'health' | 'team' | 'ops' | 'pricing';
-  const VALID_TABS: AdminTab[] = ['dashboard','products','images','import','tools','qc','reviews','leads','orders','enquiries','quotation','invoices','installment_ledger','customers','lifecycle','referrals','settings','schema','audit','catalog','solar','compatibility','reports','health','team','ops','pricing'];
+  type AdminTab = 'dashboard' | 'products' | 'images' | 'import' | 'tools' | 'qc' | 'reviews' | 'leads' | 'orders' | 'enquiries' | 'quotation' | 'invoices' | 'installment_ledger' | 'customers' | 'lifecycle' | 'referrals' | 'settings' | 'schema' | 'audit' | 'catalog' | 'solar' | 'compatibility' | 'reports' | 'health' | 'team' | 'ops' | 'pricing' | 'benchmarks';
+  const VALID_TABS: AdminTab[] = ['dashboard','products','images','import','tools','qc','reviews','leads','orders','enquiries','quotation','invoices','installment_ledger','customers','lifecycle','referrals','settings','schema','audit','catalog','solar','compatibility','reports','health','team','ops','pricing','benchmarks'];
+  const TAB_LABELS: Record<AdminTab, string> = {
+    dashboard: 'Dashboard', products: 'Products', images: 'Images',
+    import: 'Import', tools: 'Data Tools', qc: 'QC',
+    catalog: 'WA Catalog', orders: 'Orders', enquiries: 'Enquiries',
+    quotation: 'Quotation', invoices: 'Invoice Log', installment_ledger: 'Installments',
+    ops: 'Ops Queues', pricing: 'Pricing', customers: 'Customers',
+    lifecycle: 'Lifecycle', referrals: 'Referrals', reviews: 'Reviews',
+    solar: 'Solar Leads', leads: 'Partners', settings: 'Settings',
+    schema: 'Spec Schema', audit: 'Audit Log', compatibility: 'Compatibility',
+    health: 'System Health', team: 'Team', reports: 'BI Reports',
+    benchmarks: 'Benchmarks',
+  };
 
   // Per-tab role allowlist â€” enforced in sidebar visibility, changeTab, and hash routing
   const TAB_ACCESS: Record<AdminTab, readonly string[]> = {
@@ -14910,6 +14999,7 @@ export default function AdminPortal() {
     team:               ['owner'],
     reports:            ['owner','admin','finance','reports'],
     pricing:            ['owner','admin','finance'],
+    benchmarks:         ['owner','admin','finance'],
   };
   const canAccess = (t: AdminTab) => !!staff?.role && (TAB_ACCESS[t] as readonly string[]).includes(staff.role);
 
@@ -15159,20 +15249,22 @@ export default function AdminPortal() {
     <div className="min-h-screen bg-gray-50">
       {/* Sticky top header â€” sits below the public navbar, no tabs */}
       <div className="sticky top-14 sm:top-16 lg:top-[104px] z-20 bg-white border-b border-gray-100 shadow-sm">
-        <div className="px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="px-3 sm:px-4 py-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <button onClick={() => setSidebarOpen(v => !v)}
-              className="lg:hidden p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
+              className="lg:hidden p-2 -ml-0.5 rounded-lg hover:bg-gray-100 text-gray-500 shrink-0">
               <Menu className="w-5 h-5" />
             </button>
-            <div className="w-8 h-8 bg-brand-100 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-brand-100 rounded-lg flex items-center justify-center shrink-0">
               <Package className="w-4 h-4 text-brand-600" />
             </div>
-            <span className="font-black text-gray-900">Tajalli's Admin</span>
-            <span className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium">{products.length} products</span>
+            <span className="hidden lg:block font-black text-gray-900 whitespace-nowrap">Tajalli's Admin</span>
+            <span className="hidden lg:block text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-medium whitespace-nowrap">{products.length} products</span>
+            <span className="lg:hidden font-semibold text-gray-800 text-sm truncate">{TAB_LABELS[tab]}</span>
           </div>
-          <button onClick={() => signOut()} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800">
-            <LogOut className="w-4 h-4" /> Sign out
+          <button onClick={() => signOut()} className="flex items-center gap-1.5 text-gray-500 hover:text-gray-800 shrink-0 p-2 rounded-lg hover:bg-gray-100">
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:block text-sm">Sign out</span>
           </button>
         </div>
       </div>
@@ -15241,6 +15333,7 @@ export default function AdminPortal() {
               { id: 'installment_ledger' as const, label: 'Installments', icon: CalendarDays },
               { id: 'ops'               as const, label: 'Ops Queues',   icon: CheckSquare },
               { id: 'pricing'            as const, label: 'Pricing',      icon: DollarSign },
+              { id: 'benchmarks'         as const, label: 'Benchmarks',   icon: TrendUp },
             ].filter(({ id }) => canAccess(id)).length > 0) && (
             <div>
               <p className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400">Sales & Finance</p>
@@ -15252,6 +15345,7 @@ export default function AdminPortal() {
                 { id: 'installment_ledger' as const, label: 'Installments', icon: CalendarDays },
                 { id: 'ops'               as const, label: 'Ops Queues',   icon: CheckSquare },
                 { id: 'pricing'            as const, label: 'Pricing',      icon: DollarSign },
+                { id: 'benchmarks'         as const, label: 'Benchmarks',   icon: TrendUp },
               ].filter(({ id }) => canAccess(id))).map(({ id, label, icon: Icon }) => (
                 <button key={id} onClick={() => { changeTab(id); setSidebarOpen(false); }}
                   className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors text-left
@@ -15334,7 +15428,7 @@ export default function AdminPortal() {
           </nav>
         </aside>
 
-        <div className="flex-1 min-w-0 px-4 py-6">
+        <div className="flex-1 min-w-0 px-3 sm:px-4 py-4 sm:py-6 pb-24 lg:pb-6">
         {tab === 'dashboard' ? (
           <AdminDashboard products={products} onNavigate={changeTab as (tab: string) => void} />
         ) : tab === 'reports' ? (
@@ -15387,6 +15481,8 @@ export default function AdminPortal() {
           <StaffMembersTab currentStaff={staff} />
         ) : tab === 'pricing' ? (
           <PricingGovernanceTab products={products} onRefresh={loadProducts} />
+        ) : tab === 'benchmarks' ? (
+          <CompetitorBenchmarksTab products={products} />
         ) : (
           <>
             {/* Toolbar */}
@@ -15755,6 +15851,31 @@ export default function AdminPortal() {
           </div>
         </div>
       )}
+
+      {/* Mobile bottom navigation bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-30 lg:hidden bg-white border-t border-gray-200 shadow-lg">
+        <div className="flex h-16">
+          {([
+            { id: 'dashboard', label: 'Home',    icon: LayoutDashboard },
+            { id: 'orders',    label: 'Orders',  icon: ShoppingBag },
+            { id: 'ops',       label: 'Ops',     icon: CheckSquare },
+            { id: 'products',  label: 'Catalog', icon: Package },
+          ] as { id: AdminTab; label: string; icon: React.ElementType }[]).filter(({ id }) => canAccess(id)).map(({ id, label, icon: Icon }) => (
+            <button key={id} onClick={() => changeTab(id)}
+              className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors active:bg-gray-50 ${
+                tab === id ? 'text-brand-600' : 'text-gray-400'
+              }`}>
+              <Icon className="w-5 h-5" />
+              <span className="text-[10px] font-medium">{label}</span>
+            </button>
+          ))}
+          <button onClick={() => setSidebarOpen(v => !v)}
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 text-gray-400 active:bg-gray-50">
+            <Menu className="w-5 h-5" />
+            <span className="text-[10px] font-medium">More</span>
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }

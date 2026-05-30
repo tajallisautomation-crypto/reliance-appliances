@@ -496,7 +496,7 @@ const ProductDetail: FC<ProductDetailProps> = ({ initialProduct }) => {
                   ⚡ DC Inverter
                 </div>
               )}
-              {isTrueT3(p.model) && (
+              {(isTrueT3(p.model) || p.specs?.['T3 Rating']?.startsWith('Yes')) && (
                 <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold">
                   🌡 T3 Tropical
                 </div>

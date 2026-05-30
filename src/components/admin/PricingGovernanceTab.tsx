@@ -1,13 +1,13 @@
 'use client'
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAdminAuthStore } from '@/store/adminAuthStore';
 import { fmtPKR, getPriceHistory, logAdminAction, type Product } from '@/lib/api';
 import toast from 'react-hot-toast';
 import {
   Search, X, Edit2, Check, History, Loader2,
-  ChevronUp, ChevronDown, Download,
+  ChevronUp, ChevronDown, Download, ClipboardList, CheckCircle2, XCircle, Clock,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -16,6 +16,28 @@ type SortKey = 'brand' | 'cash' | 'retail' | 'cost' | 'margin';
 type SortDir = 'asc' | 'desc';
 type PriceFlag = 'no_cost' | 'low_margin' | 'no_price' | 'price_conflict' | 'install_heavy';
 type FlagFilter = 'all' | PriceFlag;
+
+type ChangeField = 'cash_floor' | 'retail_price' | 'cost_price';
+
+interface PriceChangeRequest {
+  id:             string;
+  product_id:     string;
+  product_name:   string;
+  product_brand:  string;
+  product_model:  string;
+  field_name:     ChangeField;
+  old_value:      number | null;
+  proposed_value: number;
+  reason:         string;
+  proposed_by:    string;
+  proposed_at:    string;
+  status:         'pending' | 'approved' | 'rejected' | 'applied';
+  reviewed_by:    string | null;
+  reviewed_at:    string | null;
+  review_note:    string | null;
+  old_margin_pct: number | null;
+  new_margin_pct: number | null;
+}
 
 interface PriceRow {
   product: Product;
@@ -161,6 +183,133 @@ export default function PricingGovernanceTab({
   const [historyProduct, setHistoryProduct] = useState<Product | null>(null);
   const [historyData, setHistoryData]       = useState<{ retail_price: number; imported_at: string }[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  // ── Price change approval workflow ─────────────────────────────────────────
+  const [pendingRequests, setPendingRequests]   = useState<PriceChangeRequest[]>([]);
+  const [requestsLoading, setRequestsLoading]   = useState(false);
+  const [approvingId, setApprovingId]           = useState<string | null>(null);
+
+  // Propose-change modal
+  const [proposeRow, setProposeRow]   = useState<PriceRow | null>(null);
+  const [proposeField, setProposeField] = useState<ChangeField>('cash_floor');
+  const [proposeValue, setProposeValue] = useState('');
+  const [proposeReason, setProposeReason] = useState('');
+  const [proposing, setProposing]     = useState(false);
+
+  const canApprove = staff?.role === 'owner' || staff?.role === 'admin';
+
+  const loadRequests = useCallback(async () => {
+    setRequestsLoading(true);
+    const { data, error } = await supabase
+      .from('price_change_requests')
+      .select('*')
+      .eq('status', 'pending')
+      .order('proposed_at', { ascending: false });
+    if (!error && data) setPendingRequests(data as PriceChangeRequest[]);
+    setRequestsLoading(false);
+  }, []);
+
+  useEffect(() => { loadRequests(); }, [loadRequests]);
+
+  async function proposeChange() {
+    if (!proposeRow || !proposeValue || !proposeReason.trim()) {
+      toast.error('Fill in proposed value and reason');
+      return;
+    }
+    const val = parseFloat(proposeValue);
+    if (isNaN(val) || val <= 0) { toast.error('Enter a valid price'); return; }
+
+    setProposing(true);
+    const p = proposeRow.product;
+    const oldVal = proposeField === 'cash_floor' ? proposeRow.cash
+                 : proposeField === 'retail_price' ? proposeRow.retail
+                 : proposeRow.cost;
+
+    const cost = proposeRow.cost;
+    const newMargin = (cost && proposeField === 'retail_price')
+      ? ((val - cost) / val) * 100 : null;
+    const oldMargin = proposeRow.margin;
+
+    const { error } = await supabase.from('price_change_requests').insert({
+      product_id:     p.id,
+      product_name:   p.simplified_name || p.model,
+      product_brand:  p.brand,
+      product_model:  p.model,
+      field_name:     proposeField,
+      old_value:      oldVal ?? null,
+      proposed_value: val,
+      reason:         proposeReason.trim(),
+      proposed_by:    staff?.email ?? 'unknown',
+      old_margin_pct: oldMargin,
+      new_margin_pct: newMargin,
+    });
+
+    setProposing(false);
+    if (error) { toast.error('Failed: ' + error.message); return; }
+    toast.success('Change request submitted for approval');
+    setProposeRow(null);
+    setProposeValue('');
+    setProposeReason('');
+    loadRequests();
+  }
+
+  async function reviewRequest(req: PriceChangeRequest, decision: 'approved' | 'rejected', note?: string) {
+    setApprovingId(req.id);
+
+    const { error: reviewErr } = await supabase
+      .from('price_change_requests')
+      .update({
+        status:      decision,
+        reviewed_by: staff?.email ?? 'unknown',
+        reviewed_at: new Date().toISOString(),
+        review_note: note ?? null,
+      })
+      .eq('id', req.id);
+
+    if (reviewErr) {
+      setApprovingId(null);
+      toast.error('Review failed: ' + reviewErr.message);
+      return;
+    }
+
+    if (decision === 'approved') {
+      // Apply to products table immediately
+      const fieldMap: Record<ChangeField, string> = {
+        cash_floor:   'cash_floor',
+        retail_price: 'retail_price',
+        cost_price:   'cost_price',
+      };
+      const { error: applyErr } = await supabase
+        .from('products')
+        .update({ [fieldMap[req.field_name]]: req.proposed_value, updated_at: new Date().toISOString() })
+        .eq('id', req.product_id);
+
+      if (applyErr) {
+        setApprovingId(null);
+        toast.error('Approved but apply failed: ' + applyErr.message);
+        return;
+      }
+
+      // Mark as applied
+      await supabase.from('price_change_requests')
+        .update({ status: 'applied', applied_at: new Date().toISOString() })
+        .eq('id', req.id);
+
+      toast.success(`Applied: ${req.product_brand} ${req.product_model} ${req.field_name}`);
+      onRefresh();
+    } else {
+      toast.success('Request rejected');
+    }
+
+    setApprovingId(null);
+    loadRequests();
+  }
+
+  const fieldLabel: Record<ChangeField, string> = {
+    cash_floor:   'Cash Price',
+    retail_price: 'Retail Price',
+    cost_price:   'Cost Price',
+  };
 
   // ── Derived data ────────────────────────────────────────────────────────────
 
@@ -309,6 +458,85 @@ export default function PricingGovernanceTab({
 
   return (
     <div className="space-y-5">
+
+      {/* ── Pending approvals panel (owner/admin only) ─────────────────────── */}
+      {canApprove && (pendingRequests.length > 0 || requestsLoading) && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <ClipboardList className="w-4 h-4 text-amber-600" />
+            <h3 className="font-bold text-amber-800 text-sm">
+              Pending Price Change Requests
+              {pendingRequests.length > 0 && (
+                <span className="ml-2 bg-amber-600 text-white text-xs px-1.5 py-0.5 rounded-full">
+                  {pendingRequests.length}
+                </span>
+              )}
+            </h3>
+          </div>
+          {requestsLoading ? (
+            <div className="flex items-center gap-2 text-xs text-amber-600 py-2">
+              <Loader2 className="w-3 h-3 animate-spin" /> Loading…
+            </div>
+          ) : (
+            <div className="divide-y divide-amber-100">
+              {pendingRequests.map(req => (
+                <div key={req.id} className="py-2.5 flex flex-wrap items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-gray-900 text-xs">
+                      {req.product_brand} {req.product_model}
+                    </div>
+                    <div className="text-[11px] text-gray-500 mt-0.5">
+                      Change <span className="font-medium">{fieldLabel[req.field_name]}</span>
+                      {' '}from{' '}
+                      <span className="font-medium">{req.old_value != null ? fmtPKR(req.old_value) : '—'}</span>
+                      {' '}to{' '}
+                      <span className="font-semibold text-gray-800">{fmtPKR(req.proposed_value)}</span>
+                      {req.old_margin_pct != null && req.new_margin_pct != null && (
+                        <span className="ml-1.5 text-gray-400">
+                          margin {req.old_margin_pct.toFixed(1)}% → {req.new_margin_pct.toFixed(1)}%
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-amber-700 mt-0.5 italic">
+                      &ldquo;{req.reason}&rdquo;
+                    </div>
+                    <div className="text-[10px] text-gray-400 mt-0.5">
+                      Proposed by {req.proposed_by} · {new Date(req.proposed_at).toLocaleDateString('en-PK')}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      disabled={approvingId === req.id}
+                      onClick={() => reviewRequest(req, 'approved')}
+                      className="flex items-center gap-1 text-xs bg-green-600 text-white px-2.5 py-1 rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {approvingId === req.id
+                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : <CheckCircle2 className="w-3 h-3" />}
+                      Approve &amp; Apply
+                    </button>
+                    <button
+                      disabled={approvingId === req.id}
+                      onClick={() => reviewRequest(req, 'rejected', 'Rejected by admin')}
+                      className="flex items-center gap-1 text-xs bg-white border border-red-200 text-red-600 px-2.5 py-1 rounded-lg font-semibold hover:bg-red-50 disabled:opacity-50"
+                    >
+                      <XCircle className="w-3 h-3" /> Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── My pending requests (finance/sales submitters) ─────────────────── */}
+      {!canApprove && (
+        <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-2 flex items-center gap-2 text-xs text-blue-700">
+          <Clock className="w-3.5 h-3.5 shrink-0" />
+          Use the <strong>Propose Change</strong> button on any row to request a price change. Owner/Admin will be notified to review it.
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -556,15 +784,29 @@ export default function PricingGovernanceTab({
                     </div>
                   </td>
 
-                  {/* History */}
+                  {/* Actions */}
                   <td className="px-3 py-3">
-                    <button
-                      onClick={() => openHistory(row.product)}
-                      className="text-gray-300 hover:text-brand-500 transition-colors opacity-0 group-hover:opacity-100"
-                      title="Retail price history"
-                    >
-                      <History className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => openHistory(row.product)}
+                        className="text-gray-300 hover:text-brand-500 transition-colors"
+                        title="Retail price history"
+                      >
+                        <History className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setProposeRow(row);
+                          setProposeField('cash_floor');
+                          setProposeValue(String(row.cash || ''));
+                          setProposeReason('');
+                        }}
+                        className="text-gray-300 hover:text-amber-500 transition-colors"
+                        title="Propose price change"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -580,6 +822,108 @@ export default function PricingGovernanceTab({
           </table>
         </div>
       </div>
+
+      {/* ── Propose price change modal ────────────────────────────────────────── */}
+      {proposeRow && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => setProposeRow(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="font-bold text-gray-900">Propose Price Change</h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {proposeRow.product.brand} {proposeRow.product.model}
+                </p>
+              </div>
+              <button onClick={() => setProposeRow(null)}>
+                <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Field to change</label>
+                <select
+                  value={proposeField}
+                  onChange={e => {
+                    const f = e.target.value as ChangeField;
+                    setProposeField(f);
+                    setProposeValue(String(
+                      f === 'cash_floor'   ? proposeRow.cash   || ''
+                      : f === 'retail_price' ? proposeRow.retail || ''
+                      : proposeRow.cost ?? ''
+                    ));
+                  }}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+                >
+                  <option value="cash_floor">Cash Price (current: {proposeRow.cash ? fmtPKR(proposeRow.cash) : '—'})</option>
+                  <option value="retail_price">Retail Price (current: {proposeRow.retail ? fmtPKR(proposeRow.retail) : '—'})</option>
+                  <option value="cost_price">Cost Price (current: {proposeRow.cost != null ? fmtPKR(proposeRow.cost) : '—'})</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Proposed value (PKR)</label>
+                <input
+                  type="number"
+                  value={proposeValue}
+                  onChange={e => setProposeValue(e.target.value)}
+                  placeholder="e.g. 85000"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+                />
+                {proposeRow.cost && proposeField === 'retail_price' && proposeValue && !isNaN(parseFloat(proposeValue)) && (
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Margin after change:{' '}
+                    <span className={parseFloat(proposeValue) > proposeRow.cost
+                      ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                      {(((parseFloat(proposeValue) - proposeRow.cost) / parseFloat(proposeValue)) * 100).toFixed(1)}%
+                    </span>
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Reason for change</label>
+                <textarea
+                  value={proposeReason}
+                  onChange={e => setProposeReason(e.target.value)}
+                  placeholder="e.g. New supplier invoice, competitor price drop, promotional pricing…"
+                  rows={3}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => setProposeRow(null)}
+                  className="flex-1 border border-gray-200 rounded-lg py-2 text-sm text-gray-600 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={proposing || !proposeValue || !proposeReason.trim()}
+                  onClick={proposeChange}
+                  className="flex-1 bg-brand-500 text-white rounded-lg py-2 text-sm font-semibold hover:bg-brand-600 disabled:opacity-40 flex items-center justify-center gap-1.5"
+                >
+                  {proposing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardList className="w-4 h-4" />}
+                  {canApprove ? 'Apply Directly' : 'Submit for Approval'}
+                </button>
+              </div>
+
+              {canApprove && (
+                <p className="text-[10px] text-gray-400 text-center -mt-1">
+                  As owner/admin you can still propose for audit trail purposes, or edit cost directly in the table.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Price history modal */}
       {historyProduct && (

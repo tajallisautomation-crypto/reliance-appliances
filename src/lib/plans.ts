@@ -29,10 +29,12 @@ function r100(n: number): number { return Math.round(n / 100) * 100; }
 export type PlanKey = keyof PlanRatioMap;
 
 export interface PlanBreakdown {
-  months:   number;
-  total:    number;
-  advance:  number;
-  monthly:  number;
+  months:          number;
+  total:           number;
+  advance:         number;
+  monthly:         number;
+  advancePct:      number;
+  monthlyPayments: number;
 }
 
 export function calcPlan(retailPrice: number, plan: PlanKey): PlanBreakdown {
@@ -46,6 +48,8 @@ export function calcPlan(retailPrice: number, plan: PlanKey): PlanBreakdown {
   return {
     months: plan === '2m' ? 2 : plan === '3m' ? 3 : plan === '6m' ? 6 : 12,
     total, advance, monthly,
+    advancePct:      cfg.advRatio,
+    monthlyPayments: n,
   };
 }
 

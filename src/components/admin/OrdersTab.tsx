@@ -154,7 +154,58 @@ export default function OrdersTab() {
           <p className="text-xs text-gray-400 mt-1">Orders placed via /checkout will appear here</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <>
+        {/* Mobile card view */}
+        <div className="md:hidden space-y-2">
+          {filtered.map(order => {
+            const prods = Array.isArray(order.products) ? order.products : [];
+            return (
+              <div key={order.id} className="bg-white rounded-xl border border-gray-100 p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 truncate">{order.customer_name}</p>
+                    <a href={`tel:${order.customer_phone}`} className="text-xs text-blue-500">{order.customer_phone}</a>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="font-bold text-gray-900 text-sm">PKR {(order.total_amount || 0).toLocaleString()}</p>
+                    <p className="text-[10px] text-gray-400">{new Date(order.created_at).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' })}</p>
+                  </div>
+                </div>
+                {prods.length > 0 && (
+                  <div className="text-xs text-gray-600 space-y-0.5">
+                    {prods.slice(0, 2).map((p, i) => <p key={i}>{p.brand} {p.model}{p.qty > 1 ? ` ×${p.qty}` : ''}</p>)}
+                    {prods.length > 2 && <p className="text-gray-400">+{prods.length - 2} more</p>}
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <select
+                    value={order.status || 'pending'}
+                    onChange={e => updateStatus(order.id, e.target.value)}
+                    disabled={updatingId === order.id}
+                    className={`flex-1 text-xs font-semibold rounded-lg px-2 py-2.5 border-0 focus:outline-none focus:ring-2 focus:ring-brand-400 capitalize cursor-pointer disabled:opacity-60
+                      ${ORDER_STATUS_COLORS[order.status] || 'bg-gray-100 text-gray-600'}`}>
+                    {ORDER_STATUSES.map(s => <option key={s} value={s} className="bg-white text-gray-800 font-normal capitalize">{s}</option>)}
+                  </select>
+                  {updatingId === order.id && <Loader2 className="w-4 h-4 animate-spin text-brand-400 shrink-0" />}
+                  <a href={`https://wa.me/${order.customer_phone?.replace(/\D/g, '')}?text=${encodeURIComponent(orderWaMessage(order))}`}
+                    target="_blank" rel="noreferrer"
+                    className="p-2.5 hover:bg-green-50 text-green-600 rounded-lg shrink-0">
+                    <MessageCircle className="w-5 h-5" />
+                  </a>
+                  <button onClick={() => setConfirmDel(order)} className="p-2.5 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-lg shrink-0">
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+          {filtered.length < orders.length && (
+            <p className="text-center text-xs text-gray-400 pt-1">Showing {filtered.length} of {orders.length} orders</p>
+          )}
+        </div>
+
+        {/* Desktop table view */}
+        <div className="hidden md:block bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[700px]">
               <thead className="bg-gray-50 border-b border-gray-100">
@@ -266,6 +317,7 @@ export default function OrdersTab() {
             </div>
           )}
         </div>
+        </>
       )}
 
       {confirmDel && (

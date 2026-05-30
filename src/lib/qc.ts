@@ -1,18 +1,34 @@
 // ── Quality Control Engine ────────────────────────────────────────────────────
 // Scores every product 0–100 and lists specific issues.
-// Weights:
-//   Image exists        20
-//   Primary image       10
-//   Gallery ≥ 2 images   5
-//   Specs complete      25
-//   Name format         15
-//   Description         10
-//   Price valid         10
-//   Warranty present     5
-//   Total              100
+// Weights (v2 — updated 2026-05-30):
+//   Image exists              20
+//   Primary image             10
+//   Gallery ≥ 2 images         4
+//   Specs complete            20
+//   Name format               12
+//   Description                8
+//   Price valid                8
+//   Warranty present           4
+//   Cost price present         5
+//   Wattage present            5   (applicable categories only)
+//   Stock status set           2
+//   Compatibility complete      2   (solar/inverter/battery products only)
+//   Total                    100
 
 import { supabase } from './supabase';
 import type { Product } from './api';
+
+// Categories where wattage is required for solar load calculations.
+export const WATTAGE_REQUIRED_CATEGORIES = new Set([
+  'Air Conditioners',
+  'Refrigerators',
+  'Freezers',
+  'Washing Machines',
+  'Televisions',
+  'Water Dispensers',
+  'Kitchen Appliances',
+  'Small Appliances',
+]);
 
 // ── Required specs per display-category ───────────────────────────────────────
 export const REQUIRED_SPECS: Record<string, string[]> = {
@@ -40,6 +56,10 @@ export type QCCode =
   | 'MISSING_DESC'
   | 'PRICE_RULE_ERROR'
   | 'MISSING_WARRANTY'
+  | 'MISSING_COST_PRICE'
+  | 'MISSING_WATTAGE'
+  | 'MISSING_STOCK_STATUS'
+  | 'COMPATIBILITY_INCOMPLETE'
   | 'POSSIBLE_DUPLICATE';
 
 export interface QCIssue {
@@ -135,10 +155,10 @@ export function scoreProduct(p: Product): QCResult {
     });
   }
 
-  // ── Gallery ≥ 2 images (5) ────────────────────────────────────────────────
+  // ── Gallery ≥ 2 images (4) ────────────────────────────────────────────────
   const totalImages = (hasThumb ? 1 : 0) + galleryN;
   if (totalImages >= 2) {
-    score += 5;
+    score += 4;
   } else if (hasAnyImg && !isMismatched) {
     issues.push({
       code: 'LOW_IMAGE_COUNT',
@@ -148,7 +168,7 @@ export function scoreProduct(p: Product): QCResult {
     });
   }
 
-  // ── Specs complete (25) ───────────────────────────────────────────────────
+  // ── Specs complete (20) ───────────────────────────────────────────────────
   const reqSpecs = REQUIRED_SPECS[p.category] ?? [];
   const specKeys = Object.keys(p.specs || {});
   const hasSpecs = specKeys.length > 0;
@@ -158,20 +178,19 @@ export function scoreProduct(p: Product): QCResult {
   } else if (reqSpecs.length > 0) {
     const missing = reqSpecs.filter(s => !specKeys.some(k => k.toLowerCase() === s.toLowerCase()));
     if (missing.length === 0) {
-      score += 25;
+      score += 20;
     } else {
-      score += Math.round(25 * (1 - missing.length / reqSpecs.length));
+      score += Math.round(20 * (1 - missing.length / reqSpecs.length));
       issues.push({
         code: 'SPEC_INCOMPLETE', label: 'Incomplete specifications', severity: 'warning',
         detail: `Missing: ${missing.join(', ')}`,
       });
     }
   } else {
-    score += 25;
+    score += 20;
   }
 
   // ── Solar-specific structured fields ─────────────────────────────────────
-  // These are DB columns, not spec keys — checked separately after spec scoring.
   if (p.system_role === 'inverter' && !p.inverter_power_kw) {
     issues.push({
       code: 'SPEC_INCOMPLETE',
@@ -189,9 +208,9 @@ export function scoreProduct(p: Product): QCResult {
     });
   }
 
-  // ── Name format (15) ──────────────────────────────────────────────────────
+  // ── Name format (12) ──────────────────────────────────────────────────────
   if (isValidName(p.simplified_name, p.brand)) {
-    score += 15;
+    score += 12;
   } else {
     issues.push({
       code: 'NAME_INVALID', label: 'Invalid name format', severity: 'warning',
@@ -201,16 +220,16 @@ export function scoreProduct(p: Product): QCResult {
     });
   }
 
-  // ── Description (10) ──────────────────────────────────────────────────────
+  // ── Description (8) ───────────────────────────────────────────────────────
   if (p.description && p.description.trim().length > 40) {
-    score += 10;
+    score += 8;
   } else {
     issues.push({ code: 'MISSING_DESC', label: 'Missing description', severity: 'warning' });
   }
 
-  // ── Price valid (10) ──────────────────────────────────────────────────────
+  // ── Price valid (8) ───────────────────────────────────────────────────────
   if (isPriceValid(p.price)) {
-    score += 10;
+    score += 8;
   } else {
     issues.push({
       code: 'PRICE_RULE_ERROR', label: 'Price rule violation', severity: 'warning',
@@ -218,14 +237,71 @@ export function scoreProduct(p: Product): QCResult {
     });
   }
 
-  // ── Warranty present (5) ──────────────────────────────────────────────────
+  // ── Warranty present (4) ──────────────────────────────────────────────────
   if (p.warranty && p.warranty.trim().length > 3) {
-    score += 5;
+    score += 4;
   } else {
     issues.push({
       code: 'MISSING_WARRANTY', label: 'No warranty info', severity: 'warning',
       detail: 'Warranty information helps customers buy with confidence.',
     });
+  }
+
+  // ── Cost price present (5) ────────────────────────────────────────────────
+  // Cost price is required for margin calculations and pricing governance.
+  if (p.cost_price && p.cost_price > 0) {
+    score += 5;
+  } else {
+    issues.push({
+      code: 'MISSING_COST_PRICE', label: 'No cost price', severity: 'warning',
+      detail: 'Cost price is required for margin tracking and pricing governance.',
+    });
+  }
+
+  // ── Wattage present (5) — applicable categories only ─────────────────────
+  if (WATTAGE_REQUIRED_CATEGORIES.has(p.category)) {
+    if (p.power_consumption_w && p.power_consumption_w > 0) {
+      score += 5;
+    } else {
+      issues.push({
+        code: 'MISSING_WATTAGE', label: 'No wattage value', severity: 'warning',
+        detail: 'Power consumption (W) is required for accurate solar load calculations.',
+      });
+    }
+  } else {
+    // Not applicable — still award the 5 pts so non-appliance products aren't penalised.
+    score += 5;
+  }
+
+  // ── Stock status set (2) ──────────────────────────────────────────────────
+  // stock_status is a string field; consider it set if it is not null/empty/"unknown"
+  const stockStatus = (p as any).stock_status as string | undefined;
+  if (stockStatus && stockStatus.trim() && stockStatus !== 'unknown') {
+    score += 2;
+  } else {
+    issues.push({
+      code: 'MISSING_STOCK_STATUS', label: 'Stock status not set', severity: 'warning',
+      detail: 'Set stock status to In Stock, Out of Stock, or Pre-Order.',
+    });
+  }
+
+  // ── Compatibility data complete (2) — solar products only ─────────────────
+  const isSolarProduct = p.system_role && p.system_role !== 'none';
+  if (isSolarProduct) {
+    const isCompatible =
+      p.compatibility_status === 'compatible' ||
+      p.compatibility_status === 'uncertain_manual_review' ||
+      p.compatibility_status === 'not_applicable';
+    if (isCompatible) {
+      score += 2;
+    } else {
+      issues.push({
+        code: 'COMPATIBILITY_INCOMPLETE', label: 'Compatibility data incomplete', severity: 'warning',
+        detail: `compatibility_status = "${p.compatibility_status}". Populate inverter_power_kw or battery_voltage to resolve.`,
+      });
+    }
+  } else {
+    score += 2;
   }
 
   return {
@@ -254,17 +330,21 @@ export function qcSummary(products: Product[]) {
     results.filter(r => r.issues.some(i => i.code === code)).length;
 
   return {
-    total:           products.length,
-    qcIssues:        results.filter(r => r.score < 90).length,
-    missingImage:    issuesByCode('MISSING_IMAGE'),
-    missingPrimary:  issuesByCode('MISSING_PRIMARY_IMAGE'),
-    lowImageCount:   issuesByCode('LOW_IMAGE_COUNT'),
-    imageMismatch:   issuesByCode('IMAGE_CATEGORY_MISMATCH'),
-    missingSpecs:    issuesByCode('SPEC_INCOMPLETE'),
-    invalidName:     issuesByCode('NAME_INVALID'),
-    missingDesc:     issuesByCode('MISSING_DESC'),
-    priceError:      issuesByCode('PRICE_RULE_ERROR'),
-    missingWarranty: issuesByCode('MISSING_WARRANTY'),
+    total:                products.length,
+    qcIssues:             results.filter(r => r.score < 90).length,
+    missingImage:         issuesByCode('MISSING_IMAGE'),
+    missingPrimary:       issuesByCode('MISSING_PRIMARY_IMAGE'),
+    lowImageCount:        issuesByCode('LOW_IMAGE_COUNT'),
+    imageMismatch:        issuesByCode('IMAGE_CATEGORY_MISMATCH'),
+    missingSpecs:         issuesByCode('SPEC_INCOMPLETE'),
+    invalidName:          issuesByCode('NAME_INVALID'),
+    missingDesc:          issuesByCode('MISSING_DESC'),
+    priceError:           issuesByCode('PRICE_RULE_ERROR'),
+    missingWarranty:      issuesByCode('MISSING_WARRANTY'),
+    missingCostPrice:     issuesByCode('MISSING_COST_PRICE'),
+    missingWattage:       issuesByCode('MISSING_WATTAGE'),
+    missingStockStatus:   issuesByCode('MISSING_STOCK_STATUS'),
+    compatibilityIncomplete: issuesByCode('COMPATIBILITY_INCOMPLETE'),
   };
 }
 
@@ -286,14 +366,18 @@ export async function persistQCScores(results: QCResult[]): Promise<void> {
 }
 
 export const QC_FILTER_OPTIONS: { code: QCCode | 'all'; label: string }[] = [
-  { code: 'all',                     label: 'All Issues' },
-  { code: 'MISSING_IMAGE',           label: 'No Image' },
-  { code: 'MISSING_PRIMARY_IMAGE',   label: 'No Thumbnail' },
-  { code: 'LOW_IMAGE_COUNT',         label: 'Low Image Count' },
-  { code: 'IMAGE_CATEGORY_MISMATCH', label: 'Image Mismatch' },
-  { code: 'SPEC_INCOMPLETE',         label: 'Missing Specs' },
-  { code: 'NAME_INVALID',            label: 'Invalid Name' },
-  { code: 'MISSING_DESC',            label: 'Missing Description' },
-  { code: 'PRICE_RULE_ERROR',        label: 'Price Error' },
-  { code: 'MISSING_WARRANTY',        label: 'No Warranty' },
+  { code: 'all',                       label: 'All Issues' },
+  { code: 'MISSING_IMAGE',             label: 'No Image' },
+  { code: 'MISSING_PRIMARY_IMAGE',     label: 'No Thumbnail' },
+  { code: 'LOW_IMAGE_COUNT',           label: 'Low Image Count' },
+  { code: 'IMAGE_CATEGORY_MISMATCH',   label: 'Image Mismatch' },
+  { code: 'SPEC_INCOMPLETE',           label: 'Missing Specs' },
+  { code: 'NAME_INVALID',              label: 'Invalid Name' },
+  { code: 'MISSING_DESC',              label: 'Missing Description' },
+  { code: 'PRICE_RULE_ERROR',          label: 'Price Error' },
+  { code: 'MISSING_WARRANTY',          label: 'No Warranty' },
+  { code: 'MISSING_COST_PRICE',        label: 'No Cost Price' },
+  { code: 'MISSING_WATTAGE',           label: 'No Wattage' },
+  { code: 'MISSING_STOCK_STATUS',      label: 'No Stock Status' },
+  { code: 'COMPATIBILITY_INCOMPLETE',  label: 'Compatibility Incomplete' },
 ];

@@ -569,7 +569,7 @@ export default function SolarPage() {
   }, [])
 
   useEffect(() => {
-    getProducts({ category: 'solar' }).then(d => { setProducts(d.products); setLoading(false) })
+    getProducts({ category: 'solar', quality_gated: 'true' }).then(d => { setProducts(d.products); setLoading(false) })
   }, [])
 
   return (

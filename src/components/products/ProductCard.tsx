@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { ShoppingCart, MessageCircle, Star, CheckCircle, Zap, Wrench } from 'lucide-react';
 import type { Product } from '@/lib/types';
-import { formatPrice } from '@/lib/api';
+import { formatPrice, isTrueT3 } from '@/lib/api';
 import { waProduct } from '@/lib/whatsapp';
 import { useCartStore } from '@/store/cartStore';
 import CompareButton from '@/components/CompareButton';
@@ -63,7 +63,7 @@ export default function ProductCard({ product: p }: Props) {
   const bestPlan  = p.installments['12m'] ?? p.installments['6m'] ?? p.installments['3m'];
   const nameLower = (p.simplified_name || p.model || '').toLowerCase();
   const isInverter = nameLower.includes('inverter');
-  const isT3       = nameLower.includes('t3') || nameLower.includes(' t3');
+  const isT3       = isTrueT3(p.model) || p.specs?.['T3 Rating']?.startsWith('Yes');
   const cat        = (p.category || '').toLowerCase();
   const hasInstall = cat.includes('air condition') || cat.includes('washing') || cat.includes('solar') || cat.includes('ups');
   const bestFor    = getBestFor(p);
